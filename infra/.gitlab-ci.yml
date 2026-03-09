@@ -27,6 +27,10 @@ lint-backend:
     - cd backend
     - chmod +x gradlew
     - ./gradlew --no-daemon checkstyleMain checkstyleTest
+  artifacts:
+    when: always
+    paths:
+      - backend/build/reports/checkstyle/main.html
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
@@ -36,8 +40,12 @@ lint-frontend:
   script:
     - cd frontend
     - npm ci
-    - npm run lint
+    - npm run lint -- --format stylish | tee eslint-report.txt
     - npm run typecheck
+  artifacts:
+    when: always
+    paths:
+      - frontend/eslint-report.txt
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
