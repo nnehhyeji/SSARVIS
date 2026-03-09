@@ -1,6 +1,10 @@
-def main():
-    print("Hello from ai!")
+from fastapi import FastAPI
 
+# Create a FastAPI instance
+app = FastAPI()
 
-if __name__ == "__main__":
-    main()
+# Define a path operation decorator
+@app.get("/")
+# Define the path operation function
+async def root():
+    return {"message": "Hello World"}
