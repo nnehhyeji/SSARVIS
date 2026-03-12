@@ -61,7 +61,7 @@ prettier-check:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
 lint-python:
-  stage: lint
+  extends: .lint-template
   image: python:3.11-slim
   script:
     - pip install uv
