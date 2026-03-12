@@ -60,6 +60,17 @@ prettier-check:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
+lint-python:
+  extends: .lint-template
+  image: python:3.11-slim
+  script:
+    - pip install uv
+    - cd ai
+    - uv sync --frozen
+    - uv run ruff check .
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
 infra-compose-validate:
   extends: .lint-template
   image: docker:29.3.0
