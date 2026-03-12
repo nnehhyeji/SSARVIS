@@ -41,7 +41,7 @@ lint-frontend:
   script:
     - cd frontend
     - npm ci
-    - npm run lint -- --format stylist | tee eslint-report.txt
+    - npm run lint -- --format stylish | tee eslint-report.txt
     - npm run typecheck
   artifacts:
     when: always
