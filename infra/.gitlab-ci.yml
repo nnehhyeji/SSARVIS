@@ -30,7 +30,7 @@ lint-backend:
     - ./gradlew --no-daemon checkstyleMain checkstyleTest
   artifacts:
     when: always
-    path:
+    paths:
       - backend/build/reports/checkstyle/main.html
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
