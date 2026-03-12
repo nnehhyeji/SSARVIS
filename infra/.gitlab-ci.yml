@@ -93,7 +93,8 @@ infra-compose-validate:
   services:
     - docker:29.3.0-dind
   variables:
-    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   before_script:
     - docker info
 
