@@ -14,24 +14,21 @@ default:
   before_script:
     - echo "source=$CI_PIPELINE_SOURCE branch=$CI_COMMIT_BRANCH sha=$CI_COMMIT_SHA"
 
+ci-debug:
+  stage: test
+  tags: [docker-shared]
+  image: alpine:3.20
+  script:
+    - echo "source=$CI_PIPELINE_SOURCE"
+    - echo "branch=$CI_COMMIT_BRANCH"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
 # lint stage
 .lint-template:
   tags: [docker-shared]
   stage: lint
-
-ci-config-check:
-  extends: .lint-template
-  image: alpine:3.20
-  script:
-    - echo "CI config changed"
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes:
-        - .gitlab-ci.yml
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "web"'
-      changes:
-        - .gitlab-ci.yml
-      when: always
 
 .lint-backend-template:
   extends: .lint-template
