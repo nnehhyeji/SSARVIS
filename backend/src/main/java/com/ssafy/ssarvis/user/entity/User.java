@@ -36,8 +36,17 @@ public class User extends BaseTime {
     @NotNull
     private String nickname;
 
+    @NotNull
+    @Builder.Default
+    private String description = "안녕하세요";
+
     @Column(name = "voice_password")
     private String voicePassword;
+
+    @NotNull
+    @Column(name = "is_voice_lock_active")
+    @Builder.Default
+    private Boolean isVoiceLockActive = false;
 
     @NotNull
     @Column(name = "profile_image")
@@ -46,6 +55,6 @@ public class User extends BaseTime {
 
     @NotNull
     @Column(name = "view_count", columnDefinition = "INT UNSIGNED")
-    private Long viewCount;
+    private Long viewCount = 0L;
 
 }
