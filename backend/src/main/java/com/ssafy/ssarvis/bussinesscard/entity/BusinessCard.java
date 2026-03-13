@@ -41,7 +41,7 @@ public class BusinessCard {
     private CardVisibility cardVisibility;
 
     @NotNull
-    @Column(name = "view_count", columnDefinition = "UNSIGNED INT")
+    @Column(name = "view_count", columnDefinition = "INT UNSIGNED")
     private Long viewCount;
 
     @NotNull

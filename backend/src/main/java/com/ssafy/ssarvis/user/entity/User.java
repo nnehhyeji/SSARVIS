@@ -45,7 +45,7 @@ public class User extends BaseTime {
     private String profileImage = Constants.DEFAULT_PROFILE_IMAGE;
 
     @NotNull
-    @Column(name = "view_count", columnDefinition = "UNSIGNED INT")
+    @Column(name = "view_count", columnDefinition = "INT UNSIGNED")
     private Long viewCount;
 
 }
