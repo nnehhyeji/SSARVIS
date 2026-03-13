@@ -27,7 +27,6 @@ default:
       files:
         - backend/gradle/wrapper/gradle-wrapper.properties
         - backend/build.gradle
-        - backend/settings.gradle
     paths:
       - backend/.gradle/
   before_script:
