@@ -35,6 +35,7 @@ default:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
+        - .gitlab-ci.yml
         - backend/**/*
 
 .lint-frontend-template:
@@ -53,6 +54,7 @@ default:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
+        - .gitlab-ci.yml
         - frontend/**/*
 
 .lint-ai-template:
@@ -73,6 +75,7 @@ default:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
+        - .gitlab-ci.yml
         - ai/**/*
 
 lint-backend:
