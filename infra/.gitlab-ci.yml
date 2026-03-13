@@ -75,7 +75,7 @@ default:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
-        - .gitlab-ci.yml
+        - infra/.gitlab-ci.yml
         - ai/**/*
 
 lint-backend:
