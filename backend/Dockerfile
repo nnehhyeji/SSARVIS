@@ -12,6 +12,7 @@ COPY gradlew settings.gradle build.gradle ./
 COPY gradle ./gradle
 
 # (보완) 의존성 다운로드 (소스 코드 복사 전 실행하여 레이어 캐싱 최적화)
+RUN chmod +x ./gradlew
 RUN ./gradlew --no-daemon dependencies -x test
 
 # 이제 소스 복사 및 빌드
