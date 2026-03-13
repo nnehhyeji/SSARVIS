@@ -17,6 +17,16 @@ default:
   tags: [docker-shared]
   stage: lint
 
+ci-config-check:
+  extends: .lint-template
+  image: alpine:3.20
+  script:
+    - echo "CI config changed"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - .gitlab-ci.yml
+
 .lint-backend-template:
   extends: .lint-template
   image: gradle:8.14.4-jdk21-alpine
