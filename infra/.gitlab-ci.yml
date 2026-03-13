@@ -1,5 +1,4 @@
 stages:
-  - test
   - lint
   - build
 
@@ -7,26 +6,11 @@ workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always
-    - if: '$CI_PIPELINE_SOURCE == "push"'
-      when: always
-    - if: '$CI_PIPELINE_SOURCE == "web"'
-      when: always
     - when: never
 
 default:
   before_script:
     - echo "source=$CI_PIPELINE_SOURCE branch=$CI_COMMIT_BRANCH sha=$CI_COMMIT_SHA"
-
-ci-debug:
-  stage: test
-  tags: [docker-shared]
-  image: alpine:3.20
-  script:
-    - echo "source=$CI_PIPELINE_SOURCE"
-    - echo "branch=$CI_COMMIT_BRANCH"
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 # lint stage
 .lint-template:
@@ -51,7 +35,7 @@ ci-debug:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
-        - .gitlab-ci.yml
+        - infra/.gitlab-ci.yml
         - backend/**/*
 
 .lint-frontend-template:
@@ -70,7 +54,7 @@ ci-debug:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
-        - .gitlab-ci.yml
+        - infra/.gitlab-ci.yml
         - frontend/**/*
 
 .lint-ai-template:
@@ -91,7 +75,7 @@ ci-debug:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
-        - .gitlab-ci.yml
+        - infra/.gitlab-ci.yml
         - ai/**/*
 
 lint-backend:
