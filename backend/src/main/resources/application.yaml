@@ -8,6 +8,14 @@ spring:
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
 
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+  sse:
+    timeout: ${SSE_TIMEOUT} # nginx proxy timeout이랑 시간 맞추면 될듯?
+
   jpa:
     hibernate:
       ddl-auto: update

@@ -34,6 +34,12 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// Redis (멀티 인스턴스 SSE 브로드캐스트)
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	// Jackson (Redis 직렬화, SSE payload)
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
 }
 
 tasks.named('test') {
