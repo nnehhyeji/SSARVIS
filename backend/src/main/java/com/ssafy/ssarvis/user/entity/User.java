@@ -57,4 +57,13 @@ public class User extends BaseTime {
     @Column(name = "view_count", columnDefinition = "INT UNSIGNED")
     private Long viewCount = 0L;
 
+    public static User create(String email, String password, String nickname, String profileImage) {
+        return User.builder()
+            .email(email)
+            .password(password)
+            .nickname(nickname)
+            .profileImage(profileImage.isEmpty() ? Constants.DEFAULT_PROFILE_IMAGE : profileImage)
+            .build();
+    }
+
 }
