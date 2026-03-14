@@ -30,12 +30,13 @@ public class FollowRequest {
     private Long id;
 
     @NotNull
-    @Column(name = "request_status")
-    @Builder.Default
-    private Boolean requestStatus = false;
+    @JoinColumn(name = "sender_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private User sender;
 
     @NotNull
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "receiver_id")
     @ManyToOne(fetch = FetchType.LAZY)
-    private User user;
+    private User receiver;
+
 }
