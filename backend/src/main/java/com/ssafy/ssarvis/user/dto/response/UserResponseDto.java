@@ -1,5 +1,6 @@
 package com.ssafy.ssarvis.user.dto.response;
 
+import com.ssafy.ssarvis.user.entity.Costume;
 import com.ssafy.ssarvis.user.entity.User;
 
 public record UserResponseDto(
@@ -8,7 +9,7 @@ public record UserResponseDto(
     String nickname,
     String description,
     Boolean isVoiceLockActive,
-    String profileImage,
+    Costume costume,
     Long viewCount
 ){
     public static UserResponseDto from(User user) {
@@ -18,7 +19,7 @@ public record UserResponseDto(
             user.getNickname(),
             user.getDescription(),
             user.getIsVoiceLockActive(),
-            user.getProfileImage(),
+            user.getCostume(),
             user.getViewCount()
         );
     }
