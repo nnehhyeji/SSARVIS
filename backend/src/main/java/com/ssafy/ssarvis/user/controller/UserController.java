@@ -10,6 +10,7 @@ import com.ssafy.ssarvis.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -51,6 +52,15 @@ public class UserController {
 
     @GetMapping
     public ResponseEntity<BaseResponse<UserResponseDto>> getUser(
+        @AuthenticationPrincipal Long userId
+    ){
+        UserResponseDto userResponseDto = userService.getUser(userId);
+        return ResponseEntity.ok(
+            BaseResponse.success("유저 조회 성공", userResponseDto));
+    }
+
+    @DeleteMapping
+    public ResponseEntity<BaseResponse<UserResponseDto>> deleteUser(
         @AuthenticationPrincipal Long userId
     ){
         UserResponseDto userResponseDto = userService.getUser(userId);

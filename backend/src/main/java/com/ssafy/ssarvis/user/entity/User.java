@@ -14,6 +14,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import org.hibernate.type.descriptor.jdbc.SqlTypedJdbcType;
 
 @Getter
 @Entity
@@ -49,21 +52,29 @@ public class User extends BaseTime {
     private Boolean isVoiceLockActive = false;
 
     @NotNull
-    @Column(name = "profile_image")
+    @Column(name = "costume")
+    @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
-    private String profileImage = Constants.DEFAULT_PROFILE_IMAGE;
+    private Costume costume = Costume.init();
+
+    @NotNull
+    @Column(name = "withdraw_status")
+    @Builder.Default
+    private Boolean withdrawStatus = false;
 
     @NotNull
     @Column(name = "view_count", columnDefinition = "INT UNSIGNED")
     private Long viewCount = 0L;
 
-    public static User create(String email, String password, String nickname, String profileImage) {
+    public static User create(String email, String password, String nickname) {
         return User.builder()
             .email(email)
             .password(password)
             .nickname(nickname)
-            .profileImage(profileImage.isEmpty() ? Constants.DEFAULT_PROFILE_IMAGE : profileImage)
             .build();
     }
 
+    public void deleteUser() {
+        this.withdrawStatus = true;
+    }
 }

@@ -27,8 +27,7 @@ public class UserServiceImpl implements UserService {
         User newUser = User.create(
             userCreateRequestDto.email(),
             encryptedPassword,
-            userCreateRequestDto.nickname(),
-            userCreateRequestDto.profile_image()
+            userCreateRequestDto.nickname()
         );
 
         userRepository.save(newUser);
@@ -49,5 +48,12 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
         return UserResponseDto.from(user);
+    }
+
+    @Override
+    public void deleteUser(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        user.deleteUser();
     }
 }

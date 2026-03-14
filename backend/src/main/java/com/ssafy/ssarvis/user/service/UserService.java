@@ -13,4 +13,6 @@ public interface UserService {
     boolean isAlreadyExistsNickname(String nickname);
 
     UserResponseDto getUser(Long userId);
+
+    void deleteUser(Long userId);
 }
