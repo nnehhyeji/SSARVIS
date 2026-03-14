@@ -1,7 +1,6 @@
 package com.ssafy.ssarvis.follow.entity;
 
 import com.ssafy.ssarvis.user.entity.User;
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
