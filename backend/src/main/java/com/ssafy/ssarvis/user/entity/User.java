@@ -74,6 +74,17 @@ public class User extends BaseTime {
             .build();
     }
 
+    public void update(String password, String nickname, String description, Costume costume, String voicePassword){
+        if (password != null) this.password = password;
+        if (nickname != null) this.nickname = nickname;
+        if (description != null) this.description = description;
+        if (costume != null) this.costume = costume;
+        if (voicePassword != null) {
+            this.isVoiceLockActive = true;
+            this.voicePassword = voicePassword;
+        }
+    }
+
     public void deleteUser() {
         this.withdrawStatus = true;
     }

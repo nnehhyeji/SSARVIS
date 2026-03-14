@@ -4,14 +4,17 @@ import com.ssafy.ssarvis.common.dto.BaseResponse;
 import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserEmailCheckRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserNicknameCheckRequestDto;
+import com.ssafy.ssarvis.user.dto.request.UserUpdateRequestDto;
 import com.ssafy.ssarvis.user.dto.response.DuplicateCheckResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
+import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
 import com.ssafy.ssarvis.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -59,12 +62,22 @@ public class UserController {
             BaseResponse.success("유저 조회 성공", userResponseDto));
     }
 
+    @PatchMapping
+    public ResponseEntity<BaseResponse<UserUpdateResponseDto>> updateUser(
+        @AuthenticationPrincipal Long userId,
+        @RequestBody UserUpdateRequestDto userUpdateRequestDto
+    ){
+        UserUpdateResponseDto userUpdateResponseDto = userService.updateUser(userId, userUpdateRequestDto);
+        return ResponseEntity.ok(
+            BaseResponse.success("유저 수정 성공", userUpdateResponseDto));
+    }
+
     @DeleteMapping
-    public ResponseEntity<BaseResponse<UserResponseDto>> deleteUser(
+    public ResponseEntity<BaseResponse<Void>> deleteUser(
         @AuthenticationPrincipal Long userId
     ){
-        UserResponseDto userResponseDto = userService.getUser(userId);
+        userService.deleteUser(userId);
         return ResponseEntity.ok(
-            BaseResponse.success("유저 조회 성공", userResponseDto));
+            BaseResponse.success("유저 삭제 성공"));
     }
 }
