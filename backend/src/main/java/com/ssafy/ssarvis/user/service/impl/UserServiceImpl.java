@@ -1,6 +1,9 @@
 package com.ssafy.ssarvis.user.service.impl;
 
+import com.ssafy.ssarvis.common.advice.CustomException;
+import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
+import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.user.service.UserService;
@@ -39,5 +42,12 @@ public class UserServiceImpl implements UserService {
     @Override
     public boolean isAlreadyExistsNickname(String nickname) {
         return userRepository.existsByNickname(nickname);
+    }
+
+    @Override
+    public UserResponseDto getUser(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        return UserResponseDto.from(user);
     }
 }

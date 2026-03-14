@@ -1,6 +1,7 @@
 package com.ssafy.ssarvis.user.service;
 
 import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
+import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 
 
 public interface UserService {
@@ -11,4 +12,5 @@ public interface UserService {
 
     boolean isAlreadyExistsNickname(String nickname);
 
+    UserResponseDto getUser(Long userId);
 }

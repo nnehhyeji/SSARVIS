@@ -5,9 +5,12 @@ import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserEmailCheckRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserNicknameCheckRequestDto;
 import com.ssafy.ssarvis.user.dto.response.DuplicateCheckResponseDto;
+import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,5 +47,14 @@ public class UserController {
             userNicknameCheckRequestDto.nickname());
         return ResponseEntity.ok(
             BaseResponse.success("닉네임 중복 확인 조회 성공", DuplicateCheckResponseDto.from(isDuplicate)));
+    }
+
+    @GetMapping
+    public ResponseEntity<BaseResponse<UserResponseDto>> getUser(
+        @AuthenticationPrincipal Long userId
+    ){
+        UserResponseDto userResponseDto = userService.getUser(userId);
+        return ResponseEntity.ok(
+            BaseResponse.success("유저 조회 성공", userResponseDto));
     }
 }
