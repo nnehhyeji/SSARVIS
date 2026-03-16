@@ -147,13 +147,14 @@ infra_compose_validate:
 trivy_prebuild_backend:
   extends: .prebuild_template
   script:
-    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
-    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./backend
     - trivy fs --format template --template "@contrib/html.tpl" -o backend-trivy-prebuild-report.html ./backend/
     - trivy config --format template --template "@contrib/html.tpl" -o backend-config-trivy-prebuild-report.html ./backend/
+    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
+    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./backend
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
+        - infra/.gitlab-ci.yml
         - backend/**/*
       when: on_success
     - when: never
@@ -166,17 +167,18 @@ trivy_prebuild_backend:
 trivy_prebuild_web:
   extends: .prebuild_template
   script:
-    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./frontend/
-    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./frontend/
-    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
-    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
     - trivy fs --format template --template "@contrib/html.tpl" -o web-trivy-prebuild-report.html ./frontend/
     - trivy fs --format template --template "@contrib/html.tpl" -o web-nginx-trivy-prebuild-report.html ./infra/nginx/
     - trivy config --format template --template "@contrib/html.tpl" -o web-config-trivy-prebuild-report.html ./frontend/
     - trivy config --format template --template "@contrib/html.tpl" -o web-nginx-config-trivy-prebuild-report.html ./infra/nginx/
+    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./frontend/
+    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./frontend/
+    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
+    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
+        - infra/.gitlab-ci.yml
         - frontend/**/*
         - infra/nginx/**/*
       when: on_success
@@ -192,13 +194,14 @@ trivy_prebuild_web:
 trivy_prebuild_ai:
   extends: .prebuild_template
   script:
-    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./ai
-    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./ai
     - trivy fs --format template --template "@contrib/html.tpl" -o ai-trivy-prebuild-report.html ./ai/
     - trivy config --format template --template "@contrib/html.tpl" -o ai-config-trivy-prebuild-report.html ./ai/
+    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./ai
+    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./ai
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
+        - infra/.gitlab-ci.yml
         - ai/**/*
       when: on_success
     - when: never
@@ -228,8 +231,8 @@ build_and_scan_backend:
   extends: .build_and_scan_template
   script:
     - docker build -t backend:$CI_COMMIT_SHA -f ./backend/Dockerfile ./backend
-    - trivy image --exit-code 1 --severity HIGH,CRITICAL backend:$CI_COMMIT_SHA
     - trivy image --format template --template "@contrib/html.tpl" -o backend-trivy-report.html backend:$CI_COMMIT_SHA
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL backend:$CI_COMMIT_SHA
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
@@ -246,8 +249,8 @@ build_and_scan_web:
   extends: .build_and_scan_template
   script:
     - docker build -t web:$CI_COMMIT_SHA -f ./infra/nginx/Dockerfile .
-    - trivy image --exit-code 1 --severity HIGH,CRITICAL web:$CI_COMMIT_SHA
     - trivy image --format template --template "@contrib/html.tpl" -o web-trivy-report.html web:$CI_COMMIT_SHA
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL web:$CI_COMMIT_SHA
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
