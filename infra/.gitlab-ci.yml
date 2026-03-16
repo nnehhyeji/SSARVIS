@@ -1,7 +1,7 @@
 stages:
   - lint
   - prebuild
-  - build
+  - build_and_scan
 
 workflow:
   rules:
@@ -183,10 +183,10 @@ trivy_prebuild_ai:
       when: on_success
     - when: never
 
-# build stage
-.build_template:
+# build_and_scan stage
+.build_and_scan_template:
   tags: [docker-shared]
-  stage: build
+  stage: build_and_scan
   image: docker:29.3.0
   services:
     - docker:29.3.0-dind
@@ -196,25 +196,31 @@ trivy_prebuild_ai:
   before_script:
     - echo "source=$CI_PIPELINE_SOURCE branch=$CI_COMMIT_BRANCH sha=$CI_COMMIT_SHA"
     - docker info
+    - wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+    - trivy --version
 
-build_backend:
-  extends: .build_template
+build_and_scan_backend:
+  extends: .build_and_scan_template
   script:
-    - docker build -f ./backend/Dockerfile backend
+    - docker build -t backend:$CI_COMMIT_SHA -f ./backend/Dockerfile ./backend
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL backend:$CI_COMMIT_SHA
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
+        - infra/.gitlab-ci.yml
         - backend/**/*
       when: on_success
     - when: never
 
-build_web:
-  extends: .build_template
+build_and_scan_web:
+  extends: .build_and_scan_template
   script:
-    - docker build -f ./infra/nginx/Dockerfile .
+    - docker build -t web:$CI_COMMIT_SHA -f ./infra/nginx/Dockerfile .
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL web:$CI_COMMIT_SHA
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
+        - infra/.gitlab-ci.yml
         - frontend/**/*
         - infra/nginx/**/*
       when: on_success
