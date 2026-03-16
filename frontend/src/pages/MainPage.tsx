@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Mic, Lock, Users, Bell, User, Shuffle, Maximize } from 'lucide-react';
+import { Mic, Lock, Users, Bell, User, Maximize, Home, BookOpen, Heart, Smile } from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, Html, Float, Environment } from '@react-three/drei';
 import * as THREE from 'three';
@@ -97,14 +97,17 @@ const SpeechBubble = memo(
     if (!displayedText) return null;
 
     return (
-      // mt-8로 캐릭터와 거리 벌리기, 패딩/텍스트 크기 축소
       <div className="mt-8 z-20">
-        <div className="relative px-5 py-3 rounded-2xl bg-white/80 backdrop-blur-lg shadow-xl border border-white transition-opacity duration-300 transform opacity-100 translate-y-0">
-          {/* 말풍선 꼬리 */}
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 bg-white/80 border-t border-l border-white rotate-45 backdrop-blur-lg" />
-          <p className="relative z-10 text-base font-semibold text-gray-700 tracking-wide">
-            {displayedText}
-          </p>
+        {/* drop-shadow 필터: 몸통+꼬리 전체 실루엣에 하나의 그림자 적용 */}
+        <div className="relative drop-shadow-lg transition-opacity duration-300 transform opacity-100 translate-y-0">
+          {/* 몸통: 투명도 높여 겹침 비침 방지, border 제거 */}
+          <div className="relative px-5 py-3 rounded-2xl bg-white/95 backdrop-blur-lg">
+            {/* 꼬리: 몸통과 동일한 색, border 없음, 살짝 둥글게 */}
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white/95 rotate-45 rounded-sm" />
+            <p className="relative z-10 text-base font-semibold text-gray-700 tracking-wide">
+              {displayedText}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -150,6 +153,34 @@ export default function MainPage() {
   const handleSpeakStart = useCallback(() => setIsSpeaking(true), []);
   const handleSpeakEnd = useCallback(() => setIsSpeaking(false), []);
 
+  // AI 모드 상태 (일반/학습/상담)
+  type Mode = 'normal' | 'study' | 'counseling';
+  const [currentMode, setCurrentMode] = useState<Mode>('normal');
+
+  const modes: { id: Mode; label: string; icon: React.ReactNode; color: string; glow: string }[] = [
+    {
+      id: 'normal',
+      label: '일반 모드',
+      icon: <Home className="w-7 h-7 text-white" />,
+      color: 'from-teal-200/60 to-cyan-100/40',
+      glow: 'bg-teal-200/50',
+    },
+    {
+      id: 'study',
+      label: '학습 모드',
+      icon: <BookOpen className="w-7 h-7 text-white" />,
+      color: 'from-pink-200/60 to-rose-100/40',
+      glow: 'bg-pink-200/50',
+    },
+    {
+      id: 'counseling',
+      label: '상담 모드',
+      icon: <Heart className="w-7 h-7 text-white" />,
+      color: 'from-indigo-200/60 to-blue-100/40',
+      glow: 'bg-indigo-300/50',
+    },
+  ];
+
   // 배경 그라데이션 (현재는 애니메이션 CSS 클래스로 구현)
   // 투명한 캐릭터를 위해 backdrop-blur 적용
 
@@ -178,13 +209,74 @@ export default function MainPage() {
 
       {/* 메인 뷰 (캐릭터 중앙) */}
       <main className="flex-1 flex items-center justify-center relative w-full h-full">
-        {/* 사이드 제어 버튼 (좌측) */}
-        <div className="absolute left-6 top-1/2 -translate-y-1/2">
-          <div className="w-16 h-32 bg-white/20 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center shadow-lg border border-white/40">
-            <button className="p-3 hover:bg-white/30 rounded-full transition" onClick={changeFace}>
-              <Shuffle className="w-6 h-6 text-gray-700" />
-            </button>
+        {/* 사이드 패널 (좌측) - 호버 시 모드 선택 모달 슬라이드인 */}
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 group flex flex-col items-start gap-3">
+          {/* 모드 선택 패널: group-hover 시 쓰윽 나타남 */}
+          <div
+            className="
+              flex flex-col gap-2 p-3 rounded-3xl
+              bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl
+              transition-all duration-500 ease-out
+              opacity-0 translate-x-[-10px] pointer-events-none
+              group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto
+            "
+          >
+            {modes.map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => setCurrentMode(mode.id)}
+                className={`
+                  relative w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1
+                  bg-gradient-to-br ${mode.color}
+                  border-2 transition-all duration-300
+                  ${
+                    currentMode === mode.id
+                      ? 'border-white/80 scale-105 shadow-lg'
+                      : 'border-white/20 hover:border-white/50 hover:scale-105'
+                  }
+                `}
+              >
+                {/* 선택된 모드 내부 글로우 */}
+                {currentMode === mode.id && (
+                  <div className={`absolute inset-0 rounded-2xl ${mode.glow} blur-md -z-10`} />
+                )}
+                {mode.icon}
+                {/* 선택 시 모드명 레이블 */}
+                {currentMode === mode.id && (
+                  <span className="absolute -right-1 -top-1 w-3 h-3 bg-white rounded-full border-2 border-white/60 shadow" />
+                )}
+              </button>
+            ))}
           </div>
+
+          {/* 현재 모드 표시 + 호버 트리거 역할의 아이콘 버튼 */}
+          <div
+            className="
+              w-16 h-16 rounded-2xl
+              bg-white/20 backdrop-blur-md border border-white/40 shadow-lg
+              flex flex-col items-center justify-center gap-1
+              transition-all duration-300 hover:bg-white/30
+            "
+          >
+            {modes.find((m) => m.id === currentMode)?.icon}
+            <span className="text-[9px] font-semibold text-white/80 leading-none">
+              {currentMode === 'normal' ? '일반' : currentMode === 'study' ? '학습' : '상담'}
+            </span>
+          </div>
+
+          {/* 구분 — 표정/목소리 전환 버튼 (별도 분리) */}
+          <button
+            onClick={changeFace}
+            className="
+              w-16 h-16 rounded-2xl
+              bg-white/20 backdrop-blur-md border border-white/40 shadow-lg
+              flex flex-col items-center justify-center gap-1
+              hover:bg-white/30 transition-all duration-300
+            "
+          >
+            <Smile className="w-7 h-7 text-gray-600" />
+            <span className="text-[9px] font-semibold text-gray-600/80 leading-none">표정</span>
+          </button>
         </div>
 
         {/* 사이드 제어 버튼 (우측) */}
@@ -220,10 +312,22 @@ export default function MainPage() {
             {/* 시각화 링을 구체와 완벽하게 동일한 중심점에 배치 (inset-0) */}
             <WaveformRing isActive={isSpeaking} />
             <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }} className="w-full h-full">
-              <ambientLight intensity={0.8} />
-              <directionalLight position={[10, 10, 10]} intensity={1.5} color="#ffffff" />
-              <directionalLight position={[-10, -10, -10]} intensity={0.5} color="#d9f99d" />
-              <Environment preset="city" />
+              <ambientLight intensity={0.6} />
+              {/* 정면 강한 스포트라이트 → 구체 상단에 선명한 하이라이트 */}
+              <spotLight
+                position={[0, 5, 5]}
+                intensity={6}
+                angle={0.4}
+                penumbra={0.6}
+                color="#ffffff"
+                castShadow
+              />
+              {/* 좌측 보조 포인트라이트 → 유리 측면 반짝임 */}
+              <pointLight position={[-4, 3, 3]} intensity={4} color="#e0f0ff" />
+              {/* 우측 하단 반사광 → 구체 하단 림라이팅 */}
+              <pointLight position={[4, -2, 2]} intensity={3} color="#ffeeff" />
+              <directionalLight position={[10, 10, 10]} intensity={2.0} color="#ffffff" />
+              <Environment preset="studio" />
               <Character3D faceType={faceType} mouthOpenRadius={mouthOpenRadius} />
             </Canvas>
           </div>
@@ -283,18 +387,18 @@ function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpe
       <Sphere ref={meshRef} args={[1.5, 64, 64]}>
         {/* 유리 질감을 극대화하기 위한 물리 기반 머티리얼 속성 조정 */}
         <meshPhysicalMaterial
-          transmission={0.85} // 100% 투과하면 탁한 배경색이 그대로 넘어오므로 살짝 막아줌
-          thickness={1.5} // 유리의 두께감을 높여 더 우유빛 굴절 효과 유도
-          roughness={0.1} // 표면의 거칠기 (살짝 서리가 낀 느낌)
-          ior={1.2} // 굴절률 조정
-          color="#ffffff" // 기본 틴트 색상을 완전 화이트로
-          emissive="#ffffff" // 구체 자체가 살짝 흰빛을 내뿜도록 emissive 추가
-          emissiveIntensity={0.1} // 은은하게 빛나는 뽀얀 느낌
-          clearcoat={1} // 표면 코팅 반짝임 유지
-          clearcoatRoughness={0.05}
-          opacity={0.8} // 흰색 실루엣이 분명하게 보이도록 불투명도를 확 높임
-          transparent={true} // 투명 속성 활성화
-          envMapIntensity={2.0} // 환경 반사 강도를 높여 더 밝고 쨍하게 만듦
+          transmission={0.35} // 투과율을 낮춰 배경색이 덜 비치고 흰끼가 살아남
+          thickness={2.0} // 두께감을 올려 굴절을 더 풍부하게
+          roughness={0.0} // 0에 가까울수록 거울처럼 매끄럽게 = 선명한 반짝임
+          ior={1.6} // 굴절률 높여 유리/크리스탈 느낌 강화
+          color="#ffffff"
+          emissive="#c8e8ff" // 은은한 하늘빛 자가발광으로 블링 느낌
+          emissiveIntensity={0.25} // 발광 강도 높임
+          clearcoat={1} // 코팅 최대
+          clearcoatRoughness={0.0} // 코팅 표면도 완전 매끄럽게 → 가장 선명한 반짝임
+          opacity={0.95}
+          transparent={true}
+          envMapIntensity={4.0} // 환경 반사 강도 대폭 올려 주변 빛이 구체에 풍부하게 반사
         />
         {/* 구체 겉표면에 HTML 기반 얼굴 UI 매핑 및 크기 확대 */}
         <Html
