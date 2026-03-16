@@ -149,12 +149,19 @@ trivy_prebuild_backend:
   script:
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
     - trivy config --exit-code 1 --severity HIGH,CRITICAL ./backend
+    - trivy fs --format template --template "@contrib/html.tpl" -o backend-trivy-prebuild-report.html ./backend/
+    - trivy config --format template --template "@contrib/html.tpl" -o backend-config-trivy-prebuild-report.html ./backend/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
         - backend/**/*
       when: on_success
     - when: never
+  artifacts:
+    when: always
+    paths:
+      - backend-trivy-prebuild-report.html
+      - backend-config-trivy-prebuild-report.html
 
 trivy_prebuild_web:
   extends: .prebuild_template
@@ -163,6 +170,10 @@ trivy_prebuild_web:
     - trivy config --exit-code 1 --severity HIGH,CRITICAL ./frontend/
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
     - trivy config --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
+    - trivy fs --format template --template "@contrib/html.tpl" -o web-trivy-prebuild-report.html ./frontend/
+    - trivy fs --format template --template "@contrib/html.tpl" -o web-nginx-trivy-prebuild-report.html ./infra/nginx/
+    - trivy config --format template --template "@contrib/html.tpl" -o web-config-trivy-prebuild-report.html ./frontend/
+    - trivy config --format template --template "@contrib/html.tpl" -o web-nginx-config-trivy-prebuild-report.html ./infra/nginx/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
@@ -170,18 +181,32 @@ trivy_prebuild_web:
         - infra/nginx/**/*
       when: on_success
     - when: never
+  artifacts:
+    when: always
+    paths:
+      - web-trivy-prebuild-report.html
+      - web-config-trivy-prebuild-report.html
+      - web-nginx-trivy-prebuild-report.html
+      - web-nginx-config-trivy-prebuild-report.html
 
 trivy_prebuild_ai:
   extends: .prebuild_template
   script:
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./ai
     - trivy config --exit-code 1 --severity HIGH,CRITICAL ./ai
+    - trivy fs --format template --template "@contrib/html.tpl" -o ai-trivy-prebuild-report.html ./ai/
+    - trivy config --format template --template "@contrib/html.tpl" -o ai-config-trivy-prebuild-report.html ./ai/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
         - ai/**/*
       when: on_success
     - when: never
+  artifacts:
+    when: always
+    paths:
+      - ai-trivy-prebuild-report.html
+      - ai-config-trivy-prebuild-report.html
 
 # build_and_scan stage
 .build_and_scan_template:
@@ -204,6 +229,7 @@ build_and_scan_backend:
   script:
     - docker build -t backend:$CI_COMMIT_SHA -f ./backend/Dockerfile ./backend
     - trivy image --exit-code 1 --severity HIGH,CRITICAL backend:$CI_COMMIT_SHA
+    - trivy image --format template --template "@contrib/html.tpl" -o backend-trivy-report.html backend:$CI_COMMIT_SHA
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
@@ -211,12 +237,17 @@ build_and_scan_backend:
         - backend/**/*
       when: on_success
     - when: never
+  artifacts:
+    when: always
+    paths:
+      - backend-trivy-report.html
 
 build_and_scan_web:
   extends: .build_and_scan_template
   script:
     - docker build -t web:$CI_COMMIT_SHA -f ./infra/nginx/Dockerfile .
     - trivy image --exit-code 1 --severity HIGH,CRITICAL web:$CI_COMMIT_SHA
+    - trivy image --format template --template "@contrib/html.tpl" -o web-trivy-report.html web:$CI_COMMIT_SHA
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
@@ -225,3 +256,7 @@ build_and_scan_web:
         - infra/nginx/**/*
       when: on_success
     - when: never
+  artifacts:
+    when: always
+    paths:
+      - web-trivy-report.html
