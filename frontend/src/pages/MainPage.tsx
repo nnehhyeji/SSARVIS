@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Mic, Lock, Users, Bell, User, Maximize, Home, BookOpen, Heart, Smile } from 'lucide-react';
+import { Mic, Lock, Users, Bell, User, Maximize, Home, BookOpen, Heart, Smile, X, UserPlus } from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, Html, Float, Environment } from '@react-three/drei';
 import * as THREE from 'three';
+import { motion } from 'framer-motion';
 import AnimatedBackground from '../components/AnimatedBackground';
 
 // 별도의 고성능 컴포넌트로 분리된 파형 링 (React 리렌더링과 독립적으로 부드럽게 애니메이션 유지)
@@ -153,6 +154,26 @@ export default function MainPage() {
   const handleSpeakStart = useCallback(() => setIsSpeaking(true), []);
   const handleSpeakEnd = useCallback(() => setIsSpeaking(false), []);
 
+  // 알림 데이터 타입 및 상태
+  type Alarm = { id: number; message: string; isRead: boolean; time: string; type: 'follow' | 'system' };
+  const [alarms, setAlarms] = useState<Alarm[]>([
+    { id: 1, message: '김싸피님이 팔로우를 요청했습니다.', isRead: false, time: '방금 전', type: 'follow' },
+    { id: 2, message: '오후 6시부터 서비스 점검이 예정되어 있습니다.', isRead: true, time: '1시간 전', type: 'system' },
+  ]);
+  const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+
+  // 알림 관리 함수
+  const handleReadAllAlarms = () => setAlarms(prev => prev.map(a => ({ ...a, isRead: true })));
+  const handleDeleteAllAlarms = () => setAlarms([]);
+  const handleAlarmClick = (alarm: Alarm) => {
+    setAlarms(prev => prev.map(a => a.id === alarm.id ? { ...a, isRead: true } : a));
+    if (alarm.type === 'follow') {
+      setIsAlarmModalOpen(false);
+      setIsUsersModalOpen(true);
+    }
+  };
+
   // AI 모드 상태 (일반/학습/상담)
   type Mode = 'normal' | 'study' | 'counseling';
   const [currentMode, setCurrentMode] = useState<Mode>('normal');
@@ -198,13 +219,48 @@ export default function MainPage() {
           <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
             <Maximize className="w-6 h-6" />
           </button>
-          <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
+          <button onClick={() => setIsAlarmModalOpen(!isAlarmModalOpen)} className="relative p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
             <Bell className="w-6 h-6" />
+            {alarms.some(a => !a.isRead) && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-400 rounded-full border border-white" />
+            )}
           </button>
           <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
             <User className="w-6 h-6" />
           </button>
         </div>
+        
+        {/* 알림 드롭다운 (헤더 바로 아래 우측 위치) */}
+        {isAlarmModalOpen && (
+          <div className="absolute top-[60px] right-20 z-50 w-[300px] bg-white/30 backdrop-blur-2xl rounded-3xl p-5 shadow-2xl border border-white/40 text-gray-800 animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="flex flex-col gap-4 mb-6">
+              {alarms.length === 0 ? (
+                <div className="text-center text-sm text-gray-600 py-4">알림이 없습니다.</div>
+              ) : (
+                alarms.map((alarm, idx) => (
+                  <React.Fragment key={alarm.id}>
+                    {idx > 0 && <div className="h-px bg-white/40 my-1" />}
+                    <div 
+                      onClick={() => handleAlarmClick(alarm)}
+                      className="flex items-center gap-3 cursor-pointer group"
+                    >
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!alarm.isRead ? 'bg-red-400' : 'bg-transparent'}`} />
+                      <p className={`text-sm tracking-tight transition ${alarm.isRead ? 'text-gray-500' : 'text-gray-800 font-medium group-hover:text-black'}`}>
+                        {alarm.message}
+                      </p>
+                    </div>
+                  </React.Fragment>
+                ))
+              )}
+            </div>
+            
+            <div className="flex justify-end items-center gap-2 text-xs text-white drop-shadow-md font-medium">
+              <button onClick={handleDeleteAllAlarms} className="hover:text-white/80 transition">전체 삭제</button>
+              <span className="text-white/60">|</span>
+              <button onClick={handleReadAllAlarms} className="hover:text-white/80 transition">모두 읽음</button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* 메인 뷰 (캐릭터 중앙) */}
@@ -279,14 +335,49 @@ export default function MainPage() {
           </button>
         </div>
 
-        {/* 사이드 제어 버튼 (우측) */}
-        <div className="absolute right-6 top-1/2 -translate-y-1/2">
-          <div className="w-16 h-32 bg-white/20 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center shadow-lg border border-white/40">
-            <button className="p-3 hover:bg-white/30 rounded-full transition relative group">
-              <Users className="w-6 h-6 text-gray-700" />
+        {/* 우측 슬라이딩 사이드바 (친구 목록) */}
+        <motion.div 
+          className="absolute top-0 right-0 h-full w-[350px] bg-white/20 backdrop-blur-2xl border-l border-white/40 shadow-2xl z-40 flex flex-col"
+          initial={false}
+          animate={{ x: isUsersModalOpen ? 0 : 350 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          drag="x"
+          dragConstraints={{ left: 0, right: 350 }}
+          dragElastic={0.05}
+          onDragEnd={(e, info) => {
+            // 오른쪽으로 스와이프하면 닫기, 왼쪽으로 스와이프하면 열기
+            if (info.offset.x > 50 || info.velocity.x > 500) {
+              setIsUsersModalOpen(false);
+            } else if (info.offset.x < -50 || info.velocity.x < -500) {
+              setIsUsersModalOpen(true);
+            }
+          }}
+        >
+          {/* 당기기 탭 (사이드바에 부착되어 항상 보임) */}
+          <button 
+            onClick={() => setIsUsersModalOpen(!isUsersModalOpen)}
+            className="absolute -left-[70px] top-1/2 -translate-y-1/2 w-[70px] h-32 bg-white/20 backdrop-blur-xl border border-r-0 border-white/40 rounded-l-3xl shadow-lg flex items-center justify-center hover:bg-white/30 transition-colors"
+          >
+            <Users className="w-7 h-7 text-gray-700" />
+          </button>
+
+          {/* 사이드바 내용 */}
+          <div className="p-6 flex justify-between items-center border-b border-white/30">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Users className="w-6 h-6 text-pink-500" /> 친구 목록
+            </h2>
+            <button onClick={() => setIsUsersModalOpen(false)} className="p-2 hover:bg-white/40 rounded-full transition">
+              <X className="w-5 h-5 text-gray-700" />
             </button>
           </div>
-        </div>
+          
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-600 p-6">
+            <div className="p-4 bg-white/30 rounded-full mb-4">
+              <UserPlus className="w-12 h-12 text-gray-500" />
+            </div>
+            <p className="text-sm leading-relaxed">친구 목록 및 팔로우 관리 UI가<br/>들어갈 공간입니다. (추후 구현 예정)</p>
+          </div>
+        </motion.div>
 
         {/* 중앙 캐릭터 컨테이너 */}
         <div className="relative flex flex-col items-center justify-center">
