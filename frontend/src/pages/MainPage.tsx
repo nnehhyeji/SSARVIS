@@ -257,7 +257,7 @@ function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpe
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!meshRef.current) return;
     // 마우스 위치에 따른 부드러운 회전 보간
     // 회전 반경(민감도)
