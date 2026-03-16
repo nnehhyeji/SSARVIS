@@ -13,11 +13,11 @@ default:
     - echo "source=$CI_PIPELINE_SOURCE branch=$CI_COMMIT_BRANCH sha=$CI_COMMIT_SHA"
 
 # lint stage
-.lint-template:
+.lint_template:
   tags: [docker-shared]
   stage: lint
 
-.lint-backend-template:
+.lint_backend_template:
   extends: .lint-template
   image: gradle:8.14.4-jdk21-alpine
   variables:
@@ -38,7 +38,7 @@ default:
         - infra/.gitlab-ci.yml
         - backend/**/*
 
-.lint-frontend-template:
+.lint_frontend_template:
   extends: .lint-template
   image: node:24-alpine
   cache:
@@ -57,7 +57,7 @@ default:
         - infra/.gitlab-ci.yml
         - frontend/**/*
 
-.lint-ai-template:
+.lint_ai_template:
   extends: .lint-template
   image: ghcr.io/astral-sh/uv:0.10.9-python3.12-trixie
   variables:
@@ -78,7 +78,7 @@ default:
         - infra/.gitlab-ci.yml
         - ai/**/*
 
-lint-backend:
+lint_backend:
   extends: .lint-backend-template
   script:
     - chmod +x gradlew
@@ -88,7 +88,7 @@ lint-backend:
     paths:
       - backend/build/reports/checkstyle/main.html
 
-lint-frontend:
+lint_frontend:
   extends: .lint-frontend-template
   script:
     - npm run lint -- --format stylish | tee eslint-report.txt
@@ -99,13 +99,13 @@ lint-frontend:
     paths:
       - frontend/eslint-report.txt
 
-lint-ai:
+lint_ai:
   extends: .lint-ai-template
   script:
     - uv sync --frozen
     - uv run ruff check .
 
-infra-compose-validate:
+infra_compose_validate:
   extends: .lint-template
   image: docker:29.3.0
   services:
@@ -130,7 +130,7 @@ infra-compose-validate:
     - when: never
 
 # build stage
-.build-template:
+.build_template:
   tags: [docker-shared]
   stage: build
   image: docker:29.3.0
@@ -143,7 +143,7 @@ infra-compose-validate:
     - echo "source=$CI_PIPELINE_SOURCE branch=$CI_COMMIT_BRANCH sha=$CI_COMMIT_SHA"
     - docker info
 
-build-backend:
+build_backend:
   extends: .build-template
   script:
     - docker build -f ./backend/Dockerfile backend
@@ -154,7 +154,7 @@ build-backend:
       when: on_success
     - when: never
 
-build-web:
+build_web:
   extends: .build-template
   script:
     - docker build -f ./infra/nginx/Dockerfile .
