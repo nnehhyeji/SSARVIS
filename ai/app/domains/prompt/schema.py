@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class PromptRequest(BaseModel):
@@ -6,6 +6,8 @@ class PromptRequest(BaseModel):
 
 
 class PromptResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     user_id: str
     source_text: str
     prompt: str

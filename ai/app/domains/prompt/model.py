@@ -1,2 +1,8 @@
+from dataclasses import dataclass
+
+
+@dataclass(slots=True)
 class Prompt:
-    """Prompt model placeholder."""
+    user_id: str
+    source_text: str
+    prompt: str
