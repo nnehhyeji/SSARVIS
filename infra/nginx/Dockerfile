@@ -9,11 +9,14 @@ COPY frontend/ ./
 RUN npm run build
 
 # 2) Runtime stage
-FROM nginx:alpine
+FROM nginxinc/nginx-unprivileged:stable-alpine
+
+USER root
+RUN apk update && apk upgrade --no-cache
 
 COPY infra/nginx/conf.d/ /etc/nginx/conf.d/
-
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+USER 101
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]
