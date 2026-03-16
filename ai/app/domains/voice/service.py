@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from app.domains.voice.model import Voice
 from app.domains.voice.exceptions import VoiceNotFoundError
 from app.domains.voice.repository import VoiceRepository
@@ -26,16 +28,17 @@ class VoiceService:
                 voice_id=voice_id,
                 file_name=self.dashscope_client.resolve_file_name(item.audio_uri),
                 audio_text=item.audio_text,
+                created_at=datetime.now(timezone.utc),
             )
-            voices.append(self.repository.create(voice))
+            voices.append(await self.repository.create(voice))
         return voices
 
-    def list_voices(self, user_id: str) -> list[Voice]:
-        return self.repository.list_by_user_id(user_id)
+    async def list_voices(self, user_id: str) -> list[Voice]:
+        return await self.repository.list_by_user_id(user_id)
 
     async def delete_voice(self, user_id: str, voice_id: str) -> None:
-        existing = self.repository.get_by_voice_id(user_id, voice_id)
+        existing = await self.repository.get_by_voice_id(user_id, voice_id)
         if existing is None:
             raise VoiceNotFoundError("Voice not found")
         await self.dashscope_client.delete_voice_async(voice_id)
-        self.repository.delete(user_id, voice_id)
+        await self.repository.delete(user_id, voice_id)
