@@ -376,9 +376,10 @@ export default function MainPage() {
               flex flex-col items-center gap-3 p-4 rounded-[50px]
               bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl
               transition-all duration-400 ease-out
-              ${showModePanel
-                ? 'opacity-100 translate-x-0 pointer-events-auto'
-                : 'opacity-0 -translate-x-2 pointer-events-none'
+              ${
+                showModePanel
+                  ? 'opacity-100 translate-x-0 pointer-events-auto'
+                  : 'opacity-0 -translate-x-2 pointer-events-none'
               }
             `}
             onMouseEnter={enterModePanel}
@@ -392,9 +393,10 @@ export default function MainPage() {
                 className={`
                   relative w-14 h-14 rounded-full flex items-center justify-center
                   bg-gradient-to-br ${mode.color} border-2 transition-all duration-300
-                  ${currentMode === mode.id
-                    ? 'border-white/80 scale-105 shadow-lg'
-                    : 'border-white/20 hover:border-white/50 hover:scale-105'
+                  ${
+                    currentMode === mode.id
+                      ? 'border-white/80 scale-105 shadow-lg'
+                      : 'border-white/20 hover:border-white/50 hover:scale-105'
                   }
                 `}
               >
