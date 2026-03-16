@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Mic, Lock, Users, Bell, User, Maximize, Home, BookOpen, Heart, Smile, X, UserPlus } from 'lucide-react';
+import {
+  Mic,
+  Lock,
+  Users,
+  Bell,
+  User,
+  Maximize,
+  Home,
+  BookOpen,
+  Heart,
+  Smile,
+  X,
+  UserPlus,
+} from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, Html, Float, Environment } from '@react-three/drei';
 import * as THREE from 'three';
@@ -155,19 +168,37 @@ export default function MainPage() {
   const handleSpeakEnd = useCallback(() => setIsSpeaking(false), []);
 
   // 알림 데이터 타입 및 상태
-  type Alarm = { id: number; message: string; isRead: boolean; time: string; type: 'follow' | 'system' };
+  type Alarm = {
+    id: number;
+    message: string;
+    isRead: boolean;
+    time: string;
+    type: 'follow' | 'system';
+  };
   const [alarms, setAlarms] = useState<Alarm[]>([
-    { id: 1, message: '김싸피님이 팔로우를 요청했습니다.', isRead: false, time: '방금 전', type: 'follow' },
-    { id: 2, message: '오후 6시부터 서비스 점검이 예정되어 있습니다.', isRead: true, time: '1시간 전', type: 'system' },
+    {
+      id: 1,
+      message: '김싸피님이 팔로우를 요청했습니다.',
+      isRead: false,
+      time: '방금 전',
+      type: 'follow',
+    },
+    {
+      id: 2,
+      message: '오후 6시부터 서비스 점검이 예정되어 있습니다.',
+      isRead: true,
+      time: '1시간 전',
+      type: 'system',
+    },
   ]);
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
 
   // 알림 관리 함수
-  const handleReadAllAlarms = () => setAlarms(prev => prev.map(a => ({ ...a, isRead: true })));
+  const handleReadAllAlarms = () => setAlarms((prev) => prev.map((a) => ({ ...a, isRead: true })));
   const handleDeleteAllAlarms = () => setAlarms([]);
   const handleAlarmClick = (alarm: Alarm) => {
-    setAlarms(prev => prev.map(a => a.id === alarm.id ? { ...a, isRead: true } : a));
+    setAlarms((prev) => prev.map((a) => (a.id === alarm.id ? { ...a, isRead: true } : a)));
     if (alarm.type === 'follow') {
       setIsAlarmModalOpen(false);
       setIsUsersModalOpen(true);
@@ -203,11 +234,19 @@ export default function MainPage() {
   ];
 
   // 모드별 배경 색상 팔레트
-  const bgColors: Record<Mode, {
-    baseTop?: string; baseBottom?: string;
-    purple?: string; teal?: string; pink?: string;
-    mint?: string; plume?: string; streak?: string;
-  }> = {
+  const bgColors: Record<
+    Mode,
+    {
+      baseTop?: string;
+      baseBottom?: string;
+      purple?: string;
+      teal?: string;
+      pink?: string;
+      mint?: string;
+      plume?: string;
+      streak?: string;
+    }
+  > = {
     normal: {}, // 기본값 (AnimatedBackground 내부 default 사용)
     study: {
       baseTop: '#EDE5D4', // 따뜻한 크림 상단
@@ -248,9 +287,12 @@ export default function MainPage() {
           <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
             <Maximize className="w-6 h-6" />
           </button>
-          <button onClick={() => setIsAlarmModalOpen(!isAlarmModalOpen)} className="relative p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
+          <button
+            onClick={() => setIsAlarmModalOpen(!isAlarmModalOpen)}
+            className="relative p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition"
+          >
             <Bell className="w-6 h-6" />
-            {alarms.some(a => !a.isRead) && (
+            {alarms.some((a) => !a.isRead) && (
               <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-400 rounded-full border border-white" />
             )}
           </button>
@@ -273,8 +315,12 @@ export default function MainPage() {
                       onClick={() => handleAlarmClick(alarm)}
                       className="flex items-center gap-3 cursor-pointer group"
                     >
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${!alarm.isRead ? 'bg-red-400' : 'bg-transparent'}`} />
-                      <p className={`text-sm tracking-tight transition ${alarm.isRead ? 'text-gray-500' : 'text-gray-800 font-medium group-hover:text-black'}`}>
+                      <div
+                        className={`w-2 h-2 rounded-full flex-shrink-0 ${!alarm.isRead ? 'bg-red-400' : 'bg-transparent'}`}
+                      />
+                      <p
+                        className={`text-sm tracking-tight transition ${alarm.isRead ? 'text-gray-500' : 'text-gray-800 font-medium group-hover:text-black'}`}
+                      >
                         {alarm.message}
                       </p>
                     </div>
@@ -284,9 +330,13 @@ export default function MainPage() {
             </div>
 
             <div className="flex justify-end items-center gap-2 text-xs text-white drop-shadow-md font-medium">
-              <button onClick={handleDeleteAllAlarms} className="hover:text-white/80 transition">전체 삭제</button>
+              <button onClick={handleDeleteAllAlarms} className="hover:text-white/80 transition">
+                전체 삭제
+              </button>
               <span className="text-white/60">|</span>
-              <button onClick={handleReadAllAlarms} className="hover:text-white/80 transition">모두 읽음</button>
+              <button onClick={handleReadAllAlarms} className="hover:text-white/80 transition">
+                모두 읽음
+              </button>
             </div>
           </div>
         )}
@@ -315,9 +365,10 @@ export default function MainPage() {
               flex flex-col items-center gap-3 p-4 rounded-[50px]
               bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl
               transition-all duration-400 ease-out
-              ${showModePanel
-                ? 'opacity-100 translate-x-0 pointer-events-auto'
-                : 'opacity-0 -translate-x-2 pointer-events-none'
+              ${
+                showModePanel
+                  ? 'opacity-100 translate-x-0 pointer-events-auto'
+                  : 'opacity-0 -translate-x-2 pointer-events-none'
               }
             `}
             onMouseEnter={enterModePanel}
@@ -331,9 +382,10 @@ export default function MainPage() {
                 className={`
                   relative w-14 h-14 rounded-full flex items-center justify-center
                   bg-gradient-to-br ${mode.color} border-2 transition-all duration-300
-                  ${currentMode === mode.id
-                    ? 'border-white/80 scale-105 shadow-lg'
-                    : 'border-white/20 hover:border-white/50 hover:scale-105'
+                  ${
+                    currentMode === mode.id
+                      ? 'border-white/80 scale-105 shadow-lg'
+                      : 'border-white/20 hover:border-white/50 hover:scale-105'
                   }
                 `}
               >
@@ -383,7 +435,7 @@ export default function MainPage() {
           className="absolute top-0 right-0 h-full w-[350px] bg-white/20 backdrop-blur-2xl border-l border-white/40 shadow-2xl z-40 flex flex-col"
           initial={false}
           animate={{ x: isUsersModalOpen ? 0 : 350 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           drag="x"
           dragConstraints={{ left: 0, right: 350 }}
           dragElastic={0.05}
@@ -409,7 +461,10 @@ export default function MainPage() {
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <Users className="w-6 h-6 text-pink-500" /> 친구 목록
             </h2>
-            <button onClick={() => setIsUsersModalOpen(false)} className="p-2 hover:bg-white/40 rounded-full transition">
+            <button
+              onClick={() => setIsUsersModalOpen(false)}
+              className="p-2 hover:bg-white/40 rounded-full transition"
+            >
               <X className="w-5 h-5 text-gray-700" />
             </button>
           </div>
@@ -418,7 +473,11 @@ export default function MainPage() {
             <div className="p-4 bg-white/30 rounded-full mb-4">
               <UserPlus className="w-12 h-12 text-gray-500" />
             </div>
-            <p className="text-sm leading-relaxed">친구 목록 및 팔로우 관리 UI가<br />들어갈 공간입니다. (추후 구현 예정)</p>
+            <p className="text-sm leading-relaxed">
+              친구 목록 및 팔로우 관리 UI가
+              <br />
+              들어갈 공간입니다. (추후 구현 예정)
+            </p>
           </div>
         </motion.div>
 
@@ -462,7 +521,11 @@ export default function MainPage() {
               <pointLight position={[4, -2, 2]} intensity={3} color="#ffeeff" />
               <directionalLight position={[10, 10, 10]} intensity={2.0} color="#ffffff" />
               <Environment preset="studio" />
-              <Character3D faceType={faceType} mouthOpenRadius={mouthOpenRadius} mode={currentMode} />
+              <Character3D
+                faceType={faceType}
+                mouthOpenRadius={mouthOpenRadius}
+                mode={currentMode}
+              />
             </Canvas>
           </div>
 
@@ -479,7 +542,15 @@ export default function MainPage() {
 }
 
 // Three.js 3D 캐릭터 컴포넌트
-function Character3D({ faceType, mouthOpenRadius, mode }: { faceType: number; mouthOpenRadius: number; mode: string }) {
+function Character3D({
+  faceType,
+  mouthOpenRadius,
+  mode,
+}: {
+  faceType: number;
+  mouthOpenRadius: number;
+  mode: string;
+}) {
   const meshRef = useRef<THREE.Mesh>(null);
   const mouse = useRef({ x: 0, y: 0 });
 
@@ -553,7 +624,15 @@ function Character3D({ faceType, mouthOpenRadius, mode }: { faceType: number; mo
 }
 
 // 6가지 얼굴 디자인 컴포넌트
-function FaceDesign({ type, mouthOpenRadius, mode }: { type: number; mouthOpenRadius: number; mode: string }) {
+function FaceDesign({
+  type,
+  mouthOpenRadius,
+  mode,
+}: {
+  type: number;
+  mouthOpenRadius: number;
+  mode: string;
+}) {
   // 공통 눈 렌더링 함수 (크기 대폭 확대)
   const renderEyes = (eyeStyle: React.CSSProperties) => (
     <>
@@ -599,19 +678,69 @@ function FaceDesign({ type, mouthOpenRadius, mode }: { type: number; mouthOpenRa
             width: '460px',
           }}
         >
-          <svg viewBox="0 0 460 160" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: 'auto', filter: 'drop-shadow(0 8px 16px rgba(180,0,0,0.5))' }}>
+          <svg
+            viewBox="0 0 460 160"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{
+              width: '100%',
+              height: 'auto',
+              filter: 'drop-shadow(0 8px 16px rgba(180,0,0,0.5))',
+            }}
+          >
             {/* 왼쪽 다리 (얼굴 밖으로 넘어가는 선) */}
-            <line x1="72" y1="50" x2="15" y2="35" stroke="#cc1111" strokeWidth="12" strokeLinecap="round" />
+            <line
+              x1="72"
+              y1="50"
+              x2="15"
+              y2="35"
+              stroke="#cc1111"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
             {/* 오른쪽 다리 */}
-            <line x1="388" y1="50" x2="445" y2="35" stroke="#cc1111" strokeWidth="12" strokeLinecap="round" />
+            <line
+              x1="388"
+              y1="50"
+              x2="445"
+              y2="35"
+              stroke="#cc1111"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
 
             {/* 코 브리지 */}
-            <path d="M 212 55 Q 230 40 248 55" fill="none" stroke="#cc1111" strokeWidth="12" strokeLinecap="round" />
+            <path
+              d="M 212 55 Q 230 40 248 55"
+              fill="none"
+              stroke="#cc1111"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
 
             {/* 왼쪽 렌즈 테두리 + 렌즈 - 완전 오버사이즈 */}
-            <rect x="72" y="15" width="140" height="110" rx="35" ry="35" fill="rgba(255,80,80,0.15)" stroke="#cc1111" strokeWidth="14" />
+            <rect
+              x="72"
+              y="15"
+              width="140"
+              height="110"
+              rx="35"
+              ry="35"
+              fill="rgba(255,80,80,0.15)"
+              stroke="#cc1111"
+              strokeWidth="14"
+            />
             {/* 오른쪽 렌즈 테두리 + 렌즈 */}
-            <rect x="248" y="15" width="140" height="110" rx="35" ry="35" fill="rgba(255,80,80,0.15)" stroke="#cc1111" strokeWidth="14" />
+            <rect
+              x="248"
+              y="15"
+              width="140"
+              height="110"
+              rx="35"
+              ry="35"
+              fill="rgba(255,80,80,0.15)"
+              stroke="#cc1111"
+              strokeWidth="14"
+            />
 
             {/* 하이라이트 리플렉션 (입체감) */}
             <rect x="95" y="30" width="45" height="14" rx="7" fill="white" opacity="0.45" />
