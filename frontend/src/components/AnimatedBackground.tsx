@@ -1,4 +1,4 @@
-import { memo, useRef, useMemo } from 'react';
+import { memo, useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -11,13 +11,24 @@ void main() {
 }
 `;
 
-// 프리미엄 3D 유체(Liquid) 그라데이션 + 섬세한 그레인 노이즈 프래그먼트 셰이더
+// 외부에서 색상을 주입받을 수 있도록 Uniforms(uColor~)가 추가된 프래그먼트 셰이더
 const fragmentShader = `
 uniform float uTime;
 uniform vec2 uResolution;
+
+// 외부에서 주입받는 색상들 (HEX -> RGB 자동 변환됨)
+uniform vec3 uColorBaseTop;
+uniform vec3 uColorBaseBottom;
+uniform vec3 uColorPurple;
+uniform vec3 uColorTeal;
+uniform vec3 uColorPink;
+uniform vec3 uColorMint;
+uniform vec3 uColorPlume;
+uniform vec3 uColorStreak;
+
 varying vec2 vUv;
 
-// 3D 심플렉스 노이즈 알고리즘 (Ashima)
+// 3D 심플렉스 노이즈 알고리즘
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 float snoise(vec3 v){ 
@@ -69,16 +80,11 @@ float hash(vec2 p) {
 }
 
 void main() {
-    // 1. 기본 좌표 설정
     vec2 uv = vUv;
-    // 비율에 맞춰 x축을 조정하여 모양이 찌그러지지 않게 함 (16:9 기준)
     vec2 p = vec2(uv.x * (uResolution.x / uResolution.y), uv.y);
-    
-    // 일렁이는 모션 속도 살짝 올리기 (멈춰있지 않게 명확히 움직임 유지)
     float t = uTime * 0.05;
     
-    // 2. 일렁이는 공간 왜곡 (Domain Warping - FBM 변형)
-    // 여러 겹의 노이즈를 쌓아서 마치 마블링이나 기름이 섞이는 듯한 부드러운 일렁임 생성
+    // 일렁이는 공간 왜곡
     float qx = snoise(vec3(p * 1.5, t));
     float qy = snoise(vec3(p * 1.5 + vec2(5.2, 1.3), t));
     vec2 q = vec2(qx, qy);
@@ -86,49 +92,38 @@ void main() {
     float rx = snoise(vec3(p * 2.0 + q * 1.5 + vec2(1.7, 9.2), t * 1.2));
     float ry = snoise(vec3(p * 2.0 + q * 1.5 + vec2(8.3, 2.8), t * 1.2));
     vec2 r = vec2(rx, ry);
-    
-    // 이 노이즈를 사용해 좌표 자체를 뒤틀어버림 (일렁이는 효과의 핵심)
     vec2 warped = uv + r * 0.25;
 
-    // 또 하나의 독립적인 노이즈 흐름 (흰색 파동 결정용)
     float f = snoise(vec3(warped * 2.5, t));
-    f = f * 0.5 + 0.5; // 0 ~ 1 범위로
+    f = f * 0.5 + 0.5;
 
-    // 3. 사진과 맞추는 공간별 컬러 맵핑
-    // 베이스: 더 밝고 연한 하늘색 (사진의 왼쪽 전체 톤) - D8EBF1 ~ A8D6E5
-    vec3 color = mix(vec3(0.722, 0.875, 0.914), vec3(0.847, 0.922, 0.945), uv.y);
+    // 하드코딩된 소수점 대신 주입받은 색상 변수(uColor~) 사용
+    vec3 color = mix(uColorBaseBottom, uColorBaseTop, uv.y);
     
-    // 우측 상단 진한 라벤더/퍼플 블롭 (98AFD9) - 사진에서 우상단 진하게 있음
     float maskPurple = smoothstep(0.65, 0.0, distance(warped, vec2(0.85, 0.82)));
-    color = mix(color, vec3(0.502, 0.596, 0.780), maskPurple * 0.92);
+    color = mix(color, uColorPurple, maskPurple * 0.92);
 
-    // 중앙 오른쪽: 진한 틸(Teal) 블루 영역 - 사진의 중앙을 가르는 짙은 파란 구역
     float maskTeal = smoothstep(0.55, 0.0, distance(warped, vec2(0.58, 0.42)));
-    color = mix(color, vec3(0.596, 0.780, 0.820), maskTeal * 0.88);
+    color = mix(color, uColorTeal, maskTeal * 0.88);
 
-    // 우측 가장자리: 피치 핑크 / 크림 (E2CDDD) - 사진에서 우측에 강하게 나타남
     float maskPink = smoothstep(0.60, 0.05, distance(warped, vec2(0.92, 0.35)));
-    color = mix(color, vec3(0.886, 0.790, 0.855), maskPink * 0.95);
+    color = mix(color, uColorPink, maskPink * 0.95);
 
-    // 왼쪽 모서리 민트 틴트 (D7EBEA) - 사진 좌하단 미세한 민트 느낌
     float maskMint = smoothstep(0.50, 0.0, distance(warped, vec2(0.05, 0.2)));
-    color = mix(color, vec3(0.780, 0.914, 0.906), maskMint * 0.65);
+    color = mix(color, uColorMint, maskMint * 0.65);
 
-    // 4. 빛나는 중앙-왼쪽의 화이트 발광 플룸 (Luminous White Plume)
-    // 사진처럼 좌-중앙에 걸쳐 넓고 지배적으로 자리잡게 범위 확장
     float maskWhite = smoothstep(0.3, 0.75, f);
-    maskWhite *= smoothstep(0.75, 0.1, abs(warped.x - 0.38)); // 중앙보다 왼쪽에 배치
-    color = mix(color, vec3(0.975, 0.980, 0.996), maskWhite * 0.98); // 더 밝고 넓은 화이트
+    maskWhite *= smoothstep(0.75, 0.1, abs(warped.x - 0.38));
+    color = mix(color, uColorPlume, maskWhite * 0.98);
 
-    // 5. 부드러운 발광 스트릭 (E3ECF1 하이라이트)
     float streak = smoothstep(0.5, 0.9, snoise(vec3(uv * 3.0 + q, t * 1.5)));
-    color = mix(color, vec3(0.890, 0.925, 0.945), streak * 0.35);
+    color = mix(color, uColorStreak, streak * 0.35);
 
-    // 6. 필름 그레인 노이즈 (그대로 유지)
+    // 필름 그레인 노이즈
     float grainVal = hash(uv * (fract(uTime) + 1.0));
-    color += (grainVal - 0.5) * 0.06;
+    color += (grainVal - 0.5) * 0.15;
 
-    // 미세한 비네팅
+    // 비네팅
     float dist = length(uv - 0.5);
     color *= smoothstep(0.9, 0.3, dist * 0.5 + 0.2);
 
@@ -136,28 +131,69 @@ void main() {
 }
 `;
 
-const ShaderPlane = () => {
+// 외부에서 자유롭게 바꿀 수 있도록 Props 타입 정의
+interface AnimatedBackgroundProps {
+  baseTop?: string;
+  baseBottom?: string;
+  purple?: string;
+  teal?: string;
+  pink?: string;
+  mint?: string;
+  plume?: string;
+  streak?: string;
+}
+
+const ShaderPlane = ({
+  baseTop = '#D8EBF1',
+  baseBottom = '#A8D6E5',
+  purple = '#98AFD9',
+  teal = '#AAC4DF',
+  pink = '#E2CDDD',
+  mint = '#D7EBEA',
+  plume = '#FCFAFE',
+  streak = '#E3ECF1',
+}: AnimatedBackgroundProps) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const { size } = useThree();
 
-  // [수정 1] size 의존성 제거: 창 크기가 변해도 uniforms 객체를 재생성하지 않음
-  // → 리사이징 시 셰이더가 초기화되면서 멈추는 현상 원천 차단
+  // Uniforms 초기 세팅 (리사이징 최적화: 빈 deps 배열로 1회만 생성)
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uResolution: { value: new THREE.Vector2(0, 0) }, // 초기값 0, 매 프레임 업데이트됨
+      uResolution: { value: new THREE.Vector2(0, 0) },
+      uColorBaseTop: { value: new THREE.Color(baseTop) },
+      uColorBaseBottom: { value: new THREE.Color(baseBottom) },
+      uColorPurple: { value: new THREE.Color(purple) },
+      uColorTeal: { value: new THREE.Color(teal) },
+      uColorPink: { value: new THREE.Color(pink) },
+      uColorMint: { value: new THREE.Color(mint) },
+      uColorPlume: { value: new THREE.Color(plume) },
+      uColorStreak: { value: new THREE.Color(streak) },
     }),
-    [], // 빈 배열: 마운트 시 1회만 생성, 이후 절대 파괴/재생성되지 않음
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
+
+  // 외부에서 Props로 HEX 색상이 변경되면 실시간으로 셰이더에 반영
+  useEffect(() => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uColorBaseTop.value.set(baseTop);
+      materialRef.current.uniforms.uColorBaseBottom.value.set(baseBottom);
+      materialRef.current.uniforms.uColorPurple.value.set(purple);
+      materialRef.current.uniforms.uColorTeal.value.set(teal);
+      materialRef.current.uniforms.uColorPink.value.set(pink);
+      materialRef.current.uniforms.uColorMint.value.set(mint);
+      materialRef.current.uniforms.uColorPlume.value.set(plume);
+      materialRef.current.uniforms.uColorStreak.value.set(streak);
+    }
+  }, [baseTop, baseBottom, purple, teal, pink, mint, plume, streak]);
 
   useFrame((state) => {
     if (materialRef.current) {
-      // [수정 2] getElapsedTime(): 탭 이탈 후 복귀해도 실제 경과 시간으로 점프
-      // → 탭 전환 후 돌아왔을 때 시간이 자연스럽게 이어짐
+      // getElapsedTime(): 탭 이탈 후 복귀해도 자연스럽게 시간이 이어짐
       materialRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-
-      // [수정 3] 매 프레임 해상도 업데이트: 끊김 없이 창 크기 변화에 대응
+      // 매 프레임 해상도 업데이트: 리사이즈 시 끊김 없이 대응
       materialRef.current.uniforms.uResolution.value.set(size.width, size.height);
     }
   });
@@ -177,23 +213,20 @@ const ShaderPlane = () => {
   );
 };
 
-// React.memo로 감싸서 부모의 상태(state) 변화에 의한 리렌더링을 완전히 차단
-// 타이핑 애니메이션 state가 바뀌어도 이 컴포넌트는 절대 재렌더링되지 않음
-const AnimatedBackground = memo(function AnimatedBackground() {
+// React.memo: Props(각 색상 문자열)가 바뀌지 않으면 리렌더링 차단
+// 타이핑 애니메이션 state 변화가 Canvas WebGL 루프에 전혀 간섭하지 않음
+const AnimatedBackground = memo(function AnimatedBackground(props: AnimatedBackgroundProps) {
   return (
-    <>
-      {/* 3D WebGL Canvas for Fluid Simulation */}
-      <div className="fixed inset-0 z-[-2] pointer-events-none bg-[#FCFAFE]">
-        <Canvas
-          orthographic
-          camera={{ position: [0, 0, 1], zoom: 1 }}
-          gl={{ antialias: false, powerPreference: 'high-performance' }}
-          frameloop="always"
-        >
-          <ShaderPlane />
-        </Canvas>
-      </div>
-    </>
+    <div className="fixed inset-0 z-[-2] pointer-events-none bg-[#FCFAFE]">
+      <Canvas
+        orthographic
+        camera={{ position: [0, 0, 1], zoom: 1 }}
+        gl={{ antialias: false, powerPreference: 'high-performance' }}
+        frameloop="always"
+      >
+        <ShaderPlane {...props} />
+      </Canvas>
+    </div>
   );
 });
 

@@ -1,8 +1,22 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Mic, Lock, Users, Bell, User, Shuffle, Maximize } from 'lucide-react';
+import {
+  Mic,
+  Lock,
+  Users,
+  Bell,
+  User,
+  Maximize,
+  Home,
+  BookOpen,
+  Heart,
+  Smile,
+  X,
+  UserPlus,
+} from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, Html, Float, Environment } from '@react-three/drei';
 import * as THREE from 'three';
+import { motion } from 'framer-motion';
 import AnimatedBackground from '../components/AnimatedBackground';
 
 // 별도의 고성능 컴포넌트로 분리된 파형 링 (React 리렌더링과 독립적으로 부드럽게 애니메이션 유지)
@@ -97,14 +111,17 @@ const SpeechBubble = memo(
     if (!displayedText) return null;
 
     return (
-      // mt-8로 캐릭터와 거리 벌리기, 패딩/텍스트 크기 축소
       <div className="mt-8 z-20">
-        <div className="relative px-5 py-3 rounded-2xl bg-white/80 backdrop-blur-lg shadow-xl border border-white transition-opacity duration-300 transform opacity-100 translate-y-0">
-          {/* 말풍선 꼬리 */}
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 bg-white/80 border-t border-l border-white rotate-45 backdrop-blur-lg" />
-          <p className="relative z-10 text-base font-semibold text-gray-700 tracking-wide">
-            {displayedText}
-          </p>
+        {/* drop-shadow 필터: 몸통+꼬리 전체 실루엣에 하나의 그림자 적용 */}
+        <div className="relative drop-shadow-lg transition-opacity duration-300 transform opacity-100 translate-y-0">
+          {/* 몸통: 투명도 높여 겹침 비침 방지, border 제거 */}
+          <div className="relative px-5 py-3 rounded-2xl bg-white/95 backdrop-blur-lg">
+            {/* 꼬리: 몸통과 동일한 색, border 없음, 살짝 둥글게 */}
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white/95 rotate-45 rounded-sm" />
+            <p className="relative z-10 text-base font-semibold text-gray-700 tracking-wide">
+              {displayedText}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -150,13 +167,127 @@ export default function MainPage() {
   const handleSpeakStart = useCallback(() => setIsSpeaking(true), []);
   const handleSpeakEnd = useCallback(() => setIsSpeaking(false), []);
 
+  // 알림 데이터 타입 및 상태
+  type Alarm = {
+    id: number;
+    message: string;
+    isRead: boolean;
+    time: string;
+    type: 'follow' | 'system';
+  };
+  const [alarms, setAlarms] = useState<Alarm[]>([
+    {
+      id: 1,
+      message: '김싸피님이 팔로우를 요청했습니다.',
+      isRead: false,
+      time: '방금 전',
+      type: 'follow',
+    },
+    {
+      id: 2,
+      message: '오후 6시부터 서비스 점검이 예정되어 있습니다.',
+      isRead: true,
+      time: '1시간 전',
+      type: 'system',
+    },
+  ]);
+  const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+
+  // 알림 관리 함수
+  const handleReadAllAlarms = () => setAlarms((prev) => prev.map((a) => ({ ...a, isRead: true })));
+  const handleDeleteAllAlarms = () => setAlarms([]);
+  const handleAlarmClick = (alarm: Alarm) => {
+    setAlarms((prev) => prev.map((a) => (a.id === alarm.id ? { ...a, isRead: true } : a)));
+    if (alarm.type === 'follow') {
+      setIsAlarmModalOpen(false);
+      setIsUsersModalOpen(true);
+    }
+  };
+
+  // 모드 패널 hover 상태 (CSS group-hover 대신 React state 사용)
+  const [showModePanel, setShowModePanel] = useState(false);
+  const modePanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enterModePanel = useCallback(() => {
+    if (modePanelTimer.current) clearTimeout(modePanelTimer.current);
+    setShowModePanel(true);
+  }, []);
+  const leaveModePanel = useCallback(() => {
+    modePanelTimer.current = setTimeout(() => setShowModePanel(false), 800);
+  }, []);
+
+  // AI 모드 상태 (일반/학습/상담)
+  type Mode = 'normal' | 'study' | 'counseling';
+  const [currentMode, setCurrentMode] = useState<Mode>('normal');
+
+  const modes: { id: Mode; label: string; icon: React.ReactNode; color: string; glow: string }[] = [
+    {
+      id: 'normal',
+      label: '일반 모드',
+      icon: <Home className="w-7 h-7 text-white" />,
+      color: 'from-teal-200/60 to-cyan-100/40',
+      glow: 'bg-teal-200/50',
+    },
+    {
+      id: 'study',
+      label: '학습 모드',
+      icon: <BookOpen className="w-7 h-7 text-white" />,
+      color: 'from-pink-200/60 to-rose-100/40',
+      glow: 'bg-pink-200/50',
+    },
+    {
+      id: 'counseling',
+      label: '상담 모드',
+      icon: <Heart className="w-7 h-7 text-white" />,
+      color: 'from-indigo-200/60 to-blue-100/40',
+      glow: 'bg-indigo-300/50',
+    },
+  ];
+
+  // 모드별 배경 색상 팔레트
+  const bgColors: Record<
+    Mode,
+    {
+      baseTop?: string;
+      baseBottom?: string;
+      purple?: string;
+      teal?: string;
+      pink?: string;
+      mint?: string;
+      plume?: string;
+      streak?: string;
+    }
+  > = {
+    normal: {}, // 기본값 (AnimatedBackground 내부 default 사용)
+    study: {
+      baseTop: '#EDE5D4', // 따뜻한 크림 상단
+      baseBottom: '#7BA0B4', // 파우더 블루-그레이 하단
+      purple: '#D4B890', // 밀색/위트 (우상단)
+      teal: '#C8804A', // 앰버-테라코타 (중앙 포인트)
+      pink: '#E0C898', // 따뜻한 피치 (우측)
+      mint: '#8FBACF', // 밝은 하늘색 (좌하단)
+      plume: '#FAF4E8', // 아이보리 크림 블룸
+      streak: '#E8DDC8', // 따뜻한 크림 스트리크
+    },
+    counseling: {
+      baseTop: '#C8DCC8', // 연한 세이지 그린 (상단 베이스)
+      baseBottom: '#8CBCC0', // 틸-세이지 (하단)
+      purple: '#E0B0C0', // 소프트 핑크 (중앙 상단 포인트)
+      teal: '#90C8D8', // 스카이 블루 (중앙)
+      pink: '#F0C08C', // 복숭아-살구 (우측)
+      mint: '#C8DC88', // 노랑-연두/차트리즈 (좌하단)
+      plume: '#F4FAF0', // 밝은 민트-화이트 블룸
+      streak: '#E8D4E8', // 소프트 라벤더 스트리크
+    },
+  };
+
   // 배경 그라데이션 (현재는 애니메이션 CSS 클래스로 구현)
   // 투명한 캐릭터를 위해 backdrop-blur 적용
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
-      {/* 프리미엄 유체 배경 (Canvas 기반 실시간 셰이더) */}
-      <AnimatedBackground />
+      {/* 프리미엄 유체 배경 — 모드에 따라 색상 변경 */}
+      <AnimatedBackground {...bgColors[currentMode]} />
 
       {/* 상단 헤더 */}
       <header className="flex justify-between items-center px-5 py-2 w-full z-10 text-gray-700">
@@ -167,34 +298,199 @@ export default function MainPage() {
           <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
             <Maximize className="w-6 h-6" />
           </button>
-          <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
+          <button
+            onClick={() => setIsAlarmModalOpen(!isAlarmModalOpen)}
+            className="relative p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition"
+          >
             <Bell className="w-6 h-6" />
+            {alarms.some((a) => !a.isRead) && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-400 rounded-full border border-white" />
+            )}
           </button>
           <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
             <User className="w-6 h-6" />
           </button>
         </div>
+
+        {/* 알림 드롭다운 (헤더 바로 아래 우측 위치) */}
+        {isAlarmModalOpen && (
+          <div className="absolute top-[60px] right-20 z-50 w-[300px] bg-white/30 backdrop-blur-2xl rounded-3xl p-5 shadow-2xl border border-white/40 text-gray-800 animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="flex flex-col gap-4 mb-6">
+              {alarms.length === 0 ? (
+                <div className="text-center text-sm text-gray-600 py-4">알림이 없습니다.</div>
+              ) : (
+                alarms.map((alarm, idx) => (
+                  <React.Fragment key={alarm.id}>
+                    {idx > 0 && <div className="h-px bg-white/40 my-1" />}
+                    <div
+                      onClick={() => handleAlarmClick(alarm)}
+                      className="flex items-center gap-3 cursor-pointer group"
+                    >
+                      <div
+                        className={`w-2 h-2 rounded-full flex-shrink-0 ${!alarm.isRead ? 'bg-red-400' : 'bg-transparent'}`}
+                      />
+                      <p
+                        className={`text-sm tracking-tight transition ${alarm.isRead ? 'text-gray-500' : 'text-gray-800 font-medium group-hover:text-black'}`}
+                      >
+                        {alarm.message}
+                      </p>
+                    </div>
+                  </React.Fragment>
+                ))
+              )}
+            </div>
+
+            <div className="flex justify-end items-center gap-2 text-xs text-white drop-shadow-md font-medium">
+              <button onClick={handleDeleteAllAlarms} className="hover:text-white/80 transition">
+                전체 삭제
+              </button>
+              <span className="text-white/60">|</span>
+              <button onClick={handleReadAllAlarms} className="hover:text-white/80 transition">
+                모두 읽음
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* 메인 뷰 (캐릭터 중앙) */}
       <main className="flex-1 flex items-center justify-center relative w-full h-full">
-        {/* 사이드 제어 버튼 (좌측) */}
-        <div className="absolute left-6 top-1/2 -translate-y-1/2">
-          <div className="w-16 h-32 bg-white/20 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center shadow-lg border border-white/40">
-            <button className="p-3 hover:bg-white/30 rounded-full transition" onClick={changeFace}>
-              <Shuffle className="w-6 h-6 text-gray-700" />
-            </button>
+        {/* 좌측 모드 선택 — 트리거는 마이크와 같은 Y(top-1/2)에 단독 위치 */}
+        <div
+          className="absolute left-6 top-1/2 -translate-y-1/2 z-50"
+          onMouseEnter={enterModePanel}
+          onMouseLeave={leaveModePanel}
+        >
+          {/* 트리거 버튼 — 항상 보임, 마이크와 동일 선상 */}
+          <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/40 shadow-lg flex flex-col items-center justify-center gap-1 hover:bg-white/30 transition-all duration-300 cursor-pointer">
+            {modes.find((m) => m.id === currentMode)?.icon}
+            <span className="text-[8px] font-semibold text-white/80 leading-none">
+              {currentMode === 'normal' ? '일반' : currentMode === 'study' ? '학습' : '상담'}
+            </span>
           </div>
+
+          {/* 팝업 — 트리거 우측에 absolute, 세로 중앙 정렬(마이크 선상) */}
+          <div
+            className={`
+              absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2
+              flex flex-col items-center gap-3 p-4 rounded-[50px]
+              bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl
+              transition-all duration-400 ease-out
+              ${
+                showModePanel
+                  ? 'opacity-100 translate-x-0 pointer-events-auto'
+                  : 'opacity-0 -translate-x-2 pointer-events-none'
+              }
+            `}
+            onMouseEnter={enterModePanel}
+            onMouseLeave={leaveModePanel}
+          >
+            {/* 모드 3종 — 동그란 원형 버튼 */}
+            {modes.map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => setCurrentMode(mode.id)}
+                className={`
+                  relative w-14 h-14 rounded-full flex items-center justify-center
+                  bg-gradient-to-br ${mode.color} border-2 transition-all duration-300
+                  ${
+                    currentMode === mode.id
+                      ? 'border-white/80 scale-105 shadow-lg'
+                      : 'border-white/20 hover:border-white/50 hover:scale-105'
+                  }
+                `}
+              >
+                {currentMode === mode.id && (
+                  <div className={`absolute inset-0 rounded-full ${mode.glow} blur-md -z-10`} />
+                )}
+                {mode.icon}
+                {currentMode === mode.id && (
+                  <span className="absolute -right-1 -top-1 w-2.5 h-2.5 bg-white rounded-full border-2 border-white/60 shadow" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* 현재 모드 표시 + 호버 트리거 역할의 아이콘 버튼 */}
+          <div
+            className="
+              w-16 h-16 rounded-2xl
+              bg-white/20 backdrop-blur-md border border-white/40 shadow-lg
+              flex flex-col items-center justify-center gap-1
+              transition-all duration-300 hover:bg-white/30
+            "
+          >
+            {modes.find((m) => m.id === currentMode)?.icon}
+            <span className="text-[9px] font-semibold text-white/80 leading-none">
+              {currentMode === 'normal' ? '일반' : currentMode === 'study' ? '학습' : '상담'}
+            </span>
+          </div>
+
+          {/* 구분 — 표정/목소리 전환 버튼 (별도 분리) */}
+          <button
+            onClick={changeFace}
+            className="
+              w-16 h-16 rounded-2xl
+              bg-white/20 backdrop-blur-md border border-white/40 shadow-lg
+              flex flex-col items-center justify-center gap-1
+              hover:bg-white/30 transition-all duration-300
+            "
+          >
+            <Smile className="w-7 h-7 text-gray-600" />
+            <span className="text-[9px] font-semibold text-gray-600/80 leading-none">표정</span>
+          </button>
         </div>
 
-        {/* 사이드 제어 버튼 (우측) */}
-        <div className="absolute right-6 top-1/2 -translate-y-1/2">
-          <div className="w-16 h-32 bg-white/20 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center shadow-lg border border-white/40">
-            <button className="p-3 hover:bg-white/30 rounded-full transition relative group">
-              <Users className="w-6 h-6 text-gray-700" />
+        {/* 우측 슬라이딩 사이드바 (친구 목록) */}
+        <motion.div
+          className="absolute top-0 right-0 h-full w-[350px] bg-white/20 backdrop-blur-2xl border-l border-white/40 shadow-2xl z-40 flex flex-col"
+          initial={false}
+          animate={{ x: isUsersModalOpen ? 0 : 350 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          drag="x"
+          dragConstraints={{ left: 0, right: 350 }}
+          dragElastic={0.05}
+          onDragEnd={(_e, info) => {
+            // 오른쪽으로 스와이프하면 닫기, 왼쪽으로 스와이프하면 열기
+            if (info.offset.x > 50 || info.velocity.x > 500) {
+              setIsUsersModalOpen(false);
+            } else if (info.offset.x < -50 || info.velocity.x < -500) {
+              setIsUsersModalOpen(true);
+            }
+          }}
+        >
+          {/* 당기기 탭 (사이드바에 부착되어 항상 보임) */}
+          <button
+            onClick={() => setIsUsersModalOpen(!isUsersModalOpen)}
+            className="absolute -left-[70px] top-1/2 -translate-y-1/2 w-[70px] h-32 bg-white/20 backdrop-blur-xl border border-r-0 border-white/40 rounded-l-3xl shadow-lg flex items-center justify-center hover:bg-white/30 transition-colors"
+          >
+            <Users className="w-7 h-7 text-gray-700" />
+          </button>
+
+          {/* 사이드바 내용 */}
+          <div className="p-6 flex justify-between items-center border-b border-white/30">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Users className="w-6 h-6 text-pink-500" /> 친구 목록
+            </h2>
+            <button
+              onClick={() => setIsUsersModalOpen(false)}
+              className="p-2 hover:bg-white/40 rounded-full transition"
+            >
+              <X className="w-5 h-5 text-gray-700" />
             </button>
           </div>
-        </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-600 p-6">
+            <div className="p-4 bg-white/30 rounded-full mb-4">
+              <UserPlus className="w-12 h-12 text-gray-500" />
+            </div>
+            <p className="text-sm leading-relaxed">
+              친구 목록 및 팔로우 관리 UI가
+              <br />
+              들어갈 공간입니다. (추후 구현 예정)
+            </p>
+          </div>
+        </motion.div>
 
         {/* 중앙 캐릭터 컨테이너 */}
         <div className="relative flex flex-col items-center justify-center">
@@ -220,11 +516,27 @@ export default function MainPage() {
             {/* 시각화 링을 구체와 완벽하게 동일한 중심점에 배치 (inset-0) */}
             <WaveformRing isActive={isSpeaking} />
             <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }} className="w-full h-full">
-              <ambientLight intensity={0.8} />
-              <directionalLight position={[10, 10, 10]} intensity={1.5} color="#ffffff" />
-              <directionalLight position={[-10, -10, -10]} intensity={0.5} color="#d9f99d" />
-              <Environment preset="city" />
-              <Character3D faceType={faceType} mouthOpenRadius={mouthOpenRadius} />
+              <ambientLight intensity={0.6} />
+              {/* 정면 강한 스포트라이트 → 구체 상단에 선명한 하이라이트 */}
+              <spotLight
+                position={[0, 5, 5]}
+                intensity={6}
+                angle={0.4}
+                penumbra={0.6}
+                color="#ffffff"
+                castShadow
+              />
+              {/* 좌측 보조 포인트라이트 → 유리 측면 반짝임 */}
+              <pointLight position={[-4, 3, 3]} intensity={4} color="#e0f0ff" />
+              {/* 우측 하단 반사광 → 구체 하단 림라이팅 */}
+              <pointLight position={[4, -2, 2]} intensity={3} color="#ffeeff" />
+              <directionalLight position={[10, 10, 10]} intensity={2.0} color="#ffffff" />
+              <Environment preset="studio" />
+              <Character3D
+                faceType={faceType}
+                mouthOpenRadius={mouthOpenRadius}
+                mode={currentMode}
+              />
             </Canvas>
           </div>
 
@@ -241,7 +553,15 @@ export default function MainPage() {
 }
 
 // Three.js 3D 캐릭터 컴포넌트
-function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpenRadius: number }) {
+function Character3D({
+  faceType,
+  mouthOpenRadius,
+  mode,
+}: {
+  faceType: number;
+  mouthOpenRadius: number;
+  mode: string;
+}) {
   const meshRef = useRef<THREE.Mesh>(null);
   const mouse = useRef({ x: 0, y: 0 });
 
@@ -257,7 +577,7 @@ function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpe
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!meshRef.current) return;
     // 마우스 위치에 따른 부드러운 회전 보간
     // 회전 반경(민감도)
@@ -283,18 +603,18 @@ function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpe
       <Sphere ref={meshRef} args={[1.5, 64, 64]}>
         {/* 유리 질감을 극대화하기 위한 물리 기반 머티리얼 속성 조정 */}
         <meshPhysicalMaterial
-          transmission={0.85} // 100% 투과하면 탁한 배경색이 그대로 넘어오므로 살짝 막아줌
-          thickness={1.5} // 유리의 두께감을 높여 더 우유빛 굴절 효과 유도
-          roughness={0.1} // 표면의 거칠기 (살짝 서리가 낀 느낌)
-          ior={1.2} // 굴절률 조정
-          color="#ffffff" // 기본 틴트 색상을 완전 화이트로
-          emissive="#ffffff" // 구체 자체가 살짝 흰빛을 내뿜도록 emissive 추가
-          emissiveIntensity={0.1} // 은은하게 빛나는 뽀얀 느낌
-          clearcoat={1} // 표면 코팅 반짝임 유지
-          clearcoatRoughness={0.05}
-          opacity={0.8} // 흰색 실루엣이 분명하게 보이도록 불투명도를 확 높임
-          transparent={true} // 투명 속성 활성화
-          envMapIntensity={2.0} // 환경 반사 강도를 높여 더 밝고 쨍하게 만듦
+          transmission={0.35} // 투과율을 낮춰 배경색이 덜 비치고 흰끼가 살아남
+          thickness={2.0} // 두께감을 올려 굴절을 더 풍부하게
+          roughness={0.0} // 0에 가까울수록 거울처럼 매끄럽게 = 선명한 반짝임
+          ior={1.6} // 굴절률 높여 유리/크리스탈 느낌 강화
+          color="#ffffff"
+          emissive="#c8e8ff" // 은은한 하늘빛 자가발광으로 블링 느낌
+          emissiveIntensity={0.25} // 발광 강도 높임
+          clearcoat={1} // 코팅 최대
+          clearcoatRoughness={0.0} // 코팅 표면도 완전 매끄럽게 → 가장 선명한 반짝임
+          opacity={0.95}
+          transparent={true}
+          envMapIntensity={4.0} // 환경 반사 강도 대폭 올려 주변 빛이 구체에 풍부하게 반사
         />
         {/* 구체 겉표면에 HTML 기반 얼굴 UI 매핑 및 크기 확대 */}
         <Html
@@ -306,7 +626,7 @@ function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpe
         >
           {/* 표정 컨테이너 크기 자체를 기존 280px에서 400px로 더욱 확대 */}
           <div className="w-[400px] h-[400px] pointer-events-none flex items-center justify-center transform-style-3d scale-150">
-            <FaceDesign type={faceType} mouthOpenRadius={mouthOpenRadius} />
+            <FaceDesign type={faceType} mouthOpenRadius={mouthOpenRadius} mode={mode} />
           </div>
         </Html>
       </Sphere>
@@ -315,7 +635,15 @@ function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpe
 }
 
 // 6가지 얼굴 디자인 컴포넌트
-function FaceDesign({ type, mouthOpenRadius }: { type: number; mouthOpenRadius: number }) {
+function FaceDesign({
+  type,
+  mouthOpenRadius,
+  mode,
+}: {
+  type: number;
+  mouthOpenRadius: number;
+  mode: string;
+}) {
   // 공통 눈 렌더링 함수 (크기 대폭 확대)
   const renderEyes = (eyeStyle: React.CSSProperties) => (
     <>
@@ -349,6 +677,88 @@ function FaceDesign({ type, mouthOpenRadius }: { type: number; mouthOpenRadius: 
   return (
     <div className="absolute inset-0 w-full h-full flex items-center justify-center transform-style-3d">
       {renderEyebrows()}
+
+      {/* 학습모드 전용 빨간 안경 개 입체 SVG (대두/오버사이즈 안경) */}
+      {mode === 'study' && (
+        <div
+          className="absolute"
+          style={{
+            top: '26%',
+            left: '50%',
+            transform: 'translateX(-50%) translateZ(45px)',
+            width: '460px',
+          }}
+        >
+          <svg
+            viewBox="0 0 460 160"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{
+              width: '100%',
+              height: 'auto',
+              filter: 'drop-shadow(0 8px 16px rgba(180,0,0,0.5))',
+            }}
+          >
+            {/* 왼쪽 다리 (얼굴 밖으로 넘어가는 선) */}
+            <line
+              x1="72"
+              y1="50"
+              x2="15"
+              y2="35"
+              stroke="#cc1111"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
+            {/* 오른쪽 다리 */}
+            <line
+              x1="388"
+              y1="50"
+              x2="445"
+              y2="35"
+              stroke="#cc1111"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
+
+            {/* 코 브리지 */}
+            <path
+              d="M 212 55 Q 230 40 248 55"
+              fill="none"
+              stroke="#cc1111"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
+
+            {/* 왼쪽 렌즈 테두리 + 렌즈 - 완전 오버사이즈 */}
+            <rect
+              x="72"
+              y="15"
+              width="140"
+              height="110"
+              rx="35"
+              ry="35"
+              fill="rgba(255,80,80,0.15)"
+              stroke="#cc1111"
+              strokeWidth="14"
+            />
+            {/* 오른쪽 렌즈 테두리 + 렌즈 */}
+            <rect
+              x="248"
+              y="15"
+              width="140"
+              height="110"
+              rx="35"
+              ry="35"
+              fill="rgba(255,80,80,0.15)"
+              stroke="#cc1111"
+              strokeWidth="14"
+            />
+
+            {/* 하이라이트 리플렉션 (입체감) */}
+            <rect x="95" y="30" width="45" height="14" rx="7" fill="white" opacity="0.45" />
+            <rect x="271" y="30" width="45" height="14" rx="7" fill="white" opacity="0.45" />
+          </svg>
+        </div>
+      )}
 
       {type === 0 && (
         // 디자인 1: 세로로 긴 타원 눈, 알파벳 O 모양 입
