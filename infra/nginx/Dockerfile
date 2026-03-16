@@ -9,7 +9,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # 2) Runtime stage
-FROM nginxinc/nginx-unprivileged:alpine3.23-slim
+FROM nginxinc/nginx-unprivileged:stable-alpine
 
 COPY infra/nginx/conf.d/ /etc/nginx/conf.d/
 COPY --from=builder /app/dist /usr/share/nginx/html
