@@ -202,13 +202,42 @@ export default function MainPage() {
     },
   ];
 
+  // 모드별 배경 색상 팔레트
+  const bgColors: Record<Mode, {
+    baseTop?: string; baseBottom?: string;
+    purple?: string; teal?: string; pink?: string;
+    mint?: string; plume?: string; streak?: string;
+  }> = {
+    normal: {}, // 기본값 (AnimatedBackground 내부 default 사용)
+    study: {
+      baseTop: '#EDE5D4', // 따뜻한 크림 상단
+      baseBottom: '#7BA0B4', // 파우더 블루-그레이 하단
+      purple: '#D4B890', // 밀색/위트 (우상단)
+      teal: '#C8804A', // 앰버-테라코타 (중앙 포인트)
+      pink: '#E0C898', // 따뜻한 피치 (우측)
+      mint: '#8FBACF', // 밝은 하늘색 (좌하단)
+      plume: '#FAF4E8', // 아이보리 크림 블룸
+      streak: '#E8DDC8', // 따뜻한 크림 스트리크
+    },
+    counseling: {
+      baseTop: '#C8DCC8', // 연한 세이지 그린 (상단 베이스)
+      baseBottom: '#8CBCC0', // 틸-세이지 (하단)
+      purple: '#E0B0C0', // 소프트 핑크 (중앙 상단 포인트)
+      teal: '#90C8D8', // 스카이 블루 (중앙)
+      pink: '#F0C08C', // 복숭아-살구 (우측)
+      mint: '#C8DC88', // 노랑-연두/차트리즈 (좌하단)
+      plume: '#F4FAF0', // 밝은 민트-화이트 블룸
+      streak: '#E8D4E8', // 소프트 라벤더 스트리크
+    },
+  };
+
   // 배경 그라데이션 (현재는 애니메이션 CSS 클래스로 구현)
   // 투명한 캐릭터를 위해 backdrop-blur 적용
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
-      {/* 프리미엄 유체 배경 (Canvas 기반 실시간 셰이더) */}
-      <AnimatedBackground />
+      {/* 프리미엄 유체 배경 — 모드에 따라 색상 변경 */}
+      <AnimatedBackground {...bgColors[currentMode]} />
 
       {/* 상단 헤더 */}
       <header className="flex justify-between items-center px-5 py-2 w-full z-10 text-gray-700">
@@ -229,7 +258,7 @@ export default function MainPage() {
             <User className="w-6 h-6" />
           </button>
         </div>
-        
+
         {/* 알림 드롭다운 (헤더 바로 아래 우측 위치) */}
         {isAlarmModalOpen && (
           <div className="absolute top-[60px] right-20 z-50 w-[300px] bg-white/30 backdrop-blur-2xl rounded-3xl p-5 shadow-2xl border border-white/40 text-gray-800 animate-in fade-in slide-in-from-top-4 duration-200">
@@ -240,7 +269,7 @@ export default function MainPage() {
                 alarms.map((alarm, idx) => (
                   <React.Fragment key={alarm.id}>
                     {idx > 0 && <div className="h-px bg-white/40 my-1" />}
-                    <div 
+                    <div
                       onClick={() => handleAlarmClick(alarm)}
                       className="flex items-center gap-3 cursor-pointer group"
                     >
@@ -253,7 +282,7 @@ export default function MainPage() {
                 ))
               )}
             </div>
-            
+
             <div className="flex justify-end items-center gap-2 text-xs text-white drop-shadow-md font-medium">
               <button onClick={handleDeleteAllAlarms} className="hover:text-white/80 transition">전체 삭제</button>
               <span className="text-white/60">|</span>
@@ -265,41 +294,55 @@ export default function MainPage() {
 
       {/* 메인 뷰 (캐릭터 중앙) */}
       <main className="flex-1 flex items-center justify-center relative w-full h-full">
-        {/* 사이드 패널 (좌측) - 호버 시 모드 선택 모달 슬라이드인 */}
-        <div className="absolute left-6 top-1/2 -translate-y-1/2 group flex flex-col items-start gap-3">
-          {/* 모드 선택 패널: group-hover 시 쓰윽 나타남 */}
+        {/* 좌측 모드 선택 — 트리거는 마이크와 같은 Y(top-1/2)에 단독 위치 */}
+        <div
+          className="absolute left-6 top-1/2 -translate-y-1/2 z-50"
+          onMouseEnter={enterModePanel}
+          onMouseLeave={leaveModePanel}
+        >
+          {/* 트리거 버튼 — 항상 보임, 마이크와 동일 선상 */}
+          <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/40 shadow-lg flex flex-col items-center justify-center gap-1 hover:bg-white/30 transition-all duration-300 cursor-pointer">
+            {modes.find((m) => m.id === currentMode)?.icon}
+            <span className="text-[8px] font-semibold text-white/80 leading-none">
+              {currentMode === 'normal' ? '일반' : currentMode === 'study' ? '학습' : '상담'}
+            </span>
+          </div>
+
+          {/* 팝업 — 트리거 우측에 absolute, 세로 중앙 정렬(마이크 선상) */}
           <div
-            className="
-              flex flex-col gap-2 p-3 rounded-3xl
+            className={`
+              absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2
+              flex flex-col items-center gap-3 p-4 rounded-[50px]
               bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl
-              transition-all duration-500 ease-out
-              opacity-0 translate-x-[-10px] pointer-events-none
-              group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto
-            "
+              transition-all duration-400 ease-out
+              ${showModePanel
+                ? 'opacity-100 translate-x-0 pointer-events-auto'
+                : 'opacity-0 -translate-x-2 pointer-events-none'
+              }
+            `}
+            onMouseEnter={enterModePanel}
+            onMouseLeave={leaveModePanel}
           >
+            {/* 모드 3종 — 동그란 원형 버튼 */}
             {modes.map((mode) => (
               <button
                 key={mode.id}
                 onClick={() => setCurrentMode(mode.id)}
                 className={`
-                  relative w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1
-                  bg-gradient-to-br ${mode.color}
-                  border-2 transition-all duration-300
-                  ${
-                    currentMode === mode.id
-                      ? 'border-white/80 scale-105 shadow-lg'
-                      : 'border-white/20 hover:border-white/50 hover:scale-105'
+                  relative w-14 h-14 rounded-full flex items-center justify-center
+                  bg-gradient-to-br ${mode.color} border-2 transition-all duration-300
+                  ${currentMode === mode.id
+                    ? 'border-white/80 scale-105 shadow-lg'
+                    : 'border-white/20 hover:border-white/50 hover:scale-105'
                   }
                 `}
               >
-                {/* 선택된 모드 내부 글로우 */}
                 {currentMode === mode.id && (
-                  <div className={`absolute inset-0 rounded-2xl ${mode.glow} blur-md -z-10`} />
+                  <div className={`absolute inset-0 rounded-full ${mode.glow} blur-md -z-10`} />
                 )}
                 {mode.icon}
-                {/* 선택 시 모드명 레이블 */}
                 {currentMode === mode.id && (
-                  <span className="absolute -right-1 -top-1 w-3 h-3 bg-white rounded-full border-2 border-white/60 shadow" />
+                  <span className="absolute -right-1 -top-1 w-2.5 h-2.5 bg-white rounded-full border-2 border-white/60 shadow" />
                 )}
               </button>
             ))}
@@ -336,7 +379,7 @@ export default function MainPage() {
         </div>
 
         {/* 우측 슬라이딩 사이드바 (친구 목록) */}
-        <motion.div 
+        <motion.div
           className="absolute top-0 right-0 h-full w-[350px] bg-white/20 backdrop-blur-2xl border-l border-white/40 shadow-2xl z-40 flex flex-col"
           initial={false}
           animate={{ x: isUsersModalOpen ? 0 : 350 }}
@@ -354,7 +397,7 @@ export default function MainPage() {
           }}
         >
           {/* 당기기 탭 (사이드바에 부착되어 항상 보임) */}
-          <button 
+          <button
             onClick={() => setIsUsersModalOpen(!isUsersModalOpen)}
             className="absolute -left-[70px] top-1/2 -translate-y-1/2 w-[70px] h-32 bg-white/20 backdrop-blur-xl border border-r-0 border-white/40 rounded-l-3xl shadow-lg flex items-center justify-center hover:bg-white/30 transition-colors"
           >
@@ -370,12 +413,12 @@ export default function MainPage() {
               <X className="w-5 h-5 text-gray-700" />
             </button>
           </div>
-          
+
           <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-600 p-6">
             <div className="p-4 bg-white/30 rounded-full mb-4">
               <UserPlus className="w-12 h-12 text-gray-500" />
             </div>
-            <p className="text-sm leading-relaxed">친구 목록 및 팔로우 관리 UI가<br/>들어갈 공간입니다. (추후 구현 예정)</p>
+            <p className="text-sm leading-relaxed">친구 목록 및 팔로우 관리 UI가<br />들어갈 공간입니다. (추후 구현 예정)</p>
           </div>
         </motion.div>
 
@@ -419,7 +462,7 @@ export default function MainPage() {
               <pointLight position={[4, -2, 2]} intensity={3} color="#ffeeff" />
               <directionalLight position={[10, 10, 10]} intensity={2.0} color="#ffffff" />
               <Environment preset="studio" />
-              <Character3D faceType={faceType} mouthOpenRadius={mouthOpenRadius} />
+              <Character3D faceType={faceType} mouthOpenRadius={mouthOpenRadius} mode={currentMode} />
             </Canvas>
           </div>
 
@@ -436,7 +479,7 @@ export default function MainPage() {
 }
 
 // Three.js 3D 캐릭터 컴포넌트
-function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpenRadius: number }) {
+function Character3D({ faceType, mouthOpenRadius, mode }: { faceType: number; mouthOpenRadius: number; mode: string }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const mouse = useRef({ x: 0, y: 0 });
 
@@ -501,7 +544,7 @@ function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpe
         >
           {/* 표정 컨테이너 크기 자체를 기존 280px에서 400px로 더욱 확대 */}
           <div className="w-[400px] h-[400px] pointer-events-none flex items-center justify-center transform-style-3d scale-150">
-            <FaceDesign type={faceType} mouthOpenRadius={mouthOpenRadius} />
+            <FaceDesign type={faceType} mouthOpenRadius={mouthOpenRadius} mode={mode} />
           </div>
         </Html>
       </Sphere>
@@ -510,7 +553,7 @@ function Character3D({ faceType, mouthOpenRadius }: { faceType: number; mouthOpe
 }
 
 // 6가지 얼굴 디자인 컴포넌트
-function FaceDesign({ type, mouthOpenRadius }: { type: number; mouthOpenRadius: number }) {
+function FaceDesign({ type, mouthOpenRadius, mode }: { type: number; mouthOpenRadius: number; mode: string }) {
   // 공통 눈 렌더링 함수 (크기 대폭 확대)
   const renderEyes = (eyeStyle: React.CSSProperties) => (
     <>
@@ -544,6 +587,38 @@ function FaceDesign({ type, mouthOpenRadius }: { type: number; mouthOpenRadius: 
   return (
     <div className="absolute inset-0 w-full h-full flex items-center justify-center transform-style-3d">
       {renderEyebrows()}
+
+      {/* 학습모드 전용 빨간 안경 개 입체 SVG (대두/오버사이즈 안경) */}
+      {mode === 'study' && (
+        <div
+          className="absolute"
+          style={{
+            top: '26%',
+            left: '50%',
+            transform: 'translateX(-50%) translateZ(45px)',
+            width: '460px',
+          }}
+        >
+          <svg viewBox="0 0 460 160" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: 'auto', filter: 'drop-shadow(0 8px 16px rgba(180,0,0,0.5))' }}>
+            {/* 왼쪽 다리 (얼굴 밖으로 넘어가는 선) */}
+            <line x1="72" y1="50" x2="15" y2="35" stroke="#cc1111" strokeWidth="12" strokeLinecap="round" />
+            {/* 오른쪽 다리 */}
+            <line x1="388" y1="50" x2="445" y2="35" stroke="#cc1111" strokeWidth="12" strokeLinecap="round" />
+
+            {/* 코 브리지 */}
+            <path d="M 212 55 Q 230 40 248 55" fill="none" stroke="#cc1111" strokeWidth="12" strokeLinecap="round" />
+
+            {/* 왼쪽 렌즈 테두리 + 렌즈 - 완전 오버사이즈 */}
+            <rect x="72" y="15" width="140" height="110" rx="35" ry="35" fill="rgba(255,80,80,0.15)" stroke="#cc1111" strokeWidth="14" />
+            {/* 오른쪽 렌즈 테두리 + 렌즈 */}
+            <rect x="248" y="15" width="140" height="110" rx="35" ry="35" fill="rgba(255,80,80,0.15)" stroke="#cc1111" strokeWidth="14" />
+
+            {/* 하이라이트 리플렉션 (입체감) */}
+            <rect x="95" y="30" width="45" height="14" rx="7" fill="white" opacity="0.45" />
+            <rect x="271" y="30" width="45" height="14" rx="7" fill="white" opacity="0.45" />
+          </svg>
+        </div>
+      )}
 
       {type === 0 && (
         // 디자인 1: 세로로 긴 타원 눈, 알파벳 O 모양 입
