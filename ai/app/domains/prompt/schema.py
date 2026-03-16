@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -11,3 +13,5 @@ class PromptResponse(BaseModel):
     user_id: str
     source_text: str
     prompt: str
+    created_at: datetime
+    updated_at: datetime

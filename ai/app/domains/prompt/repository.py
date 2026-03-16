@@ -1,25 +1,39 @@
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.domains.prompt.model import Prompt
 
 
 class PromptRepository:
-    def __init__(self) -> None:
-        self._prompts: dict[str, Prompt] = {}
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
 
-    def create(self, prompt: Prompt) -> Prompt:
-        self._prompts[prompt.user_id] = prompt
+    async def create(self, prompt: Prompt) -> Prompt:
+        self.session.add(prompt)
+        await self.session.commit()
+        await self.session.refresh(prompt)
         return prompt
 
-    def get_by_user_id(self, user_id: str) -> Prompt | None:
-        return self._prompts.get(user_id)
+    async def get_by_user_id(self, user_id: str) -> Prompt | None:
+        result = await self.session.execute(
+            select(Prompt).where(Prompt.user_id == user_id)
+        )
+        return result.scalar_one_or_none()
 
-    def update(self, prompt: Prompt) -> Prompt | None:
-        if prompt.user_id not in self._prompts:
+    async def update(self, user_id: str, source_text: str, prompt_text: str) -> Prompt | None:
+        record = await self.get_by_user_id(user_id)
+        if record is None:
             return None
-        self._prompts[prompt.user_id] = prompt
-        return prompt
+        record.source_text = source_text
+        record.prompt = prompt_text
+        await self.session.commit()
+        await self.session.refresh(record)
+        return record
 
-    def delete(self, user_id: str) -> bool:
-        if user_id not in self._prompts:
+    async def delete(self, user_id: str) -> bool:
+        record = await self.get_by_user_id(user_id)
+        if record is None:
             return False
-        del self._prompts[user_id]
+        await self.session.delete(record)
+        await self.session.commit()
         return True

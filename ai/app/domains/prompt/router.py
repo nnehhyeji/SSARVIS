@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import get_db_session
 from app.infra.openai import OpenAIClient
 from app.infra.prompt_loader import PromptTemplateLoader
 from app.domains.prompt.repository import PromptRepository
@@ -8,14 +10,24 @@ from app.domains.prompt.service import PromptService
 
 
 router = APIRouter(prefix="/prompt", tags=["prompt"])
-prompt_repository = PromptRepository()
 openai_client = OpenAIClient()
 prompt_loader = PromptTemplateLoader()
-prompt_service = PromptService(prompt_repository, openai_client, prompt_loader)
 
 
-def get_prompt_service() -> PromptService:
-    return prompt_service
+def get_openai_client() -> OpenAIClient:
+    return openai_client
+
+
+def get_prompt_loader() -> PromptTemplateLoader:
+    return prompt_loader
+
+
+def get_prompt_service(
+    session: AsyncSession = Depends(get_db_session),
+    client: OpenAIClient = Depends(get_openai_client),
+    loader: PromptTemplateLoader = Depends(get_prompt_loader),
+) -> PromptService:
+    return PromptService(PromptRepository(session), client, loader)
 
 
 def _get_user_id(x_user_id: str = Header(...)) -> str:
@@ -31,7 +43,7 @@ async def create_prompt(
     user_id: str = Depends(_get_user_id),
     service: PromptService = Depends(get_prompt_service),
 ) -> PromptResponse:
-    existing = service.get_prompt(user_id)
+    existing = await service.get_prompt(user_id)
     if existing is not None:
         raise HTTPException(status_code=409, detail="Prompt already exists")
     prompt = await service.create_prompt(user_id, body)
@@ -43,7 +55,7 @@ async def get_prompt(
     user_id: str = Depends(_get_user_id),
     service: PromptService = Depends(get_prompt_service),
 ) -> PromptResponse:
-    prompt = service.get_prompt(user_id)
+    prompt = await service.get_prompt(user_id)
     if prompt is None:
         raise HTTPException(status_code=404, detail="Prompt not found")
     return PromptResponse.model_validate(prompt)
@@ -66,7 +78,7 @@ async def delete_prompt(
     user_id: str = Depends(_get_user_id),
     service: PromptService = Depends(get_prompt_service),
 ) -> Response:
-    deleted = service.delete_prompt(user_id)
+    deleted = await service.delete_prompt(user_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Prompt not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
