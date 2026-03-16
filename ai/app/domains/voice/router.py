@@ -1,13 +1,16 @@
 from fastapi import APIRouter, Body, Header, HTTPException, Response, status
 
+from app.domains.voice.exceptions import VoiceNotFoundError
 from app.domains.voice.repository import VoiceRepository
 from app.domains.voice.schema import VoiceCreateItem, VoiceResponse
 from app.domains.voice.service import VoiceService
+from app.infra.dashscope import DashScopeVoiceClient
 
 
 router = APIRouter(prefix="/voices", tags=["voices"])
 voice_repository = VoiceRepository()
-voice_service = VoiceService(voice_repository)
+dashscope_voice_client = DashScopeVoiceClient()
+voice_service = VoiceService(voice_repository, dashscope_voice_client)
 
 
 def _get_user_id(x_user_id: str = Header(...)) -> str:
@@ -25,7 +28,8 @@ async def create_voices(
     user_id = _get_user_id(x_user_id)
     if not body:
         raise HTTPException(status_code=400, detail="At least one voice item is required")
-    return [VoiceResponse.model_validate(voice) for voice in voice_service.create_voices(user_id, body)]
+    voices = await voice_service.create_voices(user_id, body)
+    return [VoiceResponse.model_validate(voice) for voice in voices]
 
 
 @router.get("", response_model=list[VoiceResponse])
@@ -37,7 +41,8 @@ async def list_voices(x_user_id: str = Header(...)) -> list[VoiceResponse]:
 @router.delete("/{voice_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_voice(voice_id: str, x_user_id: str = Header(...)) -> Response:
     user_id = _get_user_id(x_user_id)
-    deleted = voice_service.delete_voice(user_id, voice_id)
-    if not deleted:
+    try:
+        await voice_service.delete_voice(user_id, voice_id)
+    except VoiceNotFoundError:
         raise HTTPException(status_code=404, detail="Voice not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
