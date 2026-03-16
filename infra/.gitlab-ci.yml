@@ -1,11 +1,13 @@
 stages:
   - lint
-  - prebuild
+  - security_scan
   - build_and_scan
 
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
       when: always
     - when: never
 
@@ -130,10 +132,10 @@ infra_compose_validate:
       when: on_success
     - when: never
 
-# prebuild stage
-.prebuild_template:
+# security stage
+.security_scan_template:
   tags: [docker-shared]
-  stage: prebuild
+  stage: security_scan
   image:
     name: docker.io/aquasec/trivy:latest
     entrypoint: [""]
@@ -144,11 +146,11 @@ infra_compose_validate:
     paths:
       - .trivycache/
 
-trivy_prebuild_backend:
-  extends: .prebuild_template
+trivy_security_backend:
+  extends: .security_scan_template
   script:
-    - trivy fs --format template --template "@infra/trivy/html.tpl" -o backend-trivy-prebuild-report.html ./backend/
-    - trivy config --format template --template "@infra/trivy/html.tpl" -o backend-config-trivy-prebuild-report.html ./backend/
+    - trivy fs --format template --template "@infra/trivy/html.tpl" -o backend-fs-report.html ./backend/
+    - trivy config --format template --template "@infra/trivy/html.tpl" -o backend-config-report.html ./backend/
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
     - trivy config --exit-code 1 --severity HIGH,CRITICAL ./backend
   rules:
@@ -161,16 +163,16 @@ trivy_prebuild_backend:
   artifacts:
     when: always
     paths:
-      - backend-trivy-prebuild-report.html
-      - backend-config-trivy-prebuild-report.html
+      - backend-fs-report.html
+      - backend-config-report.html
 
-trivy_prebuild_web:
-  extends: .prebuild_template
+trivy_security_web:
+  extends: .security_scan_template
   script:
-    - trivy fs --format template --template "@infra/trivy/html.tpl" -o web-trivy-prebuild-report.html ./frontend/
-    - trivy fs --format template --template "@infra/trivy/html.tpl" -o web-nginx-trivy-prebuild-report.html ./infra/nginx/
-    - trivy config --format template --template "@infra/trivy/html.tpl" -o web-config-trivy-prebuild-report.html ./frontend/
-    - trivy config --format template --template "@infra/trivy/html.tpl" -o web-nginx-config-trivy-prebuild-report.html ./infra/nginx/
+    - trivy fs --format template --template "@infra/trivy/html.tpl" -o web-fs-report.html ./frontend/
+    - trivy fs --format template --template "@infra/trivy/html.tpl" -o web-nginx-fs-report.html ./infra/nginx/
+    - trivy config --format template --template "@infra/trivy/html.tpl" -o web-config-report.html ./frontend/
+    - trivy config --format template --template "@infra/trivy/html.tpl" -o web-nginx-config-report.html ./infra/nginx/
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./frontend/
     - trivy config --exit-code 1 --severity HIGH,CRITICAL ./frontend/
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
@@ -186,16 +188,16 @@ trivy_prebuild_web:
   artifacts:
     when: always
     paths:
-      - web-trivy-prebuild-report.html
-      - web-config-trivy-prebuild-report.html
-      - web-nginx-trivy-prebuild-report.html
-      - web-nginx-config-trivy-prebuild-report.html
+      - web-fs-report.html
+      - web-config-report.html
+      - web-nginx-fs-report.html
+      - web-nginx-config-report.html
 
-trivy_prebuild_ai:
-  extends: .prebuild_template
+trivy_security_ai:
+  extends: .security_scan_template
   script:
-    - trivy fs --format template --template "@infra/trivy/html.tpl" -o ai-trivy-prebuild-report.html ./ai/
-    - trivy config --format template --template "@infra/trivy/html.tpl" -o ai-config-trivy-prebuild-report.html ./ai/
+    - trivy fs --format template --template "@infra/trivy/html.tpl" -o ai-fs-report.html ./ai/
+    - trivy config --format template --template "@infra/trivy/html.tpl" -o ai-config-report.html ./ai/
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./ai
     - trivy config --exit-code 1 --severity HIGH,CRITICAL ./ai
   rules:
@@ -208,8 +210,8 @@ trivy_prebuild_ai:
   artifacts:
     when: always
     paths:
-      - ai-trivy-prebuild-report.html
-      - ai-config-trivy-prebuild-report.html
+      - ai-fs-report.html
+      - ai-config-report.html
 
 # build_and_scan stage
 .build_and_scan_template:
@@ -231,10 +233,13 @@ build_and_scan_backend:
   extends: .build_and_scan_template
   script:
     - docker build -t backend:$CI_COMMIT_SHA -f ./backend/Dockerfile ./backend
-    - trivy image --format template --template "@infra/trivy/html.tpl" -o backend-trivy-report.html backend:$CI_COMMIT_SHA
+    - trivy image --format template --template "@infra/trivy/html.tpl" -o backend-image-report.html backend:$CI_COMMIT_SHA
     - trivy image --exit-code 1 --severity HIGH,CRITICAL backend:$CI_COMMIT_SHA
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    - docker tag backend:$CI_COMMIT_SHA "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
+    - docker push "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
       changes:
         - infra/.gitlab-ci.yml
         - backend/**/*
@@ -243,16 +248,19 @@ build_and_scan_backend:
   artifacts:
     when: always
     paths:
-      - backend-trivy-report.html
+      - backend-image-report.html
 
 build_and_scan_web:
   extends: .build_and_scan_template
   script:
     - docker build -t web:$CI_COMMIT_SHA -f ./infra/nginx/Dockerfile .
-    - trivy image --format template --template "@infra/trivy/html.tpl" -o web-trivy-report.html web:$CI_COMMIT_SHA
+    - trivy image --format template --template "@infra/trivy/html.tpl" -o web-image-report.html web:$CI_COMMIT_SHA
     - trivy image --exit-code 1 --severity HIGH,CRITICAL web:$CI_COMMIT_SHA
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    - docker tag web:$CI_COMMIT_SHA "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
+    - docker push "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
       changes:
         - infra/.gitlab-ci.yml
         - frontend/**/*
@@ -262,4 +270,4 @@ build_and_scan_web:
   artifacts:
     when: always
     paths:
-      - web-trivy-report.html
+      - web-image-report.html
