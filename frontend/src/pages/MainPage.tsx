@@ -205,6 +205,17 @@ export default function MainPage() {
     }
   };
 
+  // 모드 패널 hover 상태 (CSS group-hover 대신 React state 사용)
+  const [showModePanel, setShowModePanel] = useState(false);
+  const modePanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enterModePanel = useCallback(() => {
+    if (modePanelTimer.current) clearTimeout(modePanelTimer.current);
+    setShowModePanel(true);
+  }, []);
+  const leaveModePanel = useCallback(() => {
+    modePanelTimer.current = setTimeout(() => setShowModePanel(false), 800);
+  }, []);
+
   // AI 모드 상태 (일반/학습/상담)
   type Mode = 'normal' | 'study' | 'counseling';
   const [currentMode, setCurrentMode] = useState<Mode>('normal');
@@ -365,10 +376,9 @@ export default function MainPage() {
               flex flex-col items-center gap-3 p-4 rounded-[50px]
               bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl
               transition-all duration-400 ease-out
-              ${
-                showModePanel
-                  ? 'opacity-100 translate-x-0 pointer-events-auto'
-                  : 'opacity-0 -translate-x-2 pointer-events-none'
+              ${showModePanel
+                ? 'opacity-100 translate-x-0 pointer-events-auto'
+                : 'opacity-0 -translate-x-2 pointer-events-none'
               }
             `}
             onMouseEnter={enterModePanel}
@@ -382,10 +392,9 @@ export default function MainPage() {
                 className={`
                   relative w-14 h-14 rounded-full flex items-center justify-center
                   bg-gradient-to-br ${mode.color} border-2 transition-all duration-300
-                  ${
-                    currentMode === mode.id
-                      ? 'border-white/80 scale-105 shadow-lg'
-                      : 'border-white/20 hover:border-white/50 hover:scale-105'
+                  ${currentMode === mode.id
+                    ? 'border-white/80 scale-105 shadow-lg'
+                    : 'border-white/20 hover:border-white/50 hover:scale-105'
                   }
                 `}
               >
@@ -439,7 +448,7 @@ export default function MainPage() {
           drag="x"
           dragConstraints={{ left: 0, right: 350 }}
           dragElastic={0.05}
-          onDragEnd={(e, info) => {
+          onDragEnd={(_e, info) => {
             // 오른쪽으로 스와이프하면 닫기, 왼쪽으로 스와이프하면 열기
             if (info.offset.x > 50 || info.velocity.x > 500) {
               setIsUsersModalOpen(false);
