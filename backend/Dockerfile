@@ -29,6 +29,10 @@ WORKDIR /app
 
 # 보안: non-root 유저 설정
 RUN addgroup -S spring && adduser -S spring -G spring
+
+# [INFRA] 보완: Alpine 패키지 업데이트 및 보안 패치 적용
+RUN apk update && apk upgrade --no-cache
+
 USER spring
 
 # (보완) 빌드 단계에서 생성된 특정 jar만 복사 (plain.jar 제외 방지)

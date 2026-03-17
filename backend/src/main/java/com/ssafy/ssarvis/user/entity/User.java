@@ -1,6 +1,5 @@
 package com.ssafy.ssarvis.user.entity;
 
-import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.entity.BaseTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,6 +13,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Entity
@@ -49,12 +50,41 @@ public class User extends BaseTime {
     private Boolean isVoiceLockActive = false;
 
     @NotNull
-    @Column(name = "profile_image")
+    @Column(name = "costume")
+    @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
-    private String profileImage = Constants.DEFAULT_PROFILE_IMAGE;
+    private Costume costume = Costume.init();
+
+    @NotNull
+    @Column(name = "withdraw_status")
+    @Builder.Default
+    private Boolean withdrawStatus = false;
 
     @NotNull
     @Column(name = "view_count", columnDefinition = "INT UNSIGNED")
+    @Builder.Default
     private Long viewCount = 0L;
 
+    public static User create(String email, String password, String nickname) {
+        return User.builder()
+            .email(email)
+            .password(password)
+            .nickname(nickname)
+            .build();
+    }
+
+    public void update(String password, String nickname, String description, Costume costume, String voicePassword){
+        if (password != null) this.password = password;
+        if (nickname != null) this.nickname = nickname;
+        if (description != null) this.description = description;
+        if (costume != null) this.costume = costume;
+        if (voicePassword != null) {
+            this.isVoiceLockActive = true;
+            this.voicePassword = voicePassword;
+        }
+    }
+
+    public void deleteUser() {
+        this.withdrawStatus = true;
+    }
 }

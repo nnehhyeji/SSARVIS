@@ -27,6 +27,14 @@ spring:
         highlight_sql: false
     open-in-view: false
 
+  app:
+    slow-query:
+      threshold-ms: 1000
+      csv-output-dir: ./logs/slow-queries
+    slack:
+      webhook-url: ${SLACK_WEBHOOK_URL}
+      enabled: true
+
 jwt:
   secret-key: ${JWT_SECRET}
   access-token:

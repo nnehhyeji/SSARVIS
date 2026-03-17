@@ -1,8 +1,14 @@
 services:
   ai:
     build: .
+    env_file:
+      - .env
     ports:
       - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/app.db
+    volumes:
+      - ai_data:/data
     restart: unless-stopped
     depends_on:
       - qdrant
@@ -16,4 +22,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  ai_data:
   qdrant_data:
