@@ -49,7 +49,7 @@ public class FollowController {
     ) {
         Long userId = customUserDetails.getUserId();
         followService.rejectFollow(userId, followRejectDto);
-        return ResponseEntity.ok(BaseResponse.success("친구 수락 성공"));
+        return ResponseEntity.ok(BaseResponse.success("친구 거절 성공"));
     }
 
     @DeleteMapping("/{followId}")

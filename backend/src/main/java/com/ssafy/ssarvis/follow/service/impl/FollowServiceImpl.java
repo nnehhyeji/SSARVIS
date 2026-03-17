@@ -103,14 +103,19 @@ public class FollowServiceImpl implements FollowService {
     }
 
     @Override
-    public void deleteFollow(Long followerId, Long followId) {
+    public void deleteFollow(Long userId, Long followId) {
 
-        Follow follow = followRepository.findByIdAndFollowerIdOrFollowingId(followId, followerId)
+        Follow myFollow = followRepository.findByIdAndFollowerIdOrFollowingId(followId, userId)
             .orElseThrow(() -> new CustomException(ErrorCode.FOLLOW_REQUEST_NOT_FOUND.getMessage(), ErrorCode.FOLLOW_NOT_FOUND));
 
-        followRepository.delete(follow);
-        log.info("친구 삭제 완료 - 팔로워 PK: {}, 팔로우 PK: {}",
-            followerId, follow.getFollowing().getId());
+        Long otherUserId = myFollow.getFollower().getId().equals(userId)
+            ? myFollow.getFollowing().getId()
+            : myFollow.getFollower().getId();
+
+        List<Follow> bothFollows = followRepository.findBothFollows(userId, otherUserId);
+        followRepository.deleteAll(bothFollows);
+
+        log.info("친구 삭제 완료 - 요청자 PK: {}, 상대방 PK: {}", userId, otherUserId);
     }
 
     @Override

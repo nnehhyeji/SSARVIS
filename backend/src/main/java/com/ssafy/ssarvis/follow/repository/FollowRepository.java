@@ -19,6 +19,11 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
         @Param("followId") Long followId,
         @Param("userId") Long userId
     );
+
+    // 상대방 레코드 삭제용 (A→B 삭제 시 B→A도 함께 삭제)
+    @Query("SELECT f FROM Follow f WHERE (f.follower.id = :userA AND f.following.id = :userB) OR (f.follower.id = :userB AND f.following.id = :userA)")
+    List<Follow> findBothFollows(@Param("userA") Long userA, @Param("userB") Long userB);
+
     List<Follow> findAllByFollowerId(Long followerId);
 
 }
