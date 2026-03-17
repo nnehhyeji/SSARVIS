@@ -21,6 +21,8 @@ import {
   PenTool,
   LogOut,
   RefreshCcw,
+  MicOff,
+  Send,
 } from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, Html, Float, Environment } from '@react-three/drei';
@@ -151,6 +153,13 @@ export default function MainPage() {
   const [myMouthOpenRadius, setMyMouthOpenRadius] = useState(2);
   const [myTriggerText, setMyTriggerText] = useState('');
 
+  // --- 마이크 및 채팅 State ---
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<{ sender: 'ai' | 'me'; text: string }[]>([
+    { sender: 'ai', text: '안녕하세요! 무엇을 도와드릴까요?' },
+  ]);
+
   // 알림 데이터 타입 및 상태
   type Alarm = {
     id: number;
@@ -207,6 +216,7 @@ export default function MainPage() {
   // --- Refs ---
   const sidebarRef = useRef<HTMLDivElement>(null);
   const modePanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const [showModePanel, setShowModePanel] = useState(false);
 
   // --- 상수(Constants) ---
@@ -426,8 +436,37 @@ export default function MainPage() {
     }
   }, [location.state, handleVisit]);
 
+  // 채팅 자동 스크롤
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [chatMessages]);
+
   // 배경 그라데이션 (현재는 애니메이션 CSS 클래스로 구현)
   // 투명한 캐릭터를 위해 backdrop-blur 적용
+
+  const handleSendMessage = () => {
+    if (!chatInput.trim()) return;
+    setChatMessages((prev) => [...prev, { sender: 'me', text: chatInput }]);
+    setChatInput('');
+
+    // AI 응답 시뮬레이션
+    setTimeout(() => {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: isVisitorMode
+            ? `${visitedFriendName}: 반가워요! 타이핑으로도 대화할 수 있어요.`
+            : 'AI: 네, 듣고 있어요. 무엇이든 물어보세요!',
+        },
+      ]);
+    }, 1000);
+  };
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
@@ -857,16 +896,34 @@ export default function MainPage() {
         </motion.div>
 
         {/* 중앙 캐릭터 컨테이너 */}
-        <div className="relative flex flex-col items-center justify-center">
-          {/* 메인 캐릭터 영역 하위로 오디오 파형 이동 (여기서는 삭제) */}
-
-          <div className="absolute left-[-100px] top-1/2 -translate-y-1/2">
-            <button className="p-4 rounded-full bg-white/30 backdrop-blur-md shadow-lg border border-white/50 hover:bg-white/40 transition">
-              <Mic className="w-6 h-6 text-green-600" />
+        <motion.div
+          className="relative flex flex-col items-center justify-center"
+          animate={{
+            y: isMicOn ? 0 : -220,
+            scale: isMicOn ? 1 : 0.75,
+          }}
+          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+        >
+          {/* 제어 버튼 영역 (캐릭터 내부에 절대 위치로 배치하여 일정한 거리 유지) */}
+          <div className="absolute left-[-100px] top-1/2 -translate-y-1/2 z-40">
+            <button
+              onClick={() => setIsMicOn(!isMicOn)}
+              className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${
+                isMicOn
+                  ? 'bg-white/30 border-white/50 hover:bg-white/40'
+                  : 'bg-red-500/20 border-red-500/40 hover:bg-red-500/30'
+              }`}
+              title={isMicOn ? '마이크 끄기 (채팅 모드)' : '마이크 켜기 (음성 모드)'}
+            >
+              {isMicOn ? (
+                <Mic className="w-6 h-6 text-green-600" />
+              ) : (
+                <MicOff className="w-6 h-6 text-red-500" />
+              )}
             </button>
           </div>
 
-          <div className="absolute right-[-100px] top-1/2 -translate-y-1/2">
+          <div className="absolute right-[-100px] top-1/2 -translate-y-1/2 z-40">
             {!isVisitorMode && (
               <button className="p-4 rounded-full bg-white/30 backdrop-blur-md shadow-lg border border-white/50 hover:bg-white/40 transition">
                 <Lock className="w-6 h-6 text-gray-700" />
@@ -923,7 +980,7 @@ export default function MainPage() {
                             transition-all duration-700 ease-in-out ${isDualAiMode ? 'w-[300px] h-[300px]' : 'w-[350px] h-[350px]'}`}
             >
               <div className="relative w-full h-full flex items-center justify-center">
-                <WaveformRing isActive={isSpeaking} />
+                <WaveformRing isActive={isSpeaking && isMicOn} />
                 <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }} className="w-full h-full">
                   <ambientLight intensity={0.6} />
                   <spotLight
@@ -951,15 +1008,73 @@ export default function MainPage() {
                 ) : null}
               </div>
 
-              {/* 각자의 말풍선 (중앙/친구 AI용) */}
-              <SpeechBubble
-                triggerText={triggerText}
-                onStart={handleSpeakStart}
-                onEnd={handleSpeakEnd}
-              />
+              {/* 소리 들릴 때만 말풍선 보여주기 (마이크 켜져있을 때만) */}
+              {isMicOn && (
+                <SpeechBubble
+                  triggerText={triggerText}
+                  onStart={handleSpeakStart}
+                  onEnd={handleSpeakEnd}
+                />
+              )}
             </div>
           </div>
-        </div>
+        </motion.div>
+
+        {/* 채팅 윈도우 UI (마이크 꺼졌을 때 밑에서 위로) */}
+        <motion.div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[65%] bg-white/60 backdrop-blur-2xl rounded-t-[40px] shadow-2xl border border-white/40 flex flex-col z-30"
+          initial={{ y: '100%' }}
+          animate={{ y: isMicOn ? '100%' : '0%' }}
+          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+        >
+          {/* 드래그 핸들 느낌 바 */}
+          <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto my-4" />
+
+          {/* 메시지 영역 */}
+          <div
+            ref={chatContainerRef}
+            className="flex-1 overflow-y-auto p-8 flex flex-col gap-6 custom-scrollbar"
+          >
+            {chatMessages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[70%] p-4 rounded-3xl text-sm font-medium shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2 ${
+                    msg.sender === 'me'
+                      ? 'bg-pink-400 text-white rounded-tr-none'
+                      : 'bg-green-100 text-gray-800 rounded-tl-none'
+                  }`}
+                >
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 입력창 영역 */}
+          <div className="p-6 border-t border-white/30 bg-white/40">
+            <div className="relative flex items-center gap-3 bg-white/80 rounded-2xl p-2 px-4 shadow-inner border border-white/50">
+              <input
+                type="text"
+                placeholder="메시지를 입력하세요..."
+                className="flex-1 bg-transparent border-none outline-none py-2 text-gray-800 placeholder-gray-400 text-sm"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              />
+              <button
+                onClick={handleSendMessage}
+                className={`p-2 rounded-xl transition ${
+                  chatInput.trim() ? 'bg-pink-400 text-white shadow-md' : 'text-gray-400'
+                }`}
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
       </main>
     </div>
   );
