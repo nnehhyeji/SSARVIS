@@ -27,6 +27,7 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+//	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	compileOnly 'org.projectlombok:lombok'
@@ -43,6 +44,10 @@ dependencies {
 	implementation 'com.fasterxml.jackson.core:jackson-core:2.18.6'
 	implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.6'
 	implementation 'com.fasterxml.jackson.core:jackson-annotations:2.18.6'
+
+	// p6spy 쿼리 수집
+	implementation 'p6spy:p6spy:3.9.1'
+	implementation 'com.opencsv:opencsv:5.9'
 }
 
 tasks.named('test') {
