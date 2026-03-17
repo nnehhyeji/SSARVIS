@@ -3,7 +3,7 @@ services:
     image: ${WEB_IMAGE}:${WEB_TAG}
     container_name: nginx
     ports:
-      - "80:80"
+      - "80:8080"
     depends_on:
       backend:
         condition: service_healthy
