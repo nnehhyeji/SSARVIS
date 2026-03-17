@@ -1,5 +1,6 @@
 import React from 'react';
-import { Maximize, Bell, User, QrCode, LogOut } from 'lucide-react';
+import { Bell, User, QrCode, LogOut, Eye } from 'lucide-react';
+
 import type { Alarm } from '../../types';
 
 // ─── Header ───
@@ -17,6 +18,8 @@ interface HeaderProps {
   onMyCardClick: () => void;
   isVisitorMode: boolean;
   onLeaveVisitor: () => void;
+  viewCount?: number;
+  onUsersClick?: () => void;
 }
 
 export default function Header({
@@ -29,6 +32,8 @@ export default function Header({
   onMyCardClick,
   isVisitorMode,
   onLeaveVisitor,
+  viewCount = 0,
+  onUsersClick,
 }: HeaderProps) {
   return (
     <header className="flex justify-between items-center px-5 py-2 w-full z-10 text-gray-700">
@@ -57,22 +62,29 @@ export default function Header({
           </button>
         )}
       </div>
-      <div className="flex gap-4">
-        <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
-          <Maximize className="w-6 h-6" />
-        </button>
-        <button
-          onClick={onToggleAlarm}
-          className="relative p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition"
-        >
-          <Bell className="w-6 h-6" />
-          {alarms.some((a) => !a.isRead) && (
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-400 rounded-full border border-white" />
-          )}
-        </button>
-        <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
-          <User className="w-6 h-6" />
-        </button>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/40 shadow-sm text-white text-sm font-medium hover:bg-white/30 transition-all duration-300">
+          <Eye className="w-4 h-4" />
+          <span>{viewCount.toLocaleString()}</span>
+        </div>
+        <div className="flex gap-4">
+          <button
+            onClick={onToggleAlarm}
+            className="relative p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition"
+          >
+            <Bell className="w-6 h-6" />
+            {alarms.some((a) => !a.isRead) && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-400 rounded-full border border-white" />
+            )}
+          </button>
+          <button
+            onClick={onUsersClick}
+            className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition text-white"
+            title="팔로우 목록"
+          >
+            <User className="w-6 h-6" />
+          </button>
+        </div>
       </div>
 
       {/* 알림 드롭다운 */}
