@@ -1,7 +1,7 @@
 package com.ssafy.ssarvis.notification.controller;
 
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
-import com.ssafy.ssarvis.common.sse.SseEmitterManger;
+import com.ssafy.ssarvis.common.sse.SseEmitterManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -17,12 +17,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequiredArgsConstructor
 public class SseController {
 
-    private final SseEmitterManger sseEmitterManger;
+    private final SseEmitterManager sseEmitterManager;
 
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@AuthenticationPrincipal CustomUserDetails customUserDetails) {
         Long userId = customUserDetails.getUserId();
         log.info("SSE 구독 요청 - userId: {}", userId);
-        return sseEmitterManger.connect(userId);
+        return sseEmitterManager.connect(userId);
     }
 }

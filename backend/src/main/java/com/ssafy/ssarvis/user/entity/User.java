@@ -20,7 +20,7 @@ import org.hibernate.type.SqlTypes;
 @Entity
 @Builder
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "users")
 public class User extends BaseTime {
 
