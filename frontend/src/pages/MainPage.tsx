@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { MessageCircle } from 'lucide-react';
+
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -73,6 +75,8 @@ export default function MainPage() {
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
+  const [my_view_count] = useState(1234); // 나의 실제 방문 횟수 (추후 API 연동)
+  const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
 
   // 알림 데이터 (원본 MainPage.tsx 유지)
   const [alarms, setAlarms] = useState<Alarm[]>([
@@ -133,6 +137,15 @@ export default function MainPage() {
     return BG_COLORS[currentMode] || {};
   }, [isLockMode, isVisitorMode, visitorBg, currentMode]);
 
+  // --- Dynamic View Count Logic ---
+  const displayViewCount = useMemo(() => {
+    if (isVisitorMode && visitedFollowName) {
+      const follow = follows.find((f) => f.name === visitedFollowName);
+      return follow?.view_count ?? 0;
+    }
+    return my_view_count;
+  }, [isVisitorMode, visitedFollowName, follows, my_view_count]);
+
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
       <AnimatedBackground {...backgroundProps} />
@@ -180,6 +193,8 @@ export default function MainPage() {
         onMyCardClick={() => setIsMyCardModalOpen(true)}
         isVisitorMode={isVisitorMode}
         onLeaveVisitor={handleLeaveVisitor}
+        viewCount={displayViewCount} // 모드에 따라 동적으로 변경
+        onUsersClick={() => setIsUsersModalOpen(true)}
       />
 
       <main className="flex-1 flex items-center justify-center relative w-full h-full">
@@ -320,12 +335,29 @@ export default function MainPage() {
         </motion.div>
 
         <ChatWindow
-          isVisible={!isMicOn}
+          isVisible={!isMicOn || isChatHistoryOpen}
           messages={chatMessages}
           input={chatInput}
           onInputChange={setChatInput}
           onSend={() => sendMessage(chatInput, isVisitorMode, visitedFollowName || '')}
+          onClose={() => setIsChatHistoryOpen(false)}
         />
+
+        {/* 채팅 내역 토글 버튼 (우하단) */}
+        <button
+          onClick={() => setIsChatHistoryOpen(!isChatHistoryOpen)}
+          className={`absolute bottom-8 right-8 p-4 rounded-2xl backdrop-blur-xl border shadow-2xl transition-all duration-300 z-40 group ${
+            isChatHistoryOpen
+              ? 'bg-pink-400 border-pink-300 text-white scale-90 opacity-0 pointer-events-none'
+              : 'bg-white/20 border-white/40 text-white hover:bg-white/30 hover:scale-110'
+          }`}
+          title="대화 내역 보기"
+        >
+          <div className="relative">
+            <MessageCircle className="w-8 h-8" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-pink-500 rounded-full border-2 border-white animate-bounce" />
+          </div>
+        </button>
       </main>
 
       <ModePanel
@@ -359,27 +391,8 @@ export default function MainPage() {
         onAccept={acceptRequest}
         onReject={rejectRequest}
         onClose={() => setIsUsersModalOpen(false)}
+        onToggle={() => setIsUsersModalOpen(!isUsersModalOpen)}
       />
-      {!isUsersModalOpen && (
-        <button
-          onClick={() => setIsUsersModalOpen(true)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 w-[70px] h-32 bg-white/20 backdrop-blur-xl border border-r-0 border-white/40 rounded-l-3xl shadow-lg flex items-center justify-center hover:bg-white/30 transition-all z-30"
-        >
-          <motion.svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#374151"
-            strokeWidth="2.5"
-          >
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </motion.svg>
-        </button>
-      )}
 
       <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
     </div>

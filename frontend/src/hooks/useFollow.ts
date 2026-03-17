@@ -9,8 +9,8 @@ import type { BgColors } from '../constants/theme';
 
 export function useFollow() {
   const [follows, setFollows] = useState<Follow[]>([
-    { id: 1, name: '김싸피', color: 'bg-pink-200', profileExp: 'o_o' },
-    { id: 2, name: '박싸피', color: 'bg-teal-200', profileExp: '-_-' },
+    { id: 1, name: '김싸피', color: 'bg-pink-200', profileExp: 'o_o', view_count: 120 },
+    { id: 2, name: '박싸피', color: 'bg-teal-200', profileExp: '-_-', view_count: 345 },
   ]);
 
   const [followRequests, setFollowRequests] = useState<FollowRequest[]>([

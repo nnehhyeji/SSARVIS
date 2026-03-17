@@ -19,6 +19,7 @@ interface FollowSidebarProps {
   onAccept: (id: number, name: string) => void;
   onReject: (id: number) => void;
   onClose: () => void;
+  onToggle?: () => void;
 }
 
 export default function FollowSidebar({
@@ -32,6 +33,7 @@ export default function FollowSidebar({
   onAccept,
   onReject,
   onClose,
+  onToggle,
 }: FollowSidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [sidebarView, setSidebarView] = useState<'follows' | 'requests'>('follows');
@@ -54,12 +56,21 @@ export default function FollowSidebar({
         }
       }}
     >
-      {/* 당기기 탭 */}
+      {/* 당기기 탭 (열기/닫기 토글) */}
       <button
-        onClick={onClose}
-        className="absolute -left-[70px] top-1/2 -translate-y-1/2 w-[70px] h-32 bg-white/20 backdrop-blur-xl border border-r-0 border-white/40 rounded-l-3xl shadow-lg flex items-center justify-center hover:bg-white/30 transition-colors"
+        onClick={onToggle || onClose}
+        className="absolute -left-[70px] top-1/2 -translate-y-1/2 w-[70px] h-32 bg-white/10 backdrop-blur-3xl border border-r-0 border-white/40 rounded-l-3xl shadow-2xl flex items-center justify-center hover:bg-white/30 transition-all duration-500 group"
       >
-        <Users className="w-7 h-7 text-gray-700" />
+        <motion.div
+          animate={{ rotate: isOpen ? 0 : 0, scale: isOpen ? 1 : 1.1 }}
+          className="flex flex-col items-center gap-1"
+        >
+          {isOpen ? (
+            <ChevronRight className="w-8 h-8 text-white/80 group-hover:text-white" />
+          ) : (
+            <Users className="w-7 h-7 text-white/80 group-hover:text-white" />
+          )}
+        </motion.div>
       </button>
 
       {/* 사이드바 내용 */}

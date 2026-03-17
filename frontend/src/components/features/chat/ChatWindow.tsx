@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send } from 'lucide-react';
+import { Send, Camera, Share2, X } from 'lucide-react';
+
 import type { ChatMessage } from '../../../types';
 
 // ─── ChatWindow ───
@@ -15,6 +16,7 @@ interface ChatWindowProps {
   input: string;
   onInputChange: (val: string) => void;
   onSend: () => void;
+  onClose?: () => void;
 }
 
 export default function ChatWindow({
@@ -23,6 +25,7 @@ export default function ChatWindow({
   input,
   onInputChange,
   onSend,
+  onClose,
 }: ChatWindowProps) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -43,8 +46,37 @@ export default function ChatWindow({
       animate={{ y: isVisible ? '0%' : '100%' }}
       transition={{ type: 'spring', stiffness: 200, damping: 25 }}
     >
-      {/* 드래그 핸들 느낌 바 */}
-      <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto my-4" />
+      {/* 헤더 영역 */}
+      <div className="flex items-center justify-between px-8 py-4 border-b border-white/30 bg-white/20">
+        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-pink-400 animate-pulse" />
+          대화 내역
+        </h2>
+        <div className="flex items-center gap-3">
+          <button
+            className="p-2 rounded-xl bg-white/40 hover:bg-white/60 transition-all text-gray-600"
+            title="대화 캡쳐"
+            onClick={() => alert('대화를 캡쳐합니다. (html2canvas 등 라이브러리 연동 필요)')}
+          >
+            <Camera className="w-5 h-5" />
+          </button>
+          <button
+            className="p-2 rounded-xl bg-white/40 hover:bg-white/60 transition-all text-gray-600"
+            title="공유하기"
+            onClick={() => alert('공유하기 기능을 실행합니다. (Web Share API 등 사용)')}
+          >
+            <Share2 className="w-5 h-5" />
+          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-gray-100/50 hover:bg-gray-200/50 transition-all text-gray-500 ml-2"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* 메시지 영역 */}
       <div

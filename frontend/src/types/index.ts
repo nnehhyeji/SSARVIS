@@ -22,6 +22,7 @@ export type Follow = {
   name: string;
   color: string;
   profileExp: string;
+  view_count: number;
 };
 
 // 팔로우 요청 타입
