@@ -6,12 +6,12 @@ import AnimatedBackground from '../components/AnimatedBackground';
 
 export default function PersonaPage() {
   const navigate = useNavigate();
-  const { friendName } = useParams();
+  const { followName } = useParams();
   const [description, setDescription] = useState('');
   const [qna, setQna] = useState([
-    { id: 1, question: '이 친구는 평소에 어떤 말투를 사용하나요?', answer: '' },
+    { id: 1, question: '이 사용자는 평소에 어떤 말투를 사용하나요?', answer: '' },
     { id: 2, question: '자주 사용하는 유행어나 말버릇이 있나요?', answer: '' },
-    { id: 3, question: '이 친구가 가장 좋아하는 관심사는 무엇인가요?', answer: '' },
+    { id: 3, question: '이 사용자가 가장 좋아하는 관심사는 무엇인가요?', answer: '' },
   ]);
 
   const handleAnswerChange = (id: number, value: string) => {
@@ -20,8 +20,8 @@ export default function PersonaPage() {
 
   const handleSave = () => {
     // TODO: API 연동하여 저장 로직 구현
-    alert(`${friendName}님의 페르소나가 저장되었습니다.`);
-    navigate('/', { state: { fromPersona: true, friendName } });
+    alert(`${followName}님의 페르소나가 저장되었습니다.`);
+    navigate('/', { state: { fromPersona: true, followName } });
   };
 
   return (
@@ -31,7 +31,7 @@ export default function PersonaPage() {
       {/* 헤더 */}
       <header className="fixed top-0 left-0 w-full z-50 px-6 py-4 flex items-center justify-between backdrop-blur-md bg-white/10 border-b border-white/20">
         <button
-          onClick={() => navigate('/', { state: { fromPersona: true, friendName } })}
+          onClick={() => navigate('/', { state: { fromPersona: true, followName } })}
           className="p-2 rounded-full hover:bg-white/20 transition-all text-white flex items-center gap-2 group"
         >
           <ChevronLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
@@ -39,7 +39,7 @@ export default function PersonaPage() {
         </button>
         <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-yellow-300" />
-          {friendName}의 페르소나 설정
+          {followName}의 페르소나 설정
         </h1>
         <button
           onClick={handleSave}
@@ -58,18 +58,18 @@ export default function PersonaPage() {
           transition={{ duration: 0.5 }}
           className="flex flex-col gap-10"
         >
-          {/* 섹션 1: 내가 보는 친구의 모습 */}
+          {/* 섹션 1: 내가 보는 이 사용자의 모습 */}
           <section className="bg-white/20 backdrop-blur-xl rounded-[40px] p-8 border border-white/30 shadow-2xl">
-            <div className="flex items-center gap-3 mb-6">
+            <div className="items-center gap-3 mb-6 flex">
               <div className="p-3 bg-pink-100 rounded-2xl shadow-inner">
                 <UserIcon className="w-6 h-6 text-pink-500" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-800">
-                  친구가 당신에게 어떤 사람인가요?
+                  이 사용자가 당신에게 어떤 사람인가요?
                 </h2>
                 <p className="text-gray-600 text-sm mt-1">
-                  이 친구를 생각하면 떠오르는 단어나 이미지를 자유롭게 적어주세요.
+                  이 사용자를 생각하면 떠오르는 단어나 이미지를 자유롭게 적어주세요.
                 </p>
               </div>
             </div>
@@ -88,9 +88,9 @@ export default function PersonaPage() {
                 <MessageCircle className="w-6 h-6 text-indigo-500" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">친구의 성격이나 습관</h2>
+                <h2 className="text-2xl font-bold text-gray-800">사용자의 성격이나 습관</h2>
                 <p className="text-gray-600 text-sm mt-1">
-                  AI가 친구를 더 잘 이해할 수 있도록 답변을 채워주세요.
+                  AI가 사용자를 더 잘 이해할 수 있도록 답변을 채워주세요.
                 </p>
               </div>
             </div>
