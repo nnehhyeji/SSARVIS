@@ -29,6 +29,20 @@ print_app_diagnostics() {
   "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" logs --tail=100 redis || true
 }
 
+print_monitoring_diagnostics() {
+  log "Monitoring deployment failed. Printing compose status."
+  "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" ps || true
+
+  log "Recent elasticsearch logs:"
+  "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" logs --tail=200 elasticsearch || true
+
+  log "Recent kibana logs:"
+  "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" logs --tail=100 kibana || true
+
+  log "Recent logstash logs:"
+  "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" logs --tail=100 logstash || true
+}
+
 wait_for_container_health() {
   local container_name="$1"
   local max_attempts="${2:-20}"
@@ -128,6 +142,7 @@ log "Starting application services"
 "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" up -d
 
 log "Starting monitoring services"
+trap 'print_monitoring_diagnostics' ERR
 "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" up -d
 
 trap - ERR
