@@ -242,7 +242,9 @@ build_and_scan_backend:
     - docker tag backend:$CI_COMMIT_SHA "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
     - docker push "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
       changes:
         - infra/.gitlab-ci.yml
         - backend/**/*
@@ -263,7 +265,9 @@ build_and_scan_web:
     - docker tag web:$CI_COMMIT_SHA "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
     - docker push "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main")'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
       changes:
         - infra/.gitlab-ci.yml
         - frontend/**/*
@@ -335,7 +339,9 @@ deploy:
     - ssh -i "$SSH_KEY" "$USER@$HOST" "chmod +x '$REMOTE_DEPLOY_DIR/scripts/init-network.sh' '$REMOTE_DEPLOY_DIR/scripts/deploy.sh' && bash '$REMOTE_DEPLOY_DIR/scripts/deploy.sh'"
   needs:
     - job: build_and_scan_backend
+      optional: true
     - job: build_and_scan_web
+      optional: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
       when: on_success
