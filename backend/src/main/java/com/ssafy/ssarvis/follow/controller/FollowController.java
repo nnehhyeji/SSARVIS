@@ -2,6 +2,7 @@ package com.ssafy.ssarvis.follow.controller;
 
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
+import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
 import com.ssafy.ssarvis.follow.service.FollowService;
 import jakarta.validation.Valid;
@@ -20,7 +21,7 @@ public class FollowController {
 
     private final FollowService followService;
 
-    @PostMapping
+    @PostMapping("/request")
     public ResponseEntity<BaseResponse<Void>> requestFollow(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,
         @RequestBody @Valid FollowRequestDto followRequestDto
@@ -28,6 +29,16 @@ public class FollowController {
         Long userId = customUserDetails.getUserId();
         followService.requestFollow(userId, followRequestDto);
         return ResponseEntity.ok(BaseResponse.success("친구 신청 성공"));
+    }
+
+    @PostMapping("/accept")
+    public ResponseEntity<BaseResponse<Void>> acceptFollow(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @RequestBody @Valid FollowAcceptDto followAcceptDto
+    ) {
+        Long userId = customUserDetails.getUserId();
+        followService.acceptFollow(userId, followAcceptDto);
+        return ResponseEntity.ok(BaseResponse.success("친구 수락 성공"));
     }
 
 }

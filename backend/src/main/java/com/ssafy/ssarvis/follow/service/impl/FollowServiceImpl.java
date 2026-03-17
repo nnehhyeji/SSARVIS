@@ -2,7 +2,9 @@ package com.ssafy.ssarvis.follow.service.impl;
 
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
+import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
+import com.ssafy.ssarvis.follow.entity.Follow;
 import com.ssafy.ssarvis.follow.entity.FollowRequest;
 import com.ssafy.ssarvis.follow.repository.FollowRepository;
 import com.ssafy.ssarvis.follow.repository.FollowRequestRepository;
@@ -53,6 +55,27 @@ public class FollowServiceImpl implements FollowService {
 
         followRequestRepository.save(followRequest);
         log.info("친구 신청 완료 - 신청자 PK: {}, 요청 타겟 PK: {}", senderId, receiverId);
+    }
+
+    @Override
+    public void acceptFollow(Long receiverId, FollowAcceptDto followAcceptDto) {
+
+        Long followRequestId = followAcceptDto.followRequestId();
+
+        FollowRequest followRequest = followRequestRepository
+            .findByIdAndReceiverId(followRequestId, receiverId)
+            .orElseThrow(() -> new CustomException(ErrorCode.FOLLOW_REQUEST_NOT_FOUND.getMessage(), ErrorCode.FOLLOW_NOT_FOUND));
+
+        Follow follow = Follow.builder()
+            .follower(followRequest.getSender())
+            .following(followRequest.getReceiver())
+            .build();
+
+        followRepository.save(follow);
+        followRequestRepository.delete(followRequest);
+
+        log.info("친구 수락 완료 - 요청자 PK: {}, 응답자 PK: {}",
+            followRequest.getSender().getId(), receiverId);
     }
 
 }
