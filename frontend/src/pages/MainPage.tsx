@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import {
   Mic,
   Lock,
@@ -12,11 +12,21 @@ import {
   Smile,
   X,
   UserPlus,
+  Search,
+  MoreVertical,
+  ChevronRight,
+  ChevronLeft,
+  Plus,
+  MessageSquare,
+  PenTool,
+  LogOut,
+  RefreshCcw,
 } from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, Html, Float, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AnimatedBackground from '../components/AnimatedBackground';
 
 // 별도의 고성능 컴포넌트로 분리된 파형 링 (React 리렌더링과 독립적으로 부드럽게 애니메이션 유지)
@@ -129,43 +139,17 @@ const SpeechBubble = memo(
 );
 
 export default function MainPage() {
-  // 말하는 중일 때만 true (타이핑 시작 ~ 타이핑 완료)
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // --- 상태(State) 관리 ---
   const [isSpeaking, setIsSpeaking] = useState(false);
-
-  // 타이핑 트리거 텍스트만 관리
-  const [triggerText, setTriggerText] = useState('');
-
-  // 캐릭터 얼굴 디자인 옵션
-  const [faceType, setFaceType] = useState(0);
-
-  // 입모양 애니메이션 (isSpeaking일 때만 뻐끔거림)
   const [mouthOpenRadius, setMouthOpenRadius] = useState(2);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setTriggerText('서영님 눈물 닦고 할 일 하세요');
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // isSpeaking이 true일 때만 입 움직임
-  // cleanup에서 reset하여 effect body 내 동기 setState 경고 회피
-  useEffect(() => {
-    if (!isSpeaking) return;
-    const ani = setInterval(() => {
-      setMouthOpenRadius((prev) => (prev === 2 ? 8 : 2));
-    }, 150);
-    return () => {
-      clearInterval(ani);
-      setMouthOpenRadius(2); // interval 정리 시 입 닫기
-    };
-  }, [isSpeaking]);
-
-  const changeFace = () => setFaceType((prev) => (prev + 1) % 6);
-
-  // useCallback으로 안정적인 함수 레퍼런스 보장 (SpeechBubble deps 경고 해결)
-  const handleSpeakStart = useCallback(() => setIsSpeaking(true), []);
-  const handleSpeakEnd = useCallback(() => setIsSpeaking(false), []);
+  const [triggerText, setTriggerText] = useState('');
+  const [faceType, setFaceType] = useState(0);
+  const [isMyAiSpeaking, setIsMyAiSpeaking] = useState(false);
+  const [myMouthOpenRadius, setMyMouthOpenRadius] = useState(2);
+  const [myTriggerText, setMyTriggerText] = useState('');
 
   // 알림 데이터 타입 및 상태
   type Alarm = {
@@ -194,31 +178,75 @@ export default function MainPage() {
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
 
-  // 알림 관리 함수
-  const handleReadAllAlarms = () => setAlarms((prev) => prev.map((a) => ({ ...a, isRead: true })));
-  const handleDeleteAllAlarms = () => setAlarms([]);
-  const handleAlarmClick = (alarm: Alarm) => {
-    setAlarms((prev) => prev.map((a) => (a.id === alarm.id ? { ...a, isRead: true } : a)));
-    if (alarm.type === 'follow') {
-      setIsAlarmModalOpen(false);
-      setIsUsersModalOpen(true);
-    }
-  };
+  // --- 친구 관리 목록 State ---
+  const [sidebarView, setSidebarView] = useState<'friends' | 'requests'>('friends');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFriendMenuId, setActiveFriendMenuId] = useState<number | null>(null);
 
-  // 모드 패널 hover 상태 (CSS group-hover 대신 React state 사용)
-  const [showModePanel, setShowModePanel] = useState(false);
-  const modePanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const enterModePanel = useCallback(() => {
-    if (modePanelTimer.current) clearTimeout(modePanelTimer.current);
-    setShowModePanel(true);
-  }, []);
-  const leaveModePanel = useCallback(() => {
-    modePanelTimer.current = setTimeout(() => setShowModePanel(false), 800);
-  }, []);
+  // --- 친구 방문 관련 State ---
+  const [isVisitorMode, setIsVisitorMode] = useState(false);
+  const [visitedFriendName, setVisitedFriendName] = useState('');
+  const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
+  const [isDualAiMode, setIsDualAiMode] = useState(false);
+  const [visitorBg, setVisitorBg] = useState({});
 
   // AI 모드 상태 (일반/학습/상담)
   type Mode = 'normal' | 'study' | 'counseling';
   const [currentMode, setCurrentMode] = useState<Mode>('normal');
+
+  const [friends, setFriends] = useState([
+    { id: 1, name: '김싸피', color: 'bg-pink-200', profileExp: 'o_o' },
+    { id: 2, name: '박싸피', color: 'bg-teal-200', profileExp: '-_-' },
+  ]);
+
+  const [friendRequests, setFriendRequests] = useState([
+    { id: 3, name: '최싸피', color: 'bg-blue-200', profileExp: '^o^' },
+    { id: 4, name: '이싸피', color: 'bg-green-200', profileExp: 'O_O' },
+  ]);
+
+  // --- Refs ---
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const modePanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showModePanel, setShowModePanel] = useState(false);
+
+  // --- 상수(Constants) ---
+  const visitorPalettes = useMemo(
+    () => [
+      {
+        baseTop: '#D4E5FF',
+        baseBottom: '#A8C8FF',
+        purple: '#C1C9F5',
+        teal: '#98FB98',
+        pink: '#FFD1DC',
+        mint: '#E0FFFF',
+      },
+      {
+        baseTop: '#FFF5E1',
+        baseBottom: '#FFDAB9',
+        purple: '#E6E6FA',
+        teal: '#B0E0E6',
+        pink: '#FFB6C1',
+        mint: '#F0FFF0',
+      },
+      {
+        baseTop: '#E6E6FA',
+        baseBottom: '#D8BFD8',
+        purple: '#DDA0DD',
+        teal: '#AFEEEE',
+        pink: '#FFF0F5',
+        mint: '#F5FFFA',
+      },
+      {
+        baseTop: '#F0FFF0',
+        baseBottom: '#98FB98',
+        purple: '#E0FFFF',
+        teal: '#FFD700',
+        pink: '#FFE4E1',
+        mint: '#F0F8FF',
+      },
+    ],
+    [],
+  );
 
   const modes: { id: Mode; label: string; icon: React.ReactNode; color: string; glow: string }[] = [
     {
@@ -281,18 +309,152 @@ export default function MainPage() {
     },
   };
 
+  // --- 함수(Functions) ---
+  const handleVisit = useCallback(
+    (name: string, isReturn: boolean = false) => {
+      setVisitedFriendName(name);
+      setIsVisitorMode(true);
+      setIsUsersModalOpen(false);
+      setIsDualAiMode(false);
+
+      const randomPalette = visitorPalettes[Math.floor(Math.random() * visitorPalettes.length)];
+      setVisitorBg(randomPalette);
+
+      setTriggerText(`${name} : 우리집에 왜 왔니 ?`);
+      setMyTriggerText('');
+
+      if (!isReturn) {
+        alert(`${name}님의 방으로 방문합니다.`);
+      }
+    },
+    [visitorPalettes],
+  );
+
+  const handleDeleteFriend = (id: number) => {
+    setFriends((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const handleAcceptRequest = (id: number, name: string) => {
+    setFriendRequests((prev) => prev.filter((req) => req.id !== id));
+    alert(`${name}님의 친구 요청을 수락했습니다.`);
+  };
+
+  const handleRejectRequest = (id: number) => {
+    setFriendRequests((prev) => prev.filter((req) => req.id !== id));
+  };
+
+  const handleReadAllAlarms = () => setAlarms((prev) => prev.map((a) => ({ ...a, isRead: true })));
+  const handleDeleteAllAlarms = () => setAlarms([]);
+  const handleAlarmClick = (alarm: Alarm) => {
+    setAlarms((prev) => prev.map((a) => (a.id === alarm.id ? { ...a, isRead: true } : a)));
+    if (alarm.type === 'follow') {
+      setIsAlarmModalOpen(false);
+      setIsUsersModalOpen(true);
+    }
+  };
+
+  const changeFace = () => setFaceType((prev) => (prev + 1) % 6);
+  const handleSpeakStart = useCallback(() => setIsSpeaking(true), []);
+  const handleSpeakEnd = useCallback(() => setIsSpeaking(false), []);
+  const handleMyAiSpeakStart = useCallback(() => setIsMyAiSpeaking(true), []);
+  const handleMyAiSpeakEnd = useCallback(() => setIsMyAiSpeaking(false), []);
+
+  const enterModePanel = useCallback(() => {
+    if (modePanelTimer.current) clearTimeout(modePanelTimer.current);
+    setShowModePanel(true);
+  }, []);
+
+  const leaveModePanel = useCallback(() => {
+    modePanelTimer.current = setTimeout(() => setShowModePanel(false), 800);
+  }, []);
+
+  // --- Effects ---
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTriggerText('서영님 눈물닦고 할일하세요');
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isSpeaking) return;
+    const ani = setInterval(() => {
+      setMouthOpenRadius((prev) => (prev === 2 ? 8 : 2));
+    }, 150);
+    return () => {
+      clearInterval(ani);
+      setMouthOpenRadius(2);
+    };
+  }, [isSpeaking]);
+
+  useEffect(() => {
+    if (!isMyAiSpeaking) return;
+    const ani = setInterval(() => {
+      setMyMouthOpenRadius((prev) => (prev === 2 ? 8 : 2));
+    }, 150);
+    return () => {
+      clearInterval(ani);
+      setMyMouthOpenRadius(2);
+    };
+  }, [isMyAiSpeaking]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isUsersModalOpen && sidebarRef.current) {
+        if (!sidebarRef.current.contains(event.target as Node)) {
+          setIsUsersModalOpen(false);
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, true);
+    };
+  }, [isUsersModalOpen]);
+
+  // 탭 전환 시 드롭다운 닫기 (useEffect 대신 클릭 시 처리 권장되나 네비게이션 동기화 위해 유지 시 린트 준수 필요)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveFriendMenuId(null);
+  }, [sidebarView]);
+
+  useEffect(() => {
+    if (location.state?.fromPersona && location.state?.friendName) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      handleVisit(location.state.friendName, true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, handleVisit]);
+
   // 배경 그라데이션 (현재는 애니메이션 CSS 클래스로 구현)
   // 투명한 캐릭터를 위해 backdrop-blur 적용
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
       {/* 프리미엄 유체 배경 — 모드에 따라 색상 변경 */}
-      <AnimatedBackground {...bgColors[currentMode]} />
+      <AnimatedBackground {...(isVisitorMode ? visitorBg : bgColors[currentMode])} />
 
       {/* 상단 헤더 */}
       <header className="flex justify-between items-center px-5 py-2 w-full z-10 text-gray-700">
-        <div className="text-3xl font-extrabold tracking-wider text-white drop-shadow-md">
-          SSARVIS
+        <div className="flex flex-col items-start gap-2">
+          <div className="text-3xl font-extrabold tracking-wider text-white drop-shadow-md">
+            SSARVIS
+          </div>
+          {isVisitorMode && (
+            <button
+              onClick={() => {
+                setIsVisitorMode(false);
+                setIsDualAiMode(false);
+                setIsInteractionModalOpen(false);
+                setTriggerText('서영님 눈물닦고 할일하세요'); // 내 집으로 돌아올 때 인사말 복구
+                setMyTriggerText('');
+              }}
+              className="group flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-red-500/40 backdrop-blur-md border border-white/40 transition-all duration-300 shadow-lg text-white"
+              title="내 집으로 돌아가기"
+            >
+              <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+            </button>
+          )}
         </div>
         <div className="flex gap-4">
           <button className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition">
@@ -355,82 +517,135 @@ export default function MainPage() {
 
       {/* 메인 뷰 (캐릭터 중앙) */}
       <main className="flex-1 flex items-center justify-center relative w-full h-full">
-        {/* 좌측 모드 선택 — 트리거는 마이크와 같은 Y(top-1/2)에 단독 위치 */}
+        {/* 좌측 모드 선택 — 방문 모드일 때는 숨김 */}
         <div
-          className="absolute left-6 top-1/2 -translate-y-1/2 z-50"
-          onMouseEnter={enterModePanel}
-          onMouseLeave={leaveModePanel}
+          className="absolute left-6 top-1/2 -translate-y-1/2 z-50 text-center flex flex-col items-center gap-2"
+          onMouseEnter={!isVisitorMode ? enterModePanel : undefined}
+          onMouseLeave={!isVisitorMode ? leaveModePanel : undefined}
         >
-          {/* 트리거 버튼 — 항상 보임, 마이크와 동일 선상 */}
-          <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/40 shadow-lg flex flex-col items-center justify-center gap-1 hover:bg-white/30 transition-all duration-300 cursor-pointer">
-            {modes.find((m) => m.id === currentMode)?.icon}
-            <span className="text-[8px] font-semibold text-white/80 leading-none">
-              {currentMode === 'normal' ? '일반' : currentMode === 'study' ? '학습' : '상담'}
-            </span>
-          </div>
-
-          {/* 팝업 — 트리거 우측에 absolute, 세로 중앙 정렬(마이크 선상) */}
+          {/* 트리거 버튼 — 평소엔 모드 선택, 방문 시엔 상호작용 */}
           <div
-            className={`
-              absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2
-              flex flex-col items-center gap-3 p-4 rounded-[50px]
-              bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl
-              transition-all duration-400 ease-out
-              ${
-                showModePanel
-                  ? 'opacity-100 translate-x-0 pointer-events-auto'
-                  : 'opacity-0 -translate-x-2 pointer-events-none'
-              }
-            `}
-            onMouseEnter={enterModePanel}
-            onMouseLeave={leaveModePanel}
+            onClick={() => isVisitorMode && setIsInteractionModalOpen(!isInteractionModalOpen)}
+            className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/40 shadow-lg flex flex-col items-center justify-center gap-1 hover:bg-white/30 transition-all duration-300 cursor-pointer"
           >
-            {/* 모드 3종 — 동그란 원형 버튼 */}
-            {modes.map((mode) => (
-              <button
-                key={mode.id}
-                onClick={() => setCurrentMode(mode.id)}
-                className={`
-                  relative w-14 h-14 rounded-full flex items-center justify-center
-                  bg-gradient-to-br ${mode.color} border-2 transition-all duration-300
-                  ${
-                    currentMode === mode.id
-                      ? 'border-white/80 scale-105 shadow-lg'
-                      : 'border-white/20 hover:border-white/50 hover:scale-105'
-                  }
-                `}
-              >
-                {currentMode === mode.id && (
-                  <div className={`absolute inset-0 rounded-full ${mode.glow} blur-md -z-10`} />
-                )}
-                {mode.icon}
-                {currentMode === mode.id && (
-                  <span className="absolute -right-1 -top-1 w-2.5 h-2.5 bg-white rounded-full border-2 border-white/60 shadow" />
-                )}
-              </button>
-            ))}
-
-            {/* 구분선 (옵션) */}
-            <div className="w-8 h-px bg-white/40 my-1 font-semibold" />
-
-            {/* 표정/목소리 전환 버튼 (팝업 패널 안으로 병합) */}
-            <button
-              onClick={changeFace}
-              className="
-                relative w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1
-                bg-white/20 border-2 border-white/20 hover:border-white/50 hover:scale-105
-                transition-all duration-300 shadow-sm
-              "
-              title="표정 변경"
-            >
-              <Smile className="w-7 h-7 text-white" />
-              <span className="text-[10px] font-bold text-white leading-none">표정</span>
-            </button>
+            {isVisitorMode ? (
+              <>
+                <Plus className="w-7 h-7 text-pink-500" />
+                <span className="text-[8px] font-semibold text-white/80 leading-none">
+                  모드선택
+                </span>
+              </>
+            ) : (
+              <>
+                {modes.find((m) => m.id === currentMode)?.icon}
+                <span className="text-[8px] font-semibold text-white/80 leading-none">
+                  {currentMode === 'normal' ? '일반' : currentMode === 'study' ? '학습' : '상담'}
+                </span>
+              </>
+            )}
           </div>
+
+          {/* 1) 평소 모드: 모드 선택 팝업 */}
+          {!isVisitorMode && (
+            <div
+              className={`
+                absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2
+                flex flex-col items-center gap-3 p-4 rounded-[50px]
+                bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl
+                transition-all duration-400 ease-out
+                ${
+                  showModePanel
+                    ? 'opacity-100 translate-x-0 pointer-events-auto'
+                    : 'opacity-0 -translate-x-2 pointer-events-none'
+                }
+              `}
+              onMouseEnter={enterModePanel}
+              onMouseLeave={leaveModePanel}
+            >
+              {modes.map((mode) => (
+                <button
+                  key={mode.id}
+                  onClick={() => setCurrentMode(mode.id)}
+                  className={`
+                    relative w-14 h-14 rounded-full flex items-center justify-center
+                    bg-gradient-to-br ${mode.color} border-2 transition-all duration-300
+                    ${
+                      currentMode === mode.id
+                        ? 'border-white/80 scale-105 shadow-lg'
+                        : 'border-white/20 hover:border-white/50 hover:scale-105'
+                    }
+                  `}
+                >
+                  {currentMode === mode.id && (
+                    <div className={`absolute inset-0 rounded-full ${mode.glow} blur-md -z-10`} />
+                  )}
+                  {mode.icon}
+                  {currentMode === mode.id && (
+                    <span className="absolute -right-1 -top-1 w-2.5 h-2.5 bg-white rounded-full border-2 border-white/60 shadow" />
+                  )}
+                </button>
+              ))}
+              <div className="w-8 h-px bg-white/40 my-1 font-semibold" />
+              <button
+                onClick={changeFace}
+                className="relative w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1 bg-white/20 border-2 border-white/20 hover:border-white/50 hover:scale-105 transition-all duration-300 shadow-sm"
+                title="표정 변경"
+              >
+                <Smile className="w-7 h-7 text-white" />
+                <span className="text-[10px] font-bold text-white leading-none">표정</span>
+              </button>
+            </div>
+          )}
+
+          {/* 2) 방문 모드: 상호작용 팝업 */}
+          {isVisitorMode && isInteractionModalOpen && (
+            <div className="absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 p-4 rounded-[50px] bg-white/10 backdrop-blur-xl border border-white/40 shadow-2xl animate-in fade-in slide-in-from-left-4 duration-300">
+              <button
+                onClick={() => {
+                  setIsDualAiMode(true);
+                  setIsInteractionModalOpen(false);
+                  setMyTriggerText('나 : 우와, 네 방 정말 멋지다!');
+                  setTimeout(() => {
+                    setTriggerText(`${visitedFriendName} : 고마워! 놀러와줘서 기뻐.`);
+                  }, 3000);
+                }}
+                className="w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-400/60 to-indigo-300/40 border-2 border-white/20 hover:border-white/60 hover:scale-110 transition-all shadow-lg group"
+                title="AI 끼리 대화"
+              >
+                <MessageSquare className="w-7 h-7 text-white" />
+              </button>
+              <button
+                onClick={() => {
+                  navigate(`/persona/${visitedFriendName}`);
+                  setIsInteractionModalOpen(false);
+                }}
+                className="w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-pink-400/60 to-rose-300/40 border-2 border-white/20 hover:border-white/60 hover:scale-110 transition-all shadow-lg group"
+                title="친구 페르소나 설정"
+              >
+                <PenTool className="w-7 h-7 text-white" />
+              </button>
+              {isDualAiMode && (
+                <>
+                  <div className="w-8 h-px bg-white/30 my-1 font-semibold" />
+                  <button
+                    onClick={() => {
+                      setIsDualAiMode(false);
+                      setIsInteractionModalOpen(false);
+                    }}
+                    className="w-14 h-14 rounded-full flex items-center justify-center bg-white/20 border-2 border-white/20 hover:border-white/60 hover:bg-white/40 hover:scale-110 transition-all shadow-lg"
+                    title="친구 AI만 보기"
+                  >
+                    <RefreshCcw className="w-7 h-7 text-white" />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 우측 슬라이딩 사이드바 (친구 목록) */}
         <motion.div
+          ref={sidebarRef}
           className="absolute top-0 right-0 h-full w-[350px] bg-white/20 backdrop-blur-2xl border-l border-white/40 shadow-2xl z-40 flex flex-col"
           initial={false}
           animate={{ x: isUsersModalOpen ? 0 : 350 }}
@@ -456,27 +671,188 @@ export default function MainPage() {
           </button>
 
           {/* 사이드바 내용 */}
-          <div className="p-6 flex justify-between items-center border-b border-white/30">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Users className="w-6 h-6 text-pink-500" /> 친구 목록
-            </h2>
-            <button
-              onClick={() => setIsUsersModalOpen(false)}
-              className="p-2 hover:bg-white/40 rounded-full transition"
-            >
-              <X className="w-5 h-5 text-gray-700" />
-            </button>
+          <div className="p-6 pb-4 flex flex-col gap-5 border-b border-white/30">
+            {/* 검색 바 (친구 목록/요청 제목보다 위로 이동) */}
+            <div className="relative w-full mt-2">
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/40 border border-white/50 rounded-full py-2.5 pl-4 pr-10 text-sm text-gray-800 placeholder-gray-500 outline-none focus:bg-white/60 transition shadow-sm"
+              />
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            </div>
+
+            {/* 타이틀 헤더 영역 */}
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                {sidebarView === 'friends' ? (
+                  <>
+                    <Users className="w-6 h-6 text-pink-500" /> 친구 목록
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setSidebarView('friends')}
+                      className="mr-1 p-1 hover:bg-white/40 rounded-full transition"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-700" />
+                    </button>
+                    <UserPlus className="w-6 h-6 text-pink-500" /> 친구 요청
+                  </>
+                )}
+              </h2>
+              <button
+                onClick={() => {
+                  if (sidebarView === 'requests') {
+                    setSidebarView('friends');
+                  } else {
+                    setIsUsersModalOpen(false);
+                  }
+                }}
+                className="p-2 hover:bg-white/40 rounded-full transition"
+              >
+                <X className="w-5 h-5 text-gray-700" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-600 p-6">
-            <div className="p-4 bg-white/30 rounded-full mb-4">
-              <UserPlus className="w-12 h-12 text-gray-500" />
-            </div>
-            <p className="text-sm leading-relaxed">
-              친구 목록 및 팔로우 관리 UI가
-              <br />
-              들어갈 공간입니다. (추후 구현 예정)
-            </p>
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            {sidebarView === 'friends' ? (
+              <>
+                {/* 1) 친구 요청 N건 버튼 (탭 전환) */}
+                <button
+                  onClick={() => setSidebarView('requests')}
+                  className="w-full flex items-center justify-between p-3 px-2 rounded-2xl hover:bg-white/30 transition border border-transparent hover:border-white/40 text-left cursor-pointer"
+                >
+                  <span className="text-gray-700 font-semibold text-sm">
+                    친구 요청 {friendRequests.length}건
+                  </span>
+                  <ChevronRight className="w-5 h-5 text-gray-500" />
+                </button>
+
+                <hr className="border-white/30 my-1" />
+
+                {/* 3) 친구 목록 출력 */}
+                <div className="flex flex-col gap-2">
+                  {friends
+                    .filter((f) => f.name.includes(searchQuery))
+                    .map((friend) => (
+                      <div
+                        key={friend.id}
+                        className="flex items-center justify-between p-2 hover:bg-white/30 rounded-2xl transition group"
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* 프로필 이미지 (임시) */}
+                          <div
+                            className={`w-10 h-10 rounded-full ${friend.color} flex items-center justify-center shadow-inner`}
+                          >
+                            <span className="text-xs font-bold text-gray-700">
+                              {friend.profileExp}
+                            </span>
+                          </div>
+                          <span className="text-gray-800 font-medium text-sm">{friend.name}</span>
+                        </div>
+                        {/* 우측 버튼 영역 (방문 + 더보기) */}
+                        <div className="flex items-center gap-1">
+                          {/* 방문 버튼 */}
+                          {isVisitorMode && visitedFriendName === friend.name ? (
+                            <div className="px-3 py-1.5 bg-pink-50/80 text-pink-600 text-[11px] font-bold rounded-lg border border-pink-200 flex items-center gap-1.5 shadow-sm">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+                              </span>
+                              방문 중
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleVisit(friend.name)}
+                              className="px-3 py-1.5 bg-white shadow-sm border border-gray-100 hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-lg transition"
+                            >
+                              방문
+                            </button>
+                          )}
+
+                          {/* 더보기(삭제) 메뉴 영역 */}
+                          <div className="relative">
+                            <button
+                              onClick={() =>
+                                setActiveFriendMenuId((prev) =>
+                                  prev === friend.id ? null : friend.id,
+                                )
+                              }
+                              className="p-1 px-1.5 hover:bg-white/50 rounded-md text-gray-500 hover:text-gray-800 transition outline-none"
+                              title="친구 관리"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            {/* 드롭다운 메뉴 */}
+                            {activeFriendMenuId === friend.id && (
+                              <div className="absolute right-0 top-full mt-1 w-24 bg-white/95 backdrop-blur-md border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden text-[13px] animate-in slide-in-from-top-2 fade-in">
+                                <button
+                                  onClick={() => {
+                                    handleDeleteFriend(friend.id);
+                                    setActiveFriendMenuId(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-red-500 font-semibold hover:bg-red-50 transition"
+                                >
+                                  삭제
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  {/* 검색 결과 없음 처리 */}
+                  {friends.filter((f) => f.name.includes(searchQuery)).length === 0 && (
+                    <div className="text-center text-sm text-gray-500 py-6">
+                      검색된 친구가 없어요.
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* 친구 요청 탭 뷰 */
+              <div className="flex flex-col gap-2">
+                {friendRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="flex items-center justify-between p-2 hover:bg-white/30 rounded-2xl transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-full ${req.color} flex items-center justify-center shadow-inner`}
+                      >
+                        <span className="text-xs font-bold text-gray-700">{req.profileExp}</span>
+                      </div>
+                      <span className="text-gray-800 font-medium text-sm">{req.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleAcceptRequest(req.id, req.name)}
+                        className="px-3 py-1.5 bg-pink-100 hover:bg-pink-200 text-pink-700 text-xs font-semibold rounded-lg shadow-sm transition"
+                      >
+                        수락
+                      </button>
+                      <button
+                        onClick={() => handleRejectRequest(req.id)}
+                        className="px-3 py-1.5 bg-white shadow-sm border border-gray-100 hover:bg-gray-50 text-gray-500 text-xs font-semibold rounded-lg transition"
+                      >
+                        거절
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {friendRequests.length === 0 && (
+                  <div className="text-center text-sm text-gray-500 py-6">
+                    새로운 친구 요청이 없어요.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -491,49 +867,98 @@ export default function MainPage() {
           </div>
 
           <div className="absolute right-[-100px] top-1/2 -translate-y-1/2">
-            <button className="p-4 rounded-full bg-white/30 backdrop-blur-md shadow-lg border border-white/50 hover:bg-white/40 transition">
-              <Lock className="w-6 h-6 text-gray-700" />
-            </button>
+            {!isVisitorMode && (
+              <button className="p-4 rounded-full bg-white/30 backdrop-blur-md shadow-lg border border-white/50 hover:bg-white/40 transition">
+                <Lock className="w-6 h-6 text-gray-700" />
+              </button>
+            )}
           </div>
 
           {/* 메인 캐릭터 구체 (Three.js Real 3D) 및 오디오 파형(Visualizer) 통합 컨테이너 */}
-          <div
-            className="w-[350px] h-[350px] relative z-10 flex items-center justify-center
-                          transition-transform hover:scale-105 duration-500"
-          >
-            {/* 시각화 링을 구체와 완벽하게 동일한 중심점에 배치 (inset-0) */}
-            <WaveformRing isActive={isSpeaking} />
-            <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }} className="w-full h-full">
-              <ambientLight intensity={0.6} />
-              {/* 정면 강한 스포트라이트 → 구체 상단에 선명한 하이라이트 */}
-              <spotLight
-                position={[0, 5, 5]}
-                intensity={6}
-                angle={0.4}
-                penumbra={0.6}
-                color="#ffffff"
-                castShadow
-              />
-              {/* 좌측 보조 포인트라이트 → 유리 측면 반짝임 */}
-              <pointLight position={[-4, 3, 3]} intensity={4} color="#e0f0ff" />
-              {/* 우측 하단 반사광 → 구체 하단 림라이팅 */}
-              <pointLight position={[4, -2, 2]} intensity={3} color="#ffeeff" />
-              <directionalLight position={[10, 10, 10]} intensity={2.0} color="#ffffff" />
-              <Environment preset="studio" />
-              <Character3D
-                faceType={faceType}
-                mouthOpenRadius={mouthOpenRadius}
-                mode={currentMode}
-              />
-            </Canvas>
-          </div>
+          <div className="flex items-center justify-center gap-20">
+            {/* 듀얼 모드일 때 내 AI (왼쪽 등장) */}
+            {isDualAiMode && (
+              <div
+                className="w-[300px] h-[300px] relative z-20 flex flex-col items-center justify-center
+                              animate-in slide-in-from-left-20 fade-in duration-700"
+              >
+                <div className="relative w-full h-full flex items-center justify-center">
+                  <WaveformRing isActive={isMyAiSpeaking} />
+                  <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }} className="w-full h-full">
+                    <ambientLight intensity={0.6} />
+                    <spotLight
+                      position={[0, 5, 5]}
+                      intensity={6}
+                      angle={0.4}
+                      penumbra={0.6}
+                      color="#ffffff"
+                      castShadow
+                    />
+                    <pointLight position={[-4, 3, 3]} intensity={4} color="#e0f0ff" />
+                    <pointLight position={[4, -2, 2]} intensity={3} color="#ffeeff" />
+                    <directionalLight position={[10, 10, 10]} intensity={2.0} color="#ffffff" />
+                    <Environment preset="studio" />
+                    <Character3D
+                      faceType={faceType}
+                      mouthOpenRadius={myMouthOpenRadius}
+                      mode={currentMode}
+                    />
+                  </Canvas>
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white/40 backdrop-blur-md px-4 py-1 rounded-full border border-white/50 text-xs font-bold text-gray-700 whitespace-nowrap">
+                    나의 AI
+                  </div>
+                </div>
+                {/* 각자의 말풍선 */}
+                <SpeechBubble
+                  triggerText={myTriggerText}
+                  onStart={handleMyAiSpeakStart}
+                  onEnd={handleMyAiSpeakEnd}
+                />
+              </div>
+            )}
 
-          {/* 대화 말풍선: 타이핑 state를 SpeechBubble 내부에 완전히 캡슐화 */}
-          <SpeechBubble
-            triggerText={triggerText}
-            onStart={handleSpeakStart}
-            onEnd={handleSpeakEnd}
-          />
+            {/* 메인 캐릭터 영역 (평소에는 내 AI, 방문 모드에서는 친구 AI) */}
+            <div
+              className={`relative z-10 flex flex-col items-center justify-center
+                            transition-all duration-700 ease-in-out ${isDualAiMode ? 'w-[300px] h-[300px]' : 'w-[350px] h-[350px]'}`}
+            >
+              <div className="relative w-full h-full flex items-center justify-center">
+                <WaveformRing isActive={isSpeaking} />
+                <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }} className="w-full h-full">
+                  <ambientLight intensity={0.6} />
+                  <spotLight
+                    position={[0, 5, 5]}
+                    intensity={6}
+                    angle={0.4}
+                    penumbra={0.6}
+                    color="#ffffff"
+                    castShadow
+                  />
+                  <pointLight position={[-4, 3, 3]} intensity={4} color="#e0f0ff" />
+                  <pointLight position={[4, -2, 2]} intensity={3} color="#ffeeff" />
+                  <directionalLight position={[10, 10, 10]} intensity={2.0} color="#ffffff" />
+                  <Environment preset="studio" />
+                  <Character3D
+                    faceType={isVisitorMode ? (faceType + 2) % 6 : faceType}
+                    mouthOpenRadius={mouthOpenRadius}
+                    mode={isVisitorMode ? 'normal' : currentMode}
+                  />
+                </Canvas>
+                {isVisitorMode || isDualAiMode ? (
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white/40 backdrop-blur-md px-4 py-1 rounded-full border border-white/50 text-xs font-bold text-gray-700 whitespace-nowrap">
+                    {isVisitorMode ? `${visitedFriendName}님의 AI` : '나의 AI'}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* 각자의 말풍선 (중앙/친구 AI용) */}
+              <SpeechBubble
+                triggerText={triggerText}
+                onStart={handleSpeakStart}
+                onEnd={handleSpeakEnd}
+              />
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -573,16 +998,18 @@ function Character3D({
     const targetY = mouse.current.x * Math.PI * 0.15;
 
     // delta 값을 이용해 프레임과 독립적인 부드러운 애니메이션(lerp) 적용
-    // 회전 계산 간격을 조금 더 부드럽게 조정
+    // 초기 로딩이나 메모리 부하 시의 급격한 변화(shaking)를 막기 위해 delta 값을 제한
+    const safeDelta = Math.min(delta, 0.1);
+
     meshRef.current.rotation.x = THREE.MathUtils.lerp(
       meshRef.current.rotation.x,
       targetX,
-      10 * delta,
+      6 * safeDelta,
     );
     meshRef.current.rotation.y = THREE.MathUtils.lerp(
       meshRef.current.rotation.y,
       targetY,
-      10 * delta,
+      6 * safeDelta,
     );
   });
 
