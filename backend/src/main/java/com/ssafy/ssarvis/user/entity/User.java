@@ -1,6 +1,5 @@
 package com.ssafy.ssarvis.user.entity;
 
-import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.entity.BaseTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,7 +15,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import org.hibernate.type.descriptor.jdbc.SqlTypedJdbcType;
 
 @Getter
 @Entity
