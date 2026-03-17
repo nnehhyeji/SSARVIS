@@ -105,7 +105,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public long getRefreshTokenMaxAgeSeconds() {
-        return jwtUtil.getRefreshTokenExpireTimeMillis();
+        return jwtUtil.getRefreshTokenExpireTimeMillis() / 1000;
     }
 
     private Long extractUserId(Authentication authentication) {
