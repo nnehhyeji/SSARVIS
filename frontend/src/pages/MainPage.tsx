@@ -409,36 +409,24 @@ export default function MainPage() {
                 )}
               </button>
             ))}
-          </div>
 
-          {/* 현재 모드 표시 + 호버 트리거 역할의 아이콘 버튼 */}
-          <div
-            className="
-              w-16 h-16 rounded-2xl
-              bg-white/20 backdrop-blur-md border border-white/40 shadow-lg
-              flex flex-col items-center justify-center gap-1
-              transition-all duration-300 hover:bg-white/30
-            "
-          >
-            {modes.find((m) => m.id === currentMode)?.icon}
-            <span className="text-[9px] font-semibold text-white/80 leading-none">
-              {currentMode === 'normal' ? '일반' : currentMode === 'study' ? '학습' : '상담'}
-            </span>
-          </div>
+            {/* 구분선 (옵션) */}
+            <div className="w-8 h-px bg-white/40 my-1 font-semibold" />
 
-          {/* 구분 — 표정/목소리 전환 버튼 (별도 분리) */}
-          <button
-            onClick={changeFace}
-            className="
-              w-16 h-16 rounded-2xl
-              bg-white/20 backdrop-blur-md border border-white/40 shadow-lg
-              flex flex-col items-center justify-center gap-1
-              hover:bg-white/30 transition-all duration-300
-            "
-          >
-            <Smile className="w-7 h-7 text-gray-600" />
-            <span className="text-[9px] font-semibold text-gray-600/80 leading-none">표정</span>
-          </button>
+            {/* 표정/목소리 전환 버튼 (팝업 패널 안으로 병합) */}
+            <button
+              onClick={changeFace}
+              className="
+                relative w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1
+                bg-white/20 border-2 border-white/20 hover:border-white/50 hover:scale-105
+                transition-all duration-300 shadow-sm
+              "
+              title="표정 변경"
+            >
+              <Smile className="w-7 h-7 text-white" />
+              <span className="text-[10px] font-bold text-white leading-none">표정</span>
+            </button>
+          </div>
         </div>
 
         {/* 우측 슬라이딩 사이드바 (친구 목록) */}
@@ -625,7 +613,7 @@ function Character3D({
           zIndexRange={[100, 0]}
         >
           {/* 표정 컨테이너 크기 자체를 기존 280px에서 400px로 더욱 확대 */}
-          <div className="w-[400px] h-[400px] pointer-events-none flex items-center justify-center transform-style-3d scale-150">
+          <div className="w-[400px] h-[400px] pointer-events-none flex items-center justify-center [transform-style:preserve-3d] scale-150">
             <FaceDesign type={faceType} mouthOpenRadius={mouthOpenRadius} mode={mode} />
           </div>
         </Html>
@@ -675,88 +663,275 @@ function FaceDesign({
   );
 
   return (
-    <div className="absolute inset-0 w-full h-full flex items-center justify-center transform-style-3d">
+    <div className="absolute inset-0 w-full h-full flex items-center justify-center [transform-style:preserve-3d]">
       {renderEyebrows()}
 
-      {/* 학습모드 전용 빨간 안경 개 입체 SVG (대두/오버사이즈 안경) */}
+      {/* 학습모드 전용 3D 사각 뿔테 안경 (HTML CSS 3D 완벽 적용)
+          얼굴 요소들과 동일한 DOM 레이어에서 렌더링되어 투명도 및 깊이(z-index) 완벽 연동 */}
       {mode === 'study' && (
         <div
-          className="absolute"
+          className="absolute pointer-events-none"
           style={{
-            top: '26%',
+            top: '50%',
             left: '50%',
-            transform: 'translateX(-50%) translateZ(45px)',
-            width: '460px',
+            // Z축 돌출을 통해 코보다 넉넉하게 앞에 띄워서 캐릭터 뺨이나 눈썹과 충돌 방지
+            transform: 'translate(-50%, -50%) translateZ(65px)',
+            width: '420px', // 안경테 잘림 현상 방지를 위해 좌우 너비 대폭 확보
+            transformStyle: 'preserve-3d',
+            zIndex: 50,
           }}
         >
+          {/* 안경 전면부 SVG (사각 뿔테) - 여백을 포함하여 중앙 정렬되도록 오프셋(x +40 추가) */}
           <svg
-            viewBox="0 0 460 160"
+            viewBox="0 0 420 140"
             xmlns="http://www.w3.org/2000/svg"
             style={{
               width: '100%',
               height: 'auto',
-              filter: 'drop-shadow(0 8px 16px rgba(180,0,0,0.5))',
+              filter: 'drop-shadow(0 15px 15px rgba(180,0,0,0.5))',
+              position: 'relative',
+              zIndex: 10,
+              display: 'block',
+              transformStyle: 'preserve-3d',
             }}
           >
-            {/* 왼쪽 다리 (얼굴 밖으로 넘어가는 선) */}
-            <line
-              x1="72"
-              y1="50"
-              x2="15"
-              y2="35"
-              stroke="#cc1111"
-              strokeWidth="12"
-              strokeLinecap="round"
-            />
-            {/* 오른쪽 다리 */}
-            <line
-              x1="388"
-              y1="50"
-              x2="445"
-              y2="35"
-              stroke="#cc1111"
-              strokeWidth="12"
-              strokeLinecap="round"
-            />
-
             {/* 코 브리지 */}
             <path
-              d="M 212 55 Q 230 40 248 55"
+              d="M 192 50 Q 210 42 228 50"
               fill="none"
-              stroke="#cc1111"
+              stroke="#D30000"
               strokeWidth="12"
-              strokeLinecap="round"
+              strokeLinecap="square"
             />
 
-            {/* 왼쪽 렌즈 테두리 + 렌즈 - 완전 오버사이즈 */}
+            {/* 왼쪽 사각 렌즈 */}
             <rect
-              x="72"
+              x="65"
               y="15"
-              width="140"
-              height="110"
-              rx="35"
-              ry="35"
-              fill="rgba(255,80,80,0.15)"
-              stroke="#cc1111"
-              strokeWidth="14"
+              width="127"
+              height="90"
+              rx="12"
+              fill="rgba(255,255,255,0.15)"
+              stroke="#D30000"
+              strokeWidth="16"
             />
-            {/* 오른쪽 렌즈 테두리 + 렌즈 */}
-            <rect
-              x="248"
-              y="15"
-              width="140"
-              height="110"
-              rx="35"
-              ry="35"
-              fill="rgba(255,80,80,0.15)"
-              stroke="#cc1111"
-              strokeWidth="14"
-            />
+            {/* 왼쪽 렌즈 빛 반사 (픽셀아트 느낌) */}
+            <rect x="80" y="30" width="18" height="18" fill="white" opacity="0.8" />
+            <rect x="104" y="30" width="8" height="18" fill="white" opacity="0.8" />
 
-            {/* 하이라이트 리플렉션 (입체감) */}
-            <rect x="95" y="30" width="45" height="14" rx="7" fill="white" opacity="0.45" />
-            <rect x="271" y="30" width="45" height="14" rx="7" fill="white" opacity="0.45" />
+            {/* 오른쪽 사각 렌즈 */}
+            <rect
+              x="228"
+              y="15"
+              width="127"
+              height="90"
+              rx="12"
+              fill="rgba(255,255,255,0.15)"
+              stroke="#D30000"
+              strokeWidth="16"
+            />
+            {/* 오른쪽 렌즈 빛 반사 */}
+            <rect x="243" y="30" width="18" height="18" fill="white" opacity="0.8" />
+            <rect x="267" y="30" width="8" height="18" fill="white" opacity="0.8" />
           </svg>
+        </div>
+      )}
+
+      {/* 상담모드 전용: 양손으로 소중히 안고 있는 커피잔 (우측 하단) */}
+      {mode === 'counseling' && (
+        <div
+          className="absolute pointer-events-none flex items-center justify-center"
+          style={{
+            // 좀 더 오른쪽으로 치우치게 배치하고 사이즈를 줄임
+            top: '75%',
+            left: '95%', // 80% -> 95%로 더 오른쪽으로 밀어내기
+            transform: 'translate(-50%, -50%) translateZ(120px) rotateY(-15deg)',
+            width: '180px', // 220px -> 180px로 사이즈 축소
+            height: '180px',
+            transformStyle: 'preserve-3d',
+            zIndex: 60,
+          }}
+        >
+          {/* 전체 요소(손+컵+김)가 아주 천천히 상하로 둥둥 떠다니도록 애니메이션 */}
+          <div
+            className="w-full h-full relative"
+            style={{
+              transformStyle: 'preserve-3d',
+              animation: 'floatCoffee 3s ease-in-out infinite alternate',
+            }}
+          >
+            {/* 1) 모락모락 김 (Coffee Steam) - 빵빵한 구름(☁️) 이모지를 겹쳐 풍성한 증기 효과 */}
+            <div
+              className="absolute top-[-80px] left-[50%] -translate-x-1/2 w-full h-full"
+              style={{ transform: 'translateZ(15px)' }}
+            >
+              <style>
+                {`
+                  @keyframes steamRise {
+                    0% { transform: translateY(30px) scale(0.5) rotate(-5deg); opacity: 0; }
+                    40% { opacity: 0.8; }
+                    100% { transform: translateY(-70px) scale(1.5) rotate(15deg); opacity: 0; }
+                  }
+                  @keyframes floatCoffee {
+                    0% { transform: translateY(0px) rotateZ(0deg); }
+                    100% { transform: translateY(-12px) rotateZ(3deg); }
+                  }
+                `}
+              </style>
+              {/* 핑크빛 하트 김 (하트 형태가 뚜렷하게 보이도록 블러 제거, 더 연한 핑크톤) */}
+              <div
+                className="absolute text-pink-200 drop-shadow-md"
+                style={{
+                  top: '60px',
+                  left: '80px',
+                  fontSize: '60px',
+                  opacity: 0,
+                  animation: 'steamRise 3s infinite ease-in-out',
+                }}
+              >
+                💕
+              </div>
+              <div
+                className="absolute text-pink-100 drop-shadow-md"
+                style={{
+                  top: '70px',
+                  left: '110px',
+                  fontSize: '50px',
+                  opacity: 0,
+                  animation: 'steamRise 3.5s infinite delay-[1.2s] ease-in-out',
+                }}
+              >
+                🤍
+              </div>
+              <div
+                className="absolute text-pink-200 drop-shadow-md"
+                style={{
+                  top: '50px',
+                  left: '140px',
+                  fontSize: '70px',
+                  opacity: 0,
+                  animation: 'steamRise 4s infinite delay-[0.6s] ease-in-out',
+                }}
+              >
+                🩷
+              </div>
+              <div
+                className="absolute text-pink-100 drop-shadow-md"
+                style={{
+                  top: '40px',
+                  left: '100px',
+                  fontSize: '65px',
+                  opacity: 0,
+                  animation: 'steamRise 3.2s infinite delay-[2s] ease-in-out',
+                }}
+              >
+                💖
+              </div>
+            </div>
+
+            {/* 몸통 쪽 (왼) 손 삭제 요청에 따라 해당 div 영역 제거 */}
+
+            {/* 3) 커피 머그컵 (시안과 유사한 그라데이션, 받침대 포함된 고급 3D 형태) */}
+            <svg
+              viewBox="0 0 240 200"
+              className="absolute inset-0 w-[150%] h-[150%] left-[-25%] top-[-25%]"
+              style={{
+                transform: 'translateZ(10px) rotateX(15deg) rotateZ(-5deg)', // 앞으로 살짝 기울어진 3D 시점 추가
+                filter: 'drop-shadow(0 20px 20px rgba(0,0,0,0.25))',
+              }}
+            >
+              <defs>
+                {/* 컵 몸통 부드러운 라디얼 그라데이션 (차분한 노란색/머스타드 톤) */}
+                <radialGradient id="cupBodyGradient" cx="50%" cy="30%" r="70%" fx="30%" fy="30%">
+                  <stop offset="0%" stopColor="#FFEEA3" />
+                  <stop offset="60%" stopColor="#F5D374" />
+                  <stop offset="100%" stopColor="#DAA520" />
+                </radialGradient>
+                {/* 컵 안쪽 벽 (연한 크림색, 살짝 어둡게 투시) */}
+                <radialGradient id="cupInside" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#F4F0EA" />
+                  <stop offset="100%" stopColor="#D5CBBB" />
+                </radialGradient>
+                {/* 받침대(접시) 그라데이션 */}
+                <radialGradient id="saucerGradient" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+                  <stop offset="0%" stopColor="#FFEEA3" />
+                  <stop offset="80%" stopColor="#E3BB58" />
+                  <stop offset="100%" stopColor="#C99324" />
+                </radialGradient>
+              </defs>
+
+              <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+                {/* 1. 밑받침 접시 (Saucer) */}
+                <ellipse cx="120" cy="160" rx="90" ry="25" fill="url(#saucerGradient)" />
+                <ellipse cx="120" cy="160" rx="90" ry="25" stroke="#FDEBB0" strokeWidth="3" />
+
+                {/* 1-1. 접시 안쪽 파인 부분 (커피잔 닿는 곳) */}
+                <ellipse cx="120" cy="162" rx="50" ry="14" fill="#DAA520" opacity="0.4" />
+                <ellipse cx="120" cy="163" rx="40" ry="10" fill="#C99324" opacity="0.6" />
+
+                {/* 2. 컵 손잡이 (오른쪽 둥근 그립) */}
+                <path
+                  d="M 160 90 Q 220 80 210 120 Q 200 150 150 145"
+                  stroke="url(#cupBodyGradient)"
+                  strokeWidth="12"
+                />
+                <path
+                  d="M 160 90 Q 220 80 210 120 Q 200 150 150 145"
+                  stroke="#F5C6CB"
+                  strokeWidth="4"
+                  opacity="0.4"
+                />
+
+                {/* 3. 머그컵 바깥쪽 둥근 몸통 (통통한 항아리형) */}
+                {/* 베지에 곡선으로 하단으로 갈수록 좁아지게 구현 */}
+                <path
+                  d="M 60 70 Q 60 150 85 155 L 155 155 Q 180 150 180 70 Z"
+                  fill="url(#cupBodyGradient)"
+                />
+
+                {/* 3-1. 입체 반사광 (하이라이트 곡선) */}
+                <path
+                  d="M 70 80 Q 70 135 88 140"
+                  stroke="white"
+                  strokeWidth="4"
+                  opacity="0.4"
+                  strokeLinecap="round"
+                />
+
+                {/* 4. 컵 주둥이 안쪽 공간 (투시) */}
+                <ellipse cx="120" cy="70" rx="60" ry="18" fill="url(#cupInside)" />
+                {/* 4-1. 커피 수면 (타원, 찰랑거리는 깊이) */}
+                <ellipse cx="120" cy="73" rx="48" ry="12" fill="#3B261D" />
+                {/* 커피 반사 하이라이트 */}
+                <ellipse
+                  cx="100"
+                  cy="72"
+                  rx="10"
+                  ry="3"
+                  fill="white"
+                  opacity="0.2"
+                  transform="rotate(-15 100 72)"
+                />
+
+                {/* 5. 컵 주둥이 가장자리 제일 도톰한 테두리 (입 닿는 곳) */}
+                <ellipse cx="120" cy="70" rx="60" ry="18" stroke="#FFF7D8" strokeWidth="6" />
+              </g>
+            </svg>
+
+            {/* 4) 컵 조심스럽게 받치고 있는 둥근 손 (맨 밑바닥 중앙 집중) */}
+            <div
+              className="absolute bg-[#FDF9F1] border-[6px] border-gray-800 rounded-full"
+              style={{
+                width: '65px', // 더 편안하게 받치도록 약간 확장
+                height: '40px', // 높이를 낮춰 접시 밑에 딱 붙은 느낌 강조
+                bottom: '-20px', // 컵 최하단부를 완전히 벗어나 완전 하단 접시 아래로 내림
+                left: '50%', // 정확한 중앙 기준점
+                transform: 'translateX(-50%) translateZ(40px) rotateX(-10deg)', // 접시보다 살짝 앞, 자연스러운 각도
+                boxShadow: 'inset -4px -8px 10px rgba(0,0,0,0.15)',
+                zIndex: 20,
+              }}
+            />
+          </div>
         </div>
       )}
 
