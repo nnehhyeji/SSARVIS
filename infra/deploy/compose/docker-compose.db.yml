@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mysql:8.0.45-debian
+    container_name: mysql
+    env_file:
+      - ../env/db.env
+    command:
+      - --default-authentication-plugin=mysql_native_password
+    expose:
+      - "3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - db-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$MYSQL_USER -p$MYSQL_PASSWORD || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  mongodb:
+    image: mongo:8.2-noble
+    container_name: mongodb
+    env_file:
+      - ../env/db.env
+    expose:
+      - "27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - db-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mysql_data:
+  mongo_data:
+
+networks:
+  db-net:
+    external: true
