@@ -18,6 +18,41 @@ log() {
   echo "[deploy] $*"
 }
 
+print_app_diagnostics() {
+  log "Application deployment failed. Printing compose status."
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" ps || true
+
+  log "Recent backend logs:"
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" logs --tail=200 backend || true
+
+  log "Recent redis logs:"
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" logs --tail=100 redis || true
+}
+
+wait_for_container_health() {
+  local container_name="$1"
+  local max_attempts="${2:-20}"
+  local attempt=1
+  local health_status
+
+  while (( attempt <= max_attempts )); do
+    health_status="$("${DOCKER_CMD[@]}" inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_name" 2>/dev/null || true)"
+
+    if [[ "$health_status" == "healthy" || "$health_status" == "running" ]]; then
+      log "Container is ready: $container_name ($health_status)"
+      return 0
+    fi
+
+    log "Waiting for container: $container_name (attempt $attempt/$max_attempts, status=${health_status:-unknown})"
+    sleep 5
+    ((attempt++))
+  done
+
+  echo "[deploy] Container did not become ready: $container_name" >&2
+  "${DOCKER_CMD[@]}" logs --tail=200 "$container_name" || true
+  exit 1
+}
+
 require_file() {
   local file_path="$1"
 
@@ -66,6 +101,7 @@ require_file "$DB_COMPOSE_FILE"
 require_file "$MONITORING_COMPOSE_FILE"
 require_file "$APP_ENV_FILE"
 require_file "$DB_ENV_FILE"
+trap 'print_app_diagnostics' ERR
 
 log "Initializing Docker networks"
 "$SCRIPT_DIR/init-network.sh" "${DOCKER_CMD[@]}"
@@ -85,6 +121,8 @@ log "Pulling application images"
 
 log "Starting database services"
 "${DOCKER_CMD[@]}" compose --env-file "$DB_ENV_FILE" -f "$DB_COMPOSE_FILE" up -d
+wait_for_container_health mysql 24
+wait_for_container_health mongodb 24
 
 log "Starting application services"
 "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" up -d
@@ -92,4 +130,5 @@ log "Starting application services"
 log "Starting monitoring services"
 "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" up -d
 
+trap - ERR
 log "Deployment completed successfully."
