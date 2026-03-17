@@ -71,7 +71,6 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
             }
 
             // 만료된 token인 경우 401 응답 -> reissue 유도
-            boolean isValid = jwtUtil.validateToken(accessToken);
             if (!jwtUtil.validateToken(accessToken)) {
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "AccessToken expired");
                 return;
