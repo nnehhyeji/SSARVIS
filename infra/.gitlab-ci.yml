@@ -132,7 +132,7 @@ infra_compose_validate:
       when: on_success
     - when: never
 
-# security stage
+# security_scan stage
 .security_scan_template:
   tags: [docker-shared]
   stage: security_scan
