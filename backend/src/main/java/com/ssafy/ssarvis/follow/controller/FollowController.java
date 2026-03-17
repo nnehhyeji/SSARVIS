@@ -10,10 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -50,6 +47,16 @@ public class FollowController {
         Long userId = customUserDetails.getUserId();
         followService.rejectFollow(userId, followRejectDto);
         return ResponseEntity.ok(BaseResponse.success("친구 수락 성공"));
+    }
+
+    @DeleteMapping("/{followId}")
+    public ResponseEntity<BaseResponse<Void>> deleteFollow(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @PathVariable Long followId
+    ) {
+        Long userId = customUserDetails.getUserId();
+        followService.deleteFollow(userId, followId);
+        return ResponseEntity.ok(BaseResponse.success("친구 삭제 성공"));
     }
 
 }

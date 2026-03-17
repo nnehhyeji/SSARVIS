@@ -93,4 +93,14 @@ public class FollowServiceImpl implements FollowService {
             followRequest.getSender().getId(), receiverId);
     }
 
+    @Override
+    public void deleteFollow(Long followerId, Long followId) {
+
+        Follow follow = followRepository.findByIdAndFollowerId(followId, followerId)
+            .orElseThrow(() -> new CustomException(ErrorCode.FOLLOW_REQUEST_NOT_FOUND.getMessage(), ErrorCode.FOLLOW_NOT_FOUND));
+
+        followRepository.delete(follow);
+        log.info("친구 삭제 완료 - 팔로워 PK: {}, 팔로우 PK: {}",
+            followerId, follow.getFollowing().getId());
+    }
 }

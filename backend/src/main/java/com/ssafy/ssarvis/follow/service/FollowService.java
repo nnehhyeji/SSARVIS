@@ -12,4 +12,7 @@ public interface FollowService {
 
     void rejectFollow(Long receiverId, FollowRejectDto followRejectDto);
 
+    void deleteFollow(Long followerId, Long followId);
+
+
 }
