@@ -1,0 +1,64 @@
+services:
+  nginx:
+    image: ${WEB_IMAGE}:${WEB_TAG}
+    container_name: nginx
+    ports:
+      - "80:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - public-net
+      - internal-net
+    restart: unless-stopped
+
+  backend:
+    image: ${BACKEND_IMAGE}:${BACKEND_TAG}
+    container_name: backend
+    env_file:
+      - ../env/app.env
+    expose:
+      - "8080"
+    networks:
+      - internal-net
+      - db-net
+      - monitoring-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:8.4.2-trixie
+    container_name: redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - db-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  redis_data:
+
+networks:
+  public-net:
+    external: true
+  internal-net:
+    external: true
+  db-net:
+    external: true
+  monitoring-net:
+    external: true

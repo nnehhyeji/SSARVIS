@@ -2,6 +2,7 @@ stages:
   - lint
   - security_scan
   - build_and_scan
+  - deploy
 
 workflow:
   rules:
@@ -271,3 +272,67 @@ build_and_scan_web:
     when: always
     paths:
       - web-image-report.html
+
+# deploy stage
+deploy:
+  tags: [docker-shared]
+  stage: deploy
+  image: alpine:3.19.9
+  before_script:
+    - echo "source=$CI_PIPELINE_SOURCE branch=$CI_COMMIT_BRANCH sha=$CI_COMMIT_SHA"
+    - apk add --no-cache bash openssh-client
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - cp "$SSH_KEY" ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - export REMOTE_DEPLOY_DIR="/home/$USER/ssarvis/infra/deploy"
+    - mkdir -p .deploy/env
+    - |
+      cat <<EOF > .deploy/env/app.env
+      BACKEND_IMAGE=$DOCKERHUB_USERNAME/ssarvis-backend
+      BACKEND_TAG=$CI_COMMIT_SHA
+      WEB_IMAGE=$DOCKERHUB_USERNAME/ssarvis-web
+      WEB_TAG=$CI_COMMIT_SHA
+      DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME
+      DOCKERHUB_TOKEN=$DOCKERHUB_TOKEN
+      MYSQL_HOST=$MYSQL_HOST
+      MYSQL_PORT=$MYSQL_PORT
+      MYSQL_DATABASE=$MYSQL_DATABASE
+      MYSQL_USER=$MYSQL_USER
+      MYSQL_PASSWORD=$MYSQL_PASSWORD
+      REDIS_HOST=$REDIS_HOST
+      REDIS_PORT=$REDIS_PORT
+      SSE_TIMEOUT=$SSE_TIMEOUT
+      SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
+      JWT_SECRET=$JWT_SECRET
+      JWT_ACCESS_TOKEN_TIME=$JWT_ACCESS_TOKEN_TIME
+      JWT_REFRESH_TOKEN_TIME=$JWT_REFRESH_TOKEN_TIME
+      EOF
+    - |
+      cat <<EOF > .deploy/env/db.env
+      MYSQL_DATABASE=$MYSQL_DATABASE
+      MYSQL_USER=$MYSQL_USER
+      MYSQL_PASSWORD=$MYSQL_PASSWORD
+      MYSQL_ROOT_PASSWORD=$MYSQL_PASSWORD
+      EOF
+    - |
+      cat <<EOF > .deploy/env/monitoring.env
+      SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
+      EOF
+    - ssh "$USER@$HOST" "mkdir -p '$REMOTE_DEPLOY_DIR/compose' '$REMOTE_DEPLOY_DIR/scripts' '$REMOTE_DEPLOY_DIR/env'"
+    - scp infra/deploy/compose/docker-compose.app.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
+    - scp infra/deploy/compose/docker-compose.db.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
+    - scp infra/deploy/compose/docker-compose.monitoring.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
+    - scp infra/deploy/scripts/deploy.sh "$USER@$HOST:$REMOTE_DEPLOY_DIR/scripts/"
+    - scp infra/deploy/scripts/init-network.sh "$USER@$HOST:$REMOTE_DEPLOY_DIR/scripts/"
+    - scp .deploy/env/app.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
+    - scp .deploy/env/db.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
+    - scp .deploy/env/monitoring.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
+    - ssh "$USER@$HOST" "chmod +x '$REMOTE_DEPLOY_DIR/scripts/init-network.sh' '$REMOTE_DEPLOY_DIR/scripts/deploy.sh' && bash '$REMOTE_DEPLOY_DIR/scripts/deploy.sh'"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never
