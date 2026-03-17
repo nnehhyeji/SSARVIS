@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
-public class SseEmitterManger {
+public class SseEmitterManager {
 
     private final Map<Long, SseEmitter> emitters = new ConcurrentHashMap<>();
 
