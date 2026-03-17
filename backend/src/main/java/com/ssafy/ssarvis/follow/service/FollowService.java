@@ -1,8 +1,11 @@
 package com.ssafy.ssarvis.follow.service;
 
 import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
+import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
+
+import java.util.List;
 
 public interface FollowService {
 
@@ -14,5 +17,6 @@ public interface FollowService {
 
     void deleteFollow(Long followerId, Long followId);
 
+    List<FollowListResponseDto> getFollowList(Long followerId);
 
 }

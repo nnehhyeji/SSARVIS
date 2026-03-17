@@ -3,6 +3,7 @@ package com.ssafy.ssarvis.follow.controller;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
 import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
+import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
 import com.ssafy.ssarvis.follow.service.FollowService;
@@ -11,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -57,6 +60,15 @@ public class FollowController {
         Long userId = customUserDetails.getUserId();
         followService.deleteFollow(userId, followId);
         return ResponseEntity.ok(BaseResponse.success("친구 삭제 성공"));
+    }
+
+    @GetMapping
+    public ResponseEntity<BaseResponse<List<FollowListResponseDto>>> getFollowList(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        Long userId = customUserDetails.getUserId();
+        List<FollowListResponseDto> followList = followService.getFollowList(userId);
+        return ResponseEntity.ok(BaseResponse.success("친구 리스트 조회 성공", followList));
     }
 
 }

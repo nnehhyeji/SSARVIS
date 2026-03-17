@@ -3,6 +3,7 @@ package com.ssafy.ssarvis.follow.service.impl;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
+import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
 import com.ssafy.ssarvis.follow.entity.Follow;
@@ -16,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -96,11 +99,25 @@ public class FollowServiceImpl implements FollowService {
     @Override
     public void deleteFollow(Long followerId, Long followId) {
 
-        Follow follow = followRepository.findByIdAndFollowerId(followId, followerId)
+        Follow follow = followRepository.findByIdAndFollowerIdOrFollowingId(followId, followerId)
             .orElseThrow(() -> new CustomException(ErrorCode.FOLLOW_REQUEST_NOT_FOUND.getMessage(), ErrorCode.FOLLOW_NOT_FOUND));
 
         followRepository.delete(follow);
         log.info("친구 삭제 완료 - 팔로워 PK: {}, 팔로우 PK: {}",
             followerId, follow.getFollowing().getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FollowListResponseDto> getFollowList(Long followerId) {
+        List<Follow> follows = followRepository.findAllByFollowerId(followerId);
+
+        return follows.stream()
+            .map(follow -> new FollowListResponseDto(
+                follow.getId(),
+                follow.getFollowing().getId(),
+                follow.getFollowing().getNickname(),
+                follow.getFollowing().getDescription()
+            )).toList();
     }
 }
