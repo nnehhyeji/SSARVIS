@@ -20,15 +20,16 @@ import org.springframework.stereotype.Service;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+//    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void signupUser(UserCreateRequestDto userCreateRequestDto) {
-        String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
+//        String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
 
         User newUser = User.create(
             userCreateRequestDto.email(),
-            encryptedPassword,
+//            encryptedPassword,
+            userCreateRequestDto.password(),
             userCreateRequestDto.nickname()
         );
 
