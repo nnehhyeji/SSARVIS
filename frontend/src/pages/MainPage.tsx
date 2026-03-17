@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Mic,
   Lock,
+  Unlock,
   Users,
   Bell,
   User,
@@ -27,8 +30,6 @@ import {
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, Html, Float, Environment } from '@react-three/drei';
 import * as THREE from 'three';
-import { motion } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
 import AnimatedBackground from '../components/AnimatedBackground';
 
 // 별도의 고성능 컴포넌트로 분리된 파형 링 (React 리렌더링과 독립적으로 부드럽게 애니메이션 유지)
@@ -155,6 +156,7 @@ export default function MainPage() {
 
   // --- 마이크 및 채팅 State ---
   const [isMicOn, setIsMicOn] = useState(true);
+  const [isLockMode, setIsLockMode] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<{ sender: 'ai' | 'me'; text: string }[]>([
     { sender: 'ai', text: '안녕하세요! 무엇을 도와드릴까요?' },
@@ -446,6 +448,10 @@ export default function MainPage() {
     }
   }, [chatMessages]);
 
+  const handleToggleLock = () => {
+    setIsLockMode(!isLockMode);
+  };
+
   // 배경 그라데이션 (현재는 애니메이션 CSS 클래스로 구현)
   // 투명한 캐릭터를 위해 backdrop-blur 적용
 
@@ -471,7 +477,67 @@ export default function MainPage() {
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
       {/* 프리미엄 유체 배경 — 모드에 따라 색상 변경 */}
-      <AnimatedBackground {...(isVisitorMode ? visitorBg : bgColors[currentMode])} />
+      <AnimatedBackground
+        {...(isLockMode
+          ? {
+              baseTop: '#1A1A1A',
+              baseBottom: '#000000',
+              purple: '#2D2D2D',
+              teal: '#121212',
+              pink: '#333333',
+              mint: '#0A0A0A',
+              plume: '#444444',
+              streak: '#222222',
+            }
+          : isVisitorMode
+            ? visitorBg
+            : bgColors[currentMode])}
+      />
+
+      {/* 잠금 모드 스포트라이트 효과 */}
+      <AnimatePresence>
+        {isLockMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-0 pointer-events-none overflow-hidden"
+          >
+            {/* 전체 어두운 오버레이 */}
+            <div className="absolute inset-0 bg-black/40" />
+
+            {/* 바닥 광원 (Radial Gradient) */}
+            <motion.div
+              animate={{
+                y: isMicOn ? 0 : -220,
+                scale: isMicOn ? 1 : 0.8,
+              }}
+              transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-[100px] w-[500px] h-[150px] opacity-60"
+              style={{
+                background:
+                  'radial-gradient(ellipse at center, rgba(255,255,255,0.4) 0%, transparent 70%)',
+                filter: 'blur(20px)',
+              }}
+            />
+
+            {/* 상단 스포트라이트 빛 줄기 (그림 참고) */}
+            <motion.div
+              animate={{
+                y: isMicOn ? 0 : -220,
+              }}
+              transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+              className="absolute left-1/2 top-0 w-[800px] h-[120vh] origin-top -translate-x-1/2"
+              style={{
+                background:
+                  'linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 50%, transparent 90%)',
+                clipPath: 'polygon(45% 0, 55% 0, 100% 100%, 0% 100%)',
+                filter: 'blur(30px)',
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 상단 헤더 */}
       <header className="flex justify-between items-center px-5 py-2 w-full z-10 text-gray-700">
@@ -925,8 +991,20 @@ export default function MainPage() {
 
           <div className="absolute right-[-100px] top-1/2 -translate-y-1/2 z-40">
             {!isVisitorMode && (
-              <button className="p-4 rounded-full bg-white/30 backdrop-blur-md shadow-lg border border-white/50 hover:bg-white/40 transition">
-                <Lock className="w-6 h-6 text-gray-700" />
+              <button
+                onClick={handleToggleLock}
+                className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 pointer-events-auto ${
+                  isLockMode
+                    ? 'bg-yellow-500/20 border-yellow-500/40 hover:bg-yellow-500/30'
+                    : 'bg-white/30 border-white/50 hover:bg-white/40'
+                }`}
+                title={isLockMode ? '잠금 모드 끄기' : '잠금 모드 켜기 (시크릿 대화)'}
+              >
+                {isLockMode ? (
+                  <Unlock className="w-6 h-6 text-yellow-600" />
+                ) : (
+                  <Lock className="w-6 h-6 text-gray-700" />
+                )}
               </button>
             )}
           </div>
@@ -941,7 +1019,11 @@ export default function MainPage() {
               >
                 <div className="relative w-full h-full flex items-center justify-center">
                   <WaveformRing isActive={isMyAiSpeaking} />
-                  <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }} className="w-full h-full">
+                  <Canvas
+                    shadows
+                    camera={{ position: [0, 0, 4.5], fov: 45 }}
+                    className="w-full h-full"
+                  >
                     <ambientLight intensity={0.6} />
                     <spotLight
                       position={[0, 5, 5]}
@@ -959,6 +1041,7 @@ export default function MainPage() {
                       faceType={faceType}
                       mouthOpenRadius={myMouthOpenRadius}
                       mode={currentMode}
+                      isLockMode={isLockMode}
                     />
                   </Canvas>
                   <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white/40 backdrop-blur-md px-4 py-1 rounded-full border border-white/50 text-xs font-bold text-gray-700 whitespace-nowrap">
@@ -981,7 +1064,11 @@ export default function MainPage() {
             >
               <div className="relative w-full h-full flex items-center justify-center">
                 <WaveformRing isActive={isSpeaking && isMicOn} />
-                <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }} className="w-full h-full">
+                <Canvas
+                  shadows
+                  camera={{ position: [0, 0, 4.5], fov: 45 }}
+                  className="w-full h-full"
+                >
                   <ambientLight intensity={0.6} />
                   <spotLight
                     position={[0, 5, 5]}
@@ -991,14 +1078,45 @@ export default function MainPage() {
                     color="#ffffff"
                     castShadow
                   />
-                  <pointLight position={[-4, 3, 3]} intensity={4} color="#e0f0ff" />
-                  <pointLight position={[4, -2, 2]} intensity={3} color="#ffeeff" />
-                  <directionalLight position={[10, 10, 10]} intensity={2.0} color="#ffffff" />
+                  <pointLight
+                    position={[-4, 3, 3]}
+                    intensity={isLockMode ? 15 : 4}
+                    color="#e0f0ff"
+                  />
+                  <pointLight
+                    position={[4, -2, 2]}
+                    intensity={isLockMode ? 12 : 3}
+                    color="#ffeeff"
+                  />
+                  <directionalLight
+                    position={[10, 10, 10]}
+                    intensity={isLockMode ? 6.0 : 2.0}
+                    color="#ffffff"
+                  />
                   <Environment preset="studio" />
+                  {isLockMode && (
+                    <>
+                      <spotLight
+                        position={[0, 10, 0]}
+                        angle={0.15}
+                        penumbra={1}
+                        intensity={80}
+                        castShadow
+                        shadow-mapSize={[1024, 1024]}
+                        color="#ffffff"
+                      />
+                      {/* 바닥 그림자 역할을 할 디스크 */}
+                      <mesh position={[0, -2.5, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                        <circleGeometry args={[1.2, 32]} />
+                        <meshBasicMaterial color="#000000" opacity={0.85} transparent />
+                      </mesh>
+                    </>
+                  )}
                   <Character3D
                     faceType={isVisitorMode ? (faceType + 2) % 6 : faceType}
                     mouthOpenRadius={mouthOpenRadius}
                     mode={isVisitorMode ? 'normal' : currentMode}
+                    isLockMode={isLockMode}
                   />
                 </Canvas>
                 {isVisitorMode || isDualAiMode ? (
@@ -1085,10 +1203,12 @@ function Character3D({
   faceType,
   mouthOpenRadius,
   mode,
+  isLockMode,
 }: {
   faceType: number;
   mouthOpenRadius: number;
   mode: string;
+  isLockMode: boolean;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const mouse = useRef({ x: 0, y: 0 });
@@ -1133,18 +1253,18 @@ function Character3D({
       <Sphere ref={meshRef} args={[1.5, 64, 64]}>
         {/* 유리 질감을 극대화하기 위한 물리 기반 머티리얼 속성 조정 */}
         <meshPhysicalMaterial
-          transmission={0.35} // 투과율을 낮춰 배경색이 덜 비치고 흰끼가 살아남
-          thickness={2.0} // 두께감을 올려 굴절을 더 풍부하게
-          roughness={0.0} // 0에 가까울수록 거울처럼 매끄럽게 = 선명한 반짝임
-          ior={1.6} // 굴절률 높여 유리/크리스탈 느낌 강화
+          transmission={isLockMode ? 0.05 : 0.35} // 잠금모드에선 거의 불투명하게 해서 하얀색 강조
+          thickness={2.0}
+          roughness={0.0}
+          ior={1.6}
           color="#ffffff"
-          emissive="#c8e8ff" // 은은한 하늘빛 자가발광으로 블링 느낌
-          emissiveIntensity={0.25} // 발광 강도 높임
-          clearcoat={1} // 코팅 최대
-          clearcoatRoughness={0.0} // 코팅 표면도 완전 매끄럽게 → 가장 선명한 반짝임
-          opacity={0.95}
+          emissive={isLockMode ? '#ffffff' : '#c8e8ff'}
+          emissiveIntensity={isLockMode ? 3.0 : 0.25} // 잠금모드에서 발광 대폭 강화 (3.0으로 상향)
+          clearcoat={1}
+          clearcoatRoughness={0.0}
+          opacity={1}
           transparent={true}
-          envMapIntensity={4.0} // 환경 반사 강도 대폭 올려 주변 빛이 구체에 풍부하게 반사
+          envMapIntensity={isLockMode ? 12.0 : 4.0} // 반사광도 더 강하게 (12.0으로 상향)
         />
         {/* 구체 겉표면에 HTML 기반 얼굴 UI 매핑 및 크기 확대 */}
         <Html
