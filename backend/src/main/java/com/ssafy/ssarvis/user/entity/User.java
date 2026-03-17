@@ -64,6 +64,7 @@ public class User extends BaseTime {
 
     @NotNull
     @Column(name = "view_count", columnDefinition = "INT UNSIGNED")
+    @Builder.Default
     private Long viewCount = 0L;
 
     public static User create(String email, String password, String nickname) {
