@@ -9,14 +9,16 @@ NETWORKS=(
   "monitoring-net"
 )
 
+DOCKER_CMD=("${@:-docker}")
+
 for network in "${NETWORKS[@]}"; do
-  if docker network inspect "$network" >/dev/null 2>&1; then
+  if "${DOCKER_CMD[@]}" network inspect "$network" >/dev/null 2>&1; then
     echo "[init-network] Network already exists: $network"
     continue
   fi
 
   echo "[init-network] Creating network: $network"
-  docker network create "$network" >/dev/null
+  "${DOCKER_CMD[@]}" network create "$network" >/dev/null
 done
 
 echo "[init-network] Network initialization complete."
