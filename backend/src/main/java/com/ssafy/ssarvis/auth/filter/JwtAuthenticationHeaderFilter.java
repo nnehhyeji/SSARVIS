@@ -1,10 +1,12 @@
-package com.ssafy.ssarvis.common.config;
+package com.ssafy.ssarvis.auth.filter;
 
 import com.ssafy.ssarvis.auth.jwt.JwtProvider;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.auth.service.CustomUserDetailService;
 import com.ssafy.ssarvis.auth.service.RefreshTokenService;
+import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.constant.Constants;
+import com.ssafy.ssarvis.common.exception.ErrorCode;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
@@ -18,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.util.StringUtils;
@@ -32,6 +35,29 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
     private final RefreshTokenService refreshTokenService;
 
     // 사용자의 모든 요청이 거치는 JWT 토큰 필터
+    /**
+     * SecurityContextHolder에 userId정보 저장 -> 추후 @AuthenticationPrinciple 로 CustomUserDetail 추출
+     * @param request 요청 HttpServletRequest
+     * @param userId 요청 AccessToken의 userId
+     */
+    private void setAuthentication(HttpServletRequest request, Long userId) {
+        CustomUserDetails userDetails = customUserDetailService.loadUserById(userId);
+
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+            userDetails,
+            null,
+            userDetails.getAuthorities()
+        );
+
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+//        // 기존 로직 -> 아래 변경 로직 : reissueAccessToken() condition을 피하기 위함
+//        SecurityContextHolder.getContext().setAuthentication(authentication);
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
+    }
+
     @Override
     protected void doFilterInternal(
         HttpServletRequest request,
@@ -76,26 +102,47 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
                 request.getRequestURI());
             // 토큰 변조/이상 시 바로 응답
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid Token");
+        } catch (CustomException e) {
+            handleCustomException(request, response, e);
+        } catch (Exception e) {
+            log.error("JWT 처리 중 예기치 못한 오류 ip={} method={} uri={}",
+                getClientIp(request),
+                request.getMethod(),
+                request.getRequestURI(),
+                e
+            );
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
         }
     }
 
     /**
-     * SecurityContextHolder에 userId정보 저장 -> 추후 @AuthenticationPrinciple 로 CustomUserDetail 추출
+     * CustomException 발생 시 handle 메서드
      * @param request 요청 HttpServletRequest
-     * @param userId 요청 AccessToken의 userId
+     * @param response 요청의 응답 HttpServletResponse
+     * @param e CustomException
+     * @throws IOException IOException
      */
-    private void setAuthentication(HttpServletRequest request, Long userId) {
-        CustomUserDetails userDetails = customUserDetailService.loadUserById(userId);
+    private void handleCustomException(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        CustomException e
+    ) throws IOException {
+        if (e.getErrorCode() == ErrorCode.USER_WITHDRAW) {
+            // 탈퇴한 유저 접근
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Withdrawn User");
+            return;
+        }
 
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-            userDetails,
-            null,
-            userDetails.getAuthorities()
-        );
-
-        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (e.getErrorCode() == ErrorCode.USER_NOT_FOUND) {
+            log.warn("존재하지 않는 사용자 접근 ip={} method={} uri={}",
+                getClientIp(request),
+                request.getMethod(),
+                request.getRequestURI()
+            );
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User Not Found");
+            return;
+        }
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
     }
 
     /**

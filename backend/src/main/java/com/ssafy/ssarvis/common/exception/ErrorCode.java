@@ -45,6 +45,7 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 닉네임입니다."),
     VOICE_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "음성 비밀번호가 일치하지 않습니다."),
+    USER_WITHDRAW(HttpStatus.FORBIDDEN, "탈퇴한 유저입니다."),
 
     // ============================================================
     // 2. ASSISTANT (어시스턴트)
