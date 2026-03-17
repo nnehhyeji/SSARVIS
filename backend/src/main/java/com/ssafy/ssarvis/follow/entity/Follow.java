@@ -29,7 +29,12 @@ public class Follow {
     private Long id;
 
     @NotNull
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "follower_id")
     @ManyToOne(fetch = FetchType.LAZY)
-    private User user;
+    private User follower;
+
+    @NotNull
+    @JoinColumn(name = "following_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private User following;
 }

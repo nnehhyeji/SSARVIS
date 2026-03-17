@@ -8,6 +8,14 @@ spring:
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
 
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+  sse:
+    timeout: ${SSE_TIMEOUT} # nginx proxy timeout이랑 시간 맞추면 될듯?
+
   jpa:
     hibernate:
       ddl-auto: create
@@ -18,3 +26,11 @@ spring:
         format_sql: false
         highlight_sql: false
     open-in-view: false
+
+  app:
+    slow-query:
+      threshold-ms: 1000
+      csv-output-dir: ./logs/slow-queries
+    slack:
+      webhook-url: ${SLACK_WEBHOOK_URL}
+      enabled: true
