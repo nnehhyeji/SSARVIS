@@ -26,6 +26,10 @@ import {
   RefreshCcw,
   MicOff,
   Send,
+  QrCode,
+  Copy,
+  Share2,
+  Volume2,
 } from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Sphere, Html, Float, Environment } from '@react-three/drei';
@@ -141,6 +145,54 @@ const SpeechBubble = memo(
   },
 );
 
+// 모드별 배경 색상 팔레트 상수화
+const BG_COLORS: Record<
+  string,
+  {
+    baseTop?: string;
+    baseBottom?: string;
+    purple?: string;
+    teal?: string;
+    pink?: string;
+    mint?: string;
+    plume?: string;
+    streak?: string;
+  }
+> = {
+  normal: {},
+  study: {
+    baseTop: '#EDE5D4',
+    baseBottom: '#7BA0B4',
+    purple: '#D4B890',
+    teal: '#C8804A',
+    pink: '#E0C898',
+    mint: '#8FBACF',
+    plume: '#FAF4E8',
+    streak: '#E8DDC8',
+  },
+  counseling: {
+    baseTop: '#C8DCC8',
+    baseBottom: '#8CBCC0',
+    purple: '#E0B0C0',
+    teal: '#90C8D8',
+    pink: '#F0C08C',
+    mint: '#C8DC88',
+    plume: '#F4FAF0',
+    streak: '#E8D4E8',
+  },
+};
+
+const LOCK_MODE_PALETTE = {
+  baseTop: '#1A1A1A',
+  baseBottom: '#000000',
+  purple: '#2D2D2D',
+  teal: '#121212',
+  pink: '#333333',
+  mint: '#0A0A0A',
+  plume: '#444444',
+  streak: '#222222',
+};
+
 export default function MainPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -157,10 +209,14 @@ export default function MainPage() {
   // --- 마이크 및 채팅 State ---
   const [isMicOn, setIsMicOn] = useState(true);
   const [isLockMode, setIsLockMode] = useState(false);
+  const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<{ sender: 'ai' | 'me'; text: string }[]>([
     { sender: 'ai', text: '안녕하세요! 무엇을 도와드릴까요?' },
   ]);
+  const [backupMessages, setBackupMessages] = useState<
+    { sender: 'ai' | 'me'; text: string }[] | null
+  >(null);
 
   // 알림 데이터 타입 및 상태
   type Alarm = {
@@ -283,43 +339,6 @@ export default function MainPage() {
       glow: 'bg-indigo-300/50',
     },
   ];
-
-  // 모드별 배경 색상 팔레트
-  const bgColors: Record<
-    Mode,
-    {
-      baseTop?: string;
-      baseBottom?: string;
-      purple?: string;
-      teal?: string;
-      pink?: string;
-      mint?: string;
-      plume?: string;
-      streak?: string;
-    }
-  > = {
-    normal: {}, // 기본값 (AnimatedBackground 내부 default 사용)
-    study: {
-      baseTop: '#EDE5D4', // 따뜻한 크림 상단
-      baseBottom: '#7BA0B4', // 파우더 블루-그레이 하단
-      purple: '#D4B890', // 밀색/위트 (우상단)
-      teal: '#C8804A', // 앰버-테라코타 (중앙 포인트)
-      pink: '#E0C898', // 따뜻한 피치 (우측)
-      mint: '#8FBACF', // 밝은 하늘색 (좌하단)
-      plume: '#FAF4E8', // 아이보리 크림 블룸
-      streak: '#E8DDC8', // 따뜻한 크림 스트리크
-    },
-    counseling: {
-      baseTop: '#C8DCC8', // 연한 세이지 그린 (상단 베이스)
-      baseBottom: '#8CBCC0', // 틸-세이지 (하단)
-      purple: '#E0B0C0', // 소프트 핑크 (중앙 상단 포인트)
-      teal: '#90C8D8', // 스카이 블루 (중앙)
-      pink: '#F0C08C', // 복숭아-살구 (우측)
-      mint: '#C8DC88', // 노랑-연두/차트리즈 (좌하단)
-      plume: '#F4FAF0', // 밝은 민트-화이트 블룸
-      streak: '#E8D4E8', // 소프트 라벤더 스트리크
-    },
-  };
 
   // --- 함수(Functions) ---
   const handleVisit = useCallback(
@@ -449,6 +468,21 @@ export default function MainPage() {
   }, [chatMessages]);
 
   const handleToggleLock = () => {
+    if (!isLockMode) {
+      // 일반 -> 시크릿 모드 전환 시 기존 대화 백업 및 초기화
+      setBackupMessages(chatMessages);
+      setChatMessages([
+        { sender: 'ai', text: '시크릿 모드가 활성화되었습니다. 이 대화는 저장되지 않습니다.' },
+      ]);
+    } else {
+      // 시크릿 -> 일반 모드 전환 시 기존 대화 복원
+      if (backupMessages) {
+        setChatMessages(backupMessages);
+        setBackupMessages(null);
+      } else {
+        setChatMessages([{ sender: 'ai', text: '안녕하세요! 무엇을 도와드릴까요?' }]);
+      }
+    }
     setIsLockMode(!isLockMode);
   };
 
@@ -474,25 +508,16 @@ export default function MainPage() {
     }, 1000);
   };
 
+  const backgroundProps = useMemo(() => {
+    if (isLockMode) return LOCK_MODE_PALETTE;
+    if (isVisitorMode) return visitorBg;
+    return BG_COLORS[currentMode] || {};
+  }, [isLockMode, isVisitorMode, visitorBg, currentMode]);
+
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
       {/* 프리미엄 유체 배경 — 모드에 따라 색상 변경 */}
-      <AnimatedBackground
-        {...(isLockMode
-          ? {
-              baseTop: '#1A1A1A',
-              baseBottom: '#000000',
-              purple: '#2D2D2D',
-              teal: '#121212',
-              pink: '#333333',
-              mint: '#0A0A0A',
-              plume: '#444444',
-              streak: '#222222',
-            }
-          : isVisitorMode
-            ? visitorBg
-            : bgColors[currentMode])}
-      />
+      <AnimatedBackground {...backgroundProps} />
 
       {/* 잠금 모드 스포트라이트 효과 */}
       <AnimatePresence>
@@ -542,8 +567,19 @@ export default function MainPage() {
       {/* 상단 헤더 */}
       <header className="flex justify-between items-center px-5 py-2 w-full z-10 text-gray-700">
         <div className="flex flex-col items-start gap-2">
-          <div className="text-3xl font-extrabold tracking-wider text-white drop-shadow-md">
-            SSARVIS
+          <div className="flex items-center gap-3">
+            <div className="text-3xl font-extrabold tracking-wider text-white drop-shadow-md">
+              SSARVIS
+            </div>
+            {!isVisitorMode && (
+              <button
+                onClick={() => setIsMyCardModalOpen(true)}
+                className="p-2 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/40 transition-all duration-300 shadow-md text-white"
+                title="내 명함 보기"
+              >
+                <QrCode className="w-5 h-5" />
+              </button>
+            )}
           </div>
           {isVisitorMode && (
             <button
@@ -1001,9 +1037,9 @@ export default function MainPage() {
                 title={isLockMode ? '잠금 모드 끄기' : '잠금 모드 켜기 (시크릿 대화)'}
               >
                 {isLockMode ? (
-                  <Unlock className="w-6 h-6 text-yellow-600" />
+                  <Lock className="w-6 h-6 text-yellow-600" />
                 ) : (
-                  <Lock className="w-6 h-6 text-gray-700" />
+                  <Unlock className="w-6 h-6 text-gray-700" />
                 )}
               </button>
             )}
@@ -1100,7 +1136,7 @@ export default function MainPage() {
                         position={[0, 10, 0]}
                         angle={0.15}
                         penumbra={1}
-                        intensity={80}
+                        intensity={45}
                         castShadow
                         shadow-mapSize={[1024, 1024]}
                         color="#ffffff"
@@ -1194,6 +1230,8 @@ export default function MainPage() {
           </div>
         </motion.div>
       </main>
+
+      <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
     </div>
   );
 }
@@ -1259,12 +1297,12 @@ function Character3D({
           ior={1.6}
           color="#ffffff"
           emissive={isLockMode ? '#ffffff' : '#c8e8ff'}
-          emissiveIntensity={isLockMode ? 3.0 : 0.25} // 잠금모드에서 발광 대폭 강화 (3.0으로 상향)
+          emissiveIntensity={isLockMode ? 1.8 : 0.25} // 잠금모드에서 발광 강화 (클리핑 방지를 위해 1.8로 조정)
           clearcoat={1}
           clearcoatRoughness={0.0}
           opacity={1}
           transparent={true}
-          envMapIntensity={isLockMode ? 12.0 : 4.0} // 반사광도 더 강하게 (12.0으로 상향)
+          envMapIntensity={isLockMode ? 7.0 : 4.0} // 반사광 강화 (클리핑 방지를 위해 7.0으로 조정)
         />
         {/* 구체 겉표면에 HTML 기반 얼굴 UI 매핑 및 크기 확대 */}
         <Html
@@ -1281,6 +1319,163 @@ function Character3D({
         </Html>
       </Sphere>
     </Float>
+  );
+}
+
+{
+  /* 6가지 얼굴 디자인 컴포넌트 (나머지 생략) ... */
+}
+
+// --- 내 명함 모달 컴포넌트 ---
+function MyCardModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText('https://ssarvis.web/ssafy_me');
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleCopyQR = () => {
+    // 실제 이미지 복사 로직 (여기서는 시뮬레이션 알림)
+    alert('QR 코드가 클립보드에 복사되었습니다.');
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ scale: 0.9, y: 20, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.9, y: 20, opacity: 0 }}
+            className="relative w-full max-w-4xl h-[600px] bg-white rounded-[40px] shadow-2xl overflow-hidden flex"
+          >
+            {/* 배경 그라데이션 & 캐릭터 프리뷰 */}
+            <div className="absolute inset-0 z-0">
+              <div
+                className="absolute inset-0 transition-opacity duration-1000"
+                style={{
+                  background: 'linear-gradient(135deg, #FFE4E6 0%, #FFFFFF 50%, #ECFCCB 100%)',
+                }}
+              />
+              {/* 우측 대형 캐릭터 구체 (디자인 참고) */}
+              <div className="absolute right-[-10%] top-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-80">
+                <div className="w-full h-full rounded-full bg-white shadow-[inset_-20px_-20px_60px_rgba(0,0,0,0.05),20px_20px_60px_rgba(0,0,0,0.1)] flex items-center justify-center border-white border-[20px]">
+                  {/* 캐릭터 눈부신 하얀색 & 얼굴 */}
+                  <div className="w-[80%] h-[80%] rounded-full bg-white relative">
+                    <div className="absolute top-[40%] left-[30%] w-6 h-10 bg-gray-800 rounded-full" />
+                    <div className="absolute top-[40%] right-[30%] w-6 h-10 bg-gray-800 rounded-full" />
+                    <div className="absolute top-[65%] left-1/2 -translate-x-1/2 w-12 h-14 border-[6px] border-gray-800 rounded-full" />
+                  </div>
+                </div>
+                {/* 둥근 비주얼라이저 느낌의 점선 */}
+                <div className="absolute inset-[-40px] border-[2px] border-dashed border-red-200 rounded-full opacity-40 animate-spin-slow" />
+              </div>
+            </div>
+
+            {/* 카드 컨텐츠 */}
+            <div className="relative z-10 flex-1 flex flex-col p-16 justify-center">
+              {/* 한줄 소개 말풍선 */}
+              <div className="mb-12 relative flex max-w-[320px]">
+                <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-sm border border-white/50 text-gray-800 font-bold leading-relaxed pr-16 relative">
+                  이게 바로 한줄소개다
+                  <br />
+                  이녀석아 ㅋ
+                  <Volume2 className="absolute right-5 bottom-5 w-6 h-6 text-gray-400 cursor-pointer hover:text-gray-600" />
+                </div>
+                {/* 말풍선 꼬리 */}
+                <div className="absolute bottom-[-10px] right-20 w-8 h-8 bg-white/90 rotate-45" />
+              </div>
+
+              {/* 사용자 정보 */}
+              <div className="mb-4">
+                <div className="flex items-baseline gap-3 mb-4">
+                  <h2 className="text-5xl font-black text-gray-800 tracking-tight">김싸피</h2>
+                  <span className="text-2xl text-gray-400 font-medium tracking-wide">
+                    @ssafy_me
+                  </span>
+                </div>
+                <div className="w-full max-w-[400px] h-[1px] bg-gray-300 mb-6" />
+                <div className="flex gap-8 text-xl font-bold text-gray-500">
+                  <div className="flex gap-2">
+                    <span className="text-gray-400">팔로잉</span>
+                    <span className="text-gray-600">123명</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-gray-400">팔로워</span>
+                    <span className="text-gray-600">123명</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 버튼 영역 */}
+              <div className="mt-12 flex gap-4">
+                <button className="px-10 py-5 bg-white rounded-3xl shadow-lg border border-gray-100 text-xl font-extrabold text-gray-700 hover:bg-gray-50 transition active:scale-95">
+                  + 팔로우 요청
+                </button>
+                <button className="px-10 py-5 bg-white rounded-3xl shadow-lg border border-gray-100 text-xl font-extrabold text-gray-700 hover:bg-gray-50 transition active:scale-95">
+                  홈 방문
+                </button>
+              </div>
+            </div>
+
+            {/* QR 및 공유 버튼 (우측 상단 플로팅 혹은 우측 영역) */}
+            <div className="relative z-10 w-[300px] flex flex-col justify-end p-12 gap-4">
+              <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl border border-white/50 shadow-xl flex flex-col items-center gap-4">
+                <div className="w-full aspect-square bg-white rounded-2xl p-2 flex items-center justify-center border border-gray-100">
+                  {/* QR 코드 영역 */}
+                  <QrCode className="w-[80%] h-[80%] text-gray-800" />
+                </div>
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  Profile QR Code
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleCopyQR}
+                  className="w-full py-4 bg-gray-800 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-700 transition"
+                >
+                  <Share2 className="w-5 h-5" />
+                  QR 코드 이미지 복사
+                </button>
+                <button
+                  onClick={handleCopyLink}
+                  className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition ${
+                    isCopied
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {isCopied ? (
+                    <RefreshCcw className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Copy className="w-5 h-5" />
+                  )}
+                  {isCopied ? '링크 복사 완료!' : '링크 주소 복사'}
+                </button>
+              </div>
+            </div>
+
+            {/* 닫기 버튼 */}
+            <button
+              onClick={onClose}
+              className="absolute top-8 right-8 p-3 rounded-full bg-white/20 hover:bg-black/10 transition z-20"
+            >
+              <X className="w-8 h-8 text-gray-500" />
+            </button>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }
 
