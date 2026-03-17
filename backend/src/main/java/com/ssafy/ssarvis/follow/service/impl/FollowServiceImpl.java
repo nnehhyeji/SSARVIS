@@ -75,7 +75,13 @@ public class FollowServiceImpl implements FollowService {
             .following(followRequest.getReceiver())
             .build();
 
+        Follow follower = Follow.builder()
+            .follower(followRequest.getReceiver())
+            .following(followRequest.getSender())
+            .build();
+
         followRepository.save(follow);
+        followRepository.save(follower);
         followRequestRepository.delete(followRequest);
 
         log.info("친구 수락 완료 - 요청자 PK: {}, 응답자 PK: {}",
