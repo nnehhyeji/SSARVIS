@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import MainPage from './pages/MainPage';
 import LoginPage from './pages/LoginPage';
+import PersonaPage from './pages/PersonaPage';
 import './App.css';
 
 function App() {
@@ -10,6 +11,8 @@ function App() {
       <Route path="/" element={<MainPage />} />
       {/* 주소가 '/login' 일때 LoginPage 컴포넌트를 보여줌 */}
       <Route path="/login" element={<LoginPage />} />
+      {/* 주소가 '/persona/:friendName' 일때 PersonaPage 컴포넌트를 보여줌 */}
+      <Route path="/persona/:friendName" element={<PersonaPage />} />
       {/* 없는 주소로 들어갔을 때 표시할 페이지 처리도 나중에 추가할 수 있음 */}
     </Routes>
   );

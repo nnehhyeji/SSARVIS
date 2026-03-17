@@ -12,6 +12,7 @@ COPY gradlew settings.gradle build.gradle ./
 COPY gradle ./gradle
 
 # (보완) 의존성 다운로드 (소스 코드 복사 전 실행하여 레이어 캐싱 최적화)
+RUN chmod +x ./gradlew
 RUN ./gradlew --no-daemon dependencies -x test
 
 # 이제 소스 복사 및 빌드
@@ -28,6 +29,10 @@ WORKDIR /app
 
 # 보안: non-root 유저 설정
 RUN addgroup -S spring && adduser -S spring -G spring
+
+# [INFRA] 보완: Alpine 패키지 업데이트 및 보안 패치 적용
+RUN apk update && apk upgrade --no-cache
+
 USER spring
 
 # (보완) 빌드 단계에서 생성된 특정 jar만 복사 (plain.jar 제외 방지)

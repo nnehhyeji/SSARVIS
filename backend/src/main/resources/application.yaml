@@ -1,3 +1,36 @@
 spring:
   application:
     name: ssarvis
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+  sse:
+    timeout: ${SSE_TIMEOUT} # nginx proxy timeout이랑 시간 맞추면 될듯?
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        enable_lazy_load_no_trans: false
+        show_sql: false
+        format_sql: false
+        highlight_sql: false
+    open-in-view: false
+
+  app:
+    slow-query:
+      threshold-ms: 1000
+      csv-output-dir: ./logs/slow-queries
+    slack:
+      webhook-url: ${SLACK_WEBHOOK_URL}
+      enabled: true
