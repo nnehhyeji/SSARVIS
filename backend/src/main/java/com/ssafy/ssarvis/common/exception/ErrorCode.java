@@ -37,6 +37,7 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     SOCIAL_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "소셜 로그인에 실패했습니다."),
     SOCIAL_UNLINK_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "소셜 연동 해제에 실패했습니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "리프레시 토큰이 일치하지 않습니다."),
 
     // ============================================================
     // 1. USER (사용자)
@@ -45,6 +46,7 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 닉네임입니다."),
     VOICE_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "음성 비밀번호가 일치하지 않습니다."),
+    USER_WITHDRAW(HttpStatus.FORBIDDEN, "탈퇴한 유저입니다."),
 
     // ============================================================
     // 2. ASSISTANT (어시스턴트)
