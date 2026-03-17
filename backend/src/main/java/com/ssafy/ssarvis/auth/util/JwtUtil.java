@@ -1,4 +1,4 @@
-package com.ssafy.ssarvis.auth.jwt;
+package com.ssafy.ssarvis.auth.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -8,13 +8,14 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import java.util.Date;
 import javax.crypto.SecretKey;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class JwtProvider {
+public class JwtUtil {
 
     @Value("${jwt.secret}")
     private String secret;
@@ -23,8 +24,9 @@ public class JwtProvider {
     @Value("${jwt.access-token.expiration}")
     private long accessTokenExpireTime;
 
+    @Getter
     @Value("${jwt.refresh-token.expiration}")
-    private long refreshTokenExpireTime;
+    private long refreshTokenExpireTimeMillis;
 
     @PostConstruct
     public void init(){
@@ -61,7 +63,7 @@ public class JwtProvider {
             .subject(String.valueOf(userId))
             .claims(createRefreshClaims())
             .issuedAt(now)
-            .expiration(new Date(now.getTime() + refreshTokenExpireTime))
+            .expiration(new Date(now.getTime() + refreshTokenExpireTimeMillis))
             .signWith(key)
             .compact();
     }

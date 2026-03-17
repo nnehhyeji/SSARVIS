@@ -1,9 +1,8 @@
 package com.ssafy.ssarvis.auth.filter;
 
-import com.ssafy.ssarvis.auth.jwt.JwtProvider;
+import com.ssafy.ssarvis.auth.util.JwtUtil;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
-import com.ssafy.ssarvis.auth.service.CustomUserDetailService;
-import com.ssafy.ssarvis.auth.service.RefreshTokenService;
+import com.ssafy.ssarvis.auth.security.CustomUserDetailsService;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
@@ -12,7 +11,6 @@ import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -30,9 +28,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
 
-    private final JwtProvider jwtProvider;
-    private final CustomUserDetailService customUserDetailService;
-    private final RefreshTokenService refreshTokenService;
+    private final JwtUtil jwtUtil;
+    private final CustomUserDetailsService customUserDetailsService;
 
     // 사용자의 모든 요청이 거치는 JWT 토큰 필터
     /**
@@ -41,8 +38,8 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
      * @param userId 요청 AccessToken의 userId
      */
     private void setAuthentication(HttpServletRequest request, Long userId) {
-        CustomUserDetails userDetails = customUserDetailService.loadUserById(userId);
-
+        CustomUserDetails userDetails = customUserDetailsService.loadUserById(userId);
+        log.info("setAuthentication userId={}", userId);
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
             userDetails,
             null,
@@ -66,30 +63,25 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         try {
             String accessToken = resolveAccessToken(request);
-
+            log.info("authorizationHeader={}", request.getHeader(HttpHeaders.AUTHORIZATION));
             // Token이 없는 요청의 경우, 필터 통과 -> Spring Security에 위임
             if (!StringUtils.hasText(accessToken)) {
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            // 유효한 token인 경우 Authentication 등록 -> 필터 통과
-            boolean isValid = jwtProvider.validateToken(accessToken);
-            if (isValid) {
-                Long userId = jwtProvider.getUserId(accessToken);
-                setAuthentication(request, userId);
-
-                filterChain.doFilter(request, response);
+            // 만료된 token인 경우 401 응답 -> reissue 유도
+            boolean isValid = jwtUtil.validateToken(accessToken);
+            if (!jwtUtil.validateToken(accessToken)) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "AccessToken expired");
                 return;
             }
 
-            // AccessToken 만료시 -> RefreshToken 재발급 -> 필터 통과 (예외 X시)
-            boolean reissued = reissueAccessToken(request, response);
-            if (!reissued) {
-                return;
-            }
+            Long userId = jwtUtil.getUserId(accessToken);
+            setAuthentication(request, userId);
 
             filterChain.doFilter(request, response);
+
         } catch (
             SignatureException
             | MalformedJwtException
@@ -145,46 +137,46 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
         response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
     }
 
-    /**
-     * RefreshToken으로 AccessToken 재발급 로직
-     * @param request 요청 HttpServletRequest
-     * @param response 요청에 대한 응답 HttpServletResponse
-     * @return 재발급 성공 여부
-     * @throws IOException IOException
-     */
-    private boolean reissueAccessToken(HttpServletRequest request, HttpServletResponse response) throws IOException{
-        String refreshToken = resolveRefreshToken(request);
-
-        // Refresh Token이 null
-        if (!StringUtils.hasText(refreshToken)) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "RefreshToken not found");
-            return false;
-        }
-        // Refresh Token이 만료됨
-        boolean isRefreshTokenValid = jwtProvider.validateToken(refreshToken);
-        if (!isRefreshTokenValid) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "RefreshToken expired");
-            return false;
-        }
-
-        Long userId = jwtProvider.getUserId(refreshToken);
-        // Refresh Token이 WhiteList와 불일치
-        if (!refreshTokenService.matches(userId, refreshToken)) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "RefreshToken mismatch");
-            log.warn("RefreshToken WhiteList mismatch ip={} method={} uri={}",
-                getClientIp(request),
-                request.getMethod(),
-                request.getRequestURI()
-            );
-            return false;
-        }
-
-        // RefreshToken 유효 -> AccessToken 재발급, 로직 재개
-        String newAccessToken = jwtProvider.createAccessToken(userId);
-        response.setHeader(HttpHeaders.AUTHORIZATION, Constants.BEARER_PREFIX + newAccessToken);
-        setAuthentication(request, userId);
-        return true;
-    }
+//    /**
+//     * RefreshToken으로 AccessToken 재발급 로직
+//     * @param request 요청 HttpServletRequest
+//     * @param response 요청에 대한 응답 HttpServletResponse
+//     * @return 재발급 성공 여부
+//     * @throws IOException IOException
+//     */
+//    private boolean reissueAccessToken(HttpServletRequest request, HttpServletResponse response) throws IOException{
+//        String refreshToken = resolveRefreshToken(request);
+//
+//        // Refresh Token이 null
+//        if (!StringUtils.hasText(refreshToken)) {
+//            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "RefreshToken not found");
+//            return false;
+//        }
+//        // Refresh Token이 만료됨
+//        boolean isRefreshTokenValid = jwtProvider.validateToken(refreshToken);
+//        if (!isRefreshTokenValid) {
+//            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "RefreshToken expired");
+//            return false;
+//        }
+//
+//        Long userId = jwtProvider.getUserId(refreshToken);
+//        // Refresh Token이 WhiteList와 불일치
+//        if (!refreshTokenService.matches(userId, refreshToken)) {
+//            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "RefreshToken mismatch");
+//            log.warn("RefreshToken WhiteList mismatch ip={} method={} uri={}",
+//                getClientIp(request),
+//                request.getMethod(),
+//                request.getRequestURI()
+//            );
+//            return false;
+//        }
+//
+//        // RefreshToken 유효 -> AccessToken 재발급, 로직 재개
+//        String newAccessToken = jwtProvider.createAccessToken(userId);
+//        response.setHeader(HttpHeaders.AUTHORIZATION, Constants.BEARER_PREFIX + newAccessToken);
+//        setAuthentication(request, userId);
+//        return true;
+//    }
 
     /**
      * Authorization Header에서 AccessToken 추출
@@ -201,24 +193,24 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
         return null;
     }
 
-    /**
-     * Cookie에서 RefreshToken 추출
-     * @param request 요청 request
-     * @return isNull ? null ? String 형식의 RefreshToken
-     */
-    private String resolveRefreshToken(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies == null) {
-            return null;
-        }
-        // 쿠키에서 "refreshToken": value 추출
-        for (Cookie cookie : cookies) {
-            if (Constants.REFRESH_TOKEN_COOKIE_NAME.equals(cookie.getName())) {
-                return cookie.getValue();
-            }
-        }
-        return null;
-    }
+//    /**
+//     * Cookie에서 RefreshToken 추출
+//     * @param request 요청 request
+//     * @return isNull ? null ? String 형식의 RefreshToken
+//     */
+//    private String resolveRefreshToken(HttpServletRequest request) {
+//        Cookie[] cookies = request.getCookies();
+//        if (cookies == null) {
+//            return null;
+//        }
+//        // 쿠키에서 "refreshToken": value 추출
+//        for (Cookie cookie : cookies) {
+//            if (Constants.REFRESH_TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+//                return cookie.getValue();
+//            }
+//        }
+//        return null;
+//    }
 
     /**
      * 변조 / 이상 토큰의 요청 시 ip 저장을 위한 ip 추출 메서드

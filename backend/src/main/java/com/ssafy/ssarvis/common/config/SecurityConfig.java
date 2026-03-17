@@ -1,14 +1,17 @@
 package com.ssafy.ssarvis.common.config;
 
 import com.ssafy.ssarvis.auth.filter.JwtAuthenticationHeaderFilter;
-import com.ssafy.ssarvis.auth.jwt.JwtProvider;
-import com.ssafy.ssarvis.auth.service.CustomUserDetailService;
+import com.ssafy.ssarvis.auth.util.JwtUtil;
+import com.ssafy.ssarvis.auth.security.CustomUserDetailsService;
 import com.ssafy.ssarvis.auth.service.RefreshTokenService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -24,9 +27,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtProvider jwtProvider;
-    private final CustomUserDetailService customUserDetailService;
-    private final RefreshTokenService refreshTokenService;
+    private final JwtUtil jwtUtil;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -39,21 +41,20 @@ public class SecurityConfig {
             .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
+//              // TODO: 추후 허용 url 설정
 //                .requestMatchers(
-//                    "/api/auth/login",
-//                    "/api/auth/signup",
-//                    "/api/auth/reissue",
+//                    "/api/v1/auth/login",
+//                    "/api/v1/auth/signup",
+//                    "/api/v1/auth/reissue",
 //                    "/error"
 //                )
 //                .permitAll()
 //                .anyRequest().authenticated()
                 
-                // TODO: 추후 허용 url 설정
                     .anyRequest().permitAll()
             )
             .addFilterBefore(
-                new JwtAuthenticationHeaderFilter(jwtProvider, customUserDetailService,
-                    refreshTokenService),
+                new JwtAuthenticationHeaderFilter(jwtUtil, customUserDetailsService),
                 UsernamePasswordAuthenticationFilter.class
             )
             .build();
@@ -90,5 +91,10 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
     }
 }

@@ -11,6 +11,7 @@ import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,17 +22,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-//    private final PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     @Override
     public void signupUser(UserCreateRequestDto userCreateRequestDto) {
-//        String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
+        String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
 
         User newUser = User.create(
             userCreateRequestDto.email(),
-//            encryptedPassword,
-            userCreateRequestDto.password(),
+            encryptedPassword,
             userCreateRequestDto.nickname()
         );
 
