@@ -285,8 +285,7 @@ deploy:
     - apk add --no-cache bash openssh-client
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    - cp "$SSH_KEY" ~/.ssh/id_ed25519
-    - chmod 600 ~/.ssh/id_ed25519
+    - chmod 600 "$SSH_KEY"
     - ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
     - chmod 644 ~/.ssh/known_hosts
   script:
@@ -324,16 +323,16 @@ deploy:
       cat <<EOF > .deploy/env/monitoring.env
       SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
       EOF
-    - ssh "$USER@$HOST" "mkdir -p '$REMOTE_DEPLOY_DIR/compose' '$REMOTE_DEPLOY_DIR/scripts' '$REMOTE_DEPLOY_DIR/env'"
-    - scp infra/deploy/compose/docker-compose.app.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
-    - scp infra/deploy/compose/docker-compose.db.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
-    - scp infra/deploy/compose/docker-compose.monitoring.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
-    - scp infra/deploy/scripts/deploy.sh "$USER@$HOST:$REMOTE_DEPLOY_DIR/scripts/"
-    - scp infra/deploy/scripts/init-network.sh "$USER@$HOST:$REMOTE_DEPLOY_DIR/scripts/"
-    - scp .deploy/env/app.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
-    - scp .deploy/env/db.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
-    - scp .deploy/env/monitoring.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
-    - ssh "$USER@$HOST" "chmod +x '$REMOTE_DEPLOY_DIR/scripts/init-network.sh' '$REMOTE_DEPLOY_DIR/scripts/deploy.sh' && bash '$REMOTE_DEPLOY_DIR/scripts/deploy.sh'"
+    - ssh -i "$SSH_KEY" "$USER@$HOST" "mkdir -p '$REMOTE_DEPLOY_DIR/compose' '$REMOTE_DEPLOY_DIR/scripts' '$REMOTE_DEPLOY_DIR/env'"
+    - scp -i "$SSH_KEY" infra/deploy/compose/docker-compose.app.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
+    - scp -i "$SSH_KEY" infra/deploy/compose/docker-compose.db.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
+    - scp -i "$SSH_KEY" infra/deploy/compose/docker-compose.monitoring.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
+    - scp -i "$SSH_KEY" infra/deploy/scripts/deploy.sh "$USER@$HOST:$REMOTE_DEPLOY_DIR/scripts/"
+    - scp -i "$SSH_KEY" infra/deploy/scripts/init-network.sh "$USER@$HOST:$REMOTE_DEPLOY_DIR/scripts/"
+    - scp -i "$SSH_KEY" .deploy/env/app.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
+    - scp -i "$SSH_KEY" .deploy/env/db.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
+    - scp -i "$SSH_KEY" .deploy/env/monitoring.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
+    - ssh -i "$SSH_KEY" "$USER@$HOST" "chmod +x '$REMOTE_DEPLOY_DIR/scripts/init-network.sh' '$REMOTE_DEPLOY_DIR/scripts/deploy.sh' && bash '$REMOTE_DEPLOY_DIR/scripts/deploy.sh'"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
       when: on_success
