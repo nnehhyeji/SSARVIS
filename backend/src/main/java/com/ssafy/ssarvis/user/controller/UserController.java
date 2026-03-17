@@ -9,6 +9,7 @@ import com.ssafy.ssarvis.user.dto.response.DuplicateCheckResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
 import com.ssafy.ssarvis.user.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,7 +36,7 @@ public class UserController {
 
     @PostMapping("/check-email")
     public ResponseEntity<BaseResponse<DuplicateCheckResponseDto>> isEmailAlreadyExists(
-        @RequestBody UserEmailCheckRequestDto userEmailCheckRequestDto
+        @RequestBody @Valid UserEmailCheckRequestDto userEmailCheckRequestDto
     ) {
         boolean isDuplicate = userService.isAlreadyExistsEmail(
             userEmailCheckRequestDto.email());
@@ -45,7 +46,7 @@ public class UserController {
 
     @PostMapping("/check-nickname")
     public ResponseEntity<BaseResponse<DuplicateCheckResponseDto>> isNicknameAlreadyExists(
-        @RequestBody UserNicknameCheckRequestDto userNicknameCheckRequestDto
+        @RequestBody @Valid UserNicknameCheckRequestDto userNicknameCheckRequestDto
     ) {
         boolean isDuplicate = userService.isAlreadyExistsNickname(
             userNicknameCheckRequestDto.nickname());
@@ -55,28 +56,28 @@ public class UserController {
 
     @GetMapping
     public ResponseEntity<BaseResponse<UserResponseDto>> getUser(
-        @AuthenticationPrincipal Long userId
+//        @AuthenticationPrincipal Long userId
     ){
-        UserResponseDto userResponseDto = userService.getUser(userId);
+        UserResponseDto userResponseDto = userService.getUser(1L);
         return ResponseEntity.ok(
             BaseResponse.success("유저 조회 성공", userResponseDto));
     }
 
     @PatchMapping
     public ResponseEntity<BaseResponse<UserUpdateResponseDto>> updateUser(
-        @AuthenticationPrincipal Long userId,
-        @RequestBody UserUpdateRequestDto userUpdateRequestDto
+//        @AuthenticationPrincipal Long userId,
+        @RequestBody @Valid UserUpdateRequestDto userUpdateRequestDto
     ){
-        UserUpdateResponseDto userUpdateResponseDto = userService.updateUser(userId, userUpdateRequestDto);
+        UserUpdateResponseDto userUpdateResponseDto = userService.updateUser(1L, userUpdateRequestDto);
         return ResponseEntity.ok(
             BaseResponse.success("유저 수정 성공", userUpdateResponseDto));
     }
 
     @DeleteMapping
     public ResponseEntity<BaseResponse<Void>> deleteUser(
-        @AuthenticationPrincipal Long userId
+//        @AuthenticationPrincipal Long userId
     ){
-        userService.deleteUser(userId);
+        userService.deleteUser(1L);
         return ResponseEntity.ok(
             BaseResponse.success("유저 삭제 성공"));
     }

@@ -11,17 +11,19 @@ import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 //    private final PasswordEncoder passwordEncoder;
 
+    @Transactional
     @Override
     public void signupUser(UserCreateRequestDto userCreateRequestDto) {
 //        String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
@@ -53,6 +55,7 @@ public class UserServiceImpl implements UserService {
         return UserResponseDto.from(user);
     }
 
+    @Transactional
     @Override
     public UserUpdateResponseDto updateUser(Long userId, UserUpdateRequestDto userUpdateRequestDto) {
         User user = userRepository.findById(userId)
@@ -69,6 +72,7 @@ public class UserServiceImpl implements UserService {
         return new UserUpdateResponseDto(userId);
     }
 
+    @Transactional
     @Override
     public void deleteUser(Long userId) {
         User user = userRepository.findById(userId)
