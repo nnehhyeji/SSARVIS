@@ -8,8 +8,8 @@ services:
       ES_JAVA_OPTS: -Xms1g -Xmx1g
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
-    ports:
-      - "9200:9200"
+    expose:
+      - "9200"
     networks:
       - monitoring-net
     restart: unless-stopped
