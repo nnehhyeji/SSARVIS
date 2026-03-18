@@ -4,6 +4,7 @@ import VisitPage from '../pages/visit/VisitPage';
 import CardPage from '../pages/card/CardPage';
 import LoginPage from '../pages/auth/LoginPage';
 import SettingsPage from '../pages/settings/SettingsPage';
+import SignupPage from '../pages/auth/SignupPage';
 import { PATHS } from './paths';
 
 /**
@@ -30,5 +31,9 @@ export const router = createBrowserRouter([
   {
     path: PATHS.LOGIN,
     element: <LoginPage />,
+  },
+  {
+    path: PATHS.SIGNUP,
+    element: <SignupPage />,
   },
 ]);
