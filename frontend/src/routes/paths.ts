@@ -1,0 +1,12 @@
+/**
+ * 애플리케이션의 모든 경로 상수를 관리합니다.
+ * 경로가 변경될 때 이 파일만 수정하면 됩니다.
+ */
+export const PATHS = {
+  HOME: '/',
+  LOGIN: '/login',
+  VISIT: (userId: string | number) => `/visit/${userId}`,
+  VISIT_PARAM: '/visit/:userId',
+  CARD: (userId: string | number) => `/card/${userId}`,
+  CARD_PARAM: '/card/:userId',
+} as const;

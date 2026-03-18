@@ -28,6 +28,7 @@ async def get_db_session() -> AsyncSession:
 
 
 async def init_database() -> None:
+    from app.domains.chat.model import ChatMessage  # noqa: F401
     from app.domains.prompt.model import Prompt  # noqa: F401
     from app.domains.voice.model import Voice  # noqa: F401
 

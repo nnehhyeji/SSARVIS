@@ -16,7 +16,7 @@ import java.io.IOException;
 public class RedisMessageSubscriber implements MessageListener {
 
     private final ObjectMapper objectMapper;
-    private final SseEmitterManger sseEmitterManger;
+    private final SseEmitterManager sseEmitterManager;
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
@@ -28,7 +28,7 @@ public class RedisMessageSubscriber implements MessageListener {
             log.info("Redis 수신 - receiverId: {}, event: {}",
                 msg.getReceiverId(), msg.getEventName());
 
-            sseEmitterManger.sendToLocal(
+            sseEmitterManager.sendToLocal(
                 msg.getReceiverId(),
                 msg.getEventName(),
                 msg.getPayload()
