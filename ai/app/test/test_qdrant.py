@@ -2,6 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from app.exceptions.infra import VectorDBClientClosedError, VectorDBError
 from app.infra.qdrant import QdrantClient
 
 
@@ -45,8 +46,15 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
 
             qdrant = QdrantClient()
 
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(VectorDBError):
                 await qdrant.initialize_collection(vector_size=1536)
+
+    async def test_initialize_collection_rejects_invalid_vector_size(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient"):
+            qdrant = QdrantClient()
+
+            with self.assertRaises(ValueError):
+                await qdrant.initialize_collection(vector_size=0)
 
     async def test_initialize_default_collection_uses_configured_size(self) -> None:
         with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
@@ -102,6 +110,45 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
             point = kwargs["points"][0]
             self.assertIsInstance(point.id, str)
             self.assertNotEqual(point.id, "custom-id")
+            self.assertEqual(point.payload["source_id"], "custom-id")
+
+    async def test_upsert_many_preserves_existing_source_id(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
+            client = client_cls.return_value
+            client.upsert = AsyncMock()
+
+            qdrant = QdrantClient()
+            await qdrant.upsert_many(
+                [
+                    {
+                        "id": "custom-id",
+                        "vector": [0.1, 0.2],
+                        "payload": {"text": "a", "source_id": "external-1"},
+                    }
+                ]
+            )
+
+            _, kwargs = client.upsert.await_args
+            point = kwargs["points"][0]
+            self.assertEqual(point.payload["source_id"], "external-1")
+
+    async def test_upsert_many_rejects_empty_vector(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient"):
+            qdrant = QdrantClient()
+
+            with self.assertRaises(ValueError):
+                await qdrant.upsert_many(
+                    [{"id": 1, "vector": [], "payload": {"text": "a"}}]
+                )
+
+    async def test_upsert_many_rejects_non_dict_payload(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient"):
+            qdrant = QdrantClient()
+
+            with self.assertRaises(ValueError):
+                await qdrant.upsert_many(
+                    [{"id": 1, "vector": [0.1, 0.2], "payload": "bad"}]
+                )
 
     async def test_search_returns_payloads(self) -> None:
         with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
@@ -137,7 +184,7 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
 
             qdrant = QdrantClient()
 
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(VectorDBError):
                 await qdrant.search(vector=[0.1, 0.2], limit=2)
 
     async def test_search_supports_list_filter_values(self) -> None:
@@ -167,6 +214,31 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
             )
 
             client.query_points.assert_awaited_once()
+
+    async def test_search_rejects_empty_vector(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient"):
+            qdrant = QdrantClient()
+
+            with self.assertRaises(ValueError):
+                await qdrant.search(vector=[], limit=2)
+
+    async def test_search_rejects_non_positive_limit(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient"):
+            qdrant = QdrantClient()
+
+            with self.assertRaises(ValueError):
+                await qdrant.search(vector=[0.1, 0.2], limit=0)
+
+    async def test_search_rejects_unsupported_filter_operator(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient"):
+            qdrant = QdrantClient()
+
+            with self.assertRaises(ValueError):
+                await qdrant.search(
+                    vector=[0.1, 0.2],
+                    filter_conditions={"score": {"unknown": 10}},
+                    limit=2,
+                )
 
     async def test_delete_skips_empty_ids(self) -> None:
         with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
@@ -207,9 +279,11 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
             client.close = AsyncMock()
 
             qdrant = QdrantClient()
+            QdrantClient._instance = qdrant
             await qdrant.close()
 
             client.close.assert_awaited_once()
+            self.assertIsNone(QdrantClient._instance)
 
     async def test_get_instance_reuses_singleton(self) -> None:
         with patch("app.infra.qdrant.AsyncQdrantClient"):
@@ -217,6 +291,26 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
             second = QdrantClient.get_instance()
 
             self.assertIs(first, second)
+
+    async def test_get_instance_recreates_closed_singleton(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
+            client_cls.return_value.close = AsyncMock()
+
+            first = QdrantClient.get_instance()
+            await first.close()
+            second = QdrantClient.get_instance()
+
+            self.assertIsNot(first, second)
+
+    async def test_closed_client_rejects_operations(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
+            client_cls.return_value.close = AsyncMock()
+
+            qdrant = QdrantClient()
+            await qdrant.close()
+
+            with self.assertRaises(VectorDBClientClosedError):
+                await qdrant.search(vector=[0.1, 0.2], limit=2)
 
 
 if __name__ == "__main__":
