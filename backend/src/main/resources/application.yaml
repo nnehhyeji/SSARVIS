@@ -41,3 +41,12 @@ jwt:
     expiration: ${JWT_ACCESS_TOKEN_TIME}
   refresh-token:
     expiration: ${JWT_REFRESH_TOKEN_TIME}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    disable-swagger-default-url: true
+    operations-sorter: alpha
+    tags-sorter: alpha
