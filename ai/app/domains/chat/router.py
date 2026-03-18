@@ -1,5 +1,6 @@
 import json
 import logging
+from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +32,24 @@ dashscope_voice_client = DashScopeVoiceClient()
 prompt_prefix_loader = PromptTemplateLoader(chat_config.similar_conversations_prefix_file)
 response_guideline_loader = PromptTemplateLoader(chat_config.response_guideline_prompt_file)
 s3compatible_client = S3CompatibleClient()
+
+
+@dataclass
+class ChatStreamState:
+    assistant_response: str
+    text_sent: bool = False
+
+    async def ensure_text_sent(self, ws: WebSocket) -> None:
+        if self.text_sent:
+            return
+
+        await ws.send_text(
+            json.dumps(
+                {"type": "text", "content": self.assistant_response},
+                ensure_ascii=False,
+            )
+        )
+        self.text_sent = True
 
 
 def get_openai_client() -> OpenAIClient:
@@ -131,43 +150,25 @@ async def chat(
         encoder = OpusEncoder()
         collector = PCMChunkCollector()
         tts_text = chat_service.sanitize_tts_text(assistant_response)
-        first_chunk = True
+        stream_state = ChatStreamState(assistant_response=assistant_response)
         audio_download_url: str | None = None
 
         async for pcm_chunk in voice_service.synthesize(tts_text, request.voice_id):
             collector.append(pcm_chunk)
             opus_packets = encoder.encode(pcm_chunk)
 
-            if first_chunk and opus_packets:
-                await ws.send_text(
-                    json.dumps(
-                        {"type": "text", "content": assistant_response},
-                        ensure_ascii=False,
-                    )
-                )
-                first_chunk = False
+            if opus_packets:
+                await stream_state.ensure_text_sent(ws)
 
             for packet in opus_packets:
                 await ws.send_bytes(packet)
 
         for packet in encoder.flush():
-            if first_chunk:
-                await ws.send_text(
-                    json.dumps(
-                        {"type": "text", "content": assistant_response},
-                        ensure_ascii=False,
-                    )
-                )
-                first_chunk = False
+            await stream_state.ensure_text_sent(ws)
             await ws.send_bytes(packet)
 
-        if first_chunk:
-            await ws.send_text(
-                json.dumps(
-                    {"type": "text", "content": assistant_response},
-                    ensure_ascii=False,
-                )
-            )
+        if not stream_state.text_sent:
+            await stream_state.ensure_text_sent(ws)
 
         if collector:
             uploaded = await tts_storage_service.upload_pcm_as_mp3(
