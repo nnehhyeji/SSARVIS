@@ -1,12 +1,23 @@
 import asyncio
 import base64
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from app.config.dashscope import dashscope_config
+
+
+@dataclass(frozen=True)
+class DashScopeSynthesisRequest:
+    text: str
+    voice_id: str
+    model: str
+    url: str
+    response_format: str = "PCM_24000HZ_MONO_16BIT"
+    mode: str = "server_commit"
 
 
 class DashScopeVoiceClient:
@@ -42,6 +53,26 @@ class DashScopeVoiceClient:
 
     async def delete_voice_async(self, voice_id: str) -> None:
         await asyncio.to_thread(self.delete_voice, voice_id)
+
+    def create_synthesis_request(
+        self,
+        text: str,
+        voice_id: str,
+    ) -> DashScopeSynthesisRequest:
+        normalized_text = text.strip()
+        normalized_voice_id = voice_id.strip()
+
+        if not normalized_text:
+            raise ValueError("text must not be blank")
+        if not normalized_voice_id:
+            raise ValueError("voice_id must not be blank")
+
+        return DashScopeSynthesisRequest(
+            text=normalized_text,
+            voice_id=normalized_voice_id,
+            model=dashscope_config.tts_model,
+            url=dashscope_config.tts_ws_url,
+        )
 
     def _post(self, payload: dict) -> dict:
         body = json.dumps(payload).encode("utf-8")
