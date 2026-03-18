@@ -5,6 +5,7 @@ import CardPage from '../pages/card/CardPage';
 import LoginPage from '../pages/auth/LoginPage';
 import SettingsPage from '../pages/settings/SettingsPage';
 import SignupPage from '../pages/auth/SignupPage';
+import TutorialPage from '../pages/auth/TutorialPage';
 import { PATHS } from './paths';
 
 /**
@@ -35,5 +36,9 @@ export const router = createBrowserRouter([
   {
     path: PATHS.SIGNUP,
     element: <SignupPage />,
+  },
+  {
+    path: PATHS.TUTORIAL,
+    element: <TutorialPage />,
   },
 ]);

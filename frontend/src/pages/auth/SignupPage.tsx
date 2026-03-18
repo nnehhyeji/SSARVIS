@@ -15,8 +15,8 @@ export default function SignupPage() {
     e.preventDefault();
     // API 연동은 추후 진행
     console.log('Signup attempt:', { email, password, nickname });
-    // 가입 완료 후 로그인 페이지나 튜토리얼로 이동 (현재는 로그인으로)
-    navigate(PATHS.LOGIN);
+    // 가입 완료 후 튜토리얼로 이동
+    navigate(PATHS.TUTORIAL);
   };
 
   const [waveDurations] = useState<number[]>(() => [...Array(5)].map(() => 1 + Math.random()));

@@ -6,6 +6,7 @@ export const PATHS = {
   HOME: '/',
   LOGIN: '/login',
   SIGNUP: '/signup',
+  TUTORIAL: '/tutorial',
   VISIT: (userId: string | number) => `/visit/${userId}`,
   VISIT_PARAM: '/visit/:userId',
   CARD: (userId: string | number) => `/card/${userId}`,
