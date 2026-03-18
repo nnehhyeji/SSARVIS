@@ -1,4 +1,17 @@
+import logging
+
+from pydantic import ValidationError
+
+from app.config.chat import chat_config
+from app.domains.chat.exceptions import PromptNotFoundError
+from app.domains.chat.repository import ChatRepository
 from app.domains.chat.schema import ChatContext, ConversationContextItem
+from app.domains.prompt.repository import PromptRepository
+from app.infra.openai import OpenAIClient
+from app.infra.prompt_loader import PromptTemplateLoader
+from app.infra.qdrant import QdrantClient
+
+logger = logging.getLogger(__name__)
 
 
 class ChatContextBuilder:
@@ -79,4 +92,82 @@ class ChatContextBuilder:
 
 
 class ChatService:
-    """Chat service placeholder."""
+    def __init__(
+        self,
+        prompt_repository: PromptRepository,
+        chat_repository: ChatRepository,
+        openai_client: OpenAIClient,
+        qdrant_client: QdrantClient,
+        context_builder: ChatContextBuilder | None = None,
+        similar_conversations_prefix_loader: PromptTemplateLoader | None = None,
+        response_guideline_loader: PromptTemplateLoader | None = None,
+    ) -> None:
+        self.prompt_repository = prompt_repository
+        self.chat_repository = chat_repository
+        self.openai_client = openai_client
+        self.qdrant_client = qdrant_client
+        self.context_builder = context_builder or ChatContextBuilder()
+        self.similar_conversations_prefix_loader = (
+            similar_conversations_prefix_loader
+            or PromptTemplateLoader(chat_config.similar_conversations_prefix_file)
+        )
+        self.response_guideline_loader = response_guideline_loader or PromptTemplateLoader(
+            chat_config.response_guideline_prompt_file
+        )
+
+    async def build_context(self, user_id: str, user_message: str) -> ChatContext:
+        prompt = await self.prompt_repository.get_by_user_id(user_id)
+        if prompt is None:
+            raise PromptNotFoundError("Prompt not found")
+
+        recent_conversations = await self.chat_repository.get_recent(
+            user_id=user_id,
+            limit=chat_config.recent_conversations_limit,
+        )
+        query_vector = await self.openai_client.embed(user_message)
+        similar_conversations = await self.qdrant_client.search(
+            vector=query_vector,
+            filter_conditions={"user_id": user_id},
+            limit=chat_config.similar_conversations_limit,
+        )
+
+        return self.context_builder.build_context(
+            system_prompt=prompt.prompt,
+            user_message=user_message,
+            recent_conversations=[
+                {
+                    "user_message": conversation.user_message,
+                    "assistant_message": conversation.assistant_message,
+                }
+                for conversation in recent_conversations
+            ],
+            similar_conversations=self._normalize_similar_conversations(
+                similar_conversations
+            ),
+        )
+
+    async def build_messages(
+        self,
+        user_id: str,
+        user_message: str,
+    ) -> list[dict[str, str]]:
+        context = await self.build_context(user_id=user_id, user_message=user_message)
+        return self.context_builder.build_messages(
+            context=context,
+            similar_conversations_prefix=self.similar_conversations_prefix_loader.load_system_prompt_meta(),
+            response_guideline_prompt=self.response_guideline_loader.load_system_prompt_meta(),
+        )
+
+    def _normalize_similar_conversations(
+        self,
+        conversations: list[dict],
+    ) -> list[ConversationContextItem]:
+        normalized: list[ConversationContextItem] = []
+
+        for conversation in conversations:
+            try:
+                normalized.append(ConversationContextItem.model_validate(conversation))
+            except ValidationError:
+                logger.warning("Skipping malformed similar conversation payload")
+
+        return normalized
