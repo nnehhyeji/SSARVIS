@@ -33,7 +33,7 @@ export default function CharacterScene({
         camera={{ position: [0, 0, 4.5], fov: 45 }}
         className="w-full h-full"
       >
-        <ambientLight intensity={0.6} />
+        <ambientLight intensity={isLockMode ? 0.1 : 0.6} />
         <spotLight
           position={[0, 5, 5]}
           intensity={6}
@@ -51,21 +51,21 @@ export default function CharacterScene({
         />
         <Environment preset="studio" />
 
-        {/* 잠금 모드 전용 특수 효과 (스포트라이트 및 바닥 그림자) */}
+        {/* 잠금 모드 전용 특수 효과 (정중앙 수직 스포트라이트 및 바닥 그림자) */}
         {isLockMode && (
           <>
             <spotLight
-              position={[0, 10, 0]}
-              angle={0.15}
+              position={[0, 12, 0]}
+              target-position={[0, -2.5, 0]}
+              angle={0.3}
               penumbra={1}
-              intensity={45}
+              intensity={120}
               castShadow
-              shadow-mapSize={[1024, 1024]}
               color="#ffffff"
             />
-            <mesh position={[0, -2.5, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-              <circleGeometry args={[1.2, 32]} />
-              <meshBasicMaterial color="#000000" opacity={0.85} transparent />
+            <mesh position={[0, -1.4, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+              <circleGeometry args={[1.1, 64]} />
+              <meshBasicMaterial color="#000000" opacity={0.7} transparent />
             </mesh>
           </>
         )}

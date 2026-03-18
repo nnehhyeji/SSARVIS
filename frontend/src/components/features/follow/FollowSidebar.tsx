@@ -14,11 +14,12 @@ interface FollowSidebarProps {
   allUsers: Follow[];
   requests: FollowRequest[];
 
-  visitedName: string | null;
+  visitedId: number | null;
   isVisitorMode: boolean;
-  onVisit: (name: string) => void;
+  onVisit: (id: number) => void;
   onDelete: (id: number) => void;
   onAccept: (id: number, name: string) => void;
+
   onReject: (id: number) => void;
   onClose: () => void;
   onToggle?: () => void;
@@ -30,7 +31,7 @@ export default function FollowSidebar({
   allUsers,
   requests,
 
-  visitedName,
+  visitedId,
   isVisitorMode,
   onVisit,
   onDelete,
@@ -188,7 +189,7 @@ export default function FollowSidebar({
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      {isVisitorMode && visitedName === f.name ? (
+                      {isVisitorMode && visitedId === f.id ? (
                         <div className="px-3 py-1.5 bg-pink-50/80 text-pink-600 text-[11px] font-bold rounded-lg border border-pink-200 flex items-center gap-1.5 shadow-sm">
                           <span className="relative flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
@@ -198,7 +199,7 @@ export default function FollowSidebar({
                         </div>
                       ) : (
                         <button
-                          onClick={() => onVisit(f.name)}
+                          onClick={() => onVisit(f.id)}
                           className="px-3 py-1.5 bg-white shadow-sm border border-gray-100 hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-lg transition"
                         >
                           방문
@@ -271,7 +272,7 @@ export default function FollowSidebar({
                         </div>
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => onVisit(u.name)}
+                            onClick={() => onVisit(u.id)}
                             className="px-3 py-1.5 bg-white/40 hover:bg-white/60 text-gray-600 text-xs font-bold rounded-lg transition"
                           >
                             방문

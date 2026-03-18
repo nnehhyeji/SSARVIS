@@ -17,7 +17,9 @@ export default function MyCardModal({ isOpen, onClose }: MyCardModalProps) {
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText('https://ssarvis.web/ssafy_me');
+    // 실제 서비스라면 현재 접속한 유저의 ID를 가져와야 함 (데모로 1 사용)
+    const shareUrl = `${window.location.origin}/card/1`;
+    navigator.clipboard.writeText(shareUrl);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
