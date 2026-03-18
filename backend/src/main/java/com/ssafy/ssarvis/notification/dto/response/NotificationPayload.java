@@ -12,7 +12,7 @@ public record NotificationPayload(
     String senderNickname,
     String senderProfileImage,
     String message,
-    LocalDateTime createdAt
+    String createdAt
 
 ) {
 

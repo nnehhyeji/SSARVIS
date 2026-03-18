@@ -5,6 +5,7 @@ import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.common.sse.RedisMessagePublisher;
 import com.ssafy.ssarvis.notification.dto.request.SseNotificationMessageRequestDto;
 import com.ssafy.ssarvis.notification.dto.response.NotificationPayload;
+import com.ssafy.ssarvis.notification.dto.response.NotificationResponseDto;
 import com.ssafy.ssarvis.notification.entity.Notification;
 import com.ssafy.ssarvis.notification.entity.NotificationType;
 import com.ssafy.ssarvis.notification.entity.NotificationTypeEnum;
@@ -16,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -45,7 +48,7 @@ public class NotificationServiceImpl implements NotificationService {
             .senderId(sender.getId())
             .senderNickname(sender.getNickname())
             .message(notification.getMessage())
-            .createdAt(notification.getCreatedAt())
+            .createdAt(notification.getCreatedAt().toString())
             .build();
 
         redisMessagePublisher.publisher(
@@ -77,7 +80,7 @@ public class NotificationServiceImpl implements NotificationService {
             .senderId(receiver.getId())
             .senderNickname(receiver.getNickname())
             .message(notification.getMessage())
-            .createdAt(notification.getCreatedAt())
+            .createdAt(notification.getCreatedAt().toString())
             .build();
 
         redisMessagePublisher.publisher(
@@ -91,4 +94,15 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("친구 수락 알림 발송 - 전송자 PK: {}, 응답자 PK: {}",
             sender.getId(), receiver.getId());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<NotificationResponseDto> getNotifications(Long userId) {
+        return notificationRepository
+            .findAllByReceiverIdOrderByCreatedAtDesc(userId)
+            .stream()
+            .map(NotificationResponseDto::from)
+            .toList();
+    }
+
 }
