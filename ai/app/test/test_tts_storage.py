@@ -36,8 +36,6 @@ class TTSAudioStorageServiceTests(unittest.IsolatedAsyncioTestCase):
         )
         service = TTSAudioStorageService(storage_client=storage_client)
 
-        fake_segment = SimpleNamespace(export=AsyncMock())
-
         def build_segment(*args, **kwargs):
             return SimpleNamespace(export=lambda path, format: None)
 
