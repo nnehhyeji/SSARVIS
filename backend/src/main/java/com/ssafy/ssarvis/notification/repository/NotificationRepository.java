@@ -14,5 +14,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     Optional<Notification> findByIdAndReceiverId(Long id, Long receiverId);
 
+    Long countByReceiverIdAndIsReadFalse(Long receiverId);
 
 }

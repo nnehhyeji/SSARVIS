@@ -4,6 +4,7 @@ import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.common.sse.RedisMessagePublisher;
 import com.ssafy.ssarvis.notification.dto.request.SseNotificationMessageRequestDto;
+import com.ssafy.ssarvis.notification.dto.response.NotificationCountResponseDto;
 import com.ssafy.ssarvis.notification.dto.response.NotificationPayload;
 import com.ssafy.ssarvis.notification.dto.response.NotificationResponseDto;
 import com.ssafy.ssarvis.notification.entity.Notification;
@@ -135,6 +136,13 @@ public class NotificationServiceImpl implements NotificationService {
 
         notification.markAsRead();
         log.info("알림 읽음 처리 - 요청자 PK: {}, 알림 ID: {}", userId, notificationId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public NotificationCountResponseDto countUnreadNotifications(Long userId) {
+        Long count = notificationRepository.countByReceiverIdAndIsReadFalse(userId);
+        return new NotificationCountResponseDto(count);
     }
 
 }

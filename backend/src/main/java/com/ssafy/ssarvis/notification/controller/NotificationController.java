@@ -2,6 +2,7 @@ package com.ssafy.ssarvis.notification.controller;
 
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
+import com.ssafy.ssarvis.notification.dto.response.NotificationCountResponseDto;
 import com.ssafy.ssarvis.notification.dto.response.NotificationResponseDto;
 import com.ssafy.ssarvis.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,16 @@ public class NotificationController {
         Long userId = customUserDetails.getUserId();
         notificationService.readNotification(userId, notificationId);
         return ResponseEntity.ok(BaseResponse.success("알림 읽음 처리 성공"));
+    }
+
+    // 읽지 않은 알림 개수
+    @GetMapping("/count")
+    public ResponseEntity<BaseResponse<NotificationCountResponseDto>> countUnreadNotifications(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        Long userId = customUserDetails.getUserId();
+        NotificationCountResponseDto count = notificationService.countUnreadNotifications(userId);
+        return ResponseEntity.ok(BaseResponse.success("읽지 않은 알림 개수 조회 성공", count));
     }
 
 }
