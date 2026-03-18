@@ -36,6 +36,27 @@ class DashScopeVoiceClientTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             client.create_synthesis_request(text="hello", voice_id="   ")
 
+    def test_resolve_audio_format_returns_enum_member(self) -> None:
+        class FakeAudioFormat:
+            PCM_24000HZ_MONO_16BIT = object()
+
+        resolved = DashScopeVoiceClient._resolve_audio_format(
+            FakeAudioFormat,
+            "PCM_24000HZ_MONO_16BIT",
+        )
+
+        self.assertIs(resolved, FakeAudioFormat.PCM_24000HZ_MONO_16BIT)
+
+    def test_resolve_audio_format_rejects_unknown_value(self) -> None:
+        class FakeAudioFormat:
+            PCM_24000HZ_MONO_16BIT = object()
+
+        with self.assertRaises(ValueError):
+            DashScopeVoiceClient._resolve_audio_format(
+                FakeAudioFormat,
+                "UNKNOWN",
+            )
+
 
 class DashScopeVoiceClientAsyncTests(unittest.IsolatedAsyncioTestCase):
     async def test_synthesize_yields_chunks(self) -> None:

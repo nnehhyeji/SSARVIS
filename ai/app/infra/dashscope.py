@@ -135,6 +135,7 @@ class DashScopeVoiceClient:
 
         import dashscope
         from dashscope.audio.qwen_tts_realtime import (
+            AudioFormat,
             QwenTtsRealtime,
             QwenTtsRealtimeCallback,
         )
@@ -174,7 +175,10 @@ class DashScopeVoiceClient:
             tts.connect()
             tts.update_session(
                 voice=request.voice_id,
-                response_format=request.response_format,
+                response_format=self._resolve_audio_format(
+                    AudioFormat,
+                    request.response_format,
+                ),
                 mode=request.mode,
             )
             tts.append_text(request.text)
@@ -218,6 +222,13 @@ class DashScopeVoiceClient:
                 f"DashScope realtime error: {response}"
             )
             finish_stream()
+
+    @staticmethod
+    def _resolve_audio_format(audio_format_type: Any, value: str) -> Any:
+        try:
+            return getattr(audio_format_type, value)
+        except AttributeError as exc:
+            raise ValueError(f"Unsupported DashScope audio format: {value}") from exc
 
     def _resolve_audio_data_uri(self, audio_uri: str) -> str:
         if audio_uri.startswith("data:"):
