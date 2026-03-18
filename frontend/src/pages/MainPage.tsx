@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MessageCircle } from 'lucide-react';
 
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+
 import { AnimatePresence, motion } from 'framer-motion';
 
 // Hooks
@@ -18,6 +19,7 @@ import ChatWindow from '../components/features/chat/ChatWindow';
 import FollowSidebar from '../components/features/follow/FollowSidebar';
 import MyCardModal from '../components/features/follow/MyCardModal';
 import ModePanel from '../components/features/assistant/ModePanel';
+import PersonaModal from '../components/features/follow/PersonaModal';
 
 // Constants & Types
 import { BG_COLORS, LOCK_MODE_PALETTE } from '../constants/theme';
@@ -25,7 +27,6 @@ import type { Alarm, Mode } from '../types';
 
 export default function MainPage() {
   const location = useLocation();
-  const navigate = useNavigate();
 
   // --- Custom Hooks ---
   const {
@@ -55,6 +56,7 @@ export default function MainPage() {
     isDualAiMode,
     isInteractionModalOpen,
     visitorBg,
+    visitorVisibility,
     setIsDualAiMode,
     setIsInteractionModalOpen,
     visitFollow,
@@ -62,6 +64,7 @@ export default function MainPage() {
     deleteFollow,
     acceptRequest,
     rejectRequest,
+    allUsers,
   } = useFollow();
 
   // --- Callbacks for Stability ---
@@ -77,6 +80,7 @@ export default function MainPage() {
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
   const [my_view_count] = useState(1234); // 나의 실제 방문 횟수 (추후 API 연동)
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
 
   // 알림 데이터 (원본 MainPage.tsx 유지)
   const [alarms, setAlarms] = useState<Alarm[]>([
@@ -288,6 +292,9 @@ export default function MainPage() {
           <div className="flex items-center justify-center gap-20">
             {isDualAiMode && (
               <div className="w-[300px] h-[300px] relative z-20 flex flex-col items-center justify-center animate-in slide-in-from-left-20 fade-in duration-700">
+                <div className="absolute top-[-40px] px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-200 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md">
+                  Private Access
+                </div>
                 <CharacterScene
                   faceType={faceType}
                   mouthOpenRadius={myMouthOpenRadius}
@@ -308,6 +315,17 @@ export default function MainPage() {
             <div
               className={`relative z-10 flex flex-col items-center justify-center transition-all duration-700 ease-in-out ${isDualAiMode ? 'w-[300px] h-[300px]' : 'w-[350px] h-[350px]'}`}
             >
+              {isVisitorMode && (
+                <div
+                  className={`absolute top-[-40px] px-3 py-1 rounded-full border text-[10px] font-bold tracking-wider uppercase backdrop-blur-md transition-all duration-500 ${
+                    visitorVisibility === 'private'
+                      ? 'bg-pink-500/20 border-pink-500/40 text-pink-200'
+                      : 'bg-gray-500/20 border-gray-500/40 text-gray-300'
+                  }`}
+                >
+                  {visitorVisibility} Access
+                </div>
+              )}
               <CharacterScene
                 faceType={isVisitorMode ? (faceType + 2) % 6 : faceType}
                 mouthOpenRadius={mouthOpenRadius}
@@ -375,7 +393,7 @@ export default function MainPage() {
           setTimeout(() => setTriggerText(`${visitedFollowName} : 고마워! 놀러와줘서 기뻐.`), 3000);
         }}
         onPersonaClick={() => {
-          if (visitedFollowName) navigate(`/persona/${visitedFollowName}`);
+          if (visitedFollowName) setIsPersonaModalOpen(true);
         }}
         onStopDualAi={() => setIsDualAiMode(false)}
       />
@@ -383,6 +401,7 @@ export default function MainPage() {
       <FollowSidebar
         isOpen={isUsersModalOpen}
         follows={follows}
+        allUsers={allUsers}
         requests={followRequests}
         visitedName={visitedFollowName}
         isVisitorMode={isVisitorMode}
@@ -395,6 +414,12 @@ export default function MainPage() {
       />
 
       <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
+
+      <PersonaModal
+        isOpen={isPersonaModalOpen}
+        onClose={() => setIsPersonaModalOpen(false)}
+        followName={visitedFollowName || ''}
+      />
     </div>
   );
 }

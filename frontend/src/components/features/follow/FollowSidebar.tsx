@@ -11,7 +11,9 @@ import type { Follow, FollowRequest } from '../../../types';
 interface FollowSidebarProps {
   isOpen: boolean;
   follows: Follow[];
+  allUsers: Follow[];
   requests: FollowRequest[];
+
   visitedName: string | null;
   isVisitorMode: boolean;
   onVisit: (name: string) => void;
@@ -25,7 +27,9 @@ interface FollowSidebarProps {
 export default function FollowSidebar({
   isOpen,
   follows,
+  allUsers,
   requests,
+
   visitedName,
   isVisitorMode,
   onVisit,
@@ -36,8 +40,11 @@ export default function FollowSidebar({
   onToggle,
 }: FollowSidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const [sidebarView, setSidebarView] = useState<'follows' | 'requests'>('follows');
+  const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
+    'following',
+  );
   const [searchQuery, setSearchQuery] = useState('');
+
   const [activeFollowMenuId, setActiveFollowMenuId] = useState<number | null>(null);
 
   return (
@@ -88,15 +95,11 @@ export default function FollowSidebar({
 
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            {sidebarView === 'follows' ? (
-              <>
-                <Users className="w-6 h-6 text-pink-500" /> 팔로우 목록
-              </>
-            ) : (
+            {sidebarView === 'requests' ? (
               <>
                 <button
                   onClick={() => {
-                    setSidebarView('follows');
+                    setSidebarView('following');
                     setActiveFollowMenuId(null);
                   }}
                   className="mr-1 p-1 hover:bg-white/40 rounded-full transition"
@@ -105,12 +108,28 @@ export default function FollowSidebar({
                 </button>
                 <UserPlus className="w-6 h-6 text-pink-500" /> 팔로우 요청
               </>
+            ) : (
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setSidebarView('following')}
+                  className={`text-lg transition-all ${sidebarView === 'following' ? 'text-pink-500 border-b-2 border-pink-500' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  팔로잉
+                </button>
+                <button
+                  onClick={() => setSidebarView('followers')}
+                  className={`text-lg transition-all ${sidebarView === 'followers' ? 'text-pink-500 border-b-2 border-pink-500' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  팔로워
+                </button>
+              </div>
             )}
           </h2>
+
           <button
             onClick={() => {
               if (sidebarView === 'requests') {
-                setSidebarView('follows');
+                setSidebarView('following');
                 setActiveFollowMenuId(null);
               } else {
                 onClose();
@@ -124,26 +143,32 @@ export default function FollowSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-        {sidebarView === 'follows' ? (
+        {sidebarView !== 'requests' ? (
           <>
             <button
               onClick={() => {
                 setSidebarView('requests');
                 setActiveFollowMenuId(null);
               }}
-              className="w-full flex items-center justify-between p-3 px-2 rounded-2xl hover:bg-white/30 transition border border-transparent hover:border-white/40 text-left cursor-pointer"
+              className="w-full flex items-center justify-between p-3 px-2 rounded-2xl hover:bg-white/30 transition border border-transparent hover:border-white/40 text-left cursor-pointer bg-white/10 mb-2"
             >
               <span className="text-gray-700 font-semibold text-sm">
-                팔로우 요청 {requests.length}건
+                새로운 팔로우 요청 {requests.length}건
               </span>
               <ChevronRight className="w-5 h-5 text-gray-500" />
             </button>
 
-            <hr className="border-white/30 my-1" />
-
             <div className="flex flex-col gap-2">
+              {/* 1. 현재 탭 (팔로잉/팔로워) 검색 결과 */}
               {follows
-                .filter((f) => f.name.includes(searchQuery))
+                .filter((f) => (sidebarView === 'following' ? f.isFollowing : f.isFollower))
+                .filter((f) => {
+                  const lowerQuery = searchQuery.toLowerCase();
+                  return (
+                    f.name.toLowerCase().includes(lowerQuery) ||
+                    f.email.toLowerCase().includes(lowerQuery)
+                  );
+                })
                 .map((f) => (
                   <div
                     key={f.id}
@@ -155,7 +180,12 @@ export default function FollowSidebar({
                       >
                         <span className="text-xs font-bold text-gray-700">{f.profileExp}</span>
                       </div>
-                      <span className="text-gray-800 font-medium text-sm">{f.name}</span>
+                      <div className="flex flex-col">
+                        <span className="text-gray-800 font-bold text-sm leading-tight">
+                          {f.name}
+                        </span>
+                        <span className="text-gray-500 text-[10px] leading-tight">{f.email}</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1">
                       {isVisitorMode && visitedName === f.name ? (
@@ -201,11 +231,86 @@ export default function FollowSidebar({
                     </div>
                   </div>
                 ))}
-              {follows.filter((f) => f.name.includes(searchQuery)).length === 0 && (
-                <div className="text-center text-sm text-gray-500 py-6">
-                  검색된 팔로우가 없어요.
-                </div>
+
+              {/* 2. 전역 사용자 검색 결과 (팔로잉/팔로워 목록에 없는 사람) */}
+              {searchQuery.trim() && (
+                <>
+                  <div className="h-px bg-white/20 my-4" />
+                  <div className="px-2 mb-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                    새로운 사람 검색 결과
+                  </div>
+                  {allUsers
+                    .filter((u) => {
+                      // 현재 팔로우 목록에 없는 사람만 필터링
+                      const isAlreadyInFollows = follows.some((f) => f.id === u.id);
+                      const lowerQuery = searchQuery.toLowerCase();
+                      const matches =
+                        u.name.toLowerCase().includes(lowerQuery) ||
+                        u.email.toLowerCase().includes(lowerQuery);
+                      return !isAlreadyInFollows && matches;
+                    })
+                    .map((u) => (
+                      <div
+                        key={u.id}
+                        className="flex items-center justify-between p-2 hover:bg-white/20 rounded-2xl transition group border border-transparent hover:border-white/30"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-10 h-10 rounded-full ${u.color} flex items-center justify-center opacity-80`}
+                          >
+                            <span className="text-xs font-bold text-gray-600">{u.profileExp}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-700 font-bold text-sm leading-tight">
+                              {u.name}
+                            </span>
+                            <span className="text-gray-500 text-[10px] leading-tight">
+                              {u.email}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => onVisit(u.name)}
+                            className="px-3 py-1.5 bg-white/40 hover:bg-white/60 text-gray-600 text-xs font-bold rounded-lg transition"
+                          >
+                            방문
+                          </button>
+                          <button className="p-1.5 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition shadow-sm">
+                            <UserPlus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  {allUsers.filter((u) => {
+                    const isAlreadyInFollows = follows.some((f) => f.id === u.id);
+                    const lowerQuery = searchQuery.toLowerCase();
+                    return (
+                      !isAlreadyInFollows &&
+                      (u.name.toLowerCase().includes(lowerQuery) ||
+                        u.email.toLowerCase().includes(lowerQuery))
+                    );
+                  }).length === 0 && (
+                    <div className="text-center text-xs text-gray-400 py-4 italic">
+                      일치하는 새로운 사용자가 없습니다.
+                    </div>
+                  )}
+                </>
               )}
+
+              {follows.filter((f) => {
+                const lowerQuery = searchQuery.toLowerCase();
+                return (
+                  (sidebarView === 'following' ? f.isFollowing : f.isFollower) &&
+                  (f.name.toLowerCase().includes(lowerQuery) ||
+                    f.email.toLowerCase().includes(lowerQuery))
+                );
+              }).length === 0 &&
+                !searchQuery.trim() && (
+                  <div className="text-center text-sm text-gray-500 py-6">
+                    검색된 팔로우가 없어요.
+                  </div>
+                )}
             </div>
           </>
         ) : (
