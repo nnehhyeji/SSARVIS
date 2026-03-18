@@ -11,3 +11,11 @@ class VectorDBError(InfrastructureError):
 
 class VectorDBClientClosedError(VectorDBError):
     """Vector database client is already closed."""
+
+
+class OpenAIError(InfrastructureError):
+    """OpenAI integration error."""
+
+
+class EmbeddingError(OpenAIError):
+    """Embedding generation failed."""

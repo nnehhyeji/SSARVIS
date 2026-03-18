@@ -1,6 +1,7 @@
 from openai import APITimeoutError, AsyncOpenAI
 
 from app.config.openai import openai_config
+from app.exceptions.infra import EmbeddingError, OpenAIError
 
 
 class OpenAIClient:
@@ -12,17 +13,57 @@ class OpenAIClient:
 
     async def generate(self, messages: list[dict[str, str]]) -> str:
         try:
-            response = await self._client.responses.create(
-                model=openai_config.llm_model,
-                input=messages,
+            response = await self._responses_create(
+                timeout=openai_config.llm_timeout_seconds,
+                messages=messages,
             )
         except APITimeoutError:
-            retry_client = AsyncOpenAI(
-                api_key=openai_config.openai_api_key,
+            response = await self._responses_create(
                 timeout=max(openai_config.llm_timeout_seconds * 2, 120.0),
+                messages=messages,
             )
-            response = await retry_client.responses.create(
-                model=openai_config.llm_model,
-                input=messages,
-            )
+        except Exception as exc:
+            raise OpenAIError("Failed to generate completion") from exc
         return response.output_text
+
+    async def embed(self, text: str) -> list[float]:
+        try:
+            response = await self._embeddings_create(
+                timeout=openai_config.llm_timeout_seconds,
+                text=text,
+            )
+        except APITimeoutError:
+            response = await self._embeddings_create(
+                timeout=max(openai_config.llm_timeout_seconds * 2, 120.0),
+                text=text,
+            )
+        except Exception as exc:
+            raise EmbeddingError("Failed to generate embedding") from exc
+
+        if not response.data or not response.data[0].embedding:
+            raise EmbeddingError("Embedding response was empty")
+
+        return list(response.data[0].embedding)
+
+    async def _responses_create(
+        self,
+        timeout: float,
+        messages: list[dict[str, str]],
+    ):
+        return await self._client.responses.create(
+            model=openai_config.llm_model,
+            input=messages,
+            timeout=timeout,
+        )
+
+    async def _embeddings_create(
+        self,
+        timeout: float,
+        text: str,
+    ):
+        return await self._client.embeddings.create(
+            model=openai_config.embedding_model,
+            input=text,
+            dimensions=openai_config.embedding_dimensions,
+            timeout=timeout,
+        )
