@@ -13,6 +13,9 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
 
+    mongodb:
+      uri: ${MONGO_URI}
+
   sse:
     timeout: ${SSE_TIMEOUT} # nginx proxy timeout이랑 시간 맞추면 될듯?
 
