@@ -3,6 +3,9 @@ import HomePage from '../pages/home/HomePage';
 import VisitPage from '../pages/visit/VisitPage';
 import CardPage from '../pages/card/CardPage';
 import LoginPage from '../pages/auth/LoginPage';
+import SettingsPage from '../pages/settings/SettingsPage';
+import SignupPage from '../pages/auth/SignupPage';
+import TutorialPage from '../pages/auth/TutorialPage';
 import { PATHS } from './paths';
 
 /**
@@ -23,7 +26,19 @@ export const router = createBrowserRouter([
     element: <CardPage />,
   },
   {
+    path: PATHS.SETTINGS_PARAM,
+    element: <SettingsPage />,
+  },
+  {
     path: PATHS.LOGIN,
     element: <LoginPage />,
+  },
+  {
+    path: PATHS.SIGNUP,
+    element: <SignupPage />,
+  },
+  {
+    path: PATHS.TUTORIAL,
+    element: <TutorialPage />,
   },
 ]);
