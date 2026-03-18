@@ -1,4 +1,5 @@
 import logging
+from uuid import NAMESPACE_URL, UUID, uuid5
 from typing import Any, ClassVar
 
 from qdrant_client import AsyncQdrantClient, models
@@ -50,6 +51,9 @@ class QdrantClient:
             logger.exception("Failed to initialize Qdrant collection")
             raise RuntimeError("Failed to initialize vector collection") from exc
 
+    async def initialize_default_collection(self) -> None:
+        await self.initialize_collection(vectordb_config.qdrant_vector_size)
+
     async def upsert(
         self,
         point_id: int | str,
@@ -75,7 +79,7 @@ class QdrantClient:
                 collection_name=self._collection_name,
                 points=[
                     models.PointStruct(
-                        id=point["id"],
+                        id=self._normalize_point_id(point["id"]),
                         vector=point["vector"],
                         payload=point["payload"],
                     )
@@ -93,17 +97,7 @@ class QdrantClient:
         limit: int = 5,
     ) -> list[dict[str, Any]]:
         try:
-            query_filter = None
-            if filter_conditions:
-                query_filter = models.Filter(
-                    must=[
-                        models.FieldCondition(
-                            key=key,
-                            match=models.MatchValue(value=value),
-                        )
-                        for key, value in filter_conditions.items()
-                    ]
-                )
+            query_filter = self._build_query_filter(filter_conditions)
 
             results = await self._client.query_points(
                 collection_name=self._collection_name,
@@ -123,8 +117,69 @@ class QdrantClient:
         try:
             await self._client.delete(
                 collection_name=self._collection_name,
-                points_selector=models.PointIdsList(points=point_ids),
+                points_selector=models.PointIdsList(
+                    points=[self._normalize_point_id(point_id) for point_id in point_ids]
+                ),
             )
         except Exception as exc:
             logger.exception("Failed to delete points from Qdrant")
             raise RuntimeError("Failed to delete vectors") from exc
+
+    def _normalize_point_id(self, point_id: int | str | UUID) -> int | str:
+        if isinstance(point_id, int):
+            return point_id
+
+        if isinstance(point_id, UUID):
+            return str(point_id)
+
+        try:
+            return str(UUID(str(point_id)))
+        except ValueError:
+            return str(uuid5(NAMESPACE_URL, str(point_id)))
+
+    def _build_query_filter(
+        self,
+        filter_conditions: dict[str, Any] | None,
+    ) -> models.Filter | None:
+        if not filter_conditions:
+            return None
+
+        return models.Filter(
+            must=[
+                self._build_field_condition(key, value)
+                for key, value in filter_conditions.items()
+            ]
+        )
+
+    def _build_field_condition(
+        self,
+        key: str,
+        value: Any,
+    ) -> models.FieldCondition:
+        if isinstance(value, dict):
+            if "in" in value:
+                return models.FieldCondition(
+                    key=key,
+                    match=models.MatchAny(any=value["in"]),
+                )
+            if "not_in" in value:
+                return models.FieldCondition(
+                    key=key,
+                    match=models.MatchExcept(**{"except": value["not_in"]}),
+                )
+            if "range" in value:
+                return models.FieldCondition(
+                    key=key,
+                    range=models.Range(**value["range"]),
+                )
+
+        if isinstance(value, list):
+            return models.FieldCondition(
+                key=key,
+                match=models.MatchAny(any=value),
+            )
+
+        return models.FieldCondition(
+            key=key,
+            match=models.MatchValue(value=value),
+        )

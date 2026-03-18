@@ -48,6 +48,17 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(RuntimeError):
                 await qdrant.initialize_collection(vector_size=1536)
 
+    async def test_initialize_default_collection_uses_configured_size(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
+            client = client_cls.return_value
+            client.get_collections = AsyncMock(return_value=SimpleNamespace(collections=[]))
+            client.create_collection = AsyncMock()
+
+            qdrant = QdrantClient()
+            await qdrant.initialize_default_collection()
+
+            client.create_collection.assert_awaited_once()
+
     async def test_upsert_passes_point_to_client(self) -> None:
         with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
             client = client_cls.return_value
@@ -76,6 +87,21 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
             )
 
             client.upsert.assert_awaited_once()
+
+    async def test_upsert_many_normalizes_string_ids(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
+            client = client_cls.return_value
+            client.upsert = AsyncMock()
+
+            qdrant = QdrantClient()
+            await qdrant.upsert_many(
+                [{"id": "custom-id", "vector": [0.1, 0.2], "payload": {"text": "a"}}]
+            )
+
+            _, kwargs = client.upsert.await_args
+            point = kwargs["points"][0]
+            self.assertIsInstance(point.id, str)
+            self.assertNotEqual(point.id, "custom-id")
 
     async def test_search_returns_payloads(self) -> None:
         with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
@@ -114,6 +140,34 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(RuntimeError):
                 await qdrant.search(vector=[0.1, 0.2], limit=2)
 
+    async def test_search_supports_list_filter_values(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
+            client = client_cls.return_value
+            client.query_points = AsyncMock(return_value=SimpleNamespace(points=[]))
+
+            qdrant = QdrantClient()
+            await qdrant.search(
+                vector=[0.1, 0.2],
+                filter_conditions={"user_id": ["user-1", "user-2"]},
+                limit=2,
+            )
+
+            client.query_points.assert_awaited_once()
+
+    async def test_search_supports_range_filter_values(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
+            client = client_cls.return_value
+            client.query_points = AsyncMock(return_value=SimpleNamespace(points=[]))
+
+            qdrant = QdrantClient()
+            await qdrant.search(
+                vector=[0.1, 0.2],
+                filter_conditions={"score": {"range": {"gte": 10, "lte": 20}}},
+                limit=2,
+            )
+
+            client.query_points.assert_awaited_once()
+
     async def test_delete_skips_empty_ids(self) -> None:
         with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
             client = client_cls.return_value
@@ -133,6 +187,19 @@ class QdrantClientTests(unittest.IsolatedAsyncioTestCase):
             await qdrant.delete([1, 2])
 
             client.delete.assert_awaited_once()
+
+    async def test_delete_normalizes_string_ids(self) -> None:
+        with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
+            client = client_cls.return_value
+            client.delete = AsyncMock()
+
+            qdrant = QdrantClient()
+            await qdrant.delete(["custom-id"])
+
+            _, kwargs = client.delete.await_args
+            selector = kwargs["points_selector"]
+            self.assertIsInstance(selector.points[0], str)
+            self.assertNotEqual(selector.points[0], "custom-id")
 
     async def test_close_closes_underlying_client(self) -> None:
         with patch("app.infra.qdrant.AsyncQdrantClient") as client_cls:
