@@ -28,8 +28,16 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   // --- Custom Hooks ---
-  const { isMicOn, mouthOpenRadius, triggerText, faceType, toggleMic, changeFace, setIsSpeaking } =
-    useAICharacter();
+  const {
+    isMicOn,
+    mouthOpenRadius,
+    triggerText,
+    faceType,
+    toggleMic,
+    changeFace,
+    isSpeaking,
+    setIsSpeaking,
+  } = useAICharacter();
 
   const { chatInput, chatMessages, isLockMode, setChatInput, toggleLock, sendMessage } = useChat();
 
@@ -173,7 +181,7 @@ export default function HomePage() {
               mouthOpenRadius={mouthOpenRadius}
               mode={currentMode}
               isLockMode={isLockMode}
-              isSpeaking={false}
+              isSpeaking={isSpeaking}
               isMicOn={isMicOn}
             />
             {isMicOn && (

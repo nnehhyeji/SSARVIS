@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { Bell, User, QrCode, LogOut, Eye } from 'lucide-react';
 
 import type { Alarm } from '../../types';
@@ -35,6 +36,9 @@ export default function Header({
   viewCount = 0,
   onUsersClick,
 }: HeaderProps) {
+  const location = useLocation();
+  const isCardPage = location.pathname.startsWith('/card/');
+
   return (
     <header className="relative z-50 flex justify-between items-center px-5 py-2 w-full text-gray-700">
       <div className="flex flex-col items-start gap-2">
@@ -42,7 +46,7 @@ export default function Header({
           <div className="text-3xl font-extrabold tracking-wider text-white drop-shadow-md">
             SSARVIS
           </div>
-          {!isVisitorMode && (
+          {!isVisitorMode && !isCardPage && (
             <button
               onClick={onMyCardClick}
               className="p-2 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/40 transition-all duration-300 shadow-md text-white"
@@ -62,33 +66,36 @@ export default function Header({
           </button>
         )}
       </div>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/40 shadow-sm text-white text-sm font-medium hover:bg-white/30 transition-all duration-300">
-          <Eye className="w-4 h-4" />
-          <span>{viewCount.toLocaleString()}</span>
+
+      {!isCardPage && (
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/40 shadow-sm text-white text-sm font-medium hover:bg-white/30 transition-all duration-300">
+            <Eye className="w-4 h-4" />
+            <span>{viewCount.toLocaleString()}</span>
+          </div>
+          <div className="flex gap-4">
+            <button
+              onClick={onToggleAlarm}
+              className="relative p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition"
+            >
+              <Bell className="w-6 h-6" />
+              {alarms.some((a) => !a.isRead) && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-400 rounded-full border border-white" />
+              )}
+            </button>
+            <button
+              onClick={onUsersClick}
+              className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition text-white"
+              title="팔로우 목록"
+            >
+              <User className="w-6 h-6" />
+            </button>
+          </div>
         </div>
-        <div className="flex gap-4">
-          <button
-            onClick={onToggleAlarm}
-            className="relative p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition"
-          >
-            <Bell className="w-6 h-6" />
-            {alarms.some((a) => !a.isRead) && (
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-400 rounded-full border border-white" />
-            )}
-          </button>
-          <button
-            onClick={onUsersClick}
-            className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition text-white"
-            title="팔로우 목록"
-          >
-            <User className="w-6 h-6" />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* 알림 드롭다운 */}
-      {isAlarmModalOpen && (
+      {isAlarmModalOpen && !isCardPage && (
         <>
           <div className="fixed inset-0 z-50 cursor-default" onClick={onToggleAlarm} />
           <div className="absolute top-[60px] right-20 z-[60] w-[300px] bg-white/30 backdrop-blur-2xl rounded-3xl p-5 shadow-2xl border border-white/40 text-gray-800 animate-in fade-in slide-in-from-top-4 duration-200">

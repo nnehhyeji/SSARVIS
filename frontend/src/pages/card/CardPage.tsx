@@ -1,28 +1,35 @@
-import { motion } from 'framer-motion';
-import { useParams, useNavigate } from 'react-router-dom';
-import { QrCode, Share2, Copy, Volume2, Home, UserPlus, ChevronLeft } from 'lucide-react';
 import { useState, useMemo } from 'react';
-import AnimatedBackground from '../../components/AnimatedBackground';
-import { useFollow } from '../../hooks/useFollow';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Volume2, UserPlus, Check, ChevronLeft } from 'lucide-react';
+import { motion } from 'framer-motion';
 
+// Components
+import AnimatedBackground from '../../components/AnimatedBackground';
+import CharacterScene from '../../components/features/character/CharacterScene';
+import WaveformRing from '../../components/features/character/WaveformRing';
+
+// Hooks
+import { useFollow } from '../../hooks/useFollow';
 import { PATHS } from '../../routes/paths';
 
 export default function CardPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const { allUsers, follows } = useFollow();
-  const [isCopied, setIsCopied] = useState(false);
 
-  // URL 파라미터로 받은 ID로 사용자 정보 찾기
+  // 사용자 정보 찾기
   const userData = useMemo(() => {
     const id = Number(userId);
     return allUsers.find((u) => u.id === id) || follows.find((f) => f.id === id);
   }, [userId, allUsers, follows]);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const [isFollowing, setIsFollowing] = useState(userData?.isFollowing ?? false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // 음성 재생 시뮬레이션
+  const handlePlayVoice = () => {
+    setIsPlaying(true);
+    setTimeout(() => setIsPlaying(false), 3000);
   };
 
   if (!userData) {
@@ -31,7 +38,7 @@ export default function CardPage() {
         <h1 className="text-2xl font-bold text-gray-800">사용자를 찾을 수 없습니다.</h1>
         <button
           onClick={() => navigate(PATHS.HOME)}
-          className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-full font-bold"
+          className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-full font-bold shadow-lg"
         >
           메인으로 돌아가기
         </button>
@@ -40,107 +47,146 @@ export default function CardPage() {
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-6 text-gray-800">
-      <AnimatedBackground baseTop="#FFE4E6" baseBottom="#FFFFFF" pink="#ECFCCB" />
+    <div className="relative w-full h-screen overflow-hidden flex flex-col">
+      {/* 프리미엄 배경 그라데이션 */}
+      <AnimatedBackground
+        baseTop="#FFE4E6" // 연한 핑크
+        baseBottom="#F0FDF4" // 연한 그린
+        pink="#ECFCCB" // 연한 라임/그린 포인트
+      />
 
-      {/* 뒤로가기 버튼 */}
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-8 left-8 p-3 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md transition-all z-50 group border border-white/50"
-      >
-        <ChevronLeft className="w-8 h-8 text-gray-700 group-hover:-translate-x-1 transition-transform" />
-      </button>
+      {/* 헤더 시뮬레이션 (디자인 일관성) */}
+      <header className="relative z-50 flex justify-between items-center px-10 py-6 w-full">
+        <div className="text-4xl font-black tracking-tighter text-pink-400 drop-shadow-sm flex items-center gap-2">
+          SSARVIS
+        </div>
+        {/* 우측 아이콘들을 제거하여 명함에만 집중하게 함 */}
+      </header>
 
-      <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="relative w-full max-w-5xl h-[700px] bg-white/40 backdrop-blur-3xl rounded-[50px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] border border-white/50 overflow-hidden flex flex-col md:flex-row"
-      >
-        {/* 왼쪽 섹션: 프로필 & 정보 */}
-        <div className="flex-1 flex flex-col p-12 md:p-20 justify-center relative z-10">
+      {/* 메인 콘텐츠 영역 */}
+      <main className="flex-1 flex items-center px-20 relative z-10 h-full">
+        {/* 왼쪽 섹션: 사용자 정보 및 소개 */}
+        <div className="flex-1 flex flex-col justify-center">
+          {/* 한줄 소개 말풍선 */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mb-12 relative flex"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="mb-14 relative inline-flex"
           >
-            <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[32px] shadow-sm border border-white/60 text-gray-800 font-bold text-xl leading-relaxed pr-20 relative">
-              안녕! {userData.name}의 멋진 AI를
+            <div className="bg-white/90 backdrop-blur-2xl p-8 rounded-[40px] shadow-xl border border-white/80 text-gray-800 font-extrabold text-2xl leading-snug pr-24 min-w-[360px] relative group">
+              이게 바로 한줄소개다
               <br />
-              만나러 온 걸 환영해! ✨
-              <Volume2 className="absolute right-6 bottom-6 w-8 h-8 text-pink-300 cursor-pointer hover:text-pink-500 transition-colors" />
+              이녀석아 ㅋ
+              <button
+                onClick={handlePlayVoice}
+                className={`absolute right-8 bottom-8 p-2 rounded-full transition-all ${isPlaying ? 'bg-pink-100 text-pink-500 scale-110' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                <Volume2 className={`w-10 h-10 ${isPlaying ? 'animate-pulse' : ''}`} />
+              </button>
             </div>
-            <div className="absolute bottom-[-12px] left-16 w-10 h-10 bg-white/80 backdrop-blur-xl rotate-45 border-r border-b border-white/60" />
+            {/* 말풍선 꼬리 (우측 캐릭터 방향) */}
+            <div className="absolute right-[-15px] top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rotate-45 border-r border-t border-white/80" />
           </motion.div>
 
-          <div className="mb-10">
-            <div className="flex items-baseline gap-4 mb-6">
-              <h1 className="text-7xl font-black text-gray-800 tracking-tight">{userData.name}</h1>
-              <span className="text-3xl text-gray-400 font-medium">
-                {userData.email.split('@')[0]}
+          {/* 이름 및 팔로우 정보 */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="flex items-baseline gap-4 mb-3">
+              <h1 className="text-8xl font-black text-gray-800 tracking-tight">{userData.name}</h1>
+              <span className="text-3xl text-gray-400 font-bold tracking-tight">
+                @{userData.email.split('@')[0]}
               </span>
             </div>
-            <div className="w-32 h-2 bg-gradient-to-r from-pink-400 to-rose-300 rounded-full mb-8" />
 
-            <div className="flex gap-10 text-2xl font-bold text-gray-500">
-              <div className="flex gap-3 items-center">
-                <span className="text-gray-400 font-medium tracking-tight">팔로잉</span>
-                <span className="text-gray-800">128</span>
+            <div className="w-[500px] h-[2px] bg-gray-300 opacity-60 mb-8" />
+
+            <div className="flex gap-14 mb-14">
+              <div className="flex flex-col gap-1">
+                <span className="text-gray-400 text-xl font-bold uppercase tracking-wider">
+                  Following
+                </span>
+                <span className="text-gray-700 text-3xl font-black">123명</span>
               </div>
-              <div className="flex gap-3 items-center">
-                <span className="text-gray-400 font-medium tracking-tight">팔로워</span>
-                <span className="text-gray-800">2.1k</span>
+              <div className="flex flex-col gap-1">
+                <span className="text-gray-400 text-xl font-bold uppercase tracking-wider">
+                  Followers
+                </span>
+                <span className="text-gray-700 text-3xl font-black">1,842명</span>
               </div>
             </div>
-          </div>
 
-          <div className="flex flex-wrap gap-4 mt-8">
-            <button
-              onClick={() => navigate(PATHS.VISIT(userData.id))}
-              className="px-10 py-5 bg-gray-800 text-white rounded-3xl shadow-2xl shadow-gray-800/20 text-xl font-black hover:bg-gray-900 transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
-            >
-              <Home className="w-6 h-6" />홈 방문하기
-            </button>
-            <button className="px-10 py-5 bg-white rounded-3xl shadow-xl border border-gray-100 text-xl font-black text-gray-700 hover:bg-gray-50 transition-all hover:scale-105 active:scale-95 flex items-center gap-3">
-              <UserPlus className="w-6 h-6 text-pink-500" />
-              팔로우 하기
-            </button>
-          </div>
+            {/* 메인 버튼 세트 */}
+            <div className="flex gap-6">
+              <button
+                onClick={() => setIsFollowing(!isFollowing)}
+                className={`px-12 py-7 rounded-[32px] text-2xl font-black transition-all flex items-center gap-3 shadow-2xl hover:scale-105 active:scale-95 ${
+                  isFollowing
+                    ? 'bg-white text-gray-400 border border-gray-100'
+                    : 'bg-white text-gray-800 border border-white'
+                }`}
+              >
+                {isFollowing ? (
+                  <>
+                    <Check className="w-8 h-8 text-green-500" /> 팔로잉 중
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-8 h-8 text-pink-400" /> 팔로우 요청
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => navigate(PATHS.VISIT(userData.id))}
+                className="px-12 py-7 bg-white/90 backdrop-blur-md rounded-[32px] text-2xl font-black text-gray-800 border border-white shadow-2xl hover:scale-105 active:scale-95 transition-all"
+              >
+                홈 방문
+              </button>
+            </div>
+          </motion.div>
         </div>
 
-        {/* 오른쪽 섹션: QR & 비주얼 */}
-        <div className="w-full md:w-[400px] bg-white/30 backdrop-blur-md border-l border-white/30 p-12 flex flex-col items-center justify-center gap-8 relative overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-10 pointer-events-none">
-            <div className="w-full h-full rounded-full border-[60px] border-pink-200 blur-3xl animate-pulse" />
+        {/* 오른쪽 섹션: 거대 AI 캐릭터 */}
+        <div className="relative w-[600px] h-[600px] flex items-center justify-center">
+          {/* 외곽 파형 링 */}
+          <div className="absolute inset-[-250px] pointer-events-none">
+            <WaveformRing isActive={isPlaying} color="#F472B6" size={750} />
           </div>
 
+          {/* 거대 캐릭터 배경 구체 */}
           <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="w-full aspect-square bg-white/90 backdrop-blur-2xl rounded-[40px] p-10 flex flex-col items-center justify-center gap-6 shadow-2xl border border-white relative z-10"
+            animate={{ y: [0, -15, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-[550px] h-[550px] rounded-full bg-white shadow-[inset_-20px_-20px_80px_rgba(0,0,0,0.05),30px_30px_90px_rgba(0,0,0,0.1)] border-[25px] border-white relative overflow-hidden flex items-center justify-center z-10"
           >
-            <QrCode className="w-full h-full text-gray-800" />
-            <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">
-              AI Identity QR
+            {/* 3D 캐릭터 씬 - 고해상도로 큼직하게 렌더링 */}
+            <div className="w-full h-full scale-[1.3] translate-y-10">
+              <CharacterScene
+                faceType={userData.faceType || 2}
+                mouthOpenRadius={isPlaying ? 0.8 : 0}
+                mode="normal"
+                isLockMode={false}
+                isSpeaking={isPlaying}
+                isMicOn={true}
+              />
             </div>
           </motion.div>
 
-          <div className="w-full flex flex-col gap-3 relative z-10">
-            <button className="w-full py-5 bg-pink-500 text-white rounded-[24px] font-black shadow-lg shadow-pink-500/30 flex items-center justify-center gap-3 hover:bg-pink-600 transition-all">
-              <Share2 className="w-6 h-6" />
-              이미지 저장
-            </button>
-            <button
-              onClick={handleCopyLink}
-              className={`w-full py-5 rounded-[24px] font-black shadow-sm flex items-center justify-center gap-3 transition-all ${
-                isCopied ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Copy className="w-6 h-6" />
-              {isCopied ? '복사 완료!' : '링크 복사하기'}
-            </button>
-          </div>
+          {/* 캐릭터 주변 장식용 글로우 */}
+          <div className="absolute w-[800px] h-[800px] bg-white opacity-20 blur-[120px] rounded-full pointer-events-none" />
         </div>
-      </motion.div>
+      </main>
+
+      {/* 이전 페이지로 돌아가기 (좌하단 플로팅) */}
+      <button
+        onClick={() => navigate(-1)}
+        className="absolute bottom-10 left-10 flex items-center gap-2 text-gray-400 hover:text-gray-800 transition-colors font-bold z-50 text-xl"
+      >
+        <ChevronLeft className="w-8 h-8" />
+        돌아가기
+      </button>
     </div>
   );
 }
