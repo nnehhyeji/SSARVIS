@@ -47,6 +47,9 @@ export default function HomePage() {
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
   const [my_view_count] = useState(1234);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
+  const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
+    'following',
+  );
 
   // 알림 데이터
   const [alarms, setAlarms] = useState<Alarm[]>([
@@ -63,6 +66,7 @@ export default function HomePage() {
     setAlarms((prev) => prev.map((a) => (a.id === alarm.id ? { ...a, isRead: true } : a)));
     if (alarm.type === 'follow') {
       setIsAlarmModalOpen(false);
+      setSidebarView('requests');
       setIsUsersModalOpen(true);
     }
   }, []);
@@ -216,6 +220,8 @@ export default function HomePage() {
 
       <FollowSidebar
         isOpen={isUsersModalOpen}
+        view={sidebarView}
+        onViewChange={setSidebarView}
         follows={follows}
         allUsers={allUsers}
         requests={followRequests}
@@ -227,8 +233,14 @@ export default function HomePage() {
         onDelete={deleteFollow}
         onAccept={acceptRequest}
         onReject={rejectRequest}
-        onClose={() => setIsUsersModalOpen(false)}
-        onToggle={() => setIsUsersModalOpen(!isUsersModalOpen)}
+        onClose={() => {
+          setIsUsersModalOpen(false);
+          setSidebarView('following');
+        }}
+        onToggle={() => {
+          if (isUsersModalOpen) setSidebarView('following');
+          setIsUsersModalOpen(!isUsersModalOpen);
+        }}
       />
 
       <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />

@@ -102,6 +102,10 @@ export default function VisitPage() {
     return visitorBg;
   }, [visitorBg]);
 
+  const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
+    'following',
+  );
+
   if (!isVisitorMode || !visitedFollowName) {
     return (
       <div className="flex w-full h-screen items-center justify-center bg-gray-100">
@@ -241,6 +245,8 @@ export default function VisitPage() {
 
       <FollowSidebar
         isOpen={isUsersModalOpen}
+        view={sidebarView}
+        onViewChange={setSidebarView}
         follows={follows}
         allUsers={allUsers}
         requests={followRequests}
@@ -253,8 +259,14 @@ export default function VisitPage() {
         onDelete={deleteFollow}
         onAccept={acceptRequest}
         onReject={rejectRequest}
-        onClose={() => setIsUsersModalOpen(false)}
-        onToggle={() => setIsUsersModalOpen(!isUsersModalOpen)}
+        onClose={() => {
+          setIsUsersModalOpen(false);
+          setSidebarView('following');
+        }}
+        onToggle={() => {
+          if (isUsersModalOpen) setSidebarView('following');
+          setIsUsersModalOpen(!isUsersModalOpen);
+        }}
       />
 
       <PersonaModal

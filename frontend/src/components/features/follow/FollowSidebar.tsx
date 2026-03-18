@@ -10,6 +10,8 @@ import type { Follow, FollowRequest } from '../../../types';
 
 interface FollowSidebarProps {
   isOpen: boolean;
+  view: 'followers' | 'following' | 'requests';
+  onViewChange: (view: 'followers' | 'following' | 'requests') => void;
   follows: Follow[];
   allUsers: Follow[];
   requests: FollowRequest[];
@@ -27,6 +29,8 @@ interface FollowSidebarProps {
 
 export default function FollowSidebar({
   isOpen,
+  view: sidebarView,
+  onViewChange: setSidebarView,
   follows,
   allUsers,
   requests,
@@ -41,9 +45,6 @@ export default function FollowSidebar({
   onToggle,
 }: FollowSidebarProps) {
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
-    'following',
-  );
   const [searchQuery, setSearchQuery] = useState('');
 
   const [activeFollowMenuId, setActiveFollowMenuId] = useState<number | null>(null);

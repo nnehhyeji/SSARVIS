@@ -36,7 +36,7 @@ export default function Header({
   onUsersClick,
 }: HeaderProps) {
   return (
-    <header className="flex justify-between items-center px-5 py-2 w-full z-10 text-gray-700">
+    <header className="relative z-50 flex justify-between items-center px-5 py-2 w-full text-gray-700">
       <div className="flex flex-col items-start gap-2">
         <div className="flex items-center gap-3">
           <div className="text-3xl font-extrabold tracking-wider text-white drop-shadow-md">
@@ -89,42 +89,45 @@ export default function Header({
 
       {/* 알림 드롭다운 */}
       {isAlarmModalOpen && (
-        <div className="absolute top-[60px] right-20 z-50 w-[300px] bg-white/30 backdrop-blur-2xl rounded-3xl p-5 shadow-2xl border border-white/40 text-gray-800 animate-in fade-in slide-in-from-top-4 duration-200">
-          <div className="flex flex-col gap-4 mb-6">
-            {alarms.length === 0 ? (
-              <div className="text-center text-sm text-gray-600 py-4">알림이 없습니다.</div>
-            ) : (
-              alarms.map((alarm, idx) => (
-                <React.Fragment key={alarm.id}>
-                  {idx > 0 && <div className="h-px bg-white/40 my-1" />}
-                  <div
-                    onClick={() => onAlarmClick(alarm)}
-                    className="flex items-center gap-3 cursor-pointer group"
-                  >
+        <>
+          <div className="fixed inset-0 z-50 cursor-default" onClick={onToggleAlarm} />
+          <div className="absolute top-[60px] right-20 z-[60] w-[300px] bg-white/30 backdrop-blur-2xl rounded-3xl p-5 shadow-2xl border border-white/40 text-gray-800 animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="flex flex-col gap-4 mb-6 relative z-[61]">
+              {alarms.length === 0 ? (
+                <div className="text-center text-sm text-gray-600 py-4">알림이 없습니다.</div>
+              ) : (
+                alarms.map((alarm, idx) => (
+                  <React.Fragment key={alarm.id}>
+                    {idx > 0 && <div className="h-px bg-white/40 my-1" />}
                     <div
-                      className={`w-2 h-2 rounded-full flex-shrink-0 ${!alarm.isRead ? 'bg-red-400' : 'bg-transparent'}`}
-                    />
-                    <p
-                      className={`text-sm tracking-tight transition ${alarm.isRead ? 'text-gray-500' : 'text-gray-800 font-medium group-hover:text-black'}`}
+                      onClick={() => onAlarmClick(alarm)}
+                      className="flex items-center gap-3 cursor-pointer group"
                     >
-                      {alarm.message}
-                    </p>
-                  </div>
-                </React.Fragment>
-              ))
-            )}
-          </div>
+                      <div
+                        className={`w-2 h-2 rounded-full flex-shrink-0 ${!alarm.isRead ? 'bg-red-400' : 'bg-transparent'}`}
+                      />
+                      <p
+                        className={`text-sm tracking-tight transition ${alarm.isRead ? 'text-gray-500' : 'text-gray-800 font-medium group-hover:text-black'}`}
+                      >
+                        {alarm.message}
+                      </p>
+                    </div>
+                  </React.Fragment>
+                ))
+              )}
+            </div>
 
-          <div className="flex justify-end items-center gap-2 text-xs text-white drop-shadow-md font-medium">
-            <button onClick={onDeleteAllAlarms} className="hover:text-white/80 transition">
-              전체 삭제
-            </button>
-            <span className="text-white/60">|</span>
-            <button onClick={onReadAllAlarms} className="hover:text-white/80 transition">
-              모두 읽음
-            </button>
+            <div className="flex justify-end items-center gap-2 text-xs text-white drop-shadow-md font-medium relative z-[61]">
+              <button onClick={onDeleteAllAlarms} className="hover:text-white/80 transition">
+                전체 삭제
+              </button>
+              <span className="text-white/60">|</span>
+              <button onClick={onReadAllAlarms} className="hover:text-white/80 transition">
+                모두 읽음
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   );
