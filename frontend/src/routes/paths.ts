@@ -9,4 +9,6 @@ export const PATHS = {
   VISIT_PARAM: '/visit/:userId',
   CARD: (userId: string | number) => `/card/${userId}`,
   CARD_PARAM: '/card/:userId',
+  SETTINGS: '/settings',
+  SETTINGS_PARAM: '/settings/:tab',
 } as const;

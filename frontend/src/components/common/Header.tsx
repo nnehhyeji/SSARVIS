@@ -86,7 +86,7 @@ export default function Header({
             <button
               onClick={onUsersClick}
               className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition text-white"
-              title="팔로우 목록"
+              title="사용자 메뉴"
             >
               <User className="w-6 h-6" />
             </button>

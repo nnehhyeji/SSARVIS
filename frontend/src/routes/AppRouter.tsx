@@ -3,6 +3,7 @@ import HomePage from '../pages/home/HomePage';
 import VisitPage from '../pages/visit/VisitPage';
 import CardPage from '../pages/card/CardPage';
 import LoginPage from '../pages/auth/LoginPage';
+import SettingsPage from '../pages/settings/SettingsPage';
 import { PATHS } from './paths';
 
 /**
@@ -21,6 +22,10 @@ export const router = createBrowserRouter([
   {
     path: PATHS.CARD_PARAM,
     element: <CardPage />,
+  },
+  {
+    path: PATHS.SETTINGS_PARAM,
+    element: <SettingsPage />,
   },
   {
     path: PATHS.LOGIN,
