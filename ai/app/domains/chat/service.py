@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from pydantic import ValidationError
@@ -116,15 +117,17 @@ class ChatService:
         )
 
     async def build_context(self, user_id: str, user_message: str) -> ChatContext:
-        prompt = await self.prompt_repository.get_by_user_id(user_id)
+        prompt, recent_conversations, query_vector = await asyncio.gather(
+            self.prompt_repository.get_by_user_id(user_id),
+            self.chat_repository.get_recent(
+                user_id=user_id,
+                limit=chat_config.recent_conversations_limit,
+            ),
+            self.openai_client.embed(user_message),
+        )
         if prompt is None:
             raise PromptNotFoundError("Prompt not found")
 
-        recent_conversations = await self.chat_repository.get_recent(
-            user_id=user_id,
-            limit=chat_config.recent_conversations_limit,
-        )
-        query_vector = await self.openai_client.embed(user_message)
         similar_conversations = await self.qdrant_client.search(
             vector=query_vector,
             filter_conditions={"user_id": user_id},

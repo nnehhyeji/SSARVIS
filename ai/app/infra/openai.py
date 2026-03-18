@@ -50,10 +50,10 @@ class OpenAIClient:
         timeout: float,
         messages: list[dict[str, str]],
     ):
-        client = self._client_with_timeout(timeout)
-        return await client.responses.create(
+        return await self._client.responses.create(
             model=openai_config.llm_model,
             input=messages,
+            timeout=timeout,
         )
 
     async def _embeddings_create(
@@ -61,18 +61,9 @@ class OpenAIClient:
         timeout: float,
         text: str,
     ):
-        client = self._client_with_timeout(timeout)
-        return await client.embeddings.create(
+        return await self._client.embeddings.create(
             model=openai_config.embedding_model,
             input=text,
             dimensions=openai_config.embedding_dimensions,
-        )
-
-    def _client_with_timeout(self, timeout: float) -> AsyncOpenAI:
-        if timeout == openai_config.llm_timeout_seconds:
-            return self._client
-
-        return AsyncOpenAI(
-            api_key=openai_config.openai_api_key,
             timeout=timeout,
         )

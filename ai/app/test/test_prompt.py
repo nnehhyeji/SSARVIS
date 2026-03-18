@@ -27,6 +27,7 @@ class PromptRouteTests(unittest.TestCase):
     def setUp(self) -> None:
         self.app = FastAPI()
         self.app.include_router(router, prefix="/api")
+        Path(".tmp").mkdir(parents=True, exist_ok=True)
         self.temp_db = tempfile.NamedTemporaryFile(dir=".tmp", suffix=".db", delete=False)
         self.temp_db.close()
         self.db_path = Path(self.temp_db.name)

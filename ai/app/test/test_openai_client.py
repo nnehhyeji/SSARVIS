@@ -21,23 +21,24 @@ class OpenAIClientTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_embed_retries_on_timeout(self) -> None:
         with patch("app.infra.openai.AsyncOpenAI") as client_cls:
-            primary = client_cls.return_value
-            retry = SimpleNamespace(
-                embeddings=SimpleNamespace(
-                    create=AsyncMock(
-                        return_value=SimpleNamespace(
-                            data=[SimpleNamespace(embedding=[0.1, 0.2])]
-                        )
-                    )
-                )
+            client = client_cls.return_value
+            client.embeddings.create = AsyncMock(
+                side_effect=[
+                    APITimeoutError("timeout"),
+                    SimpleNamespace(data=[SimpleNamespace(embedding=[0.1, 0.2])]),
+                ]
             )
-            client_cls.side_effect = [primary, retry]
-            primary.embeddings.create = AsyncMock(side_effect=APITimeoutError("timeout"))
 
             openai_client = OpenAIClient()
             result = await openai_client.embed("hello")
 
             self.assertEqual(result, [0.1, 0.2])
+            self.assertEqual(client.embeddings.create.await_count, 2)
+            _, first_kwargs = client.embeddings.create.await_args_list[0]
+            _, second_kwargs = client.embeddings.create.await_args_list[1]
+            self.assertIn("timeout", first_kwargs)
+            self.assertIn("timeout", second_kwargs)
+            client_cls.assert_called_once()
 
     async def test_embed_rejects_empty_response(self) -> None:
         with patch("app.infra.openai.AsyncOpenAI") as client_cls:
