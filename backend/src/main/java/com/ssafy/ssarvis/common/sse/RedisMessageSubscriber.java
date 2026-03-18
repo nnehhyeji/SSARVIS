@@ -2,7 +2,6 @@ package com.ssafy.ssarvis.common.sse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.ssarvis.notification.dto.request.SseNotificationMessageRequestDto;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.connection.Message;
@@ -18,7 +17,6 @@ public class RedisMessageSubscriber implements MessageListener {
     private final ObjectMapper objectMapper;
     private final SseEmitterManager sseEmitterManager;
 
-    // ✅ @Qualifier로 redisObjectMapper 명시 주입
     public RedisMessageSubscriber(
         @Qualifier("redisObjectMapper") ObjectMapper objectMapper,
         SseEmitterManager sseEmitterManager

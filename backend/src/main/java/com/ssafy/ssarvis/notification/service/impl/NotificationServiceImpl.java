@@ -34,7 +34,10 @@ public class NotificationServiceImpl implements NotificationService {
     public void sendFollowRequestNotification(User sender, User receiver) {
 
         NotificationType type = notificationTypeRepository.findByName(NotificationTypeEnum.FOLLOW_REQUEST.name())
-            .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_TYPE_NOT_FOUND.getMessage(), ErrorCode.NOTIFICATION_TYPE_NOT_FOUND));
+            .orElseThrow(() -> new CustomException(
+                ErrorCode.NOTIFICATION_TYPE_NOT_FOUND.getMessage(),
+                ErrorCode.NOTIFICATION_TYPE_NOT_FOUND)
+            );
 
         Notification notification = Notification.builder()
             .receiver(receiver)
@@ -67,7 +70,10 @@ public class NotificationServiceImpl implements NotificationService {
     public void sendFollowAcceptNotification(User sender, User receiver) {
 
         NotificationType type = notificationTypeRepository.findByName(NotificationTypeEnum.FOLLOW_ACCEPT.name())
-            .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_TYPE_NOT_FOUND.getMessage(), ErrorCode.NOTIFICATION_TYPE_NOT_FOUND));
+            .orElseThrow(() -> new CustomException(
+                ErrorCode.NOTIFICATION_TYPE_NOT_FOUND.getMessage(),
+                ErrorCode.NOTIFICATION_TYPE_NOT_FOUND)
+            );
 
         Notification notification = Notification.builder()
             .receiver(sender)   // 원래 신청자(sender)가 수신자
@@ -103,6 +109,19 @@ public class NotificationServiceImpl implements NotificationService {
             .stream()
             .map(NotificationResponseDto::from)
             .toList();
+    }
+
+    @Override
+    public void deleteNotification(Long userId, Long notificationId) {
+        Notification notification = notificationRepository
+            .findByIdAndReceiverId(notificationId, userId)
+            .orElseThrow(() -> new CustomException(
+                ErrorCode.NOTIFICATION_NOT_FOUND.getMessage(),
+                ErrorCode.NOTIFICATION_NOT_FOUND
+            ));
+
+        notificationRepository.delete(notification);
+        log.info("알림 삭제 - 요청자 PK: {}, 알림 ID: {}", userId, notificationId);
     }
 
 }
