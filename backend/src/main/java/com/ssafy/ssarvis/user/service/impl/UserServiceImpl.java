@@ -27,6 +27,14 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public void signupUser(UserCreateRequestDto userCreateRequestDto) {
+        if (isAlreadyExistsEmail(userCreateRequestDto.email())) {
+            throw new CustomException("이메일 중복", ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        if (isAlreadyExistsNickname(userCreateRequestDto.nickname())) {
+            throw new CustomException("닉네임 중복", ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
+
         String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
 
         User newUser = User.create(
