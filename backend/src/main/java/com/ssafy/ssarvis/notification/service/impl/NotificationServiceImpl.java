@@ -124,4 +124,17 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("알림 삭제 - 요청자 PK: {}, 알림 ID: {}", userId, notificationId);
     }
 
+    @Override
+    public void readNotification(Long userId, Long notificationId) {
+        Notification notification = notificationRepository
+            .findByIdAndReceiverId(notificationId, userId)
+            .orElseThrow(() -> new CustomException(
+                ErrorCode.NOTIFICATION_NOT_FOUND.getMessage(),
+                ErrorCode.NOTIFICATION_NOT_FOUND
+            ));
+
+        notification.markAsRead();
+        log.info("알림 읽음 처리 - 요청자 PK: {}, 알림 ID: {}", userId, notificationId);
+    }
+
 }

@@ -15,4 +15,6 @@ public interface NotificationService {
 
     void deleteNotification(Long userId, Long notificationId);
 
+    void readNotification(Long userId, Long notificationId);
+
 }

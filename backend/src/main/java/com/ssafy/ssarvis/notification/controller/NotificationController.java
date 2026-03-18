@@ -39,4 +39,14 @@ public class NotificationController {
         return ResponseEntity.ok(BaseResponse.success("알림 삭제 성공"));
     }
 
+    @PatchMapping("/{notificationId}/read")
+    public ResponseEntity<BaseResponse<Void>> readNotification(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @PathVariable Long notificationId
+    ) {
+        Long userId = customUserDetails.getUserId();
+        notificationService.readNotification(userId, notificationId);
+        return ResponseEntity.ok(BaseResponse.success("알림 읽음 처리 성공"));
+    }
+
 }
