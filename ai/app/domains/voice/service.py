@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import AsyncIterator
 
 from app.domains.voice.model import Voice
 from app.domains.voice.exceptions import VoiceNotFoundError
@@ -42,3 +43,11 @@ class VoiceService:
             raise VoiceNotFoundError("Voice not found")
         await self.dashscope_client.delete_voice_async(voice_id)
         await self.repository.delete(user_id, voice_id)
+
+    async def synthesize(self, text: str, voice_id: str) -> AsyncIterator[bytes]:
+        request = self.dashscope_client.create_synthesis_request(
+            text=text,
+            voice_id=voice_id,
+        )
+        async for chunk in self.dashscope_client.synthesize(request):
+            yield chunk
