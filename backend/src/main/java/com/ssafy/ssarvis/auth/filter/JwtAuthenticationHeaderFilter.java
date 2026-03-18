@@ -63,7 +63,7 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         try {
             String accessToken = resolveAccessToken(request);
-            log.info("authorizationHeader={}", request.getHeader(HttpHeaders.AUTHORIZATION));
+//            log.info("authorizationHeader={}", request.getHeader(HttpHeaders.AUTHORIZATION));
             // Token이 없는 요청의 경우, 필터 통과 -> Spring Security에 위임
             if (!StringUtils.hasText(accessToken)) {
                 filterChain.doFilter(request, response);
