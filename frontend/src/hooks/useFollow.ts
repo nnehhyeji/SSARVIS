@@ -102,35 +102,39 @@ export function useFollow() {
 
   const [isVisitorMode, setIsVisitorMode] = useState(false);
   const [visitedFollowName, setVisitedFollowName] = useState<string>('');
+  const [visitedUserId, setVisitedUserId] = useState<number | null>(null);
   const [isDualAiMode, setIsDualAiMode] = useState(false);
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
   const [visitorBg, setVisitorBg] = useState<BgColors>({});
   const [visitorVisibility, setVisitorVisibility] = useState<'public' | 'private'>('public');
 
   const visitFollow = useCallback(
-    (name: string, isReturn: boolean = false) => {
+    (id: number, isReturn: boolean = false) => {
       // 1. follows 목록에서 먼저 검색
-      let user = follows.find((f) => f.name === name);
+      let user = follows.find((f) => f.id === id);
       // 2. 없으면 allUsers(전체 유저)에서 검색 (글로벌 검색 방문 지원)
-      if (!user) user = allUsers.find((u) => u.name === name);
+      if (!user) user = allUsers.find((u) => u.id === id);
 
-      setVisitedFollowName(name);
+      if (!user) return null;
+
+      setVisitedFollowName(user.name);
+      setVisitedUserId(user.id);
       setIsVisitorMode(true);
       setIsDualAiMode(false);
       setIsInteractionModalOpen(false);
 
       // 공개 범위 로직: 내가 팔로우하고 있는 사람(isFollowing)이면 private, 아니면 public
-      const visibility = user?.isFollowing ? 'private' : 'public';
+      const visibility = user.isFollowing ? 'private' : 'public';
       setVisitorVisibility(visibility);
 
       const randomPalette = VISITOR_PALETTES[Math.floor(Math.random() * VISITOR_PALETTES.length)];
       setVisitorBg(randomPalette);
 
       if (!isReturn) {
-        alert(`${name}님의 방으로 방문합니다. (${visibility} 모드)`);
+        alert(`${user.name}님의 방으로 방문합니다. (${visibility} 모드)`);
       }
 
-      return `${name} : 우리집에 왜 왔니 ?`; // triggerText 용도
+      return `${user.name} : 우리집에 왜 왔니 ?`; // triggerText 용도
     },
     [follows, allUsers],
   );
@@ -140,6 +144,7 @@ export function useFollow() {
     setIsDualAiMode(false);
     setIsInteractionModalOpen(false);
     setVisitedFollowName('');
+    setVisitedUserId(null);
     setVisitorBg({});
     setVisitorVisibility('public');
     return '서영님 눈물닦고 할일하세요'; // triggerText 복구용
@@ -177,6 +182,7 @@ export function useFollow() {
     followRequests,
     isVisitorMode,
     visitedFollowName,
+    visitedUserId,
     isDualAiMode,
     isInteractionModalOpen,
     visitorBg,

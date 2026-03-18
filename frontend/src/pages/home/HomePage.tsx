@@ -1,0 +1,237 @@
+import { useState, useCallback, useMemo } from 'react';
+import { MessageCircle, Mic, MicOff, Lock, Unlock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Hooks
+import { useAICharacter } from '../../hooks/useAICharacter';
+import { useChat } from '../../hooks/useChat';
+import { useFollow } from '../../hooks/useFollow';
+
+// Components
+import AnimatedBackground from '../../components/AnimatedBackground';
+import Header from '../../components/common/Header';
+import SpeechBubble from '../../components/common/SpeechBubble';
+import CharacterScene from '../../components/features/character/CharacterScene';
+import ChatWindow from '../../components/features/chat/ChatWindow';
+import FollowSidebar from '../../components/features/follow/FollowSidebar';
+import MyCardModal from '../../components/features/follow/MyCardModal';
+import ModePanel from '../../components/features/assistant/ModePanel';
+
+// Constants & Types
+import { BG_COLORS, LOCK_MODE_PALETTE } from '../../constants/theme';
+import type { Alarm, Mode } from '../../types';
+
+import { PATHS } from '../../routes/paths';
+
+export default function HomePage() {
+  const navigate = useNavigate();
+
+  // --- Custom Hooks ---
+  const { isMicOn, mouthOpenRadius, triggerText, faceType, toggleMic, changeFace, setIsSpeaking } =
+    useAICharacter();
+
+  const { chatInput, chatMessages, isLockMode, setChatInput, toggleLock, sendMessage } = useChat();
+
+  const { follows, followRequests, allUsers, deleteFollow, acceptRequest, rejectRequest } =
+    useFollow();
+
+  // --- Callbacks for Stability ---
+  const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
+  const handleEndSpeaking = useCallback(() => setIsSpeaking(false), [setIsSpeaking]);
+
+  // --- Local States ---
+  const [currentMode, setCurrentMode] = useState<Mode>('normal');
+  const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+  const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
+  const [my_view_count] = useState(1234);
+  const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
+
+  // 알림 데이터
+  const [alarms, setAlarms] = useState<Alarm[]>([
+    {
+      id: 1,
+      message: '김싸피님이 팔로우를 요청했습니다.',
+      isRead: false,
+      time: '방금 전',
+      type: 'follow',
+    },
+  ]);
+
+  const handleAlarmClick = useCallback((alarm: Alarm) => {
+    setAlarms((prev) => prev.map((a) => (a.id === alarm.id ? { ...a, isRead: true } : a)));
+    if (alarm.type === 'follow') {
+      setIsAlarmModalOpen(false);
+      setIsUsersModalOpen(true);
+    }
+  }, []);
+
+  const backgroundProps = useMemo(() => {
+    if (isLockMode) return LOCK_MODE_PALETTE;
+    return BG_COLORS[currentMode] || {};
+  }, [isLockMode, currentMode]);
+
+  const handleVisit = useCallback(
+    (id: number) => {
+      navigate(PATHS.VISIT(id));
+      setIsUsersModalOpen(false);
+    },
+    [navigate],
+  );
+
+  return (
+    <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
+      <AnimatedBackground {...backgroundProps} />
+
+      {/* 시크릿 모드 상단 조명 효과 (Beam of Light) */}
+      <AnimatePresence>
+        {isLockMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1 }}
+            className="fixed inset-0 pointer-events-none z-[8]"
+          >
+            {/* 가시적인 빛의 기둥 (정중앙 수직 조명) */}
+            <div
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] opacity-50 blur-[4px]"
+              style={{
+                background:
+                  'linear-gradient(to bottom, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.2) 60%, transparent 100%)',
+                clipPath: 'polygon(45% 0, 55% 0, 100% 100%, 0% 100%)',
+              }}
+            />
+            {/* 주변을 살짝 어둡게 하는 비네팅 (배경은 보이게) */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_150px,rgba(0,0,0,0.4)_500px)]" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <Header
+        alarms={alarms}
+        isAlarmModalOpen={isAlarmModalOpen}
+        onToggleAlarm={() => setIsAlarmModalOpen(!isAlarmModalOpen)}
+        onReadAllAlarms={() => setAlarms((prev) => prev.map((a) => ({ ...a, isRead: true })))}
+        onDeleteAllAlarms={() => setAlarms([])}
+        onAlarmClick={handleAlarmClick}
+        onMyCardClick={() => setIsMyCardModalOpen(true)}
+        isVisitorMode={false}
+        onLeaveVisitor={() => {}}
+        viewCount={my_view_count}
+        onUsersClick={() => setIsUsersModalOpen(true)}
+      />
+
+      <main className="flex-1 flex items-center justify-center relative w-full h-full z-10">
+        <motion.div
+          className="relative flex flex-col items-center justify-center"
+          animate={{
+            y: isMicOn ? 0 : -220,
+            scale: isMicOn ? 1 : 0.75,
+          }}
+          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+        >
+          {/* 마이크 및 잠금 버튼 */}
+          <div className="absolute left-[-140px] top-1/2 -translate-y-1/2 z-40">
+            <button
+              onClick={toggleMic}
+              className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
+            >
+              <div className="flex items-center justify-center">
+                {isMicOn ? (
+                  <Mic className="w-8 h-8 text-green-400 fill-green-400/20" />
+                ) : (
+                  <MicOff className="w-8 h-8 text-red-400" />
+                )}
+              </div>
+            </button>
+          </div>
+
+          <div className="absolute right-[-140px] top-1/2 -translate-y-1/2 z-40">
+            <button
+              onClick={toggleLock}
+              className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isLockMode ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
+            >
+              <div className="flex items-center justify-center">
+                {isLockMode ? (
+                  <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" />
+                ) : (
+                  <Unlock className="w-8 h-8 text-gray-300" />
+                )}
+              </div>
+            </button>
+          </div>
+
+          <div className="w-[350px] h-[350px] relative z-10 flex flex-col items-center justify-center">
+            <CharacterScene
+              faceType={faceType}
+              mouthOpenRadius={mouthOpenRadius}
+              mode={currentMode}
+              isLockMode={isLockMode}
+              isSpeaking={false}
+              isMicOn={isMicOn}
+            />
+            {isMicOn && (
+              <SpeechBubble
+                triggerText={triggerText}
+                onStart={handleStartSpeaking}
+                onEnd={handleEndSpeaking}
+              />
+            )}
+          </div>
+        </motion.div>
+
+        <ChatWindow
+          isVisible={!isMicOn || isChatHistoryOpen}
+          messages={chatMessages}
+          input={chatInput}
+          onInputChange={setChatInput}
+          onSend={() => sendMessage(chatInput, false, '')}
+          onClose={() => setIsChatHistoryOpen(false)}
+        />
+
+        <button
+          onClick={() => setIsChatHistoryOpen(!isChatHistoryOpen)}
+          className={`absolute bottom-8 right-8 p-4 rounded-2xl backdrop-blur-xl border shadow-2xl transition-all duration-300 z-40 group ${
+            isChatHistoryOpen ? 'opacity-0' : 'bg-white/20 hover:scale-110'
+          }`}
+        >
+          <MessageCircle className="w-8 h-8 text-white" />
+        </button>
+      </main>
+
+      <ModePanel
+        currentMode={currentMode}
+        isVisitorMode={false}
+        isInteractionModalOpen={false}
+        isDualAiMode={false}
+        onToggleInteraction={() => {}}
+        onModeChange={(m) => setCurrentMode(m)}
+        onChangeFace={changeFace}
+        onStartDualAi={() => {}}
+        onPersonaClick={() => {}}
+        onStopDualAi={() => {}}
+      />
+
+      <FollowSidebar
+        isOpen={isUsersModalOpen}
+        follows={follows}
+        allUsers={allUsers}
+        requests={followRequests}
+        visitedId={null}
+        isVisitorMode={false}
+        onVisit={(id) => {
+          if (typeof id === 'number') handleVisit(id);
+        }}
+        onDelete={deleteFollow}
+        onAccept={acceptRequest}
+        onReject={rejectRequest}
+        onClose={() => setIsUsersModalOpen(false)}
+        onToggle={() => setIsUsersModalOpen(!isUsersModalOpen)}
+      />
+
+      <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
+    </div>
+  );
+}
