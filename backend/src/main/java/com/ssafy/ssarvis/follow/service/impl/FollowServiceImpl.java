@@ -6,6 +6,7 @@ import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
+import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
 import com.ssafy.ssarvis.follow.entity.Follow;
 import com.ssafy.ssarvis.follow.entity.FollowRequest;
 import com.ssafy.ssarvis.follow.repository.FollowRepository;
@@ -137,4 +138,19 @@ public class FollowServiceImpl implements FollowService {
                 follow.getFollowing().getDescription()
             )).toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FollowRequestListResponseDto> getFollowRequestList(Long userId) {
+        return followRequestRepository.findAllByReceiverId(userId)
+            .stream()
+            .map(req -> new FollowRequestListResponseDto(
+                req.getId(),
+                req.getSender().getId(),
+                req.getSender().getNickname(),
+                req.getSender().getEmail()
+            ))
+            .toList();
+    }
+
 }

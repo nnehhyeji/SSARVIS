@@ -6,6 +6,7 @@ import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
+import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
 import com.ssafy.ssarvis.follow.service.FollowService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -71,4 +72,12 @@ public class FollowController {
         return ResponseEntity.ok(BaseResponse.success("친구 리스트 조회 성공", followList));
     }
 
+    @GetMapping("/requests")
+    public ResponseEntity<BaseResponse<List<FollowRequestListResponseDto>>> getFollowRequestList(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        Long userId = customUserDetails.getUserId();
+        List<FollowRequestListResponseDto> result = followService.getFollowRequestList(userId);
+        return ResponseEntity.ok(BaseResponse.success("팔로우 요청 리스트 조회 성공", result));
+    }
 }
