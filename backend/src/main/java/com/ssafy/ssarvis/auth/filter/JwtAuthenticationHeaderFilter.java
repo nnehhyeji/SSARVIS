@@ -17,6 +17,7 @@ import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -93,6 +94,12 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
                 request.getRequestURI());
             // 토큰 변조/이상 시 바로 응답
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid Token");
+        } catch (DisabledException e) {
+            log.warn("탈퇴한 사용자의 접근 시도 ip={} method={} uri={}",
+                getClientIp(request),
+                request.getMethod(),
+                request.getRequestURI());
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "탈퇴한 사용자 혹은 접근 권한이 없습니다.");
         } catch (CustomException e) {
             handleCustomException(request, response, e);
         } catch (Exception e) {
@@ -102,7 +109,8 @@ public class JwtAuthenticationHeaderFilter extends OncePerRequestFilter {
                 request.getRequestURI(),
                 e
             );
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal Server Error");
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                "Internal Server Error");
         }
     }
 
