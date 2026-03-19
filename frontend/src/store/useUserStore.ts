@@ -1,27 +1,47 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 // 1. Store에서 관리할 상태(State)와 액션(Action)의 타입 정의
-interface UserState {
-  isLoggedIn: boolean;
-  userInfo: {
-    id: number | null;
-    name: string | null;
-  } | null;
-
-  // 상태 변경하는 함수들
-  login: (user: { id: number; name: string }) => void;
-  logout: () => void;
+interface UserInfo {
+  id: number | null;
+  email: string | null;
+  nickname: string | null;
 }
 
-// 2. Zustand Store 생성
-export const useUserStore = create<UserState>((set) => ({
-  // 초기 상태(초기값)
-  isLoggedIn: false,
-  userInfo: null,
+interface UserState {
+  isLoggedIn: boolean;
+  userInfo: UserInfo | null;
 
-  // 상태 변경 함수 (로그인 됨)
-  login: (user) => set({ isLoggedIn: true, userInfo: user }),
+  // 상태 변경하는 함수들
+  login: (user: UserInfo) => void;
+  logout: () => void;
+  clearUserData: () => void;
+}
 
-  // 상태 변경 함수 (로그아웃 됨)
-  logout: () => set({ isLoggedIn: false, userInfo: null }),
-}));
+// 2. Zustand Store 생성 (persist 미들웨어 추가)
+export const useUserStore = create<UserState>()(
+  persist(
+    (set) => ({
+      // 초기 상태(초기값)
+      isLoggedIn: false,
+      userInfo: null,
+
+      // 상태 변경 함수 (로그인 됨)
+      login: (user) => set({ isLoggedIn: true, userInfo: user }),
+
+      // 상태 변경 함수 (로그아웃 됨)
+      logout: () => {
+        set({ isLoggedIn: false, userInfo: null });
+        localStorage.removeItem('token');
+      },
+
+      clearUserData: () => {
+        set({ isLoggedIn: false, userInfo: null });
+        localStorage.removeItem('token');
+      },
+    }),
+    {
+      name: 'user-storage', // localStorage에 저장될 키 이름
+    },
+  ),
+);
