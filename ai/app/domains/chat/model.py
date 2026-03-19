@@ -14,3 +14,5 @@ class ChatMessage(Base, TimestampMixin):
     user_id: Mapped[str] = mapped_column(String(255), index=True)
     user_message: Mapped[str] = mapped_column(Text)
     assistant_message: Mapped[str] = mapped_column(Text)
+    tts_file_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tts_s3_object_key: Mapped[str | None] = mapped_column(Text, nullable=True)
