@@ -35,7 +35,7 @@ public record ChatSessionResponseDto(
             chatSessionDocument.getStartedAt(),
             chatSessionDocument.getLastMessageAt(),
             chatSessionDocument.getMemoryPolicy(),
-            chatSessionDocument.getExpiresAt()
+            chatSessionDocument.getExpiredAt()
         );
     }
 }
