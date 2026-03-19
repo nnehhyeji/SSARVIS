@@ -67,6 +67,37 @@ services:
       - monitoring-net
     restart: unless-stopped
 
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.19.12
+    container_name: apm-server
+    command: >
+      apm-server -e
+      -E apm-server.host=0.0.0.0:8200
+      -E output.elasticsearch.hosts=["http://elasticsearch:9200"]
+      -E setup.kibana.host=http://kibana:5601
+      -E apm-server.kibana.enabled=true
+      -E monitoring.enabled=false
+    expose:
+      - "8200"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_started
+    networks:
+      - monitoring-net
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8200 && printf \"GET / HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q \"HTTP/1.0 200\\|HTTP/1.1 200\\|HTTP/1.1 404\" <&3'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
 volumes:
   elasticsearch_data:
 
