@@ -37,6 +37,16 @@ spring:
     slack:
       webhook-url: ${SLACK_WEBHOOK_URL}
       enabled: true
+    s3:
+      bucket: ${S3_BUCKET_NAME}
+
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION}
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
 
 jwt:
   secret-key: ${JWT_SECRET}
@@ -59,14 +69,3 @@ springdoc:
     operations-sorter: alpha
     tags-sorter: alpha
 
-  cloud:
-    aws:
-      region:
-        static: ${AWS_REGION}
-      credentials:
-        access-key: ${AWS_ACCESS_KEY_ID}
-        secret-key: ${AWS_SECRET_ACCESS_KEY}
-
-  app:
-    s3:
-      bucket: ${S3_BUCKET_NAME}

@@ -50,7 +50,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             chatSessionCreateRequestDto.title(),
             chatSessionCreateRequestDto.memoryPolicy(),
             now,
-            calculateExpiresAt(chatSessionCreateRequestDto.memoryPolicy(), now)
+            calculateExpiredAt(chatSessionCreateRequestDto.memoryPolicy(), now)
         );
         ChatSessionDocument saved = chatSessionRepository.save(chatSessionDocument);
         return ChatSessionResponseDto.from(saved);
@@ -83,7 +83,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         ChatSessionDocument session = getSession(sessionId);
         LocalDateTime now = LocalDateTime.now();
 
-        session.touch(now, calculateExpiresAt(session.getMemoryPolicy(), now));
+        session.touch(now, calculateExpiredAt(session.getMemoryPolicy(), now));
         chatSessionRepository.save(session);
     }
 
@@ -92,7 +92,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         ChatSessionDocument session = getSession(sessionId);
         LocalDateTime now = LocalDateTime.now();
 
-        session.increaseMessageCount(now, calculateExpiresAt(session.getMemoryPolicy(), now));
+        session.increaseMessageCount(now, calculateExpiredAt(session.getMemoryPolicy(), now));
         chatSessionRepository.save(session);
     }
 
@@ -104,7 +104,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         chatSessionRepository.save(session);
     }
 
-    private LocalDateTime calculateExpiresAt(MemoryPolicy memoryPolicy, LocalDateTime now) {
+    private LocalDateTime calculateExpiredAt(MemoryPolicy memoryPolicy, LocalDateTime now) {
         if (memoryPolicy == MemoryPolicy.PRIVATE) {
             return now.plusMinutes(Constants.PRIVATE_IDLE_TIMEOUT_MINUTES);
         }

@@ -62,6 +62,13 @@ dependencies {
 
 	// Swagger (Api 테스트 docs)
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
+
+	// AWS S3
+	implementation 'software.amazon.awssdk:s3:2.25.6'
+	implementation 'software.amazon.awssdk:auth:2.25.6'
+	// WebClient (AI API 호출용)
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
 }
 
 tasks.named('test') {
