@@ -12,7 +12,6 @@ import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.dto.ListResponseDto;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import java.time.LocalDateTime;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

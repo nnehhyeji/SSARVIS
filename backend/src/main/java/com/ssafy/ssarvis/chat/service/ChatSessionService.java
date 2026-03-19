@@ -3,7 +3,6 @@ package com.ssafy.ssarvis.chat.service;
 import com.ssafy.ssarvis.chat.dto.request.ChatSessionCreateRequestDto;
 import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
 import com.ssafy.ssarvis.common.dto.ListResponseDto;
-import java.util.List;
 
 public interface ChatSessionService {
 
