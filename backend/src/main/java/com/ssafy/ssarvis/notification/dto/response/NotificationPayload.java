@@ -1,7 +1,8 @@
 package com.ssafy.ssarvis.notification.dto.response;
 
-import java.time.LocalDateTime;
+import lombok.Builder;
 
+@Builder
 public record NotificationPayload(
 
     Long senderId,
@@ -9,7 +10,7 @@ public record NotificationPayload(
     String senderNickname,
     String senderProfileImage,
     String message,
-    LocalDateTime createdAt
+    String createdAt
 
 ) {
 

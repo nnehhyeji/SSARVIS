@@ -12,6 +12,8 @@ interface CharacterSceneProps {
   isSpeaking: boolean;
   isMicOn: boolean;
   label?: string; // "나의 AI" 또는 "사용자의 AI" 등의 라벨
+  waveformColor?: string;
+  waveformSize?: number;
 }
 
 export default function CharacterScene({
@@ -22,11 +24,13 @@ export default function CharacterScene({
   isSpeaking,
   isMicOn,
   label,
+  waveformColor,
+  waveformSize,
 }: CharacterSceneProps) {
   return (
     <div className="relative w-full h-full flex items-center justify-center">
       {/* 음성 파형 비주얼라이저 */}
-      <WaveformRing isActive={isSpeaking && isMicOn} />
+      <WaveformRing isActive={isSpeaking && isMicOn} color={waveformColor} size={waveformSize} />
 
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}

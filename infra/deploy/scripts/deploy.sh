@@ -138,12 +138,16 @@ log "Starting database services"
 wait_for_container_health mysql 24
 wait_for_container_health mongodb 24
 
-log "Starting application services"
-"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" up -d
-
 log "Starting monitoring services"
 trap 'print_monitoring_diagnostics' ERR
 "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" up -d
+wait_for_container_health elasticsearch 24
+wait_for_container_health logstash 24
+wait_for_container_health kibana 24
+
+trap 'print_app_diagnostics' ERR
+log "Starting application services"
+"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" up -d
 
 trap - ERR
 log "Deployment completed successfully."

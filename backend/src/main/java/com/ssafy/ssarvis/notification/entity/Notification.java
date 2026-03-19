@@ -60,4 +60,8 @@ public class Notification extends BaseTime {
     @Column(name = "is_read")
     private Boolean isRead = false;
 
+    public void markAsRead() {
+        this.isRead = true;
+    }
+
 }

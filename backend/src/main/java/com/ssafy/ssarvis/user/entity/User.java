@@ -87,4 +87,14 @@ public class User extends BaseTime {
     public void deleteUser() {
         this.withdrawStatus = true;
     }
+
+    public void updateUserVoicePassword(String voicePassword) {
+        this.voicePassword = voicePassword;
+        this.isVoiceLockActive = true;
+    }
+
+    public void deleteUserVoicePassword() {
+        this.voicePassword = null;
+        this.isVoiceLockActive = false;
+    }
 }

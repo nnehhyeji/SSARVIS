@@ -8,10 +8,17 @@ import { useEffect, useRef } from 'react';
 
 interface WaveformRingProps {
   isActive: boolean;
+  color?: string;
+  size?: number;
 }
 
-export default function WaveformRing({ isActive }: WaveformRingProps) {
+export default function WaveformRing({
+  isActive,
+  color = 'rgba(255,255,255,0.7)',
+  size = 450,
+}: WaveformRingProps) {
   const linesRef = useRef<(SVGLineElement | null)[]>([]);
+  const center = size / 2;
 
   useEffect(() => {
     let aniInterval: ReturnType<typeof setInterval>;
@@ -19,44 +26,46 @@ export default function WaveformRing({ isActive }: WaveformRingProps) {
       aniInterval = setInterval(() => {
         linesRef.current.forEach((line) => {
           if (!line) return;
-          const length = 20 + Math.random() * 25;
-          line.setAttribute('y1', String(45 - length));
+          const length = size * 0.05 + Math.random() * (size * 0.08);
+          line.setAttribute('y1', String(size * 0.1 - length));
         });
-      }, 80); // 80ms 간격으로 빠르게 파형 통통 튀도록
+      }, 80);
     } else {
-      // 비활성화 시 기본값으로 복귀
       linesRef.current.forEach((line) => {
         if (!line) return;
-        line.setAttribute('y1', '25'); // length = 20
+        line.setAttribute('y1', String(size * 0.06));
       });
     }
     return () => clearInterval(aniInterval);
-  }, [isActive]);
+  }, [isActive, size]);
 
   return (
     <div
       className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-500 z-[-1] ${isActive ? 'opacity-100' : 'opacity-0'}`}
     >
-      {/* 캐릭터 구체보다 큰 450px 사이즈로 테두리에 표시되도록 함 */}
-      <svg viewBox="0 0 450 450" className="w-[450px] h-[450px] absolute">
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        className="absolute"
+        style={{ width: size, height: size }}
+      >
         <g>
-          {Array.from({ length: 60 }).map((_, i) => {
-            const angle = (i * 360) / 60;
+          {Array.from({ length: 70 }).map((_, i) => {
+            const angle = (i * 360) / 70;
             return (
               <line
                 key={i}
                 ref={(el) => {
                   linesRef.current[i] = el;
                 }}
-                x1="225"
-                y1="25"
-                x2="225"
-                y2="45"
-                stroke="rgba(255,255,255,0.7)"
-                strokeWidth="3"
+                x1={center}
+                y1={size * 0.06}
+                x2={center}
+                y2={size * 0.1}
+                stroke={color}
+                strokeWidth={size * 0.008}
                 strokeLinecap="round"
-                transform={`rotate(${angle} 225 225)`}
-                className="transition-all duration-75 uppercase"
+                transform={`rotate(${angle} ${center} ${center})`}
+                className="transition-all duration-75"
               />
             );
           })}

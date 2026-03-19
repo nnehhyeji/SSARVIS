@@ -2,12 +2,16 @@ package com.ssafy.ssarvis.auth.service.impl;
 
 import com.ssafy.ssarvis.auth.dto.TokenDto;
 import com.ssafy.ssarvis.auth.dto.request.LoginRequestDto;
+import com.ssafy.ssarvis.auth.dto.request.SetVoiceLockRequestDto;
+import com.ssafy.ssarvis.auth.dto.response.VoicePasswordCheckResponse;
 import com.ssafy.ssarvis.auth.util.JwtUtil;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.auth.service.AuthService;
 import com.ssafy.ssarvis.auth.service.RefreshTokenService;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
+import com.ssafy.ssarvis.user.entity.User;
+import com.ssafy.ssarvis.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -22,11 +26,13 @@ import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
+    private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
 
     @Transactional(readOnly = true)
@@ -106,6 +112,50 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public long getRefreshTokenMaxAgeSeconds() {
         return jwtUtil.getRefreshTokenExpireTimeMillis() / 1000;
+    }
+
+    @Override
+    public void setVoiceLockPassword(Long userId, SetVoiceLockRequestDto setVoiceLockRequestDto) {
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+
+        String cleanedPassword = ""; // 공백제거
+        if (setVoiceLockRequestDto.voicePassword() != null) {
+            cleanedPassword = setVoiceLockRequestDto.voicePassword().replaceAll("\\s+", "");
+        }
+
+        user.updateUserVoicePassword(cleanedPassword);
+    }
+
+    @Override
+    public VoicePasswordCheckResponse checkVoiceLockPassword(Long userId, SetVoiceLockRequestDto setVoiceLockRequestDto) {
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+
+        String cleanedPassword = ""; // 공백제거
+        if (setVoiceLockRequestDto.voicePassword() != null) {
+            cleanedPassword = setVoiceLockRequestDto.voicePassword().replaceAll("\\s+", "");
+        }
+
+        boolean checked = user.getVoicePassword().equals(cleanedPassword);
+
+        return new VoicePasswordCheckResponse(checked);
+    }
+
+    @Override
+    public VoicePasswordCheckResponse isUsedVoicePassword(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        return new VoicePasswordCheckResponse(user.getIsVoiceLockActive());
+    }
+
+    @Override
+    public void deleteVoicePassword(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        user.deleteUserVoicePassword();
     }
 
     private Long extractUserId(Authentication authentication) {

@@ -38,3 +38,22 @@ class ChatRepository:
             .order_by(ChatMessage.created_at.asc(), ChatMessage.id.asc())
         )
         return list(result.scalars().all())
+
+    async def set_tts_asset(
+        self,
+        conversation_id: int,
+        file_name: str,
+        s3_object_key: str,
+    ) -> ChatMessage | None:
+        result = await self.session.execute(
+            select(ChatMessage).where(ChatMessage.id == conversation_id)
+        )
+        record = result.scalar_one_or_none()
+        if record is None:
+            return None
+
+        record.tts_file_name = file_name
+        record.tts_s3_object_key = s3_object_key
+        await self.session.commit()
+        await self.session.refresh(record)
+        return record

@@ -19,3 +19,7 @@ class OpenAIError(InfrastructureError):
 
 class EmbeddingError(OpenAIError):
     """Embedding generation failed."""
+
+
+class ObjectStorageError(InfrastructureError):
+    """Object storage integration error."""
