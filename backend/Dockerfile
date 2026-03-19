@@ -27,6 +27,8 @@ RUN ./gradlew --no-daemon clean bootJar -x test
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+COPY --from=docker.elastic.co/observability/apm-agent-java:latest /usr/agent/elastic-apm-agent.jar /elastic-apm-agent.jar
+
 # 보안: non-root 유저 설정
 RUN addgroup -S spring && adduser -S spring -G spring
 
@@ -42,4 +44,4 @@ COPY --from=builder /app/build/libs/*-SNAPSHOT.jar app.jar
 EXPOSE 8080
 
 # (보완) 컨테이너 메모리 제한에 최적화된 JVM 옵션 추가
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-javaagent:/elastic-apm-agent.jar", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
