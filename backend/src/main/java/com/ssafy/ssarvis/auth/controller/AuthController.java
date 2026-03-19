@@ -4,6 +4,7 @@ import com.ssafy.ssarvis.auth.dto.request.LoginRequestDto;
 import com.ssafy.ssarvis.auth.dto.request.SetVoiceLockRequestDto;
 import com.ssafy.ssarvis.auth.dto.response.AccessTokenResponseDto;
 import com.ssafy.ssarvis.auth.dto.TokenDto;
+import com.ssafy.ssarvis.auth.dto.response.VoicePasswordCheckResponse;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.auth.service.AuthService;
 import com.ssafy.ssarvis.auth.util.CookieUtil;
@@ -82,6 +83,16 @@ public class AuthController {
         Long userId = customUserDetails.getUserId();
         authService.setVoiceLockPassword(userId, setVoiceLockRequestDto);
         return ResponseEntity.ok(BaseResponse.success("음성 인증 설정 완료"));
+    }
+
+    @PostMapping("/voice-lock")
+    public ResponseEntity<BaseResponse<VoicePasswordCheckResponse>> checkVoiceLock(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @RequestBody SetVoiceLockRequestDto setVoiceLockRequestDto
+    ) {
+        Long userId = customUserDetails.getUserId();
+        VoicePasswordCheckResponse voicePasswordCheckResponse = authService.checkVoiceLockPassword(userId, setVoiceLockRequestDto);
+        return ResponseEntity.ok(BaseResponse.success("음성 인증 요청", voicePasswordCheckResponse));
     }
 
 }

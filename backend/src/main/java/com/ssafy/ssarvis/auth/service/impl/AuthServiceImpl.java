@@ -3,6 +3,7 @@ package com.ssafy.ssarvis.auth.service.impl;
 import com.ssafy.ssarvis.auth.dto.TokenDto;
 import com.ssafy.ssarvis.auth.dto.request.LoginRequestDto;
 import com.ssafy.ssarvis.auth.dto.request.SetVoiceLockRequestDto;
+import com.ssafy.ssarvis.auth.dto.response.VoicePasswordCheckResponse;
 import com.ssafy.ssarvis.auth.util.JwtUtil;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.auth.service.AuthService;
@@ -125,6 +126,22 @@ public class AuthServiceImpl implements AuthService {
         }
 
         user.updateUserVoicePassword(cleanedPassword);
+    }
+
+    @Override
+    public VoicePasswordCheckResponse checkVoiceLockPassword(Long userId, SetVoiceLockRequestDto setVoiceLockRequestDto) {
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+
+        String cleanedPassword = ""; // 공백제거
+        if (setVoiceLockRequestDto.voicePassword() != null) {
+            cleanedPassword = setVoiceLockRequestDto.voicePassword().replaceAll("\\s+", "");
+        }
+
+        boolean checked = user.getVoicePassword().equals(cleanedPassword);
+
+        return new VoicePasswordCheckResponse(checked);
     }
 
     private Long extractUserId(Authentication authentication) {
