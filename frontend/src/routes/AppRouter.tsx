@@ -6,6 +6,7 @@ import LoginPage from '../pages/auth/LoginPage';
 import SettingsPage from '../pages/settings/SettingsPage';
 import SignupPage from '../pages/auth/SignupPage';
 import TutorialPage from '../pages/auth/TutorialPage';
+import ProtectedRoute from '../components/common/ProtectedRoute';
 import { PATHS } from './paths';
 
 /**
@@ -15,19 +16,35 @@ import { PATHS } from './paths';
 export const router = createBrowserRouter([
   {
     path: PATHS.HOME,
-    element: <HomePage />,
+    element: (
+      <ProtectedRoute>
+        <HomePage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: PATHS.VISIT_PARAM,
-    element: <VisitPage />,
+    element: (
+      <ProtectedRoute>
+        <VisitPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: PATHS.CARD_PARAM,
-    element: <CardPage />,
+    element: (
+      <ProtectedRoute>
+        <CardPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: PATHS.SETTINGS_PARAM,
-    element: <SettingsPage />,
+    element: (
+      <ProtectedRoute>
+        <SettingsPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: PATHS.LOGIN,
@@ -39,6 +56,10 @@ export const router = createBrowserRouter([
   },
   {
     path: PATHS.TUTORIAL,
-    element: <TutorialPage />,
+    element: (
+      <ProtectedRoute>
+        <TutorialPage />
+      </ProtectedRoute>
+    ),
   },
 ]);

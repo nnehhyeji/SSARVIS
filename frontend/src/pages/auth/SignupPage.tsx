@@ -1,34 +1,105 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, UserPlus, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  User,
+  UserPlus,
+  ArrowLeft,
+  CheckCircle2,
+  AlertCircle,
+  Check,
+} from 'lucide-react';
 import AnimatedBackground from '../../components/AnimatedBackground';
 import { PATHS } from '../../routes/paths';
+import userApi from '../../apis/userApi';
 
 export default function SignupPage() {
   const navigate = useNavigate();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
 
-  const handleSignup = (e: React.FormEvent) => {
+  // Status states
+  const [emailStatus, setEmailStatus] = useState<'none' | 'checking' | 'available' | 'duplicate'>(
+    'none',
+  );
+  const [nicknameStatus, setNicknameStatus] = useState<
+    'none' | 'checking' | 'available' | 'duplicate'
+  >('none');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    // API 연동은 추후 진행
-    console.log('Signup attempt:', { email, password, nickname });
-    // 가입 완료 후 튜토리얼로 이동
-    navigate(PATHS.TUTORIAL);
+
+    if (emailStatus !== 'available') {
+      alert('이메일 중복 확인을 해주세요.');
+      return;
+    }
+    if (nicknameStatus !== 'available') {
+      alert('닉네임 중복 확인을 해주세요.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const response = await userApi.signup({ email, password, nickname });
+      alert(response.message || '회원가입이 완료되었습니다!');
+      navigate(PATHS.TUTORIAL);
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.message || '회원가입 중 오류가 발생했습니다.');
+      } else {
+        alert('회원가입 중 알 수 없는 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const [waveDurations] = useState<number[]>(() => [...Array(5)].map(() => 1 + Math.random()));
 
-  const checkEmailDuplicate = () => {
-    console.log('Checking email duplicate:', email);
-    // UI 피드백만 추후 추가
+  const checkEmailDuplicate = async () => {
+    if (!email || !email.includes('@')) {
+      alert('올바른 이메일 형식을 입력해 주세요.');
+      return;
+    }
+
+    try {
+      setEmailStatus('checking');
+      const response = await userApi.checkEmail({ email });
+      if (response.isDuplicate) {
+        setEmailStatus('duplicate');
+      } else {
+        setEmailStatus('available');
+      }
+    } catch {
+      setEmailStatus('none');
+      alert('이메일 확인 중 오류가 발생했습니다.');
+    }
   };
 
-  const checkNicknameDuplicate = () => {
-    console.log('Checking nickname duplicate:', nickname);
-    // UI 피드백만 추후 추가
+  const checkNicknameDuplicate = async () => {
+    if (!nickname || nickname.length < 2) {
+      alert('닉네임은 2자 이상이어야 합니다.');
+      return;
+    }
+
+    try {
+      setNicknameStatus('checking');
+      const response = await userApi.checkNickname({ nickname });
+      if (response.isDuplicate) {
+        setNicknameStatus('duplicate');
+      } else {
+        setNicknameStatus('available');
+      }
+    } catch {
+      setNicknameStatus('none');
+      alert('닉네임 확인 중 오류가 발생했습니다.');
+    }
   };
 
   return (
@@ -94,7 +165,10 @@ export default function SignupPage() {
                     type="email"
                     placeholder="example@ssarvis.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setEmailStatus('none');
+                    }}
                     className="w-full pl-12 pr-4 py-4 bg-white/50 border border-white/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all placeholder:text-gray-400 font-medium"
                     required
                   />
@@ -102,11 +176,22 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={checkEmailDuplicate}
-                  className="px-6 py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-lg hover:bg-gray-700 active:scale-[0.95] transition-all whitespace-nowrap"
+                  disabled={emailStatus === 'checking'}
+                  className="px-6 py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-lg hover:bg-gray-700 active:scale-[0.95] transition-all whitespace-nowrap disabled:opacity-50"
                 >
-                  중복확인
+                  {emailStatus === 'checking' ? '확인 중...' : '중복확인'}
                 </button>
               </div>
+              {emailStatus === 'available' && (
+                <p className="text-xs text-green-600 font-bold ml-2 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> 사용 가능한 이메일입니다.
+                </p>
+              )}
+              {emailStatus === 'duplicate' && (
+                <p className="text-xs text-red-500 font-bold ml-2 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> 이미 사용 중인 이메일입니다.
+                </p>
+              )}
             </div>
 
             {/* Password Field */}
@@ -120,13 +205,16 @@ export default function SignupPage() {
                 </div>
                 <input
                   type="password"
-                  placeholder="8자 이상의 영문, 숫자 조합"
+                  placeholder="8자 이상, 영문, 숫자, 특수문자 포함"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 bg-white/50 border border-white/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all placeholder:text-gray-400 font-medium"
                   required
                 />
               </div>
+              <p className="text-[10px] text-gray-400 font-medium ml-2">
+                * 영문, 숫자, 특수문자(@$!%*#?&)를 각각 하나 이상 포함해야 합니다.
+              </p>
             </div>
 
             {/* Nickname Field with Duplicate Check */}
@@ -143,7 +231,10 @@ export default function SignupPage() {
                     type="text"
                     placeholder="활동할 닉네임을 입력하세요"
                     value={nickname}
-                    onChange={(e) => setNickname(e.target.value)}
+                    onChange={(e) => {
+                      setNickname(e.target.value);
+                      setNicknameStatus('none');
+                    }}
                     className="w-full pl-12 pr-4 py-4 bg-white/50 border border-white/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all placeholder:text-gray-400 font-medium"
                     required
                   />
@@ -151,29 +242,45 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={checkNicknameDuplicate}
-                  className="px-6 py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-lg hover:bg-gray-700 active:scale-[0.95] transition-all whitespace-nowrap"
+                  disabled={nicknameStatus === 'checking'}
+                  className="px-6 py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-lg hover:bg-gray-700 active:scale-[0.95] transition-all whitespace-nowrap disabled:opacity-50"
                 >
-                  중복확인
+                  {nicknameStatus === 'checking' ? '확인 중...' : '중복확인'}
                 </button>
               </div>
+              {nicknameStatus === 'available' && (
+                <p className="text-xs text-green-600 font-bold ml-2 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> 사용 가능한 닉네임입니다.
+                </p>
+              )}
+              {nicknameStatus === 'duplicate' && (
+                <p className="text-xs text-red-500 font-bold ml-2 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> 이미 사용 중인 닉네임입니다.
+                </p>
+              )}
             </div>
 
             <button
               type="submit"
-              className="w-full py-5 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 text-white rounded-[1.5rem] font-bold shadow-2xl hover:scale-[1.01] active:scale-[0.98] transition-all text-xl mt-4 flex items-center justify-center gap-3"
+              disabled={isSubmitting}
+              className="w-full py-5 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 text-white rounded-[1.5rem] font-bold shadow-2xl hover:scale-[1.01] active:scale-[0.98] transition-all text-xl mt-4 flex items-center justify-center gap-3 disabled:opacity-50"
             >
-              <CheckCircle2 className="w-6 h-6" />
-              가입하고 시작하기
+              {isSubmitting ? (
+                '처리 중...'
+              ) : (
+                <>
+                  <CheckCircle2 className="w-6 h-6" />
+                  가입하고 시작하기
+                </>
+              )}
             </button>
           </form>
 
           {/* Kakao Info Box */}
           <div className="mt-10 p-4 bg-yellow-400/10 border border-yellow-400/20 rounded-2xl w-full flex items-center gap-4">
-            <img
-              src="https://developers.kakao.com/assets/img/lib/logos/kakaotalksharing/kakaotalk_sharing_btn_medium.png"
-              alt="Kakao"
-              className="w-10 h-10"
-            />
+            <div className="w-10 h-10 bg-[#FEE500] rounded-xl flex items-center justify-center font-black text-xs text-yellow-900 border border-yellow-400/30">
+              TALK
+            </div>
             <div>
               <p className="text-sm font-bold text-gray-700">카카오톡 간편 통합 가입</p>
               <p className="text-xs text-gray-500">이미 가입된 이메일이라면 자동으로 통합됩니다.</p>
