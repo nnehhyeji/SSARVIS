@@ -1,6 +1,8 @@
 package com.ssafy.ssarvis.user.controller;
 
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
+import com.ssafy.ssarvis.auth.service.AuthService;
+import com.ssafy.ssarvis.auth.util.CookieUtil;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
 import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserEmailCheckRequestDto;
@@ -12,8 +14,11 @@ import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
 import com.ssafy.ssarvis.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -28,6 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserService userService;
+    private final AuthService authService;
+    private final CookieUtil cookieUtil;
 
     @PostMapping
     public ResponseEntity<BaseResponse<Void>> signup(
@@ -78,10 +85,16 @@ public class UserController {
 
     @DeleteMapping
     public ResponseEntity<BaseResponse<Void>> deleteUser(
-        @AuthenticationPrincipal CustomUserDetails customUserDetails
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @CookieValue(name = "refreshToken", required = false) String refreshToken
     ){
         userService.deleteUser(customUserDetails.getUserId());
-        return ResponseEntity.ok(
-            BaseResponse.success("유저 탈퇴 성공"));
+        authService.logout(refreshToken);
+
+        ResponseCookie deleteCookie = cookieUtil.deleteRefreshTokenCookie();
+
+        return ResponseEntity.ok()
+            .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                .body(BaseResponse.success("유저 탈퇴 성공"));
     }
 }
