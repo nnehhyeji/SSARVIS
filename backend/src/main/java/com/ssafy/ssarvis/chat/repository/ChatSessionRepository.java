@@ -26,7 +26,7 @@ public interface ChatSessionRepository extends MongoRepository<ChatSessionDocume
         ChatMode chatMode
     );
 
-    List<ChatSessionDocument> findByChatSessionStatusAndExpiredAtBefore(
+    List<ChatSessionDocument> findByChatSessionStatusAndExpiresAtBefore(
         ChatSessionStatus chatSessionStatus,
         LocalDateTime now
     );
