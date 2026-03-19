@@ -15,9 +15,16 @@ const axiosInstance = axios.create({
 // 2. 요청(Request) 인터셉터
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token && token !== 'mock_token_for_testing') {
-      config.headers.Authorization = `Bearer ${token}`;
+    const skipTokenPaths = ['/auth/login', '/users/check-email', '/users/check-nickname'];
+    const isPublicPath = skipTokenPaths.some((path) => config.url?.includes(path));
+    // 회원 가입의 경우 POST /users (상세 경로 없음) 이므로 별도 체크
+    const isSignupPath = config.url === '/users' && config.method === 'post';
+
+    if (!isPublicPath && !isSignupPath) {
+      const token = localStorage.getItem('token');
+      if (token && token !== 'mock_token_for_testing') {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -40,8 +47,23 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // 401 에러(인증 만료) 발생 시 토큰 재발급 시도 (한 번만)
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 인증이 필요 없는 API 경로는 재발급 시도 제외
+    const skipReissuePaths = [
+      '/auth/login',
+      '/auth/reissue',
+      '/users/check-email',
+      '/users/check-nickname',
+    ];
+    const isSkipReissue = skipReissuePaths.some((path) => originalRequest.url?.includes(path));
+    const isSignupPath = originalRequest.url === '/users' && originalRequest.method === 'post';
+
+    // 401 에러(인증 만료) 발생 시 토큰 재발급 시도 (인증 필수 경로에서만)
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isSkipReissue &&
+      !isSignupPath
+    ) {
       originalRequest._retry = true;
 
       try {
@@ -65,8 +87,6 @@ axiosInstance.interceptors.response.use(
       } catch (reissueError) {
         // 재발급 실패 시 (리프레시 토큰 만료 등) 로그아웃 처리
         localStorage.removeItem('token');
-        // 강제로 로그인 페이지로 이동하거나 상태 초기화가 필요할 수 있음
-        // window.location.href = '/login';
         return Promise.reject(reissueError);
       }
     }
