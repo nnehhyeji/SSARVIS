@@ -55,6 +55,9 @@ services:
     container_name: kibana
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      SERVER_BASEPATH: "/kibana"
+      SERVER_REWRITEBASEPATH: "true"
+      SERVER_PUBLICBASEURL: https://j14b203.p.ssafy.io/kibana
     expose:
       - "5601"
     depends_on:
