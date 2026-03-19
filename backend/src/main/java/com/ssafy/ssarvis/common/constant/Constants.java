@@ -10,4 +10,8 @@ public final class Constants {
     public static final String BEARER_PREFIX = "Bearer ";
     public static final String REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
     public static final String X_FORWARDED_FOR_HEADER_PREFIX = "X-Forwarded-For";
+
+    // Chat
+    public static final int PRIVATE_IDLE_TIMEOUT_MINUTES = 30;
+    public static final int PUBLIC_IDLE_TIMEOUT_HOURS = 24;
 }
