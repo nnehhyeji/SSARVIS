@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronRight,
@@ -11,6 +12,9 @@ import {
 import { PATHS } from '../../routes/paths';
 import CharacterScene from '../../components/features/character/CharacterScene';
 import { useAICharacter } from '../../hooks/useAICharacter';
+import { useUserStore } from '../../store/useUserStore';
+import userApi from '../../apis/userApi';
+import authApi from '../../apis/authApi';
 
 const MENU_ITEMS = [
   { id: 'account', label: '개인정보 설정', icon: User, color: 'bg-blue-500' },
@@ -20,6 +24,7 @@ const MENU_ITEMS = [
 export default function SettingsPage() {
   const { tab = 'account' } = useParams<{ tab: string }>();
   const navigate = useNavigate();
+  const { userInfo, logout } = useUserStore();
 
   // AI Character logic
   const { faceType, mouthOpenRadius } = useAICharacter();
@@ -30,6 +35,37 @@ export default function SettingsPage() {
 
   const handleTabChange = (id: string) => {
     navigate(PATHS.SETTINGS_PARAM.replace(':tab', id));
+  };
+
+  const handleLogout = async () => {
+    if (window.confirm('로그아웃 하시겠습니까?')) {
+      try {
+        await authApi.logout();
+        logout(); // Store 초기화 및 토큰 삭제
+        navigate(PATHS.LOGIN);
+      } catch {
+        // 로그아웃 실패 시에도 클라이언트는 로그아웃 처리
+        logout();
+        navigate(PATHS.LOGIN);
+      }
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (window.confirm('정말로 탈퇴하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
+      try {
+        await userApi.withdraw();
+        alert('회원 탈퇴가 완료되었습니다.');
+        logout();
+        navigate(PATHS.LOGIN);
+      } catch (error: unknown) {
+        if (axios.isAxiosError(error)) {
+          alert(error.response?.data?.message || '탈퇴 처리 중 오류가 발생했습니다.');
+        } else {
+          alert('탈퇴 처리 중 알 수 없는 오류가 발생했습니다.');
+        }
+      }
+    }
   };
 
   // --- Content Renderers ---
@@ -53,8 +89,8 @@ export default function SettingsPage() {
               </div>
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">김싸피</h3>
-              <p className="text-gray-400">kim@ssafy.com</p>
+              <h3 className="text-xl font-bold text-gray-900">{userInfo?.nickname || '사용자'}</h3>
+              <p className="text-gray-400">{userInfo?.email || 'email@example.com'}</p>
             </div>
           </div>
           <button className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-2xl font-bold text-gray-600 transition-colors">
@@ -68,7 +104,7 @@ export default function SettingsPage() {
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
                 Nickname
               </span>
-              <span className="text-lg font-bold text-gray-800">김싸피</span>
+              <span className="text-lg font-bold text-gray-800">{userInfo?.nickname}</span>
             </div>
             <button className="p-2 text-blue-500 font-bold hover:underline">수정</button>
           </div>
@@ -77,7 +113,7 @@ export default function SettingsPage() {
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
                 Email
               </span>
-              <span className="text-lg font-bold text-gray-800">kim@ssafy.com</span>
+              <span className="text-lg font-bold text-gray-800">{userInfo?.email}</span>
             </div>
             <span className="px-3 py-1 bg-green-100 text-green-600 rounded-full text-xs font-black">
               인증됨
@@ -90,7 +126,10 @@ export default function SettingsPage() {
         <button className="flex-1 py-5 bg-gray-900 text-white rounded-[24px] font-black text-xl shadow-xl shadow-gray-200 hover:bg-black transition-all hover:-translate-y-1">
           저장하기
         </button>
-        <button className="px-8 py-5 text-red-400 font-bold hover:bg-red-50 rounded-[24px] transition-colors">
+        <button
+          onClick={handleWithdraw}
+          className="px-8 py-5 text-red-400 font-bold hover:bg-red-50 rounded-[24px] transition-colors"
+        >
           회원 탈퇴
         </button>
       </div>
@@ -253,7 +292,10 @@ export default function SettingsPage() {
           </div>
 
           {/* Logout */}
-          <button className="flex items-center gap-4 p-6 rounded-[40px] bg-red-50 text-red-500 hover:bg-red-100 transition-all group font-black text-xl">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-4 p-6 rounded-[40px] bg-red-50 text-red-500 hover:bg-red-100 transition-all group font-black text-xl w-full"
+          >
             <div className="p-3 rounded-2xl bg-white shadow-sm border border-red-100 group-hover:scale-110 transition-transform">
               <LogOut className="w-6 h-6" />
             </div>

@@ -6,6 +6,8 @@ import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
+import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
+import com.ssafy.ssarvis.follow.dto.response.UserSearchResponseDto;
 import com.ssafy.ssarvis.follow.entity.Follow;
 import com.ssafy.ssarvis.follow.entity.FollowRequest;
 import com.ssafy.ssarvis.follow.repository.FollowRepository;
@@ -137,4 +139,41 @@ public class FollowServiceImpl implements FollowService {
                 follow.getFollowing().getDescription()
             )).toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FollowRequestListResponseDto> getFollowRequestList(Long userId) {
+        return followRequestRepository.findAllByReceiverId(userId)
+            .stream()
+            .map(req -> new FollowRequestListResponseDto(
+                req.getId(),
+                req.getSender().getId(),
+                req.getSender().getNickname(),
+                req.getSender().getEmail()
+            ))
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserSearchResponseDto> searchUser(Long userId, String nickname, String email) {
+
+        if (nickname == null && email == null) {
+            throw new CustomException("닉네임 또는 이메일을 입력해주세요.", ErrorCode.BAD_REQUEST);
+        }
+
+        List<User> users = (nickname != null)
+            ? userRepository.findByNicknameContaining(nickname)
+            : userRepository.findByEmailContaining(email);
+
+        return users.stream()
+            .filter(user -> !user.getId().equals(userId))
+            .map(user -> new UserSearchResponseDto(
+                user.getId(),
+                user.getNickname(),
+                user.getEmail()
+            ))
+            .toList();  // 없으면 빈 리스트 반환
+    }
+
 }

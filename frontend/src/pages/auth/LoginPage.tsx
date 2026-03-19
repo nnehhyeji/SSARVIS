@@ -1,28 +1,51 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import { Mail, Lock, LogIn } from 'lucide-react';
 import AnimatedBackground from '../../components/AnimatedBackground';
+import { useUserStore } from '../../store/useUserStore';
+import authApi from '../../apis/authApi';
+import userApi from '../../apis/userApi';
 import { PATHS } from '../../routes/paths';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useUserStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // API 연동은 추후 진행 (현재는 UI만 구현)
-    console.log('Login attempt:', { email, password });
-    navigate(PATHS.HOME);
+    try {
+      // 1. 로그인 요청
+      const loginResponse = await authApi.login({ email, password });
+
+      // 2. 토큰 저장 (인터셉터에서 이미 저장하지만, 명시적으로 처리)
+      const token = loginResponse.data.accessToken;
+      localStorage.setItem('token', token);
+
+      // 3. 유저 정보 조회
+      const profile = await userApi.getUserProfile();
+
+      // 4. Store 업데이트
+      login({
+        id: profile.userId,
+        email: profile.email,
+        nickname: profile.nickname,
+      });
+
+      navigate(PATHS.HOME);
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.message || '로그인 중 오류가 발생했습니다.');
+      } else {
+        alert('로그인 중 알 수 없는 오류가 발생했습니다.');
+      }
+    }
   };
 
   const [waveDurations] = useState<number[]>(() => [...Array(12)].map(() => 1.5 + Math.random()));
-
-  const handleKakaoLogin = () => {
-    // 카카오 로그인 연동 (추후 진행)
-    console.log('Kakao Login attempt');
-  };
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4">
@@ -106,19 +129,17 @@ export default function LoginPage() {
 
           {/* Social Login */}
           <button
-            onClick={handleKakaoLogin}
-            className="w-full py-4 bg-[#FEE500] text-black rounded-2xl font-bold shadow-lg hover:bg-[#FDD835] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+            type="button"
+            className="w-full py-4 bg-[#FEE500] text-black rounded-2xl font-bold shadow-lg hover:bg-[#FDD835] active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-default"
           >
-            <img
-              src="https://developers.kakao.com/assets/img/lib/logos/kakaotalksharing/kakaotalk_sharing_btn_medium.png"
-              alt="Kakao"
-              className="w-6 h-6"
-            />
+            <div className="w-6 h-6 bg-yellow-900 rounded-md flex items-center justify-center text-[10px] text-white font-black">
+              K
+            </div>
             카카오톡으로 시작하기
           </button>
 
           {/* Voice Wave Animation */}
-          <div className="flex items-center justify-center gap-1 mb-10 h-10 w-full overflow-hidden">
+          <div className="flex items-center justify-center gap-1 my-10 h-10 w-full overflow-hidden">
             {[...Array(12)].map((_, i) => (
               <motion.div
                 key={i}
@@ -138,7 +159,7 @@ export default function LoginPage() {
           </div>
 
           {/* Signup Link */}
-          <div className="mt-10 text-center">
+          <div className="mt-4 text-center">
             <p className="text-gray-500 font-medium mb-2">SSARVIS가 처음이신가요?</p>
             <button
               onClick={() => navigate(PATHS.SIGNUP)}

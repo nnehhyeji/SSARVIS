@@ -63,12 +63,12 @@ public class ChatSessionDocument {
     @Indexed
     private LocalDateTime lastMessageAt;
 
-    private LocalDateTime expiresAt;
+    private LocalDateTime expiredAt;
 
     public static ChatSessionDocument create(
         Long userId, Long assistantId, ChatMode chatMode,
         ChatSessionType chatSessionType, String title,
-        MemoryPolicy memoryPolicy, LocalDateTime now, LocalDateTime expiresAt
+        MemoryPolicy memoryPolicy, LocalDateTime now, LocalDateTime expiredAt
     ) {
         return ChatSessionDocument.builder()
             .userId(userId)
@@ -81,7 +81,7 @@ public class ChatSessionDocument {
             .messageCount(0)
             .startedAt(now)
             .lastMessageAt(now)
-            .expiresAt(expiresAt)
+            .expiredAt(expiredAt)
             .build();
     }
 
@@ -93,14 +93,14 @@ public class ChatSessionDocument {
         this.chatSessionStatus = ChatSessionStatus.TIMEOUT;
     }
 
-    public void touch(LocalDateTime now, LocalDateTime expiresAt) {
+    public void touch(LocalDateTime now, LocalDateTime expiredAt) {
         this.lastMessageAt = now;
-        this.expiresAt = expiresAt;
+        this.expiredAt = expiredAt;
     }
 
-    public void increaseMessageCount(LocalDateTime now, LocalDateTime expiresAt) {
+    public void increaseMessageCount(LocalDateTime now, LocalDateTime expiredAt) {
         this.messageCount = this.messageCount + 1;
         this.lastMessageAt = now;
-        this.expiresAt = expiresAt;
+        this.expiredAt = expiredAt;
     }
 }
