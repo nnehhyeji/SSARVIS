@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import re
+from dataclasses import dataclass
 
 from pydantic import ValidationError
 
@@ -13,6 +15,13 @@ from app.infra.prompt_loader import PromptTemplateLoader
 from app.infra.qdrant import QdrantClient
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ChatPreparation:
+    context: ChatContext
+    messages: list[dict[str, str]]
+    query_vector: list[float]
 
 
 class ChatContextBuilder:
@@ -117,6 +126,14 @@ class ChatService:
         )
 
     async def build_context(self, user_id: str, user_message: str) -> ChatContext:
+        preparation = await self.prepare_chat(user_id=user_id, user_message=user_message)
+        return preparation.context
+
+    async def prepare_chat(
+        self,
+        user_id: str,
+        user_message: str,
+    ) -> ChatPreparation:
         prompt, recent_conversations, query_vector = await asyncio.gather(
             self.prompt_repository.get_by_user_id(user_id),
             self.chat_repository.get_recent(
@@ -134,7 +151,7 @@ class ChatService:
             limit=chat_config.similar_conversations_limit,
         )
 
-        return self.context_builder.build_context(
+        context = self.context_builder.build_context(
             system_prompt=prompt.prompt,
             user_message=user_message,
             recent_conversations=[
@@ -148,18 +165,29 @@ class ChatService:
                 similar_conversations
             ),
         )
+        messages = self.context_builder.build_messages(
+            context=context,
+            similar_conversations_prefix=self.similar_conversations_prefix_loader.load_system_prompt_meta(),
+            response_guideline_prompt=self.response_guideline_loader.load_system_prompt_meta(),
+        )
+        return ChatPreparation(
+            context=context,
+            messages=messages,
+            query_vector=query_vector,
+        )
 
     async def build_messages(
         self,
         user_id: str,
         user_message: str,
     ) -> list[dict[str, str]]:
-        context = await self.build_context(user_id=user_id, user_message=user_message)
-        return self.context_builder.build_messages(
-            context=context,
-            similar_conversations_prefix=self.similar_conversations_prefix_loader.load_system_prompt_meta(),
-            response_guideline_prompt=self.response_guideline_loader.load_system_prompt_meta(),
-        )
+        preparation = await self.prepare_chat(user_id=user_id, user_message=user_message)
+        return preparation.messages
+
+    @staticmethod
+    def sanitize_tts_text(text: str) -> str:
+        sanitized = re.sub(r"\(.*?\)|\[.*?\]|（.*?）|［.*?］", "", text).strip()
+        return sanitized or text
 
     def _normalize_similar_conversations(
         self,
