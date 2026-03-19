@@ -12,6 +12,6 @@ public final class Constants {
     public static final String X_FORWARDED_FOR_HEADER_PREFIX = "X-Forwarded-For";
 
     // Chat
-    public static final int PRIVATE_IDLE_TIMEOUT_MINUTES = 30;
-    public static final int PUBLIC_IDLE_TIMEOUT_HOURS = 24;
+    public static final int SECRET_IDLE_TIMEOUT_MINUTES = 30;
+    public static final int GENERAL_IDLE_TIMEOUT_HOURS = 6;
 }

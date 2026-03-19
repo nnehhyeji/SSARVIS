@@ -22,12 +22,12 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "chat_sessions")
 @CompoundIndexes({
     @CompoundIndex(
-        name = "user_mode_policy_status_idx",
-        def = "{'userId': 1, 'mode': 1, 'memoryPolicy': 1, 'status': 1}"
+        name = "user_chat_mode_memory_policy_chat_session_status_idx",
+        def = "{'userId': 1, 'chatMode': 1, 'memoryPolicy': 1, 'chatSessionStatus': 1}"
     ),
     @CompoundIndex(
         name = "user_mode_last_message_idx",
-        def = "{'userId': 1, 'mode': 1, 'lastMessageAt': -1}"
+        def = "{'userId': 1, 'chatMode': 1, 'lastMessageAt': -1}"
     )
 })
 public class ChatSessionDocument {

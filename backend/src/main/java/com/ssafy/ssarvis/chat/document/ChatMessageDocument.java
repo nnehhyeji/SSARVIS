@@ -75,7 +75,10 @@ public class ChatMessageDocument {
             .userId(userId)
             .assistantId(assistantId)
             .chatMode(chatMode)
+            .speakerType(SpeakerType.USER)
+            .speakerId(userId)
             .text(text)
+            .chatMessageStatus(ChatMessageStatus.COMPLETE)
             .audio(audio)
             .createdAt(now)
             .build();
@@ -94,14 +97,32 @@ public class ChatMessageDocument {
             .userId(userId)
             .assistantId(assistantId)
             .chatMode(chatMode)
+            .speakerType(SpeakerType.ASSISTANT)
+            .speakerId(assistantId)
             .text(text)
             .chatMessageStatus(ChatMessageStatus.STREAMING)
             .createdAt(now)
             .build();
     }
 
+    public void appendText(String chunk) {
+        if (this.text == null) {
+            this.text = chunk;
+            return;
+        }
+        this.text += chunk;
+    }
+
+    public void attachAudio(AudioMeta audio) {
+        this.audio = audio;
+    }
+
     public void complete(AudioMeta audio) {
         this.audio = audio;
+        this.chatMessageStatus = ChatMessageStatus.COMPLETE;
+    }
+
+    public void completeWithoutAudio() {
         this.chatMessageStatus = ChatMessageStatus.COMPLETE;
     }
 
