@@ -11,6 +11,7 @@ import com.ssafy.ssarvis.follow.entity.FollowRequest;
 import com.ssafy.ssarvis.follow.repository.FollowRepository;
 import com.ssafy.ssarvis.follow.repository.FollowRequestRepository;
 import com.ssafy.ssarvis.follow.service.FollowService;
+import com.ssafy.ssarvis.notification.service.NotificationService;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class FollowServiceImpl implements FollowService {
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
     private final FollowRequestRepository followRequestRepository;
+    private final NotificationService notificationService;
 
     @Override
     public void requestFollow(Long senderId, FollowRequestDto followRequestDto) {
@@ -58,6 +60,8 @@ public class FollowServiceImpl implements FollowService {
             .build();
 
         followRequestRepository.save(followRequest);
+
+        notificationService.sendFollowRequestNotification(sender, receiver);
         log.info("친구 신청 완료 - 신청자 PK: {}, 요청 타겟 PK: {}", senderId, receiverId);
     }
 
@@ -83,6 +87,8 @@ public class FollowServiceImpl implements FollowService {
         followRepository.save(follow);
         followRepository.save(follower);
         followRequestRepository.delete(followRequest);
+
+        notificationService.sendFollowAcceptNotification(followRequest.getSender(), followRequest.getReceiver());
 
         log.info("친구 수락 완료 - 요청자 PK: {}, 응답자 PK: {}",
             followRequest.getSender().getId(), receiverId);

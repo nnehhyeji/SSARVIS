@@ -16,6 +16,7 @@ import CharacterScene from '../../components/features/character/CharacterScene';
 import ChatWindow from '../../components/features/chat/ChatWindow';
 import FollowSidebar from '../../components/features/follow/FollowSidebar';
 import MyCardModal from '../../components/features/follow/MyCardModal';
+import UserMenuModal from '../../components/features/user/UserMenuModal';
 import ModePanel from '../../components/features/assistant/ModePanel';
 
 // Constants & Types
@@ -28,8 +29,16 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   // --- Custom Hooks ---
-  const { isMicOn, mouthOpenRadius, triggerText, faceType, toggleMic, changeFace, setIsSpeaking } =
-    useAICharacter();
+  const {
+    isMicOn,
+    mouthOpenRadius,
+    triggerText,
+    faceType,
+    toggleMic,
+    changeFace,
+    isSpeaking,
+    setIsSpeaking,
+  } = useAICharacter();
 
   const { chatInput, chatMessages, isLockMode, setChatInput, toggleLock, sendMessage } = useChat();
 
@@ -44,6 +53,7 @@ export default function HomePage() {
   const [currentMode, setCurrentMode] = useState<Mode>('normal');
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
   const [my_view_count] = useState(1234);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
@@ -124,7 +134,7 @@ export default function HomePage() {
         isVisitorMode={false}
         onLeaveVisitor={() => {}}
         viewCount={my_view_count}
-        onUsersClick={() => setIsUsersModalOpen(true)}
+        onUsersClick={() => setIsUserMenuOpen(true)}
       />
 
       <main className="flex-1 flex items-center justify-center relative w-full h-full z-10">
@@ -173,7 +183,7 @@ export default function HomePage() {
               mouthOpenRadius={mouthOpenRadius}
               mode={currentMode}
               isLockMode={isLockMode}
-              isSpeaking={false}
+              isSpeaking={isSpeaking}
               isMicOn={isMicOn}
             />
             {isMicOn && (
@@ -244,6 +254,12 @@ export default function HomePage() {
       />
 
       <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
+
+      <UserMenuModal
+        isOpen={isUserMenuOpen}
+        onClose={() => setIsUserMenuOpen(false)}
+        user={{ name: '김싸피', email: 'kim@ssafy.com' }}
+      />
     </div>
   );
 }
