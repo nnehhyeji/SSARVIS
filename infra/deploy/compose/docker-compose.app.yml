@@ -15,6 +15,7 @@ services:
     networks:
       - public-net
       - internal-net
+      - monitoring-net
     restart: unless-stopped
 
   backend:
