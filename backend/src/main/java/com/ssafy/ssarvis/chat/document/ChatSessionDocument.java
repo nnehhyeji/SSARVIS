@@ -42,7 +42,7 @@ public class ChatSessionDocument {
 
     @Indexed
     // NORMAL, COUNSELING, STUDY
-    private ChatMode mode;
+    private ChatMode chatMode;
 
     // USER_AI, AVATAR_AI
     private ChatSessionType chatSessionType;
@@ -51,7 +51,7 @@ public class ChatSessionDocument {
 
     // ACTIVE, ENDED
     @Indexed
-    private ChatSessionStatus status;
+    private ChatSessionStatus chatSessionStatus;
 
     // PUBLIC, PRIVATE
     private MemoryPolicy memoryPolicy;
@@ -64,4 +64,43 @@ public class ChatSessionDocument {
     private LocalDateTime lastMessageAt;
 
     private LocalDateTime expiresAt;
+
+    public static ChatSessionDocument create(
+        Long userId, Long assistantId, ChatMode chatMode,
+        ChatSessionType chatSessionType, String title,
+        MemoryPolicy memoryPolicy, LocalDateTime now, LocalDateTime expiresAt
+    ) {
+        return ChatSessionDocument.builder()
+            .userId(userId)
+            .assistantId(assistantId)
+            .chatMode(chatMode)
+            .chatSessionType(chatSessionType)
+            .title(title)
+            .memoryPolicy(memoryPolicy)
+            .chatSessionStatus(ChatSessionStatus.ACTIVE)
+            .messageCount(0)
+            .startedAt(now)
+            .lastMessageAt(now)
+            .expiresAt(expiresAt)
+            .build();
+    }
+
+    public void end() {
+        this.chatSessionStatus = ChatSessionStatus.ENDED;
+    }
+
+    public void timeout() {
+        this.chatSessionStatus = ChatSessionStatus.TIMEOUT;
+    }
+
+    public void touch(LocalDateTime now, LocalDateTime expiresAt) {
+        this.lastMessageAt = now;
+        this.expiresAt = expiresAt;
+    }
+
+    public void increaseMessageCount(LocalDateTime now, LocalDateTime expiresAt) {
+        this.messageCount = this.messageCount + 1;
+        this.lastMessageAt = now;
+        this.expiresAt = expiresAt;
+    }
 }

@@ -8,6 +8,6 @@ public interface ChatMessageRepository extends MongoRepository<ChatMessageDocume
 
     List<ChatMessageDocument> findBySessionIdOrderByCreatedAtAsc(String sessionId);
 
-    List<ChatMessageDocument> findTop200SessionIdOrderByCreatedAtDesc(String sessionId);
+    List<ChatMessageDocument> findTop200BySessionIdOrderByCreatedAtDesc(String sessionId);
 
 }

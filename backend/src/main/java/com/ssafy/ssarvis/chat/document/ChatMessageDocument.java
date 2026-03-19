@@ -1,6 +1,7 @@
 package com.ssafy.ssarvis.chat.document;
 
 import com.ssafy.ssarvis.chat.domain.AudioMeta;
+import com.ssafy.ssarvis.chat.domain.ChatMessageStatus;
 import com.ssafy.ssarvis.chat.domain.ChatMode;
 import com.ssafy.ssarvis.chat.domain.SpeakerType;
 import org.springframework.data.annotation.Id;
@@ -40,7 +41,7 @@ public class ChatMessageDocument {
 
     private Long assistantId;
 
-    private ChatMode mode;
+    private ChatMode chatMode;
 
     private SpeakerType speakerType;
 
@@ -48,8 +49,9 @@ public class ChatMessageDocument {
 
     private String text;
 
+    // RECEIVED, STREAMING, COMPLETE, FAILED
     @Indexed
-    private String status; // RECEIVED, STREAMING, COMPLETE, FAILED
+    private ChatMessageStatus chatMessageStatus;
 
     private AudioMeta audio;
 
@@ -58,4 +60,52 @@ public class ChatMessageDocument {
 
     @Indexed
     private LocalDateTime createdAt;
+
+    public static ChatMessageDocument createUserMessage(
+        String sessionId,
+        Long userId,
+        Long assistantId,
+        ChatMode chatMode,
+        String text,
+        AudioMeta audio,
+        LocalDateTime now
+    ) {
+        return ChatMessageDocument.builder()
+            .sessionId(sessionId)
+            .userId(userId)
+            .assistantId(assistantId)
+            .chatMode(chatMode)
+            .text(text)
+            .audio(audio)
+            .createdAt(now)
+            .build();
+    }
+
+    public static ChatMessageDocument createAssistantMessage(
+        String sessionId,
+        Long userId,
+        Long assistantId,
+        ChatMode chatMode,
+        String text,
+        LocalDateTime now
+    ) {
+        return ChatMessageDocument.builder()
+            .sessionId(sessionId)
+            .userId(userId)
+            .assistantId(assistantId)
+            .chatMode(chatMode)
+            .text(text)
+            .chatMessageStatus(ChatMessageStatus.STREAMING)
+            .createdAt(now)
+            .build();
+    }
+
+    public void complete(AudioMeta audio) {
+        this.audio = audio;
+        this.chatMessageStatus = ChatMessageStatus.COMPLETE;
+    }
+
+    public void fail() {
+        this.chatMessageStatus = ChatMessageStatus.FAILED;
+    }
 }

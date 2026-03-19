@@ -4,14 +4,14 @@ import com.ssafy.ssarvis.chat.document.ChatSessionDocument;
 import com.ssafy.ssarvis.chat.domain.ChatMode;
 import com.ssafy.ssarvis.chat.domain.ChatSessionStatus;
 import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.w3c.dom.stylesheets.LinkStyle;
 
 public interface ChatSessionRepository extends MongoRepository<ChatSessionDocument, String> {
 
-    Optional<ChatSessionDocument> findByUserIdAndChatModeAndMemoryPolicyAndStatus(
+    Optional<ChatSessionDocument> findByUserIdAndChatModeAndMemoryPolicyAndChatSessionStatus(
         Long userId,
         ChatMode chatMode,
         MemoryPolicy memoryPolicy,
@@ -24,5 +24,10 @@ public interface ChatSessionRepository extends MongoRepository<ChatSessionDocume
     List<ChatSessionDocument> findByUserIdAndChatModeOrderByLastMessageAtDesc(
         Long userId,
         ChatMode chatMode
+    );
+
+    List<ChatSessionDocument> findByChatSessionStatusAndExpiredAtBefore(
+        ChatSessionStatus chatSessionStatus,
+        LocalDateTime now
     );
 }
