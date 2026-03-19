@@ -20,20 +20,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(username)
             .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
 
-        if (Boolean.TRUE.equals(user.getWithdrawStatus())) {
-            throw new DisabledException("탈퇴한 사용자입니다.");
-        }
-
         return CustomUserDetails.of(user);
     }
 
     public CustomUserDetails loadUserById(Long userId) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
-
-        if (Boolean.TRUE.equals(user.getWithdrawStatus())) {
-            throw new DisabledException("탈퇴한 사용자입니다.");
-        }
 
         return CustomUserDetails.of(user);
     }

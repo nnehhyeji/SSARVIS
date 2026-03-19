@@ -16,6 +16,7 @@ public class CustomUserDetails implements UserDetails {
     private final Long userId;
     private final String email;   // 여기 email 넣음
     private final String password;
+    private final Boolean withdrawStatus;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public static CustomUserDetails of(User user) {
@@ -23,6 +24,7 @@ public class CustomUserDetails implements UserDetails {
             user.getId(),
             user.getEmail(),
             user.getPassword(),
+            user.getWithdrawStatus(),
             List.of(new SimpleGrantedAuthority("ROLE_USER"))
         );
     }
@@ -49,6 +51,6 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return Boolean.TRUE.equals(withdrawStatus) ? false : true;
     }
 }
