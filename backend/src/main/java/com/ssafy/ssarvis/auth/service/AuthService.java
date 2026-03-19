@@ -19,4 +19,8 @@ public interface AuthService {
 
     VoicePasswordCheckResponse checkVoiceLockPassword(Long userId, SetVoiceLockRequestDto setVoiceLockRequestDto);
 
+    VoicePasswordCheckResponse isUsedVoicePassword(Long userId);
+
+    void deleteVoicePassword(Long userId);
+
 }

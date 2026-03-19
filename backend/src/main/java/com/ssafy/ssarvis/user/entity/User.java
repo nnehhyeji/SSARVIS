@@ -92,4 +92,9 @@ public class User extends BaseTime {
         this.voicePassword = voicePassword;
         this.isVoiceLockActive = true;
     }
+
+    public void deleteUserVoicePassword() {
+        this.voicePassword = null;
+        this.isVoiceLockActive = false;
+    }
 }

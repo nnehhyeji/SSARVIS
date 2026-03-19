@@ -144,6 +144,20 @@ public class AuthServiceImpl implements AuthService {
         return new VoicePasswordCheckResponse(checked);
     }
 
+    @Override
+    public VoicePasswordCheckResponse isUsedVoicePassword(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        return new VoicePasswordCheckResponse(user.getIsVoiceLockActive());
+    }
+
+    @Override
+    public void deleteVoicePassword(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        user.deleteUserVoicePassword();
+    }
+
     private Long extractUserId(Authentication authentication) {
         Object principal = authentication.getPrincipal();
 

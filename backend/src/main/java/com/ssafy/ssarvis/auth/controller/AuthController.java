@@ -95,4 +95,22 @@ public class AuthController {
         return ResponseEntity.ok(BaseResponse.success("음성 인증 요청", voicePasswordCheckResponse));
     }
 
+    @GetMapping("/voice-lock")
+    public ResponseEntity<BaseResponse<VoicePasswordCheckResponse>> checkVoiceLock(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        Long userId = customUserDetails.getUserId();
+        VoicePasswordCheckResponse voicePasswordCheckResponse = authService.isUsedVoicePassword(userId);
+        return ResponseEntity.ok(BaseResponse.success("음성 인증 사용 여부 조회 성공", voicePasswordCheckResponse));
+    }
+
+    @DeleteMapping("/voice-lock")
+    public ResponseEntity<BaseResponse<Void>> deleteVoicePassword(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        Long userId = customUserDetails.getUserId();
+        authService.deleteVoicePassword(userId);
+        return ResponseEntity.ok(BaseResponse.success("음성 인증 삭제"));
+    }
+
 }
