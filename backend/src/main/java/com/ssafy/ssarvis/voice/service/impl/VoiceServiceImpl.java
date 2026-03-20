@@ -7,7 +7,6 @@ import com.ssafy.ssarvis.voice.dto.response.AiVoiceResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
 import com.ssafy.ssarvis.voice.entity.Voice;
-import com.ssafy.ssarvis.voice.entity.VoiceHistory;
 import com.ssafy.ssarvis.voice.repository.VoiceHistoryRepository;
 import com.ssafy.ssarvis.voice.repository.VoiceRepository;
 import com.ssafy.ssarvis.voice.service.VoiceService;
@@ -19,7 +18,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
@@ -46,16 +44,11 @@ public class VoiceServiceImpl implements VoiceService {
     @Override
     public VoiceUploadResponseDto uploadVoice(Long userId, MultipartFile audioFile, String sttText) {
 
-        VoiceHistory voiceHistory = VoiceHistory.builder()
-            .userId(userId)
-            .s3Url("DIRECT_FILE_TRANSFER") // URL 대신 전송 방식 기록
-            .sttText(sttText)
-            .build();
-        VoiceHistory savedHistory = voiceHistoryRepository.save(voiceHistory);
+        String modelId = registerVoiceWithAi(audioFile, sttText);
 
-        processVoiceWithAiAsync(userId, audioFile, sttText);
+        saveVoiceEntity(userId, modelId, sttText);
 
-        return VoiceUploadResponseDto.from(savedHistory);
+        return VoiceUploadResponseDto.of(modelId);
     }
 
     @Override
@@ -63,7 +56,6 @@ public class VoiceServiceImpl implements VoiceService {
         try {
             log.info("AI 서버로 전달할 데이터: {}", rawJson);
 
-            // AI 서버 호출 (경로가 /prompt 인지 /prompts 인지 확인 필수)
             ResponseEntity<AiPromptResponseDto> response = restTemplate.postForEntity(
                 aiServerUrl + "/api/v1/prompt",
                 rawJson,
@@ -76,7 +68,7 @@ public class VoiceServiceImpl implements VoiceService {
                 User user = userRepository.findById(userId)
                     .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-                user.updateUserPrompt(generatedPrompt); // 유저 엔티티에 프롬프트 저장
+                user.updateUserPrompt(generatedPrompt);
 
                 log.info("사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
                 return new PromptResponseDto(generatedPrompt);
@@ -90,67 +82,51 @@ public class VoiceServiceImpl implements VoiceService {
         }
     }
 
-    @Async("voiceUploadExecutor")
-    public void processVoiceWithAiAsync(Long userId, MultipartFile audioFile, String text) {
+    private String registerVoiceWithAi(MultipartFile audioFile, String text) {
         try {
-            // 1. 텍스트가 비어있는지 체크 (디버깅용 로그 추가)
-            log.info("AI 서버로 전송할 텍스트: {}", text);
-            if (text == null) text = "";
-
             HttpHeaders headers = new HttpHeaders();
-            // Content-Type 설정은 여전히 하지 않습니다 (RestTemplate이 자동 생성)
-
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
 
-            // 2. 오디오 파일 파트 (HttpEntity로 감싸서 더 확실하게)
-            HttpHeaders audioPartHeaders = new HttpHeaders();
-            audioPartHeaders.setContentType(MediaType.parseMediaType(audioFile.getContentType()));
+            // 오디오 파일 파트
+            HttpHeaders audioHeaders = new HttpHeaders();
+            audioHeaders.setContentType(MediaType.parseMediaType(audioFile.getContentType()));
+            body.add("audio", new HttpEntity<>(new ByteArrayResource(audioFile.getBytes()) {
+                @Override
+                public String getFilename() { return audioFile.getOriginalFilename(); }
+            }, audioHeaders));
 
-            HttpEntity<ByteArrayResource> audioEntity = new HttpEntity<>(
-                new ByteArrayResource(audioFile.getBytes()) {
-                    @Override
-                    public String getFilename() {
-                        return audioFile.getOriginalFilename();
-                    }
-                },
-                audioPartHeaders
-            );
-            body.add("audio", audioEntity);
-
-            // 3. 텍스트 파트 (HttpEntity로 감싸서 Content-Type 명시)
-            HttpHeaders textPartHeaders = new HttpHeaders();
-            textPartHeaders.setContentType(MediaType.TEXT_PLAIN); // 텍스트임을 명시
-
-            HttpEntity<String> textEntity = new HttpEntity<>(text, textPartHeaders);
-            body.add("audioText", textEntity); // FastAPI의 필드명인 audioText와 일치
+            HttpHeaders textHeaders = new HttpHeaders();
+            textHeaders.setContentType(MediaType.TEXT_PLAIN);
+            body.add("audioText", new HttpEntity<>(text, textHeaders));
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-            // 호출
             ResponseEntity<AiVoiceResponseDto> response = restTemplate.postForEntity(
                 aiServerUrl + "/api/v1/voice", requestEntity, AiVoiceResponseDto.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                String modelId = response.getBody().data().voiceId();
-                saveVoiceEntity(userId, modelId);
+                return response.getBody().data().voiceId();
             }
+            throw new RuntimeException("AI 서버로부터 voiceId를 가져오지 못했습니다.");
+
         } catch (Exception e) {
-            log.error("AI 서버 통신 실패 - 원인: {}", e.getMessage(), e);
+            log.error("AI 서버 통신 실패 - 원인: {}", e.getMessage());
+            throw new RuntimeException("음성 생성 중 AI 서버와의 통신에 실패했습니다.");
         }
     }
 
-    private void saveVoiceEntity(Long userId, String modelId) {
+    private void saveVoiceEntity(Long userId, String modelId, String sttText) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
-        // UUID.fromString() 없이 바로 빌더에 넣음
         Voice voice = Voice.builder()
             .modelId(modelId)
             .name(user.getNickname())
+            .voiceStt(sttText)
             .user(user)
             .build();
 
         voiceRepository.save(voice);
-        log.info("Voice 저장 성공: {} (ID: {})", user.getNickname(), modelId);
+        log.info("Voice 저장 완료: {} (ID: {})", user.getNickname(), modelId);
     }
 }

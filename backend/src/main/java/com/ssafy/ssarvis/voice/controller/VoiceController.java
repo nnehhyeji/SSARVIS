@@ -42,5 +42,4 @@ public class VoiceController {
         return ResponseEntity.ok(BaseResponse.success("시스템 프롬프트 생성 및 저장 성공", response));
     }
 
-
 }
