@@ -1,11 +1,6 @@
 from pydantic import BaseModel
 
 
-class VoiceCreateRequest(BaseModel):
-    audioUrl: str
-    audioText: str
-
-
 class VoiceUpdateRequest(BaseModel):
     voiceId: str
     audioUrl: str
