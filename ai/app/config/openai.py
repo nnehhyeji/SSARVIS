@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class OpenAIConfig(BaseSettings):
+    openai_base_url: str = "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
     openai_api_key: str = ""
     llm_model: str = "gpt-5-mini"
     llm_timeout_seconds: float = 30.0
