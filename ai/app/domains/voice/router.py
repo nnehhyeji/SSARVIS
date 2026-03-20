@@ -8,15 +8,17 @@ from app.domains.voice.schema import (
     VoiceUpdateRequest,
 )
 from app.domains.voice.service import VoiceService
+from app.infra.audio_transcoder import AudioTranscoder
 from app.infra.dashscope import DashScopeVoiceClient
 
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 dashscope_voice_client = DashScopeVoiceClient()
+audio_transcoder = AudioTranscoder()
 
 
 def get_voice_service() -> VoiceService:
-    return VoiceService(dashscope_voice_client)
+    return VoiceService(dashscope_voice_client, audio_transcoder)
 
 
 @router.post("", response_model=VoiceCreateResponse, status_code=status.HTTP_201_CREATED)
