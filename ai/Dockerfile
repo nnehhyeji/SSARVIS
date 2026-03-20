@@ -15,8 +15,7 @@ COPY app ./app
 
 # 보안: non-root 유저 설정
 RUN groupadd -r fastapi && useradd -r -g fastapi fastapi \
-    && mkdir -p /data \
-    && chown -R fastapi:fastapi /app /data
+    && chown -R fastapi:fastapi /app
 USER fastapi
 
 ENV PATH="/app/.venv/bin:${PATH}"

@@ -42,8 +42,17 @@ export default function HomePage() {
 
   const { chatInput, chatMessages, isLockMode, setChatInput, toggleLock, sendMessage } = useChat();
 
-  const { follows, followRequests, allUsers, deleteFollow, acceptRequest, rejectRequest } =
-    useFollow();
+  const {
+    follows,
+    followRequests,
+    searchResults,
+    isSearchLoading,
+    requestFollow,
+    deleteFollow,
+    acceptRequest,
+    rejectRequest,
+    handleSearch,
+  } = useFollow();
 
   // --- Callbacks for Stability ---
   const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
@@ -233,14 +242,17 @@ export default function HomePage() {
         view={sidebarView}
         onViewChange={setSidebarView}
         follows={follows}
-        allUsers={allUsers}
         requests={followRequests}
+        searchResults={searchResults}
+        isSearchLoading={isSearchLoading}
+        onSearch={handleSearch}
         visitedId={null}
         isVisitorMode={false}
         onVisit={(id) => {
           if (typeof id === 'number') handleVisit(id);
         }}
         onDelete={deleteFollow}
+        onRequest={requestFollow}
         onAccept={acceptRequest}
         onReject={rejectRequest}
         onClose={() => {

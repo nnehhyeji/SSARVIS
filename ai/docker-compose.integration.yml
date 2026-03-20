@@ -1,0 +1,17 @@
+services:
+  ai:
+    build: .
+    env_file:
+      - .env
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION_NAME: integration_chats
+    ports:
+      - "18000:8000"
+    depends_on:
+      - qdrant
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "16333:6333"

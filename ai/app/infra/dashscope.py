@@ -49,11 +49,32 @@ class DashScopeVoiceClient:
         }
         self._post(payload)
 
+    def update_voice(self, voice_id: str, audio_uri: str, audio_text: str) -> None:
+        payload = {
+            "model": dashscope_config.tts_voice_enrollment_model,
+            "input": {
+                "action": "update",
+                "voice": voice_id,
+                "target_model": dashscope_config.tts_model,
+                "audio": {"data": self._resolve_audio_data_uri(audio_uri)},
+                "text": audio_text,
+            },
+        }
+        self._post(payload)
+
     async def create_voice_async(self, audio_uri: str, audio_text: str) -> str:
         return await asyncio.to_thread(self.create_voice, audio_uri, audio_text)
 
     async def delete_voice_async(self, voice_id: str) -> None:
         await asyncio.to_thread(self.delete_voice, voice_id)
+
+    async def update_voice_async(
+        self,
+        voice_id: str,
+        audio_uri: str,
+        audio_text: str,
+    ) -> None:
+        await asyncio.to_thread(self.update_voice, voice_id, audio_uri, audio_text)
 
     def create_synthesis_request(
         self,

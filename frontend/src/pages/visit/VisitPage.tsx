@@ -50,7 +50,8 @@ export default function VisitPage() {
   const {
     follows,
     followRequests,
-    allUsers,
+    searchResults,
+    isSearchLoading,
     isVisitorMode,
     visitedFollowName,
     visitedUserId,
@@ -63,8 +64,10 @@ export default function VisitPage() {
     visitFollow,
     leaveFollow,
     deleteFollow,
+    requestFollow,
     acceptRequest,
     rejectRequest,
+    handleSearch,
   } = useFollow();
 
   // --- Callbacks for Stability ---
@@ -78,6 +81,9 @@ export default function VisitPage() {
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
+    'following',
+  );
 
   // --- API / Logic ---
   useEffect(() => {
@@ -93,18 +99,14 @@ export default function VisitPage() {
   }, [leaveFollow, navigate]);
 
   const viewCount = useMemo(() => {
-    const user = follows.find((f) => f.id === targetId) || allUsers.find((u) => u.id === targetId);
+    const user = follows.find((f) => f.id === targetId);
     return user?.view_count ?? 0;
-  }, [targetId, follows, allUsers]);
+  }, [targetId, follows]);
 
   // 방문 페이지에서는 내 시크릿 모드 상태와 상관없이 항상 상대방 배경(visitorBg)만 표시
   const backgroundProps = useMemo(() => {
     return visitorBg;
   }, [visitorBg]);
-
-  const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
-    'following',
-  );
 
   if (!isVisitorMode || !visitedFollowName) {
     return (
@@ -248,8 +250,10 @@ export default function VisitPage() {
         view={sidebarView}
         onViewChange={setSidebarView}
         follows={follows}
-        allUsers={allUsers}
         requests={followRequests}
+        searchResults={searchResults}
+        isSearchLoading={isSearchLoading}
+        onSearch={handleSearch}
         visitedId={visitedUserId}
         isVisitorMode={true}
         onVisit={(id) => {
@@ -257,6 +261,7 @@ export default function VisitPage() {
           setIsUsersModalOpen(false);
         }}
         onDelete={deleteFollow}
+        onRequest={requestFollow}
         onAccept={acceptRequest}
         onReject={rejectRequest}
         onClose={() => {
