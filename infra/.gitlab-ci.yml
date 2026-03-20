@@ -139,12 +139,15 @@ infra_compose_validate:
 .security_scan_template:
   tags: [docker-shared]
   stage: security_scan
-  image:
-    name: docker.io/aquasec/trivy:latest
-    entrypoint: [""]
+  image: docker:29.3.0
+  services:
+    - docker:29.3.0-dind
   variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
     TRIVY_NO_PROGRESS: "true"
     TRIVY_CACHE_DIR: ".trivycache/"
+    TRIVY_IMAGE: "docker.io/aquasec/trivy:0.63.0"
   cache:
     paths:
       - .trivycache/
@@ -152,10 +155,10 @@ infra_compose_validate:
 trivy_security_backend:
   extends: .security_scan_template
   script:
-    - trivy fs --format template --template "@infra/trivy/html.tpl" -o backend-fs-report.html ./backend/
-    - trivy config --format template --template "@infra/trivy/html.tpl" -o backend-config-report.html ./backend/
-    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./backend
-    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./backend
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --format template --template "@infra/trivy/html.tpl" -o backend-fs-report.html ./backend/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --format template --template "@infra/trivy/html.tpl" -o backend-config-report.html ./backend/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --exit-code 1 --severity HIGH,CRITICAL ./backend
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --exit-code 1 --severity HIGH,CRITICAL ./backend
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
@@ -172,14 +175,14 @@ trivy_security_backend:
 trivy_security_web:
   extends: .security_scan_template
   script:
-    - trivy fs --format template --template "@infra/trivy/html.tpl" -o web-fs-report.html ./frontend/
-    - trivy fs --format template --template "@infra/trivy/html.tpl" -o web-nginx-fs-report.html ./infra/nginx/
-    - trivy config --format template --template "@infra/trivy/html.tpl" -o web-config-report.html ./frontend/
-    - trivy config --format template --template "@infra/trivy/html.tpl" -o web-nginx-config-report.html ./infra/nginx/
-    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./frontend/
-    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./frontend/
-    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
-    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --format template --template "@infra/trivy/html.tpl" -o web-fs-report.html ./frontend/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --format template --template "@infra/trivy/html.tpl" -o web-nginx-fs-report.html ./infra/nginx/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --format template --template "@infra/trivy/html.tpl" -o web-config-report.html ./frontend/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --format template --template "@infra/trivy/html.tpl" -o web-nginx-config-report.html ./infra/nginx/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --exit-code 1 --severity HIGH,CRITICAL ./frontend/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --exit-code 1 --severity HIGH,CRITICAL ./frontend/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --exit-code 1 --severity HIGH,CRITICAL ./infra/nginx/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
@@ -199,10 +202,10 @@ trivy_security_web:
 trivy_security_ai:
   extends: .security_scan_template
   script:
-    - trivy fs --format template --template "@infra/trivy/html.tpl" -o ai-fs-report.html ./ai/
-    - trivy config --format template --template "@infra/trivy/html.tpl" -o ai-config-report.html ./ai/
-    - trivy fs --exit-code 1 --severity HIGH,CRITICAL ./ai
-    - trivy config --exit-code 1 --severity HIGH,CRITICAL ./ai
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --format template --template "@infra/trivy/html.tpl" -o ai-fs-report.html ./ai/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --format template --template "@infra/trivy/html.tpl" -o ai-config-report.html ./ai/
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --exit-code 1 --severity HIGH,CRITICAL ./ai
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --exit-code 1 --severity HIGH,CRITICAL ./ai
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
@@ -242,8 +245,8 @@ build_and_scan_backend:
     - docker tag backend:$CI_COMMIT_SHA "$DOCKERHUB_USERNAME/ssarvis-backend:buildcache"
     - docker push "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
     - docker push "$DOCKERHUB_USERNAME/ssarvis-backend:buildcache"
-    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -v "$CI_PROJECT_DIR:/work" -w /work aquasec/trivy:latest image --format template --template "@infra/trivy/html.tpl" -o backend-image-report.html "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
-    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" aquasec/trivy:latest image --exit-code 1 --severity HIGH,CRITICAL "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
+    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true -v "$CI_PROJECT_DIR:/work" -w /work docker.io/aquasec/trivy:0.63.0 image --format template --template "@infra/trivy/html.tpl" -o backend-image-report.html "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
+    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true docker.io/aquasec/trivy:0.63.0 image --exit-code 1 --severity HIGH,CRITICAL "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
       changes:
@@ -265,8 +268,8 @@ build_and_scan_web:
     - docker tag web:$CI_COMMIT_SHA "$DOCKERHUB_USERNAME/ssarvis-web:buildcache"
     - docker push "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
     - docker push "$DOCKERHUB_USERNAME/ssarvis-web:buildcache"
-    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -v "$CI_PROJECT_DIR:/work" -w /work aquasec/trivy:latest image --format template --template "@infra/trivy/html.tpl" -o web-image-report.html "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
-    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" aquasec/trivy:latest image --exit-code 1 --severity HIGH,CRITICAL "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
+    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true -v "$CI_PROJECT_DIR:/work" -w /work docker.io/aquasec/trivy:0.63.0 image --format template --template "@infra/trivy/html.tpl" -o web-image-report.html "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
+    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true docker.io/aquasec/trivy:0.63.0 image --exit-code 1 --severity HIGH,CRITICAL "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
       changes:
