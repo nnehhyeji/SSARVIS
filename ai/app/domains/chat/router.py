@@ -1,5 +1,3 @@
-import base64
-import json
 import logging
 from uuid import uuid4
 
@@ -143,10 +141,10 @@ async def chat(
                     sequence=sequence,
                     payload={
                         "mimeType": "audio/webm",
-                        "data": base64.b64encode(packet).decode("utf-8"),
                     },
                 ).model_dump_json()
             )
+            await ws.send_bytes(packet)
             sequence += 1
 
         await ws.send_text(

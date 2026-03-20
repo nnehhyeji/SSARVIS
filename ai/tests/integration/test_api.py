@@ -4,6 +4,39 @@ from qdrant_client import QdrantClient
 from websocket import create_connection
 
 
+def _recv_chat_frames(websocket) -> list[dict]:
+    events: list[dict] = []
+    pending_voice_delta: dict | None = None
+
+    while True:
+        raw_message = websocket.recv()
+
+        if isinstance(raw_message, str):
+            event = json.loads(raw_message)
+            if event["type"] == "voice.delta":
+                pending_voice_delta = event
+            else:
+                events.append(event)
+                if event["type"] == "voice.end":
+                    break
+            continue
+
+        if isinstance(raw_message, (bytes, bytearray)):
+            if pending_voice_delta is None:
+                raise AssertionError("Received binary frame without voice.delta metadata")
+            pending_voice_delta["payload"]["data"] = bytes(raw_message)
+            events.append(pending_voice_delta)
+            pending_voice_delta = None
+            continue
+
+        raise AssertionError(f"Unexpected websocket frame: {type(raw_message)!r}")
+
+    if pending_voice_delta is not None:
+        raise AssertionError("voice.delta metadata was not followed by a binary frame")
+
+    return events
+
+
 def _chat_payload(
     *,
     session_id: str,
@@ -29,16 +62,7 @@ def _run_chat(payload: dict) -> list[dict]:
     websocket = create_connection("ws://127.0.0.1:18000/api/v1/chat", timeout=120)
     try:
         websocket.send(json.dumps(payload, ensure_ascii=False))
-        events: list[dict] = []
-        while True:
-            raw_message = websocket.recv()
-            if not isinstance(raw_message, str):
-                raise AssertionError(f"Unexpected binary frame: {type(raw_message)!r}")
-            event = json.loads(raw_message)
-            events.append(event)
-            if event["type"] == "voice.end":
-                break
-        return events
+        return _recv_chat_frames(websocket)
     finally:
         websocket.close()
 
@@ -175,6 +199,7 @@ def test_chat_websocket_persists_records_in_qdrant(
     ]
     assert voice_delta_events
     assert all(event["payload"]["mimeType"] == "audio/webm" for event in voice_delta_events)
+    assert all(isinstance(event["payload"]["data"], bytes) for event in voice_delta_events)
     assert all(event["payload"]["data"] for event in voice_delta_events)
 
     records, _ = qdrant_client.scroll(
