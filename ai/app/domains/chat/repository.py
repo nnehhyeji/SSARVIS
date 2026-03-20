@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 from pydantic import ValidationError
 
 from app.domains.chat.schema import SimilarChatItem
@@ -12,6 +10,7 @@ class ChatRepository:
 
     async def search_similar(
         self,
+        session_id: str,
         user_id: int,
         chat_mode: str,
         memory_policy: str,
@@ -21,6 +20,7 @@ class ChatRepository:
         payloads = await self.qdrant_client.search(
             vector=vector,
             filter_conditions={
+                "session_id": session_id,
                 "user_id": user_id,
                 "chat_mode": chat_mode,
                 "memory_policy": memory_policy,
@@ -37,6 +37,7 @@ class ChatRepository:
 
     async def save_chat(
         self,
+        session_id: str,
         user_id: int,
         chat_mode: str,
         memory_policy: str,
@@ -44,9 +45,8 @@ class ChatRepository:
         response: str,
         vector: list[float],
     ) -> SimilarChatItem:
-        chat_id = uuid4().hex
         payload = {
-            "chat_id": chat_id,
+            "session_id": session_id,
             "user_id": user_id,
             "chat_mode": chat_mode,
             "memory_policy": memory_policy,
@@ -54,7 +54,7 @@ class ChatRepository:
             "response": response,
         }
         await self.qdrant_client.upsert(
-            point_id=chat_id,
+            point_id=session_id,
             vector=vector,
             payload=payload,
         )

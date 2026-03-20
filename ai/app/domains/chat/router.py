@@ -1,5 +1,4 @@
 import logging
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -96,11 +95,10 @@ async def chat(
             )
             return
 
-        request_id = uuid4().hex
         await ws.send_text(
             ChatEvent(
                 type="text.start",
-                requestId=request_id,
+                sessionId=request.sessionId,
                 payload={},
             ).model_dump_json()
         )
@@ -112,7 +110,7 @@ async def chat(
         await ws.send_text(
             ChatEvent(
                 type="text.end",
-                requestId=request_id,
+                sessionId=request.sessionId,
                 sequence=0,
                 payload={"text": assistant_response},
             ).model_dump_json()
@@ -120,7 +118,7 @@ async def chat(
         await ws.send_text(
             ChatEvent(
                 type="voice.start",
-                requestId=request_id,
+                sessionId=request.sessionId,
                 payload={},
             ).model_dump_json()
         )
@@ -137,7 +135,7 @@ async def chat(
             await ws.send_text(
                 ChatEvent(
                     type="voice.delta",
-                    requestId=request_id,
+                    sessionId=request.sessionId,
                     sequence=sequence,
                     payload={
                         "mimeType": "audio/webm",
@@ -150,7 +148,7 @@ async def chat(
         await ws.send_text(
             ChatEvent(
                 type="voice.end",
-                requestId=request_id,
+                sessionId=request.sessionId,
                 sequence=sequence,
                 payload={},
             ).model_dump_json()
