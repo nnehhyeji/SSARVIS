@@ -87,6 +87,10 @@ public enum ErrorCode {
     CHAT_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "채팅 세션을 찾을 수 없습니다."),
     CHAT_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "채팅 메세지를 찾을 수 없습니다.");
 
+    // ============================================================
+    // 6. Chatting (채팅)
+    // ============================================================
+
 
     private final HttpStatus httpStatus;
     private final String message;
