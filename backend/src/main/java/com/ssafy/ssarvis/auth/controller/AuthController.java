@@ -40,7 +40,7 @@ public class AuthController {
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
             .header(HttpHeaders.AUTHORIZATION, Constants.BEARER_PREFIX + tokenDto.accessToken())
-            .body(BaseResponse.success("로그인 성공", new AccessTokenResponseDto(tokenDto.accessToken()))
+            .body(BaseResponse.success("로그인 성공", new AccessTokenResponseDto(tokenDto.accessToken(), tokenDto.timeout()))
             );
     }
 
@@ -58,7 +58,7 @@ public class AuthController {
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
             .header(HttpHeaders.AUTHORIZATION, Constants.BEARER_PREFIX + tokenDto.accessToken())
-            .body(BaseResponse.success("토큰 재발급 성공", new AccessTokenResponseDto(tokenDto.accessToken()))
+            .body(BaseResponse.success("토큰 재발급 성공", new AccessTokenResponseDto(tokenDto.accessToken(), tokenDto.timeout()))
             );
     }
 

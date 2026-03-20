@@ -66,7 +66,8 @@ public class User extends BaseTime {
     private Long viewCount = 0L;
 
     @Column(name = "voice_lock_timeout")
-    private Integer voiceLockTimeout;
+    @Builder.Default
+    private Long voiceLockTimeout = 1800L;
 
     public static User create(String email, String password, String nickname) {
         return User.builder()
