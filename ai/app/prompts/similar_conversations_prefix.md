@@ -1,1 +1,1 @@
-다음은 내가 과거에 나눈 비슷한 대화이다. 참고만 하고 그대로 반복하지 마라:
+This are relavent conversations you have made in the past. For the better understanding of the user, please refer to these conversations. But please do not repeat them.

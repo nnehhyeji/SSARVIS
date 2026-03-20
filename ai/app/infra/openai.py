@@ -7,6 +7,7 @@ from app.exceptions.infra import EmbeddingError, OpenAIError
 class OpenAIClient:
     def __init__(self) -> None:
         self._client = AsyncOpenAI(
+            base_url=openai_config.openai_base_url,
             api_key=openai_config.openai_api_key,
             timeout=openai_config.llm_timeout_seconds,
         )
