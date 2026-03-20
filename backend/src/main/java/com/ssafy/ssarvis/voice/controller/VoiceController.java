@@ -32,4 +32,6 @@ public class VoiceController {
 
         return ResponseEntity.ok(BaseResponse.success("음성 등록 요청 수락", response));
     }
+
+
 }
