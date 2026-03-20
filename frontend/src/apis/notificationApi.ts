@@ -16,23 +16,23 @@ export interface NotificationCountDTO {
 const notificationApi = {
   // 알림 리스트 조회
   getNotifications: async () => {
-    return axiosInstance.get<{ message: string; data: NotificationDTO[] }>('/api/v1/notifications');
+    return axiosInstance.get<{ message: string; data: NotificationDTO[] }>('/notifications');
   },
 
   // 알림 삭제
   deleteNotification: async (notificationId: number) => {
-    return axiosInstance.delete<{ message: string }>(`/api/v1/notifications/${notificationId}`);
+    return axiosInstance.delete<{ message: string }>(`/notifications/${notificationId}`);
   },
 
   // 알림 읽음 처리
   readNotification: async (notificationId: number) => {
-    return axiosInstance.patch<{ message: string }>(`/api/v1/notifications/${notificationId}/read`);
+    return axiosInstance.patch<{ message: string }>(`/notifications/${notificationId}/read`);
   },
 
   // 알림 개수 조회
   getUnreadCount: async () => {
     return axiosInstance.get<{ message: string; data: NotificationCountDTO }>(
-      '/api/v1/notifications/count',
+      '/notifications/count',
     );
   },
 };
