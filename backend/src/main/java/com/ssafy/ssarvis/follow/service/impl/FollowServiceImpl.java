@@ -10,6 +10,7 @@ import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.UserSearchResponseDto;
 import com.ssafy.ssarvis.follow.entity.Follow;
 import com.ssafy.ssarvis.follow.entity.FollowRequest;
+import com.ssafy.ssarvis.follow.entity.FollowStatus;
 import com.ssafy.ssarvis.follow.repository.FollowRepository;
 import com.ssafy.ssarvis.follow.repository.FollowRequestRepository;
 import com.ssafy.ssarvis.follow.service.FollowService;
@@ -171,9 +172,20 @@ public class FollowServiceImpl implements FollowService {
             .map(user -> new UserSearchResponseDto(
                 user.getId(),
                 user.getNickname(),
-                user.getEmail()
+                user.getEmail(),
+                resolveFollowStatus(userId, user.getId())
             ))
             .toList();  // 없으면 빈 리스트 반환
+    }
+
+    private FollowStatus resolveFollowStatus(Long myId, Long targetId) {
+        if (followRepository.existsByFollowerIdAndFollowingId(myId, targetId)) {
+            return FollowStatus.FOLLOWING;
+        }
+        if (followRequestRepository.existsBySenderIdAndReceiverId(myId, targetId)) {
+            return FollowStatus.REQUESTED;
+        }
+        return FollowStatus.NONE;
     }
 
 }
