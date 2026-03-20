@@ -2,7 +2,9 @@ package com.ssafy.ssarvis.voice.service.impl;
 
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
+import com.ssafy.ssarvis.voice.dto.response.AiPromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.AiVoiceResponseDto;
+import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
 import com.ssafy.ssarvis.voice.entity.Voice;
 import com.ssafy.ssarvis.voice.entity.VoiceHistory;
@@ -55,6 +57,33 @@ public class VoiceServiceImpl implements VoiceService {
 
         return VoiceUploadResponseDto.from(savedHistory);
     }
+
+    @Override
+    public PromptResponseDto generateSystemPrompt(Long userId, Object rawJson) {
+        try {
+            ResponseEntity<AiPromptResponseDto> response = restTemplate.postForEntity(
+                aiServerUrl + "/api/v1/prompts", rawJson, AiPromptResponseDto.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                String generatedPrompt = response.getBody().data().systemPrompt();
+
+                User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+                user.updateUserPrompt(generatedPrompt); // 변경 감지(Dirty Checking)로 자동 저장
+
+                log.info("사용자 {}의 시스템 프롬프트 업데이트 성공", user.getNickname());
+                return new PromptResponseDto(generatedPrompt);
+            }
+
+            throw new RuntimeException("AI 서버 응답 오류");
+
+        } catch (Exception e) {
+            log.error("프롬프트 생성 중 오류 발생: {}", e.getMessage());
+            throw new RuntimeException("시스템 프롬프트 생성에 실패했습니다.");
+        }
+    }
+
 
     @Async("voiceUploadExecutor")
     public void processVoiceWithAiAsync(Long userId, MultipartFile audioFile, String text) {
