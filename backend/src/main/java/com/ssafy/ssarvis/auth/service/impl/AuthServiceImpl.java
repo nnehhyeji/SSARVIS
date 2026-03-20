@@ -131,7 +131,7 @@ public class AuthServiceImpl implements AuthService {
             cleanedPassword = setVoiceLockRequestDto.voicePassword().replaceAll("\\s+", "");
         }
 
-        user.updateUserVoicePassword(cleanedPassword);
+        user.updateUserVoicePassword(cleanedPassword, setVoiceLockRequestDto.timeout());
     }
 
     @Override

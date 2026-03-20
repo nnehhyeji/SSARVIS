@@ -92,8 +92,9 @@ public class User extends BaseTime {
         this.withdrawStatus = true;
     }
 
-    public void updateUserVoicePassword(String voicePassword) {
+    public void updateUserVoicePassword(String voicePassword, Long timeout) {
         this.voicePassword = voicePassword;
+        this.voiceLockTimeout = timeout;
         this.isVoiceLockActive = true;
     }
 
