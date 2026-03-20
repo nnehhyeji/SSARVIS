@@ -12,7 +12,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --no-dev
 
 COPY app ./app
-COPY new-api.md ./new-api.md
 
 # 보안: non-root 유저 설정
 RUN groupadd -r fastapi && useradd -r -g fastapi fastapi \
