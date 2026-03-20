@@ -1,6 +1,7 @@
 package com.ssafy.ssarvis.voice.service;
 
 import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
+import com.ssafy.ssarvis.voice.dto.response.VoiceInfoResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -10,4 +11,5 @@ public interface VoiceService {
 
     PromptResponseDto generateSystemPrompt(Long userId, Object rawJson);
 
+    VoiceInfoResponseDto getVoiceInfo(Long userId);
 }

@@ -11,14 +11,11 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
-import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Getter
 @Entity
@@ -33,12 +30,14 @@ public class Voice {
     private Long id;
 
     @NotNull
-    @JdbcTypeCode(SqlTypes.BINARY)
-    @Column(name = "order_id", columnDefinition = "BINARY(16)", unique = true)
-    private UUID modelUuid;
+    @Column(name = "model_id", unique = true, length = 255)
+    private String modelId;
 
     @NotNull
     private String name;
+
+    @Column(name = "voice_stt", columnDefinition = "TEXT")
+    private String voiceStt;
 
     @NotNull
     @JoinColumn(name = "user_id")
