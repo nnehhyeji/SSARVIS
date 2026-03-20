@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { useVoiceLockStore } from '../store/useVoiceLockStore';
 
 // 1. 기본 인스턴스 생성
 const axiosInstance = axios.create({
-  // 백엔드 API 서버 주소를 환경 변수에서 가져옴
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  // 백엔드 API 서버 주소와 공통 경로(/api/v1)를 결합
+  baseURL: (import.meta.env.VITE_API_BASE_URL || '') + '/api/v1',
   // 요청이 10초 이상 지연되면 에러 처리
   timeout: 10000,
   withCredentials: true,
@@ -16,7 +17,10 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     const skipTokenPaths = ['/auth/login', '/users/check-email', '/users/check-nickname'];
-    const isPublicPath = skipTokenPaths.some((path) => config.url?.includes(path));
+    // baseURL이 /api/v1 이므로 config.url은 /auth/login 처럼 들어옴
+    const isPublicPath = skipTokenPaths.some(
+      (path) => config.url === path || config.url?.includes(path),
+    );
     // 회원 가입의 경우 POST /users (상세 경로 없음) 이므로 별도 체크
     const isSignupPath = config.url === '/users' && config.method === 'post';
 
@@ -54,7 +58,9 @@ axiosInstance.interceptors.response.use(
       '/users/check-email',
       '/users/check-nickname',
     ];
-    const isSkipReissue = skipReissuePaths.some((path) => originalRequest.url?.includes(path));
+    const isSkipReissue = skipReissuePaths.some(
+      (path) => originalRequest.url === path || originalRequest.url?.includes(path),
+    );
     const isSignupPath = originalRequest.url === '/users' && originalRequest.method === 'post';
 
     // 401 에러(인증 만료) 발생 시 토큰 재발급 시도 (인증 필수 경로에서만)
@@ -67,7 +73,7 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // reissue API 호출 (쿠키는 withCredentials: true 로 자동 전송됨)
+        // reissue API 호출 (baseURL이 반영된 인스턴스가 아닌 기본 axios 사용 시 경로 주의)
         const response = await axios.post(
           `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/auth/reissue`,
           {},
@@ -80,6 +86,13 @@ axiosInstance.interceptors.response.use(
 
         if (newAccessToken) {
           localStorage.setItem('token', newAccessToken);
+
+          // 타임아웃 정보가 있으면 업데이트
+          const timeout = response.data?.data?.timeout;
+          if (timeout) {
+            useVoiceLockStore.getState().setTimeoutDuration(timeout);
+          }
+
           // 원래 요청의 헤더 업데이트 후 재시도
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return axiosInstance(originalRequest);

@@ -69,7 +69,8 @@ public class SecurityConfig {
             "http://localhost:3000",
             "https://localhost:3000",
             "http://localhost:5173",
-            "https://localhost:5173"
+            "https://localhost:5173",
+            "https://j14b203.p.ssafy.io"
         ));
         configuration.setAllowedMethods(List.of(
             "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
