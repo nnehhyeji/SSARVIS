@@ -1,18 +1,12 @@
-import asyncio
 import logging
 import re
 from dataclasses import dataclass
 
-from pydantic import ValidationError
-
 from app.config.chat import chat_config
-from app.domains.chat.exceptions import PromptNotFoundError
 from app.domains.chat.repository import ChatRepository
-from app.domains.chat.schema import ChatContext, ConversationContextItem
-from app.domains.prompt.repository import PromptRepository
+from app.domains.chat.schema import ChatContext, ChatHistoryItem, ChatRequest, SimilarChatItem
 from app.infra.openai import OpenAIClient
 from app.infra.prompt_loader import PromptTemplateLoader
-from app.infra.qdrant import QdrantClient
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +19,20 @@ class ChatPreparation:
 
 
 class ChatContextBuilder:
-    """Build chat context and convert it into LLM messages."""
-
     def build_context(
         self,
         system_prompt: str,
-        user_message: str,
-        recent_conversations: list[dict] | list[ConversationContextItem] | None = None,
-        similar_conversations: list[dict] | list[ConversationContextItem] | None = None,
+        user_text: str,
+        history: list[dict] | list[ChatHistoryItem] | None = None,
+        similar_conversations: list[dict] | list[SimilarChatItem] | None = None,
     ) -> ChatContext:
         return ChatContext(
             system_prompt=system_prompt,
-            user_message=user_message,
-            recent_conversations=self._normalize_conversations(recent_conversations),
-            similar_conversations=self._normalize_conversations(similar_conversations),
+            history=self._normalize_history(history),
+            user_text=user_text,
+            similar_conversations=self._normalize_similar_conversations(
+                similar_conversations
+            ),
         )
 
     def build_messages(
@@ -51,13 +45,8 @@ class ChatContextBuilder:
             {"role": "system", "content": context.system_prompt}
         ]
 
-        for conversation in context.recent_conversations:
-            messages.append({"role": "user", "content": conversation.user_message})
-            messages.append(
-                {"role": "assistant", "content": conversation.assistant_message}
-            )
-
-        messages.append({"role": "user", "content": context.user_message})
+        for history_item in context.history:
+            messages.append({"role": history_item.role, "content": history_item.content})
 
         if context.similar_conversations:
             similar_text = self._build_similar_conversations_text(
@@ -69,53 +58,62 @@ class ChatContextBuilder:
         if response_guideline_prompt:
             messages.append({"role": "system", "content": response_guideline_prompt})
 
+        messages.append({"role": "user", "content": context.user_text})
         return messages
 
-    def _normalize_conversations(
+    def _normalize_history(
         self,
-        conversations: list[dict] | list[ConversationContextItem] | None,
-    ) -> list[ConversationContextItem]:
+        history: list[dict] | list[ChatHistoryItem] | None,
+    ) -> list[ChatHistoryItem]:
+        if not history:
+            return []
+
+        return [
+            item
+            if isinstance(item, ChatHistoryItem)
+            else ChatHistoryItem.model_validate(item)
+            for item in history
+        ]
+
+    def _normalize_similar_conversations(
+        self,
+        conversations: list[dict] | list[SimilarChatItem] | None,
+    ) -> list[SimilarChatItem]:
         if not conversations:
             return []
 
         return [
-            conversation
-            if isinstance(conversation, ConversationContextItem)
-            else ConversationContextItem.model_validate(conversation)
-            for conversation in conversations
+            item
+            if isinstance(item, SimilarChatItem)
+            else SimilarChatItem.model_validate(item)
+            for item in conversations
         ]
 
     def _build_similar_conversations_text(
         self,
-        conversations: list[ConversationContextItem],
+        conversations: list[SimilarChatItem],
         prefix: str | None,
     ) -> str:
         text = prefix or ""
-
         for conversation in conversations:
             text += (
-                f"Q: {conversation.user_message}\n"
-                f"A: {conversation.assistant_message}\n\n"
+                f"Q: {conversation.text}\n"
+                f"A: {conversation.response}\n\n"
             )
-
         return text.strip()
 
 
 class ChatService:
     def __init__(
         self,
-        prompt_repository: PromptRepository,
         chat_repository: ChatRepository,
         openai_client: OpenAIClient,
-        qdrant_client: QdrantClient,
         context_builder: ChatContextBuilder | None = None,
         similar_conversations_prefix_loader: PromptTemplateLoader | None = None,
         response_guideline_loader: PromptTemplateLoader | None = None,
     ) -> None:
-        self.prompt_repository = prompt_repository
         self.chat_repository = chat_repository
         self.openai_client = openai_client
-        self.qdrant_client = qdrant_client
         self.context_builder = context_builder or ChatContextBuilder()
         self.similar_conversations_prefix_loader = (
             similar_conversations_prefix_loader
@@ -125,45 +123,22 @@ class ChatService:
             chat_config.response_guideline_prompt_file
         )
 
-    async def build_context(self, user_id: str, user_message: str) -> ChatContext:
-        preparation = await self.prepare_chat(user_id=user_id, user_message=user_message)
-        return preparation.context
-
-    async def prepare_chat(
-        self,
-        user_id: str,
-        user_message: str,
-    ) -> ChatPreparation:
-        prompt, recent_conversations, query_vector = await asyncio.gather(
-            self.prompt_repository.get_by_user_id(user_id),
-            self.chat_repository.get_recent(
-                user_id=user_id,
-                limit=chat_config.recent_conversations_limit,
-            ),
-            self.openai_client.embed(user_message),
+    async def prepare_chat(self, request: ChatRequest) -> ChatPreparation:
+        query_vector = await self.openai_client.embed(
+            self.build_query_embedding_text(request.text)
         )
-        if prompt is None:
-            raise PromptNotFoundError("Prompt not found")
-
-        similar_conversations = await self.qdrant_client.search(
+        similar_conversations = await self.chat_repository.search_similar(
+            user_id=request.userId,
+            chat_mode=request.chatMode,
+            memory_policy=request.memoryPolicy,
             vector=query_vector,
-            filter_conditions={"user_id": user_id},
             limit=chat_config.similar_conversations_limit,
         )
-
         context = self.context_builder.build_context(
-            system_prompt=prompt.prompt,
-            user_message=user_message,
-            recent_conversations=[
-                {
-                    "user_message": conversation.user_message,
-                    "assistant_message": conversation.assistant_message,
-                }
-                for conversation in recent_conversations
-            ],
-            similar_conversations=self._normalize_similar_conversations(
-                similar_conversations
-            ),
+            system_prompt=request.systemPrompt,
+            user_text=request.text,
+            history=request.history,
+            similar_conversations=similar_conversations,
         )
         messages = self.context_builder.build_messages(
             context=context,
@@ -176,29 +151,28 @@ class ChatService:
             query_vector=query_vector,
         )
 
-    async def build_messages(
-        self,
-        user_id: str,
-        user_message: str,
-    ) -> list[dict[str, str]]:
-        preparation = await self.prepare_chat(user_id=user_id, user_message=user_message)
-        return preparation.messages
+    async def save_chat(self, request: ChatRequest, response: str) -> SimilarChatItem:
+        embedding = await self.openai_client.embed(
+            self.build_storage_embedding_text(request.text, response)
+        )
+        return await self.chat_repository.save_chat(
+            user_id=request.userId,
+            chat_mode=request.chatMode,
+            memory_policy=request.memoryPolicy,
+            text=request.text,
+            response=response,
+            vector=embedding,
+        )
 
     @staticmethod
     def sanitize_tts_text(text: str) -> str:
         sanitized = re.sub(r"\(.*?\)|\[.*?\]|（.*?）|［.*?］", "", text).strip()
         return sanitized or text
 
-    def _normalize_similar_conversations(
-        self,
-        conversations: list[dict],
-    ) -> list[ConversationContextItem]:
-        normalized: list[ConversationContextItem] = []
+    @staticmethod
+    def build_query_embedding_text(text: str) -> str:
+        return f"Q: {text}"
 
-        for conversation in conversations:
-            try:
-                normalized.append(ConversationContextItem.model_validate(conversation))
-            except ValidationError:
-                logger.warning("Skipping malformed similar conversation payload")
-
-        return normalized
+    @staticmethod
+    def build_storage_embedding_text(text: str, response: str) -> str:
+        return f"Q: {text}\nA: {response}"

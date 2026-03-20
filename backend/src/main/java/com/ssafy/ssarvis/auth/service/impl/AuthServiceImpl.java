@@ -57,7 +57,10 @@ public class AuthServiceImpl implements AuthService {
                 getRefreshTokenMaxAgeSeconds()
             );
 
-            return TokenDto.from(accessToken, refreshToken);
+            User user = userRepository.findById(userId).
+                orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND.getMessage(), ErrorCode.USER_NOT_FOUND));
+
+            return TokenDto.from(accessToken, refreshToken, user.getVoiceLockTimeout());
 
         } catch (BadCredentialsException e) {
             throw new CustomException("이메일 또는 비밀번호가 올바르지 않습니다.", ErrorCode.LOGIN_FAILED);
@@ -106,7 +109,10 @@ public class AuthServiceImpl implements AuthService {
             getRefreshTokenMaxAgeSeconds()
         );
 
-        return TokenDto.from(newAccessToken, newRefreshToken);
+        User user = userRepository.findById(userId).
+            orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND.getMessage(), ErrorCode.USER_NOT_FOUND));
+
+        return TokenDto.from(newAccessToken, newRefreshToken, user.getVoiceLockTimeout());
     }
 
     @Override
