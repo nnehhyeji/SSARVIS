@@ -2,6 +2,10 @@ import asyncio
 import base64
 import json
 from io import BytesIO
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".." )))
 
 from fastapi import UploadFile
 from qdrant_client import QdrantClient
