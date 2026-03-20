@@ -257,6 +257,11 @@ build_and_scan_backend:
         - infra/.gitlab-ci.yml
         - backend/**/*
       when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
+      changes:
+        - infra/.gitlab-ci.yml
+        - backend/**/*
+      when: on_success
     - when: never
   artifacts:
     when: always
@@ -281,6 +286,12 @@ build_and_scan_web:
         - frontend/**/*
         - infra/nginx/**/*
       when: on_success
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
+      changes:
+        - infra/.gitlab-ci.yml
+        - frontend/**/*
+        - infra/nginx/**/*
+      when: on_success
     - when: never
   artifacts:
     when: always
@@ -294,50 +305,6 @@ build_and_scan_web:
     - docker info
     - apk add --no-cache git
     - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-
-promote_backend:
-  extends: .promote_image_template
-  script:
-    - |
-      set -e
-      parents=$(git rev-list --parents -n 1 "$CI_COMMIT_SHA")
-      set -- $parents
-      source_tag="$CI_COMMIT_SHA"
-      if [ "$#" -ge 3 ]; then
-        source_tag="$3"
-      fi
-      source_image="$DOCKERHUB_USERNAME/ssarvis-backend:$source_tag"
-      docker pull "$source_image"
-      docker tag "$source_image" "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
-      docker tag "$source_image" "$DOCKERHUB_USERNAME/ssarvis-backend:prod"
-      docker push "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
-      docker push "$DOCKERHUB_USERNAME/ssarvis-backend:prod"
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
-      when: on_success
-    - when: never
-
-promote_web:
-  extends: .promote_image_template
-  script:
-    - |
-      set -e
-      parents=$(git rev-list --parents -n 1 "$CI_COMMIT_SHA")
-      set -- $parents
-      source_tag="$CI_COMMIT_SHA"
-      if [ "$#" -ge 3 ]; then
-        source_tag="$3"
-      fi
-      source_image="$DOCKERHUB_USERNAME/ssarvis-web:$source_tag"
-      docker pull "$source_image"
-      docker tag "$source_image" "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
-      docker tag "$source_image" "$DOCKERHUB_USERNAME/ssarvis-web:prod"
-      docker push "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
-      docker push "$DOCKERHUB_USERNAME/ssarvis-web:prod"
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
-      when: on_success
-    - when: never
 
 # deploy stage
 deploy:
@@ -407,9 +374,9 @@ deploy:
     - scp -i "$SSH_KEY" .deploy/env/monitoring.env "$USER@$HOST:$REMOTE_DEPLOY_DIR/env/"
     - ssh -i "$SSH_KEY" "$USER@$HOST" "chmod +x '$REMOTE_DEPLOY_DIR/scripts/init-network.sh' '$REMOTE_DEPLOY_DIR/scripts/deploy.sh' && bash '$REMOTE_DEPLOY_DIR/scripts/deploy.sh'"
   needs:
-    - job: promote_backend
+    - job: build_and_scan_backend
       optional: true
-    - job: promote_web
+    - job: build_and_scan_web
       optional: true
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
