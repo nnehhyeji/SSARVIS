@@ -3,6 +3,7 @@ package com.ssafy.ssarvis.voice.controller;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
 import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
+import com.ssafy.ssarvis.voice.dto.response.VoiceInfoResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
 import com.ssafy.ssarvis.voice.service.VoiceService;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,15 @@ public class VoiceController {
             customUserDetails.getUserId(), requestBody);
 
         return ResponseEntity.ok(BaseResponse.success("시스템 프롬프트 생성 및 저장 성공", response));
+    }
+
+    @GetMapping("/voices")
+    public ResponseEntity<BaseResponse<VoiceInfoResponseDto>> getVoiceInfo(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        VoiceInfoResponseDto response = voiceService.getVoiceInfo(customUserDetails.getUserId());
+
+        return ResponseEntity.ok(BaseResponse.success("음성 정보 조회 성공", response));
     }
 
 }

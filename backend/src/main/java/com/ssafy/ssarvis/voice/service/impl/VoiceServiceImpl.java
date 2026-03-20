@@ -2,12 +2,8 @@ package com.ssafy.ssarvis.voice.service.impl;
 
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
-import com.ssafy.ssarvis.voice.dto.response.AiPromptResponseDto;
-import com.ssafy.ssarvis.voice.dto.response.AiVoiceResponseDto;
-import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
-import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
+import com.ssafy.ssarvis.voice.dto.response.*;
 import com.ssafy.ssarvis.voice.entity.Voice;
-import com.ssafy.ssarvis.voice.repository.VoiceHistoryRepository;
 import com.ssafy.ssarvis.voice.repository.VoiceRepository;
 import com.ssafy.ssarvis.voice.service.VoiceService;
 import lombok.RequiredArgsConstructor;
@@ -33,13 +29,24 @@ import java.util.*;
 @Transactional
 public class VoiceServiceImpl implements VoiceService {
 
-    private final VoiceHistoryRepository voiceHistoryRepository;
     private final VoiceRepository voiceRepository;
     private final UserRepository userRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${spring.app.ai-server.url}")
     private String aiServerUrl;
+
+    @Override
+    @Transactional(readOnly = true)
+    public VoiceInfoResponseDto getVoiceInfo(Long userId) {
+
+        Voice voice = voiceRepository.findByUserId(userId)
+            .stream()
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("등록된 음성 정보가 없습니다."));
+
+        return VoiceInfoResponseDto.from(voice);
+    }
 
     @Override
     public VoiceUploadResponseDto uploadVoice(Long userId, MultipartFile audioFile, String sttText) {
@@ -92,7 +99,9 @@ public class VoiceServiceImpl implements VoiceService {
             audioHeaders.setContentType(MediaType.parseMediaType(audioFile.getContentType()));
             body.add("audio", new HttpEntity<>(new ByteArrayResource(audioFile.getBytes()) {
                 @Override
-                public String getFilename() { return audioFile.getOriginalFilename(); }
+                public String getFilename() {
+                    return audioFile.getOriginalFilename();
+                }
             }, audioHeaders));
 
             HttpHeaders textHeaders = new HttpHeaders();
