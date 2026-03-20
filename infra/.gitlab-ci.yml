@@ -307,12 +307,7 @@ promote_backend:
         source_tag="$3"
       fi
       source_image="$DOCKERHUB_USERNAME/ssarvis-backend:$source_tag"
-      fallback_image="$DOCKERHUB_USERNAME/ssarvis-backend:prod"
-      if ! docker pull "$source_image"; then
-        echo "Falling back to $fallback_image because $source_image was not found"
-        docker pull "$fallback_image"
-        source_image="$fallback_image"
-      fi
+      docker pull "$source_image"
       docker tag "$source_image" "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
       docker tag "$source_image" "$DOCKERHUB_USERNAME/ssarvis-backend:prod"
       docker push "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
@@ -334,12 +329,7 @@ promote_web:
         source_tag="$3"
       fi
       source_image="$DOCKERHUB_USERNAME/ssarvis-web:$source_tag"
-      fallback_image="$DOCKERHUB_USERNAME/ssarvis-web:prod"
-      if ! docker pull "$source_image"; then
-        echo "Falling back to $fallback_image because $source_image was not found"
-        docker pull "$fallback_image"
-        source_image="$fallback_image"
-      fi
+      docker pull "$source_image"
       docker tag "$source_image" "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
       docker tag "$source_image" "$DOCKERHUB_USERNAME/ssarvis-web:prod"
       docker push "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
