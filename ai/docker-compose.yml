@@ -1,21 +1,26 @@
 services:
   ai:
     build: .
-    env_file:
-      - .env
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
+    networks:
+      - internal-net
     restart: unless-stopped
     depends_on:
       - qdrant
 
   qdrant:
     image: qdrant/qdrant:latest
-    ports:
-      - "6333:6333"
+    expose:
+      - "6333"
     volumes:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped
 
 volumes:
   qdrant_data:
+
+
+networks:
+  internal-net:
+    external: true
