@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MessageCircle, Mic, MicOff } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -20,6 +20,7 @@ import PersonaModal from '../../components/features/follow/PersonaModal';
 
 // Constants & Types
 import { PATHS } from '../../routes/paths';
+import type { Follow } from '../../types';
 
 export default function VisitPage() {
   const { userId } = useParams();
@@ -50,7 +51,6 @@ export default function VisitPage() {
   const {
     follows,
     followRequests,
-    allUsers,
     isVisitorMode,
     visitedFollowName,
     visitedUserId,
@@ -63,8 +63,10 @@ export default function VisitPage() {
     visitFollow,
     leaveFollow,
     deleteFollow,
+    requestFollow,
     acceptRequest,
     rejectRequest,
+    searchAllUsers,
   } = useFollow();
 
   // --- Callbacks for Stability ---
@@ -78,6 +80,12 @@ export default function VisitPage() {
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
+    'following',
+  );
+  const [searchResults, setSearchResults] = useState<Follow[]>([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- API / Logic ---
   useEffect(() => {
@@ -93,17 +101,32 @@ export default function VisitPage() {
   }, [leaveFollow, navigate]);
 
   const viewCount = useMemo(() => {
-    const user = follows.find((f) => f.id === targetId) || allUsers.find((u) => u.id === targetId);
+    const user = follows.find((f) => f.id === targetId);
     return user?.view_count ?? 0;
-  }, [targetId, follows, allUsers]);
+  }, [targetId, follows]);
 
   // 방문 페이지에서는 내 시크릿 모드 상태와 상관없이 항상 상대방 배경(visitorBg)만 표시
   const backgroundProps = useMemo(() => {
     return visitorBg;
   }, [visitorBg]);
 
-  const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
-    'following',
+  const handleSearch = useCallback(
+    async (query: string) => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+      if (!query.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      setIsSearchLoading(true);
+      searchTimeoutRef.current = setTimeout(async () => {
+        const results = await searchAllUsers(query);
+        setSearchResults(results);
+        setIsSearchLoading(false);
+      }, 500);
+    },
+    [searchAllUsers],
   );
 
   if (!isVisitorMode || !visitedFollowName) {
@@ -248,8 +271,10 @@ export default function VisitPage() {
         view={sidebarView}
         onViewChange={setSidebarView}
         follows={follows}
-        allUsers={allUsers}
         requests={followRequests}
+        searchResults={searchResults}
+        isSearchLoading={isSearchLoading}
+        onSearch={handleSearch}
         visitedId={visitedUserId}
         isVisitorMode={true}
         onVisit={(id) => {
@@ -257,6 +282,7 @@ export default function VisitPage() {
           setIsUsersModalOpen(false);
         }}
         onDelete={deleteFollow}
+        onRequest={requestFollow}
         onAccept={acceptRequest}
         onReject={rejectRequest}
         onClose={() => {
