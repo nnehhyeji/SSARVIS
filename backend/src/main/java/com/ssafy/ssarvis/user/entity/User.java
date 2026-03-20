@@ -108,4 +108,12 @@ public class User extends BaseTime {
         this.voicePassword = null;
         this.isVoiceLockActive = false;
     }
+
+    public void updateUserPrompt(String userPrompt) {
+        this.userPrompt = userPrompt;
+    }
+
+    public void updateNamnaPrompt(String namnaPrompt) {
+        this.namnaPrompt = namnaPrompt;
+    }
 }

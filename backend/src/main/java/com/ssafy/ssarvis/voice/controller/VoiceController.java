@@ -2,16 +2,14 @@ package com.ssafy.ssarvis.voice.controller;
 
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
+import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
 import com.ssafy.ssarvis.voice.service.VoiceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
@@ -31,6 +29,17 @@ public class VoiceController {
             customUserDetails.getUserId(), audioFile, sttText);
 
         return ResponseEntity.ok(BaseResponse.success("음성 등록 요청 수락", response));
+    }
+
+    @PostMapping("/prompts")
+    public ResponseEntity<BaseResponse<PromptResponseDto>> createPrompt(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @RequestBody Object requestBody
+    ) {
+        PromptResponseDto response = voiceService.generateSystemPrompt(
+            customUserDetails.getUserId(), requestBody);
+
+        return ResponseEntity.ok(BaseResponse.success("시스템 프롬프트 생성 및 저장 성공", response));
     }
 
 
