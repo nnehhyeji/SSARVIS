@@ -1,7 +1,14 @@
+import asyncio
+import base64
 import json
+from io import BytesIO
 
+from fastapi import UploadFile
 from qdrant_client import QdrantClient
+from starlette.datastructures import Headers
 from websocket import create_connection
+
+from app.domains.voice.service import VoiceService
 
 
 def _recv_chat_frames(websocket) -> list[dict]:
@@ -91,7 +98,7 @@ def _create_voice(http_client, audio_bytes: bytes, audio_text: str) -> str:
     response = http_client.post(
         "/api/v1/voice",
         data={"audioText": audio_text},
-        files={"audio": ("voice.wav", audio_bytes, "audio/wav")},
+        files={"audio": ("voice-upload.bin", audio_bytes, "application/octet-stream")},
     )
     response.raise_for_status()
     return response.json()["data"]["voiceId"]
@@ -120,6 +127,43 @@ def test_voice_endpoints_follow_new_contract(
     sample_voice_audio_bytes: bytes,
     sample_voice_text: str,
 ) -> None:
+    class StubDashScopeVoiceClient:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str]] = []
+
+        async def create_voice_async(self, audio_uri: str, audio_text: str) -> str:
+            self.calls.append((audio_uri, audio_text))
+            return "voice-id-123"
+
+    class StubAudioTranscoder:
+        def __init__(self, result: bytes) -> None:
+            self.result = result
+            self.inputs: list[bytes] = []
+
+        async def transcode_to_mp3(self, audio_data: bytes) -> bytes:
+            self.inputs.append(audio_data)
+            return self.result
+
+    dashscope_client = StubDashScopeVoiceClient()
+    transcoder = StubAudioTranscoder(result=b"fake-mp3")
+    service = VoiceService(dashscope_client, transcoder)
+    upload = UploadFile(
+        file=BytesIO(b"raw-audio"),
+        filename="voice-upload.bin",
+        headers=Headers({"content-type": "application/octet-stream"}),
+    )
+
+    service_voice_id = asyncio.run(service.create_voice(upload, "sample text"))
+
+    assert service_voice_id == "voice-id-123"
+    assert transcoder.inputs == [b"raw-audio"]
+    assert dashscope_client.calls == [
+        (
+            f"data:audio/mpeg;base64,{base64.b64encode(b'fake-mp3').decode('utf-8')}",
+            "sample text",
+        )
+    ]
+
     voice_id = _create_voice(http_client, sample_voice_audio_bytes, sample_voice_text)
     assert isinstance(voice_id, str)
     assert voice_id.strip()
