@@ -15,6 +15,7 @@ APP_ENV_FILE="$ENV_DIR/app.env"
 DB_ENV_FILE="$ENV_DIR/db.env"
 AI_ENV_FILE="$ENV_DIR/ai.env"
 DOCKER_CMD=()
+APP_STACK_COMPOSE_ARGS=()
 
 log() {
   echo "[deploy] $*"
@@ -22,13 +23,19 @@ log() {
 
 print_app_diagnostics() {
   log "Application deployment failed. Printing compose status."
-  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" ps || true
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" ps || true
 
   log "Recent backend logs:"
-  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" logs --tail=200 backend || true
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=200 backend || true
 
   log "Recent redis logs:"
-  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" logs --tail=100 redis || true
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=100 redis || true
+
+  log "Recent AI logs:"
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=200 ai || true
+
+  log "Recent qdrant logs:"
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=100 qdrant || true
 }
 
 print_monitoring_diagnostics() {
@@ -43,17 +50,6 @@ print_monitoring_diagnostics() {
 
   log "Recent logstash logs:"
   "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" logs --tail=100 logstash || true
-}
-
-print_ai_diagnostics() {
-  log "AI deployment failed. Printing compose status."
-  "${DOCKER_CMD[@]}" compose --env-file "$AI_ENV_FILE" -f "$AI_COMPOSE_FILE" ps || true
-
-  log "Recent AI logs:"
-  "${DOCKER_CMD[@]}" compose --env-file "$AI_ENV_FILE" -f "$AI_COMPOSE_FILE" logs --tail=200 ai || true
-
-  log "Recent qdrant logs:"
-  "${DOCKER_CMD[@]}" compose --env-file "$AI_ENV_FILE" -f "$AI_COMPOSE_FILE" logs --tail=100 qdrant || true
 }
 
 wait_for_container_health() {
@@ -123,6 +119,7 @@ init_docker_cmd() {
 
 require_command docker
 init_docker_cmd
+APP_STACK_COMPOSE_ARGS=(-f "$APP_COMPOSE_FILE" -f "$AI_COMPOSE_FILE")
 require_file "$APP_COMPOSE_FILE"
 require_file "$DB_COMPOSE_FILE"
 require_file "$MONITORING_COMPOSE_FILE"
@@ -146,10 +143,7 @@ else
 fi
 
 log "Pulling application images"
-"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" pull
-
-log "Pulling ai images"
-"${DOCKER_CMD[@]}" compose --env-file "$AI_ENV_FILE" -f "$AI_COMPOSE_FILE" pull
+"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" pull
 
 log "Starting database services"
 "${DOCKER_CMD[@]}" compose --env-file "$DB_ENV_FILE" -f "$DB_COMPOSE_FILE" up -d
@@ -163,15 +157,13 @@ wait_for_container_health elasticsearch 24
 wait_for_container_health logstash 24
 wait_for_container_health kibana 24
 
-trap 'print_ai_diagnostics' ERR
-log "Starting ai services"
-"${DOCKER_CMD[@]}" compose --env-file "$AI_ENV_FILE" -f "$AI_COMPOSE_FILE" up -d
+trap 'print_app_diagnostics' ERR
+log "Starting application stack services"
+"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" up -d
 wait_for_container_health qdrant 24
 wait_for_container_health ai 24
-
-trap 'print_app_diagnostics' ERR
-log "Starting application services"
-"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" -f "$APP_COMPOSE_FILE" up -d
+wait_for_container_health redis 24
+wait_for_container_health backend 24
 
 trap - ERR
 log "Deployment completed successfully."
