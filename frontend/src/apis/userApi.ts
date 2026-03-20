@@ -42,7 +42,7 @@ const userApi = {
   // 1. 이메일 중복 확인
   checkEmail: async (data: CheckEmailRequest) => {
     const response = await axiosInstance.post<CommonResponse<CheckEmailResponse>>(
-      '/api/v1/users/check-email',
+      '/users/check-email',
       data,
     );
     return response.data.data;
@@ -51,7 +51,7 @@ const userApi = {
   // 2. 닉네임 중복 확인
   checkNickname: async (data: CheckNicknameRequest) => {
     const response = await axiosInstance.post<CommonResponse<CheckNicknameResponse>>(
-      '/api/v1/users/check-nickname',
+      '/users/check-nickname',
       data,
     );
     return response.data.data;
@@ -59,19 +59,19 @@ const userApi = {
 
   // 3. 회원 가입
   signup: async (data: SignupRequest) => {
-    const response = await axiosInstance.post<CommonResponse>('/api/v1/users', data);
+    const response = await axiosInstance.post<CommonResponse>('/users', data);
     return response.data;
   },
 
   // 4. 회원 탈퇴
   withdraw: async () => {
-    const response = await axiosInstance.delete<CommonResponse>('/api/v1/users');
+    const response = await axiosInstance.delete<CommonResponse>('/users');
     return response.data;
   },
 
   // 5. 유저 정보 조회
   getUserProfile: async () => {
-    const response = await axiosInstance.get<CommonResponse<UserResponse>>('/api/v1/users');
+    const response = await axiosInstance.get<CommonResponse<UserResponse>>('/users');
     return response.data.data;
   },
 };
