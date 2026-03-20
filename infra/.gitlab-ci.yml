@@ -122,6 +122,33 @@ infra_compose_validate:
   script:
     - |
       set -e
+      mkdir -p infra/deploy/env
+
+      cat <<EOF > infra/deploy/env/app.env
+      MYSQL_USER=dummy
+      MYSQL_PASSWORD=dummy
+      EOF
+
+      cat <<EOF > infra/deploy/env/db.env
+      MYSQL_USER=dummy
+      MYSQL_PASSWORD=dummy
+      MYSQL_DATABASE=dummy
+      MYSQL_ROOT_PASSWORD=dummy
+      EOF
+
+      cat <<EOF > infra/deploy/env/ai.env
+      OPENAI_API_KEY=dummy
+      DASHSCOPE_API_KEY=dummy
+      QDRANT_URL=http://qdrant:6333
+      EOF
+
+      export BACKEND_IMAGE=dummy/backend
+      export BACKEND_TAG=latest
+      export WEB_IMAGE=dummy/web
+      export WEB_TAG=latest
+      export AI_IMAGE=dummy/ai
+      export AI_TAG=latest
+
       files=$(find infra/deploy/compose -maxdepth 1 -type f \( -name "docker-compose*.yml" -o -name "docker-compose*.yaml" \))
       for f in $files; do
         echo "Validating $f"
