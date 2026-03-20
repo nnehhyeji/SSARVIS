@@ -69,12 +69,8 @@ def qdrant_client(docker_stack: None) -> Iterator[QdrantClient]:
 
 
 @pytest.fixture(scope="session")
-def sample_voice_audio_uri() -> str:
-    payload = SAMPLE_VOICE_WAV.read_bytes()
-    import base64
-
-    encoded = base64.b64encode(payload).decode("utf-8")
-    return f"data:audio/wav;base64,{encoded}"
+def sample_voice_audio_bytes() -> bytes:
+    return SAMPLE_VOICE_WAV.read_bytes()
 
 
 @pytest.fixture(scope="session")

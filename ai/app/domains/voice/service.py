@@ -1,7 +1,10 @@
+import base64
 from typing import AsyncIterator
 
+from fastapi import UploadFile
+
 from app.domains.voice.exceptions import VoiceUpdateNotSupportedError
-from app.domains.voice.schema import VoiceCreateRequest, VoiceUpdateRequest
+from app.domains.voice.schema import VoiceUpdateRequest
 from app.infra.dashscope import DashScopeVoiceClient
 
 
@@ -12,10 +15,18 @@ class VoiceService:
     ) -> None:
         self.dashscope_client = dashscope_client
 
-    async def create_voice(self, body: VoiceCreateRequest) -> str:
+    async def create_voice(self, audio_file: UploadFile, audio_text: str) -> str:
+        audio_payload = await audio_file.read()
+        if not audio_payload:
+            raise ValueError("audio file must not be empty")
+
+        content_type = audio_file.content_type or "application/octet-stream"
+        encoded = base64.b64encode(audio_payload).decode("utf-8")
+        audio_data_uri = f"data:{content_type};base64,{encoded}"
+
         return await self.dashscope_client.create_voice_async(
-            audio_uri=body.audioUrl,
-            audio_text=body.audioText,
+            audio_uri=audio_data_uri,
+            audio_text=audio_text,
         )
 
     async def update_voice(self, body: VoiceUpdateRequest) -> None:

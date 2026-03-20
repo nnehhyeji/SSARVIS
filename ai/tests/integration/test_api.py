@@ -87,13 +87,11 @@ def _run_chat_until_close(payload: dict) -> list[dict]:
         websocket.close()
 
 
-def _create_voice(http_client, audio_uri: str, audio_text: str) -> str:
+def _create_voice(http_client, audio_bytes: bytes, audio_text: str) -> str:
     response = http_client.post(
         "/api/v1/voice",
-        json={
-            "audioUrl": audio_uri,
-            "audioText": audio_text,
-        },
+        data={"audioText": audio_text},
+        files={"audio": ("voice.wav", audio_bytes, "audio/wav")},
     )
     response.raise_for_status()
     return response.json()["data"]["voiceId"]
@@ -119,10 +117,10 @@ def test_prompt_endpoint_generates_system_prompt(http_client) -> None:
 
 def test_voice_endpoints_follow_new_contract(
     http_client,
-    sample_voice_audio_uri: str,
+    sample_voice_audio_bytes: bytes,
     sample_voice_text: str,
 ) -> None:
-    voice_id = _create_voice(http_client, sample_voice_audio_uri, sample_voice_text)
+    voice_id = _create_voice(http_client, sample_voice_audio_bytes, sample_voice_text)
     assert isinstance(voice_id, str)
     assert voice_id.strip()
 
@@ -130,7 +128,7 @@ def test_voice_endpoints_follow_new_contract(
         "/api/v1/voice",
         json={
             "voiceId": voice_id,
-            "audioUrl": sample_voice_audio_uri,
+            "audioUrl": "https://example.com/voice.wav",
             "audioText": sample_voice_text,
         },
     )
@@ -149,10 +147,10 @@ def test_voice_endpoints_follow_new_contract(
 def test_chat_websocket_persists_records_in_qdrant(
     http_client,
     qdrant_client: QdrantClient,
-    sample_voice_audio_uri: str,
+    sample_voice_audio_bytes: bytes,
     sample_voice_text: str,
 ) -> None:
-    voice_id = _create_voice(http_client, sample_voice_audio_uri, sample_voice_text)
+    voice_id = _create_voice(http_client, sample_voice_audio_bytes, sample_voice_text)
 
     first_general = _run_chat(
         _chat_payload(

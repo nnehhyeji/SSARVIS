@@ -1,8 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.domains.voice.exceptions import VoiceUpdateNotSupportedError
 from app.domains.voice.schema import (
-    VoiceCreateRequest,
     VoiceCreateResponse,
     VoiceDeleteRequest,
     VoiceMutationResponse,
@@ -22,10 +21,14 @@ def get_voice_service() -> VoiceService:
 
 @router.post("", response_model=VoiceCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_voice(
-    body: VoiceCreateRequest,
+    audio: UploadFile = File(...),
+    audioText: str = Form(...),
     voice_service: VoiceService = Depends(get_voice_service),
 ) -> VoiceCreateResponse:
-    voice_id = await voice_service.create_voice(body)
+    voice_id = await voice_service.create_voice(
+        audio_file=audio,
+        audio_text=audioText,
+    )
     return VoiceCreateResponse(
         message="음성 등록 성공",
         data={"voiceId": voice_id},
