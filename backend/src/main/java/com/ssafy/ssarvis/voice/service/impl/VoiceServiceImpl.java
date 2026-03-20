@@ -1,6 +1,5 @@
 package com.ssafy.ssarvis.voice.service.impl;
 
-import com.ssafy.ssarvis.common.service.S3Uploader;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.voice.dto.response.AiVoiceResponseDto;
