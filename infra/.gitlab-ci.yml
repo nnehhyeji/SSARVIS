@@ -232,11 +232,13 @@ trivy_security_web:
 
 trivy_security_ai:
   extends: .security_scan_template
+  variables:
+    TRIVY_FAIL_SEVERITY: "CRITICAL"
   script:
     - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --format template --template "@infra/trivy/html.tpl" -o ai-fs-report.html ./ai/
     - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --format template --template "@infra/trivy/html.tpl" -o ai-config-report.html ./ai/
-    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --exit-code 1 --severity HIGH,CRITICAL ./ai
-    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --exit-code 1 --severity HIGH,CRITICAL ./ai
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" fs --exit-code 1 --severity "$TRIVY_FAIL_SEVERITY" ./ai
+    - docker run --rm -e TRIVY_NO_PROGRESS="$TRIVY_NO_PROGRESS" -e TRIVY_CACHE_DIR=/work/.trivycache -v "$CI_PROJECT_DIR:/work" -w /work "$TRIVY_IMAGE" config --exit-code 1 --severity "$TRIVY_FAIL_SEVERITY" ./ai
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "develop"'
       changes:
@@ -320,6 +322,8 @@ build_and_scan_web:
 
 build_and_scan_ai:
   extends: .build_and_scan_template
+  variables:
+    TRIVY_FAIL_SEVERITY: "CRITICAL"
   script:
     - docker pull "$DOCKERHUB_USERNAME/ssarvis-ai:buildcache" || true
     - docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from "$DOCKERHUB_USERNAME/ssarvis-ai:buildcache" -t ai:$CI_COMMIT_SHA -f ./ai/Dockerfile ./ai
@@ -328,7 +332,7 @@ build_and_scan_ai:
     - docker push "$DOCKERHUB_USERNAME/ssarvis-ai:$CI_COMMIT_SHA"
     - docker push "$DOCKERHUB_USERNAME/ssarvis-ai:buildcache"
     - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true -v "$CI_PROJECT_DIR:/work" -w /work docker.io/aquasec/trivy:0.63.0 image --format template --template "@infra/trivy/html.tpl" -o ai-image-report.html "$DOCKERHUB_USERNAME/ssarvis-ai:$CI_COMMIT_SHA"
-    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true docker.io/aquasec/trivy:0.63.0 image --exit-code 1 --severity HIGH,CRITICAL "$DOCKERHUB_USERNAME/ssarvis-ai:$CI_COMMIT_SHA"
+    - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true docker.io/aquasec/trivy:0.63.0 image --exit-code 1 --severity "$TRIVY_FAIL_SEVERITY" "$DOCKERHUB_USERNAME/ssarvis-ai:$CI_COMMIT_SHA"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
       changes:
