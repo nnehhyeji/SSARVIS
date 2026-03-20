@@ -20,6 +20,7 @@ export type ChatMessage = {
 // 팔로우 대상 타입
 export type Follow = {
   id: number;
+  followId?: number;
   name: string;
   email: string;
   color: string;
