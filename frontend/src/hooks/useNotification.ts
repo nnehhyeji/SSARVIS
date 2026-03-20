@@ -98,11 +98,14 @@ export function useNotification() {
     }
   }, [alarms]);
 
-  // --- SSE 구독 ---
+  // 초기 데이터 패칭 로직 독립 분리
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchNotifications();
+  }, [fetchNotifications]);
 
+  // --- SSE 구독 --- (의존성 최소화)
+  useEffect(() => {
     let eventSource: EventSourcePolyfill | null = null;
     const token = localStorage.getItem('token');
 
@@ -180,7 +183,7 @@ export function useNotification() {
         eventSource.close();
       }
     };
-  }, [fetchNotifications]);
+  }, []);
 
   return {
     alarms,

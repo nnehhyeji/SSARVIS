@@ -184,17 +184,22 @@ export function useFollow() {
       setIsSearchLoading(true);
       searchTimeoutRef.current = setTimeout(async () => {
         try {
-          // 닉네임 검색
-          let res = await followApi.searchUsers({ nickname: query });
+          // 닉네임, 이메일 검색을 병렬(Promise.all)로 진행하여 응답 속도 최적화
+          // (차후 백엔드에서 통합 검색 API를 제공해주기 전까지 클라이언트 측 임시 최적화)
+          const [nicknameRes, emailRes] = await Promise.all([
+            followApi.searchUsers({ nickname: query }).catch(() => ({ data: [] as never[] })),
+            followApi.searchUsers({ email: query }).catch(() => ({ data: [] as never[] })),
+          ]);
 
-          // 결과 없을 시 이메일로 자동 재시도
-          if (!res.data || res.data.length === 0) {
-            res = await followApi.searchUsers({ email: query });
-          }
+          const combinedData = [...(nicknameRes.data || []), ...(emailRes.data || [])];
 
-          if (res.data) {
-            const mappedUsers: Follow[] = res.data.map((u) => ({
+          // 중복 아이디(userId) 제거 로직
+          const uniqueUsers = Array.from(new Map(combinedData.map((u) => [u.userId, u])).values());
+
+          if (uniqueUsers.length > 0) {
+            const mappedUsers: Follow[] = uniqueUsers.map((u) => ({
               id: u.userId,
+              followId: undefined, // 검색 결과에는 followId가 없을 수 있음
               name: u.nickname,
               email: u.email,
               color: 'bg-gray-200',
@@ -220,6 +225,7 @@ export function useFollow() {
 
   return {
     follows,
+    allUsers: follows, // CardPage.tsx 호환성을 위해 추가
     followRequests,
     searchResults,
     isSearchLoading,
