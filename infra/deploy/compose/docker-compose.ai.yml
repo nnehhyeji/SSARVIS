@@ -1,18 +1,25 @@
 services:
   ai:
-    build: .
+    image: ${AI_IMAGE}:${AI_TAG}
+    container_name: ai
+    env_file:
+      - ../env/ai.env
     expose:
       - "8000"
     networks:
       - internal-net
     restart: unless-stopped
     depends_on:
-      - qdrant
+      qdrant:
+        condition: service_started
 
   qdrant:
     image: qdrant/qdrant:latest
+    container_name: qdrant
     expose:
       - "6333"
+    networks:
+      - internal-net
     volumes:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped

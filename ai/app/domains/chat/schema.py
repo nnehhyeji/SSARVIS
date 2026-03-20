@@ -25,7 +25,7 @@ class ChatHistoryItem(BaseModel):
 
 
 class SimilarChatItem(BaseModel):
-    chat_id: str
+    session_id: str
     user_id: int
     chat_mode: str
     memory_policy: str
@@ -42,7 +42,7 @@ class ChatContext(BaseModel):
 
 class ChatEvent(BaseModel):
     type: str
-    requestId: str
+    sessionId: str
     sequence: int | None = None
     payload: dict = Field(default_factory=dict)
 

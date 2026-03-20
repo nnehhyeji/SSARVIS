@@ -18,7 +18,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
-// import org.hibernate.annotations.ManyToAny;
 import org.hibernate.type.SqlTypes;
 
 @Getter
@@ -39,7 +38,11 @@ public class Voice {
     private UUID modelUuid;
 
     @NotNull
+    private String name;
+
+    @NotNull
     @JoinColumn(name = "user_id")
     @ManyToOne(fetch = FetchType.LAZY)
     private User user;
+
 }

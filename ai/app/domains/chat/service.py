@@ -128,6 +128,7 @@ class ChatService:
             self.build_query_embedding_text(request.text)
         )
         similar_conversations = await self.chat_repository.search_similar(
+            session_id=request.sessionId,
             user_id=request.userId,
             chat_mode=request.chatMode,
             memory_policy=request.memoryPolicy,
@@ -156,6 +157,7 @@ class ChatService:
             self.build_storage_embedding_text(request.text, response)
         )
         return await self.chat_repository.save_chat(
+            session_id=request.sessionId,
             user_id=request.userId,
             chat_mode=request.chatMode,
             memory_policy=request.memoryPolicy,

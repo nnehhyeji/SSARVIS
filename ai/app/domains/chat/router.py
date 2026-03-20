@@ -1,5 +1,4 @@
 import logging
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -9,6 +8,7 @@ from app.domains.chat.repository import ChatRepository
 from app.domains.chat.schema import ChatErrorEvent, ChatEvent, ChatRequest
 from app.domains.chat.service import ChatService
 from app.domains.voice.service import VoiceService
+from app.infra.audio_transcoder import AudioTranscoder
 from app.infra.dashscope import DashScopeVoiceClient
 from app.infra.openai import OpenAIClient
 from app.infra.prompt_loader import PromptTemplateLoader
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 openai_client = OpenAIClient()
 dashscope_voice_client = DashScopeVoiceClient()
+audio_transcoder = AudioTranscoder()
 
 
 def get_openai_client() -> OpenAIClient:
@@ -54,7 +55,7 @@ def get_chat_service(
 def get_voice_service(
     dashscope_client: DashScopeVoiceClient = Depends(get_dashscope_voice_client),
 ) -> VoiceService:
-    return VoiceService(dashscope_client)
+    return VoiceService(dashscope_client, audio_transcoder)
 
 
 async def _send_error(
@@ -96,11 +97,10 @@ async def chat(
             )
             return
 
-        request_id = uuid4().hex
         await ws.send_text(
             ChatEvent(
                 type="text.start",
-                requestId=request_id,
+                sessionId=request.sessionId,
                 payload={},
             ).model_dump_json()
         )
@@ -112,7 +112,7 @@ async def chat(
         await ws.send_text(
             ChatEvent(
                 type="text.end",
-                requestId=request_id,
+                sessionId=request.sessionId,
                 sequence=0,
                 payload={"text": assistant_response},
             ).model_dump_json()
@@ -120,7 +120,7 @@ async def chat(
         await ws.send_text(
             ChatEvent(
                 type="voice.start",
-                requestId=request_id,
+                sessionId=request.sessionId,
                 payload={},
             ).model_dump_json()
         )
@@ -137,7 +137,7 @@ async def chat(
             await ws.send_text(
                 ChatEvent(
                     type="voice.delta",
-                    requestId=request_id,
+                    sessionId=request.sessionId,
                     sequence=sequence,
                     payload={
                         "mimeType": "audio/webm",
@@ -150,7 +150,7 @@ async def chat(
         await ws.send_text(
             ChatEvent(
                 type="voice.end",
-                requestId=request_id,
+                sessionId=request.sessionId,
                 sequence=sequence,
                 payload={},
             ).model_dump_json()

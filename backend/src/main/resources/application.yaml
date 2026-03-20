@@ -39,6 +39,8 @@ spring:
       enabled: true
     s3:
       bucket: ${S3_BUCKET_NAME}
+    ai-server:
+      url: ${AI_SERVER_URL}
 
   cloud:
     aws:

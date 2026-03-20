@@ -5,6 +5,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface VoiceService {
 
-    VoiceUploadResponseDto uploadVoice(Long userId, MultipartFile audioFile, String sttText);
+    VoiceUploadResponseDto uploadVoice(Long userId, MultipartFile audioFile, String sttTexts);
 
 }

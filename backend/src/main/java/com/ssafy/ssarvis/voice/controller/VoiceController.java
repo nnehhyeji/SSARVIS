@@ -16,19 +16,22 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/voices")
+@RequestMapping("/api/v1/ai")
 public class VoiceController {
 
     private final VoiceService voiceService;
 
-    @PostMapping(value = "/ai", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/voices", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<BaseResponse<VoiceUploadResponseDto>> uploadVoice(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,
         @RequestPart("audio_file") MultipartFile audioFile,
         @RequestPart("stt_text") String sttText
     ) {
-        Long userId = customUserDetails.getUserId();
-        VoiceUploadResponseDto response = voiceService.uploadVoice(userId, audioFile, sttText);
-        return ResponseEntity.ok(BaseResponse.success("음성 저장 성공", response));
+        VoiceUploadResponseDto response = voiceService.uploadVoice(
+            customUserDetails.getUserId(), audioFile, sttText);
+
+        return ResponseEntity.ok(BaseResponse.success("음성 등록 요청 수락", response));
     }
+
+
 }
