@@ -148,7 +148,11 @@ infra_compose_validate:
     TRIVY_NO_PROGRESS: "true"
     TRIVY_CACHE_DIR: ".trivycache/"
     TRIVY_IMAGE: "docker.io/aquasec/trivy:0.63.0"
+  before_script:
+    - echo "source=$CI_PIPELINE_SOURCE branch=$CI_COMMIT_BRANCH sha=$CI_COMMIT_SHA"
+    - rm -rf .trivycache/policy
   cache:
+    key: trivy-0-63-0
     paths:
       - .trivycache/
 
