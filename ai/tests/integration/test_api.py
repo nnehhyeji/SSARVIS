@@ -190,6 +190,9 @@ def test_chat_websocket_persists_records_in_qdrant(
         "text.end",
         "voice.start",
     ]
+    assert all(event["sessionId"] == "session-general-1" for event in first_general)
+    assert all(event["sessionId"] == "session-secret-1" for event in second_secret)
+    assert all(event["sessionId"] == "session-general-2" for event in third_general)
     assert first_general[1]["payload"]["text"].strip()
     assert second_secret[1]["payload"]["text"].strip()
     assert third_general[1]["payload"]["text"].strip()
@@ -211,6 +214,11 @@ def test_chat_websocket_persists_records_in_qdrant(
     payloads = [record.payload for record in records]
 
     assert len(payloads) == 3
+    assert {payload["session_id"] for payload in payloads} == {
+        "session-general-1",
+        "session-secret-1",
+        "session-general-2",
+    }
     assert sum(1 for payload in payloads if payload["memory_policy"] == "GENERAL") == 2
     assert sum(1 for payload in payloads if payload["memory_policy"] == "SECRET") == 1
     assert all(payload["response"].strip() for payload in payloads)
