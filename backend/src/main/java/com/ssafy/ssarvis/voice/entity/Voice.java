@@ -33,9 +33,8 @@ public class Voice {
     private Long id;
 
     @NotNull
-    @JdbcTypeCode(SqlTypes.BINARY)
-    @Column(name = "order_id", columnDefinition = "BINARY(16)", unique = true)
-    private UUID modelUuid;
+    @Column(name = "model_id", unique = true, length = 255)
+    private String modelId;
 
     @NotNull
     private String name;

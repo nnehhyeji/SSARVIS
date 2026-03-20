@@ -88,21 +88,40 @@ public class VoiceServiceImpl implements VoiceService {
     @Async("voiceUploadExecutor")
     public void processVoiceWithAiAsync(Long userId, MultipartFile audioFile, String text) {
         try {
+            // 1. 텍스트가 비어있는지 체크 (디버깅용 로그 추가)
+            log.info("AI 서버로 전송할 텍스트: {}", text);
+            if (text == null) text = "";
+
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            // Content-Type 설정은 여전히 하지 않습니다 (RestTemplate이 자동 생성)
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
 
-            body.add("audio", new ByteArrayResource(audioFile.getBytes()) {
-                @Override
-                public String getFilename() {
-                    return audioFile.getOriginalFilename();
-                }
-            });
-            body.add("audio_text", text);
+            // 2. 오디오 파일 파트 (HttpEntity로 감싸서 더 확실하게)
+            HttpHeaders audioPartHeaders = new HttpHeaders();
+            audioPartHeaders.setContentType(MediaType.parseMediaType(audioFile.getContentType()));
+
+            HttpEntity<ByteArrayResource> audioEntity = new HttpEntity<>(
+                new ByteArrayResource(audioFile.getBytes()) {
+                    @Override
+                    public String getFilename() {
+                        return audioFile.getOriginalFilename();
+                    }
+                },
+                audioPartHeaders
+            );
+            body.add("audio", audioEntity);
+
+            // 3. 텍스트 파트 (HttpEntity로 감싸서 Content-Type 명시)
+            HttpHeaders textPartHeaders = new HttpHeaders();
+            textPartHeaders.setContentType(MediaType.TEXT_PLAIN); // 텍스트임을 명시
+
+            HttpEntity<String> textEntity = new HttpEntity<>(text, textPartHeaders);
+            body.add("audioText", textEntity); // FastAPI의 필드명인 audioText와 일치
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
+            // 호출
             ResponseEntity<AiVoiceResponseDto> response = restTemplate.postForEntity(
                 aiServerUrl + "/api/v1/voice", requestEntity, AiVoiceResponseDto.class);
 
@@ -111,7 +130,7 @@ public class VoiceServiceImpl implements VoiceService {
                 saveVoiceEntity(userId, modelId);
             }
         } catch (Exception e) {
-            log.error("AI 서버 통신 실패 - 사용자 ID: {}, 원인: {}", userId, e.getMessage());
+            log.error("AI 서버 통신 실패 - 원인: {}", e.getMessage(), e);
         }
     }
 
@@ -119,8 +138,9 @@ public class VoiceServiceImpl implements VoiceService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
+        // UUID.fromString() 없이 바로 빌더에 넣음
         Voice voice = Voice.builder()
-            .modelUuid(UUID.fromString(modelId))
+            .modelId(modelId)
             .name(user.getNickname())
             .user(user)
             .build();
