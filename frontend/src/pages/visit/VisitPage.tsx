@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MessageCircle, Mic, MicOff } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -20,7 +20,6 @@ import PersonaModal from '../../components/features/follow/PersonaModal';
 
 // Constants & Types
 import { PATHS } from '../../routes/paths';
-import type { Follow } from '../../types';
 
 export default function VisitPage() {
   const { userId } = useParams();
@@ -51,6 +50,8 @@ export default function VisitPage() {
   const {
     follows,
     followRequests,
+    searchResults,
+    isSearchLoading,
     isVisitorMode,
     visitedFollowName,
     visitedUserId,
@@ -66,7 +67,7 @@ export default function VisitPage() {
     requestFollow,
     acceptRequest,
     rejectRequest,
-    searchAllUsers,
+    handleSearch,
   } = useFollow();
 
   // --- Callbacks for Stability ---
@@ -83,9 +84,6 @@ export default function VisitPage() {
   const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
     'following',
   );
-  const [searchResults, setSearchResults] = useState<Follow[]>([]);
-  const [isSearchLoading, setIsSearchLoading] = useState(false);
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- API / Logic ---
   useEffect(() => {
@@ -109,25 +107,6 @@ export default function VisitPage() {
   const backgroundProps = useMemo(() => {
     return visitorBg;
   }, [visitorBg]);
-
-  const handleSearch = useCallback(
-    async (query: string) => {
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-
-      if (!query.trim()) {
-        setSearchResults([]);
-        return;
-      }
-
-      setIsSearchLoading(true);
-      searchTimeoutRef.current = setTimeout(async () => {
-        const results = await searchAllUsers(query);
-        setSearchResults(results);
-        setIsSearchLoading(false);
-      }, 500);
-    },
-    [searchAllUsers],
-  );
 
   if (!isVisitorMode || !visitedFollowName) {
     return (

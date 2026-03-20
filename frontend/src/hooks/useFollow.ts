@@ -1,16 +1,17 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Follow, FollowRequest } from '../types';
 import { VISITOR_PALETTES } from '../constants/theme';
 import type { BgColors } from '../constants/theme';
 import followApi from '../apis/followApi';
 
-// ─── useFollow ───
-// 역할: 팔로우 목록, 요청, 방문 모드 및 상호작용 관련 상태를 관리합니다.
-// - 팔로우 방문, 삭제, 요청 수락/거절 기능을 제공합니다.
-
 export function useFollow() {
   const [follows, setFollows] = useState<Follow[]>([]);
   const [followRequests, setFollowRequests] = useState<FollowRequest[]>([]);
+
+  // --- Search States (Integrated from pages) ---
+  const [searchResults, setSearchResults] = useState<Follow[]>([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isVisitorMode, setIsVisitorMode] = useState(false);
   const [visitedFollowName, setVisitedFollowName] = useState<string>('');
@@ -19,46 +20,6 @@ export function useFollow() {
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
   const [visitorBg, setVisitorBg] = useState<BgColors>({});
   const [visitorVisibility, setVisitorVisibility] = useState<'public' | 'private'>('public');
-
-  const visitFollow = useCallback(
-    (id: number, isReturn: boolean = false) => {
-      // follows 목록에서 검색
-      const user = follows.find((f) => f.id === id);
-
-      if (!user) return null;
-
-      setVisitedFollowName(user.name);
-      setVisitedUserId(user.id);
-      setIsVisitorMode(true);
-      setIsDualAiMode(false);
-      setIsInteractionModalOpen(false);
-
-      // 공개 범위 로직: 내가 팔로우하고 있는 사람(isFollowing)이면 private, 아니면 public
-      const visibility = user.isFollowing ? 'private' : 'public';
-      setVisitorVisibility(visibility);
-
-      const randomPalette = VISITOR_PALETTES[Math.floor(Math.random() * VISITOR_PALETTES.length)];
-      setVisitorBg(randomPalette);
-
-      if (!isReturn) {
-        alert(`${user.name}님의 방으로 방문합니다. (${visibility} 모드)`);
-      }
-
-      return `${user.name} : 우리집에 왜 왔니 ?`; // triggerText 용도
-    },
-    [follows],
-  );
-
-  const leaveFollow = useCallback(() => {
-    setIsVisitorMode(false);
-    setIsDualAiMode(false);
-    setIsInteractionModalOpen(false);
-    setVisitedFollowName('');
-    setVisitedUserId(null);
-    setVisitorBg({});
-    setVisitorVisibility('public');
-    return '서영님 눈물닦고 할일하세요'; // triggerText 복구용
-  }, []);
 
   const fetchFollows = useCallback(async () => {
     try {
@@ -100,12 +61,62 @@ export function useFollow() {
     }
   }, []);
 
+  // --- Lifecycle: Data Fetching & Cleanup ---
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchFollows();
+    let isMounted = true;
 
-    fetchFollowRequests();
+    const loadInitialData = async () => {
+      // API 호출이 중복되거나 컴포넌트 언마운트 후 상태 업데이트 방지
+      if (!isMounted) return;
+      await Promise.all([fetchFollows(), fetchFollowRequests()]);
+    };
+
+    loadInitialData();
+
+    return () => {
+      isMounted = false;
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [fetchFollows, fetchFollowRequests]);
+
+  const visitFollow = useCallback(
+    (id: number, isReturn: boolean = false) => {
+      const user = follows.find((f) => f.id === id);
+      if (!user) return null;
+
+      setVisitedFollowName(user.name);
+      setVisitedUserId(user.id);
+      setIsVisitorMode(true);
+      setIsDualAiMode(false);
+      setIsInteractionModalOpen(false);
+
+      const visibility = user.isFollowing ? 'private' : 'public';
+      setVisitorVisibility(visibility);
+
+      const randomPalette = VISITOR_PALETTES[Math.floor(Math.random() * VISITOR_PALETTES.length)];
+      setVisitorBg(randomPalette);
+
+      if (!isReturn) {
+        alert(`${user.name}님의 방으로 방문합니다. (${visibility} 모드)`);
+      }
+
+      return `${user.name} : 우리집에 왜 왔니 ?`;
+    },
+    [follows],
+  );
+
+  const leaveFollow = useCallback(() => {
+    setIsVisitorMode(false);
+    setIsDualAiMode(false);
+    setIsInteractionModalOpen(false);
+    setVisitedFollowName('');
+    setVisitedUserId(null);
+    setVisitorBg({});
+    setVisitorVisibility('public');
+    return '서영님 눈물닦고 할일하세요';
+  }, []);
 
   const requestFollow = useCallback(async (receiverId: number, name: string) => {
     try {
@@ -117,25 +128,27 @@ export function useFollow() {
     }
   }, []);
 
-  const deleteFollow = useCallback(async (follow: Follow) => {
-    try {
-      if (follow.followId) {
-        await followApi.deleteFollow(follow.followId);
-      } else {
-        // Mock fallback
+  const deleteFollow = useCallback(
+    async (follow: Follow) => {
+      try {
+        if (follow.followId) {
+          await followApi.deleteFollow(follow.followId);
+        }
+        alert(`${follow.name}님을 팔로우 취소했습니다.`);
+        // 피드백 반영: 서버 데이터와 동기화
+        fetchFollows();
+      } catch (error) {
+        console.error('친구 삭제 실패:', error);
+        alert('친구 삭제에 실패했습니다.');
       }
-      setFollows((prev) => prev.filter((f) => f.id !== follow.id));
-      alert(`${follow.name}님을 팔로우 취소했습니다.`);
-    } catch (error) {
-      console.error('친구 삭제 실패:', error);
-      alert('친구 삭제에 실패했습니다.');
-    }
-  }, []);
+    },
+    [fetchFollows],
+  );
 
   const acceptRequest = useCallback(
     async (id: number, name: string) => {
       try {
-        await followApi.acceptFollow({ followRequestId: id }); // id를 followRequestId라고 가정
+        await followApi.acceptFollow({ followRequestId: id });
         setFollowRequests((prev) => prev.filter((req) => req.id !== id));
         alert(`${name}님의 팔로우 요청을 수락했습니다.`);
         fetchFollows();
@@ -158,37 +171,49 @@ export function useFollow() {
     }
   }, []);
 
-  // 전체 유저 검색 (API 활용)
-  const searchAllUsers = useCallback(
+  // --- Debounced Search Logic ---
+  const handleSearch = useCallback(
     async (query: string) => {
-      if (!query.trim()) return [];
-      try {
-        // 1. 닉네임으로 검색 시도
-        let res = await followApi.searchUsers({ nickname: query });
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
-        // 2. 결과가 없으면 이메일로 검색 시도 (백엔드 제약 사항 대응)
-        if (!res.data || res.data.length === 0) {
-          res = await followApi.searchUsers({ email: query });
-        }
-
-        if (res.data) {
-          const mappedUsers: Follow[] = res.data.map((u) => ({
-            id: u.userId,
-            name: u.nickname,
-            email: u.email,
-            color: 'bg-gray-200',
-            profileExp: 'o_o',
-            view_count: 0,
-            isFollowing: follows.some((f) => f.id === u.userId), // 이미 팔로우 중인지 확인
-            isFollower: false,
-          }));
-          return mappedUsers;
-        }
-        return [];
-      } catch (error) {
-        console.error('유저 검색 실패:', error);
-        return [];
+      if (!query.trim()) {
+        setSearchResults([]);
+        return;
       }
+
+      setIsSearchLoading(true);
+      searchTimeoutRef.current = setTimeout(async () => {
+        try {
+          // 닉네임 검색
+          let res = await followApi.searchUsers({ nickname: query });
+
+          // 결과 없을 시 이메일로 자동 재시도
+          if (!res.data || res.data.length === 0) {
+            res = await followApi.searchUsers({ email: query });
+          }
+
+          if (res.data) {
+            const mappedUsers: Follow[] = res.data.map((u) => ({
+              id: u.userId,
+              name: u.nickname,
+              email: u.email,
+              color: 'bg-gray-200',
+              profileExp: 'o_o',
+              view_count: 0,
+              isFollowing: follows.some((f) => f.id === u.userId),
+              isFollower: false,
+            }));
+            setSearchResults(mappedUsers);
+          } else {
+            setSearchResults([]);
+          }
+        } catch (error) {
+          console.error('유저 검색 실패:', error);
+          setSearchResults([]);
+        } finally {
+          setIsSearchLoading(false);
+        }
+      }, 500);
     },
     [follows],
   );
@@ -196,6 +221,8 @@ export function useFollow() {
   return {
     follows,
     followRequests,
+    searchResults,
+    isSearchLoading,
     isVisitorMode,
     visitedFollowName,
     visitedUserId,
@@ -213,7 +240,7 @@ export function useFollow() {
     deleteFollow,
     acceptRequest,
     rejectRequest,
-    searchAllUsers,
+    handleSearch,
     fetchFollowRequests,
     fetchFollows,
   };

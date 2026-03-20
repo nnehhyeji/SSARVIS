@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { MessageCircle, Mic, MicOff, Lock, Unlock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,7 +21,7 @@ import ModePanel from '../../components/features/assistant/ModePanel';
 
 // Constants & Types
 import { BG_COLORS, LOCK_MODE_PALETTE } from '../../constants/theme';
-import type { Alarm, Mode, Follow } from '../../types';
+import type { Alarm, Mode } from '../../types';
 
 import { PATHS } from '../../routes/paths';
 
@@ -45,11 +45,13 @@ export default function HomePage() {
   const {
     follows,
     followRequests,
+    searchResults,
+    isSearchLoading,
+    requestFollow,
     deleteFollow,
     acceptRequest,
     rejectRequest,
-    requestFollow,
-    searchAllUsers,
+    handleSearch,
   } = useFollow();
 
   // --- Callbacks for Stability ---
@@ -67,9 +69,6 @@ export default function HomePage() {
   const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
     'following',
   );
-  const [searchResults, setSearchResults] = useState<Follow[]>([]);
-  const [isSearchLoading, setIsSearchLoading] = useState(false);
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 알림 데이터
   const [alarms, setAlarms] = useState<Alarm[]>([
@@ -90,25 +89,6 @@ export default function HomePage() {
       setIsUsersModalOpen(true);
     }
   }, []);
-
-  const handleSearch = useCallback(
-    async (query: string) => {
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-
-      if (!query.trim()) {
-        setSearchResults([]);
-        return;
-      }
-
-      setIsSearchLoading(true);
-      searchTimeoutRef.current = setTimeout(async () => {
-        const results = await searchAllUsers(query);
-        setSearchResults(results);
-        setIsSearchLoading(false);
-      }, 500);
-    },
-    [searchAllUsers],
-  );
 
   const backgroundProps = useMemo(() => {
     if (isLockMode) return LOCK_MODE_PALETTE;
