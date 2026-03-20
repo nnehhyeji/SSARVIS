@@ -27,7 +27,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -61,8 +61,14 @@ public class VoiceServiceImpl implements VoiceService {
     @Override
     public PromptResponseDto generateSystemPrompt(Long userId, Object rawJson) {
         try {
+            log.info("AI 서버로 전달할 데이터: {}", rawJson);
+
+            // AI 서버 호출 (경로가 /prompt 인지 /prompts 인지 확인 필수)
             ResponseEntity<AiPromptResponseDto> response = restTemplate.postForEntity(
-                aiServerUrl + "/api/v1/prompts", rawJson, AiPromptResponseDto.class);
+                aiServerUrl + "/api/v1/prompt",
+                rawJson,
+                AiPromptResponseDto.class
+            );
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 String generatedPrompt = response.getBody().data().systemPrompt();
@@ -70,9 +76,9 @@ public class VoiceServiceImpl implements VoiceService {
                 User user = userRepository.findById(userId)
                     .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-                user.updateUserPrompt(generatedPrompt); // 변경 감지(Dirty Checking)로 자동 저장
+                user.updateUserPrompt(generatedPrompt); // 유저 엔티티에 프롬프트 저장
 
-                log.info("사용자 {}의 시스템 프롬프트 업데이트 성공", user.getNickname());
+                log.info("사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
                 return new PromptResponseDto(generatedPrompt);
             }
 
@@ -83,7 +89,6 @@ public class VoiceServiceImpl implements VoiceService {
             throw new RuntimeException("시스템 프롬프트 생성에 실패했습니다.");
         }
     }
-
 
     @Async("voiceUploadExecutor")
     public void processVoiceWithAiAsync(Long userId, MultipartFile audioFile, String text) {
