@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAICharacter } from '../../hooks/useAICharacter';
 import { useChat } from '../../hooks/useChat';
 import { useFollow } from '../../hooks/useFollow';
+import { useNotification } from '../../hooks/useNotification';
 
 // Components
 import AnimatedBackground from '../../components/AnimatedBackground';
@@ -54,6 +55,8 @@ export default function HomePage() {
     handleSearch,
   } = useFollow();
 
+  const { alarms, readAlarm, readAllAlarms, removeAllAlarms } = useNotification();
+
   // --- Callbacks for Stability ---
   const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
   const handleEndSpeaking = useCallback(() => setIsSpeaking(false), [setIsSpeaking]);
@@ -70,25 +73,17 @@ export default function HomePage() {
     'following',
   );
 
-  // 알림 데이터
-  const [alarms, setAlarms] = useState<Alarm[]>([
-    {
-      id: 1,
-      message: '김싸피님이 팔로우를 요청했습니다.',
-      isRead: false,
-      time: '방금 전',
-      type: 'follow',
+  const handleAlarmClick = useCallback(
+    (alarm: Alarm) => {
+      readAlarm(alarm.id);
+      if (alarm.type === 'follow') {
+        setIsAlarmModalOpen(false);
+        setSidebarView('requests');
+        setIsUsersModalOpen(true);
+      }
     },
-  ]);
-
-  const handleAlarmClick = useCallback((alarm: Alarm) => {
-    setAlarms((prev) => prev.map((a) => (a.id === alarm.id ? { ...a, isRead: true } : a)));
-    if (alarm.type === 'follow') {
-      setIsAlarmModalOpen(false);
-      setSidebarView('requests');
-      setIsUsersModalOpen(true);
-    }
-  }, []);
+    [readAlarm],
+  );
 
   const backgroundProps = useMemo(() => {
     if (isLockMode) return LOCK_MODE_PALETTE;
@@ -136,8 +131,8 @@ export default function HomePage() {
         alarms={alarms}
         isAlarmModalOpen={isAlarmModalOpen}
         onToggleAlarm={() => setIsAlarmModalOpen(!isAlarmModalOpen)}
-        onReadAllAlarms={() => setAlarms((prev) => prev.map((a) => ({ ...a, isRead: true })))}
-        onDeleteAllAlarms={() => setAlarms([])}
+        onReadAllAlarms={readAllAlarms}
+        onDeleteAllAlarms={removeAllAlarms}
         onAlarmClick={handleAlarmClick}
         onMyCardClick={() => setIsMyCardModalOpen(true)}
         isVisitorMode={false}
