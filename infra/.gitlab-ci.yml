@@ -258,9 +258,6 @@ build_and_scan_backend:
         - backend/**/*
       when: on_success
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
-      changes:
-        - infra/.gitlab-ci.yml
-        - backend/**/*
       when: on_success
     - when: never
   artifacts:
@@ -287,10 +284,6 @@ build_and_scan_web:
         - infra/nginx/**/*
       when: on_success
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
-      changes:
-        - infra/.gitlab-ci.yml
-        - frontend/**/*
-        - infra/nginx/**/*
       when: on_success
     - when: never
   artifacts:
