@@ -161,7 +161,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 
 - 연결 후 클라이언트는 첫 메시지로 JSON 요청을 보냅니다.
 - 서버는 텍스트 응답과 음성 응답을 순서대로 전송합니다.
-- 음성은 `voice.delta` 텍스트 이벤트 뒤에 바이너리 프레임이 이어집니다.
+- 음성은 `voice.delta` 텍스트 이벤트 뒤에 청크 바이너리가 이어지고, 마지막에 `voice.end` 뒤로 최종 WebM 바이너리 프레임 1개가 추가로 이어집니다.
 
 클라이언트 요청 예시:
 
@@ -200,12 +200,13 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 2. `text.end`
 3. `voice.start`
 4. `voice.delta`
-5. 바이너리 프레임(webm)
+5. 바이너리 프레임(webm chunk)
 6. `voice.delta`
-7. 바이너리 프레임(webm)
-...
-8. `voice.end`
-9. 연결 종료
+7. 바이너리 프레임(webm chunk)
+8. ...
+9. `voice.end`
+10. 바이너리 프레임(webm 전체 파일)
+11. 연결 종료
 
 이벤트 예시:
 
@@ -252,7 +253,9 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
   "type": "voice.end",
   "sessionId": "session-general-1",
   "sequence": 3,
-  "payload": {}
+  "payload": {
+    "mimeType": "audio/webm"
+  }
 }
 ```
 
@@ -285,4 +288,5 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 
 비고:
 
-- `voice.delta` 이벤트 뒤에는 JSON이 아닌 바이너리 프레임이 옵니다.
+- 각 `voice.delta` 이벤트 뒤에는 chunk 바이너리 프레임이 옵니다.
+- `voice.end` 이벤트 뒤에는 JSON이 아닌 최종 오디오 바이너리 프레임이 한 번 더 옵니다.
