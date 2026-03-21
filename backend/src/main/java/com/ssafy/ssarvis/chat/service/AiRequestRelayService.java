@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.ssarvis.chat.dto.request.AiChatRequestDto;
 import com.ssafy.ssarvis.chat.interceptor.FastApiWebSocketHandler;
+import jakarta.websocket.ContainerProvider;
+import jakarta.websocket.WebSocketContainer;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,7 +54,12 @@ public class AiRequestRelayService {
         FastApiWebSocketHandler handler,
         AiChatRequestDto payload
     ) {
-        StandardWebSocketClient client = new StandardWebSocketClient();
+        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+
+        container.setDefaultMaxBinaryMessageBufferSize(1024 * 1024);
+        container.setDefaultMaxTextMessageBufferSize(1024 * 1024);
+
+        StandardWebSocketClient client = new StandardWebSocketClient(container);
 
         client.execute(handler, fastApiWsUrl)
             .whenComplete((fastApiSession, throwable) -> {

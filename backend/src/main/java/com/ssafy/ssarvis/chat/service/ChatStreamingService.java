@@ -12,6 +12,8 @@ import com.ssafy.ssarvis.chat.dto.response.ChatMessageResponseDto;
 import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
+import com.ssafy.ssarvis.user.entity.User;
+import com.ssafy.ssarvis.user.repository.UserRepository;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,7 @@ public class ChatStreamingService {
     private final AiRequestRelayService aiRequestRelayService;
     private final UserInputStorageService userInputStorageService;
     private final ChatMessageService chatMessageService;
+    private final UserRepository userRepository;
 
     public void completeUserInput(WebSocketSession frontendSession, Long userId, String sessionId,
         AssistantType assistantType, MemoryPolicy memoryPolicy, File inputAudioTempFile,
@@ -41,13 +44,13 @@ public class ChatStreamingService {
             throw new CustomException("최종 STT 텍스트가 비어있습니다.", ErrorCode.USER_INPUT_TEXT_EMPTY);
         }
 
-        AssistantVoiceProjection assistantVoice = assistantRepository.getAssistantIdAndVoiceUuidByUserIdAndAssistantType(
+        AssistantVoiceProjection assistantVoice = assistantRepository.getAssistantIdAndModelIdByUserIdAndAssistantType(
                 userId, assistantType)
             .orElseThrow(
                 () -> new CustomException("ASSISTANT가 존재하지 않습니다.", ErrorCode.ASSISTANT_NOT_FOUND));
 
         Long assistantId = assistantVoice.getAssistantId();
-        UUID modelUuid = assistantVoice.getModelUuid();
+        String modelId = assistantVoice.getModelId();
 
         ChatSessionResponseDto chatSession = resolveSession(
             userId,
@@ -56,6 +59,8 @@ public class ChatStreamingService {
             assistantType,
             memoryPolicy
         );
+
+        String systemPrompt = userRepository.findUserPromptById(userId);
 
         List<ChatMessageResponseDto> recentMessage = chatMessageService.findRecentMessagesBySessionId(
             userId, chatSession.id());
@@ -70,10 +75,11 @@ public class ChatStreamingService {
         AiChatRequestDto aiRequest = buildAiChatRequest(
             chatSession,
             userId,
-            modelUuid,
+            systemPrompt,
+            history,
             finalText,
-            history
-        );
+            modelId
+            );
         aiRequestRelayService.send(frontendSession, aiRequest);
 
         // 비동기로 저장 요청 전송 (S3, Mongo)
@@ -116,18 +122,20 @@ public class ChatStreamingService {
     private AiChatRequestDto buildAiChatRequest(
         ChatSessionResponseDto chatSession,
         Long userId,
-        UUID modelUuid,
+        String systemPrompt,
+        List<Map<String, String>> history,
         String finalText,
-        List<Map<String, String>> history
-    ) {
+        String modelId
+        ) {
         return new AiChatRequestDto(
             chatSession.id(),
             userId,
-            modelUuid,
             chatSession.assistantType(),
             chatSession.memoryPolicy(),
+            systemPrompt,
+            history,
             finalText,
-            history
-        );
+            modelId
+            );
     }
 }

@@ -9,10 +9,11 @@ import java.util.UUID;
 public record AiChatRequestDto(
     String sessionId,
     Long userId,
-    UUID voiceId,
-    AssistantType assistantType,
+    AssistantType chatMode,
     MemoryPolicy memoryPolicy,
+    String systemPrompt,
+    List<Map<String, String>> history,
     String text,
-    List<Map<String, String>> history
-) {
+    String voiceId
+    ) {
 }

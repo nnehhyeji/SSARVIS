@@ -32,6 +32,7 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
 
     private boolean voiceStarted = false;
     private boolean voiceEnded = false;
+    private boolean finalBinaryExist = false;
 
     public FastApiWebSocketHandler(
         WebSocketSession frontendSession,
@@ -58,11 +59,13 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
             message.getPayload(),
             AiStreamMessageDto.class
         );
+        log.info(dto.toString());
 
         switch (dto.type()) {
             case "text.start" -> handleTextStart(dto);
             case "text.end" -> handleTextEnd(dto);
             case "voice.start" -> handleVoiceStart(dto);
+            case "voice.delta" -> handleVoiceDelta(dto); // 추가된 부분
             case "voice.end" -> handleVoiceEnd(dto);
             default -> log.warn("알 수 없는 FastAPI 메시지 type={}", dto.type());
         }
@@ -73,7 +76,12 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) throws Exception {
         relayBinaryToFrontend(message);
-        appendAudioChunk(message);
+//        appendAudioChunk(message);
+
+        if (this.finalBinaryExist) {
+            appendAudioChunk(message);
+            finishAndSaveAiOutput();
+        }
     }
 
     @Override
@@ -109,6 +117,12 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
         log.info("FastAPI text.end sessionId={}, textLength={}", dto.sessionId(), text != null ? text.length() : 0);
     }
 
+    private void handleVoiceDelta(AiStreamMessageDto dto) {
+        String mimeType = dto.payload() != null ? dto.payload().mimeType() : null;
+        log.debug("FastAPI voice.delta 수신. sessionId={}, sequence={}, mimeType={}",
+            dto.sessionId(), dto.sequence(), mimeType);
+    }
+
     private void handleVoiceStart(AiStreamMessageDto dto) {
         voiceStarted = true;
 
@@ -124,13 +138,26 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
     private void handleVoiceEnd(AiStreamMessageDto dto) {
         voiceEnded = true;
         log.info("FastAPI voice.end sessionId={}, sequence={}", dto.sessionId(), dto.sequence());
+        this.finalBinaryExist = true;
+//        // 임시 오디오 파일 완성
+//        closeAudioStream();
+//
+//        String finalText = aiTextBuilder.toString();
+//        aiOutputStorageService.saveAiOutputAsync(sessionId, userId, finalText, aiAudioTempFile);
+//
+//        resetTurnState();
+    }
 
-        // 임시 오디오 파일 완성
+    private void finishAndSaveAiOutput() {
+        this.voiceEnded = true;
+        // 임시 오디오 파일 스트림 쓰기 종료
         closeAudioStream();
-
         String finalText = aiTextBuilder.toString();
+
+        // 비동기 S3/Mongo 저장
         aiOutputStorageService.saveAiOutputAsync(sessionId, userId, finalText, aiAudioTempFile);
 
+        // 내부 상태 초기화
         resetTurnState();
     }
 
@@ -237,6 +264,7 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
         bos = null;
         voiceStarted = false;
         voiceEnded = false;
+        finalBinaryExist = false;
         log.debug("턴 상태 초기화 완료. sessionId={}", sessionId);
     }
 }

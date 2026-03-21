@@ -10,11 +10,11 @@ import org.springframework.data.repository.query.Param;
 public interface AssistantRepository extends JpaRepository<Assistant, Long> {
     Optional<Long> findAssistantIdByUserIdAndAssistantType(Long userId, AssistantType assistantType);
 
-    @Query("SELECT a.id as assistantId, v.modelUuid as voiceUuid " +
+    @Query("SELECT a.id as assistantId, v.modelId as modelId " +
         "FROM Assistant a " +
         "JOIN a.voice v " +
         "WHERE a.user.id = :userId AND a.assistantType = :assistantType")
-    Optional<AssistantVoiceProjection> getAssistantIdAndVoiceUuidByUserIdAndAssistantType(
+    Optional<AssistantVoiceProjection> getAssistantIdAndModelIdByUserIdAndAssistantType(
         @Param("userId") Long userId,
         @Param("assistantType") AssistantType assistantType
     );
