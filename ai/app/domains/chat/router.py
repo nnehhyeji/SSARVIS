@@ -128,12 +128,15 @@ async def chat(
         encoder = WebMAudioEncoder()
         tts_text = chat_service.sanitize_tts_text(assistant_response)
         pcm_buffer = bytearray()
-        sequence = 0
 
         async for pcm_chunk in voice_service.synthesize(tts_text, request.voiceId):
             pcm_buffer.extend(pcm_chunk)
 
-        for packet in await encoder.encode_chunks(bytes(pcm_buffer)):
+        encoded_packets = await encoder.encode_chunks(bytes(pcm_buffer))
+        complete_audio = b"".join(encoded_packets)
+        sequence = 0
+
+        for packet in encoded_packets:
             await ws.send_text(
                 ChatEvent(
                     type="voice.delta",
@@ -152,9 +155,13 @@ async def chat(
                 type="voice.end",
                 sessionId=request.sessionId,
                 sequence=sequence,
-                payload={},
+                payload={
+                    "mimeType": "audio/webm",
+                },
             ).model_dump_json()
         )
+        if complete_audio:
+            await ws.send_bytes(complete_audio)
         await ws.close()
     except WebSocketDisconnect:
         logger.info("Client disconnected")
