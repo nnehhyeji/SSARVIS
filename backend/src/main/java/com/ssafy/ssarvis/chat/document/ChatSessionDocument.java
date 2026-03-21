@@ -1,6 +1,6 @@
 package com.ssafy.ssarvis.chat.document;
 
-import com.ssafy.ssarvis.chat.domain.ChatMode;
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.chat.domain.ChatSessionStatus;
 import com.ssafy.ssarvis.chat.domain.ChatSessionType;
 import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
@@ -23,11 +23,11 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @CompoundIndexes({
     @CompoundIndex(
         name = "user_chat_mode_memory_policy_chat_session_status_idx",
-        def = "{'userId': 1, 'chatMode': 1, 'memoryPolicy': 1, 'chatSessionStatus': 1}"
+        def = "{'userId': 1, 'assistantType': 1, 'memoryPolicy': 1, 'chatSessionStatus': 1}"
     ),
     @CompoundIndex(
         name = "user_mode_last_message_idx",
-        def = "{'userId': 1, 'chatMode': 1, 'lastMessageAt': -1}"
+        def = "{'userId': 1, 'assistantType': 1, 'lastMessageAt': -1}"
     )
 })
 public class ChatSessionDocument {
@@ -41,8 +41,8 @@ public class ChatSessionDocument {
     private Long assistantId;
 
     @Indexed
-    // NORMAL, COUNSELING, STUDY
-    private ChatMode chatMode;
+    // DAILY, STUDY, COUNSEL, PERSONA
+    private AssistantType assistantType;
 
     // USER_AI, AVATAR_AI
     private ChatSessionType chatSessionType;
@@ -66,14 +66,14 @@ public class ChatSessionDocument {
     private LocalDateTime expiredAt;
 
     public static ChatSessionDocument create(
-        Long userId, Long assistantId, ChatMode chatMode,
+        Long userId, Long assistantId, AssistantType assistantType,
         ChatSessionType chatSessionType, String title,
         MemoryPolicy memoryPolicy, LocalDateTime now, LocalDateTime expiredAt
     ) {
         return ChatSessionDocument.builder()
             .userId(userId)
             .assistantId(assistantId)
-            .chatMode(chatMode)
+            .assistantType(assistantType)
             .chatSessionType(chatSessionType)
             .title(title)
             .memoryPolicy(memoryPolicy)

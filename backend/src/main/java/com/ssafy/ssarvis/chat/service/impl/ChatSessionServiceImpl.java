@@ -21,13 +21,12 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     private final ChatSessionRepository chatSessionRepository;
 
-
     @Override
     public ChatSessionResponseDto getOrCreateSession(ChatSessionCreateRequestDto chatSessionCreateRequestDto) {
         if (chatSessionCreateRequestDto.memoryPolicy() == MemoryPolicy.GENERAL) {
-            return chatSessionRepository.findByUserIdAndChatModeAndMemoryPolicyAndChatSessionStatus(
+            return chatSessionRepository.findByUserIdAndAssistantTypeAndMemoryPolicyAndChatSessionStatus(
                     chatSessionCreateRequestDto.userId(),
-                    chatSessionCreateRequestDto.chatMode(),
+                    chatSessionCreateRequestDto.assistantType(),
                     MemoryPolicy.GENERAL,
                     ChatSessionStatus.ACTIVE
                 )
@@ -45,7 +44,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         ChatSessionDocument chatSessionDocument = ChatSessionDocument.create(
             chatSessionCreateRequestDto.userId(),
             chatSessionCreateRequestDto.assistantId(),
-            chatSessionCreateRequestDto.chatMode(),
+            chatSessionCreateRequestDto.assistantType(),
             chatSessionCreateRequestDto.chatSessionType(),
             chatSessionCreateRequestDto.title(),
             chatSessionCreateRequestDto.memoryPolicy(),

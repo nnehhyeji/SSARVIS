@@ -12,10 +12,15 @@ import com.ssafy.ssarvis.chat.repository.ChatSessionRepository;
 import com.ssafy.ssarvis.chat.service.ChatMessageService;
 import com.ssafy.ssarvis.chat.service.ChatSessionService;
 import com.ssafy.ssarvis.common.advice.CustomException;
-import com.ssafy.ssarvis.common.dto.ListResponseDto;
+import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -37,7 +42,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             chatSessionDocument.getId(),
             chatSessionDocument.getUserId(),
             chatSessionDocument.getAssistantId(),
-            chatSessionDocument.getChatMode(),
+            chatSessionDocument.getAssistantType(),
             chatUserMessageCreateRequestDto.text(),
             chatUserMessageCreateRequestDto.audio(),
             now
@@ -61,13 +66,13 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             chatSessionDocument.getId(),
             chatSessionDocument.getUserId(),
             chatSessionDocument.getAssistantId(),
-            chatSessionDocument.getChatMode(),
+            chatSessionDocument.getAssistantType(),
             text,
             now
         );
         // AI 메시지 저장
         ChatMessageDocument savedDocument = chatMessageRepository.save(chatMessageDocument);
-        // 대화 개수 증가 + 세션 연장ㄴ
+        // 대화 개수 증가 + 세션 연장
         chatSessionService.increaseMessageCount(chatSessionDocument.getId());
 
         return ChatMessageResponseDto.from(savedDocument);
@@ -90,16 +95,17 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     }
 
     @Override
-    public ListResponseDto<ChatMessageResponseDto> findMessagesBySessionId(Long userId, String sessionId) {
+    public List<ChatMessageResponseDto> findRecentMessagesBySessionId(Long userId, String sessionId) {
         ChatSessionDocument chatSessionDocument = getSession(sessionId);
         validateSessionOwner(chatSessionDocument, userId);
+        Pageable pageable = PageRequest.of(0, Constants.CHAT_HISTORY_LIMIT, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        return ListResponseDto.from(
-            chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)
-                .stream()
-                .map(ChatMessageResponseDto::from)
-                .toList()
-        );
+        List<ChatMessageDocument> recentDocs = chatMessageRepository.findBySessionId(sessionId, pageable);
+
+        return recentDocs.stream()
+            .sorted(Comparator.comparing(ChatMessageDocument::getCreatedAt))
+            .map(ChatMessageResponseDto::from)
+            .toList();
     }
 
     private ChatSessionDocument getSession(String sessionId) {

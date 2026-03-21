@@ -22,21 +22,21 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationWebSocketInterceptor implements HandshakeInterceptor {
-
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService customUserDetailsService;
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
         WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
+
         String accessToken = resolveAccessToken(request);
 
         if (!StringUtils.hasText(accessToken) || !jwtUtil.validateToken(accessToken)) {
+            // 토큰이 없거나 유효하지 않으면 연결(Handshake) 자체를 거부
             return false;
         }
 
         Long userId = jwtUtil.getUserId(accessToken);
-
         CustomUserDetails customUserDetails = customUserDetailsService.loadUserById(userId);
         Authentication authentication = new UsernamePasswordAuthenticationToken(customUserDetails,
             null, customUserDetails.getAuthorities());
@@ -49,16 +49,15 @@ public class JwtAuthenticationWebSocketInterceptor implements HandshakeIntercept
 
     @Override
     public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
-        WebSocketHandler wsHandler, Exception exception) {
-
-    }
+        WebSocketHandler wsHandler, Exception exception) {}
 
     private String resolveAccessToken(ServerHttpRequest request) {
-        String authorizationHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (StringUtils.hasText(authorizationHeader)
-            && authorizationHeader.startsWith(Constants.BEARER_PREFIX)
-        ) {
-            return authorizationHeader.substring(Constants.BEARER_PREFIX.length());
+        if (request instanceof ServletServerHttpRequest) {
+            ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
+            String token = servletRequest.getServletRequest().getParameter("token");
+            if (StringUtils.hasText(token)) {
+                return token;
+            }
         }
         return null;
     }

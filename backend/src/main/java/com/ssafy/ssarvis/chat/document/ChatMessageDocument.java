@@ -1,8 +1,8 @@
 package com.ssafy.ssarvis.chat.document;
 
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.chat.domain.AudioMeta;
 import com.ssafy.ssarvis.chat.domain.ChatMessageStatus;
-import com.ssafy.ssarvis.chat.domain.ChatMode;
 import com.ssafy.ssarvis.chat.domain.SpeakerType;
 import org.springframework.data.annotation.Id;
 import java.time.LocalDateTime;
@@ -41,7 +41,7 @@ public class ChatMessageDocument {
 
     private Long assistantId;
 
-    private ChatMode chatMode;
+    private AssistantType assistantType;
 
     private SpeakerType speakerType;
 
@@ -65,7 +65,7 @@ public class ChatMessageDocument {
         String sessionId,
         Long userId,
         Long assistantId,
-        ChatMode chatMode,
+        AssistantType assistantType,
         String text,
         AudioMeta audio,
         LocalDateTime now
@@ -74,7 +74,7 @@ public class ChatMessageDocument {
             .sessionId(sessionId)
             .userId(userId)
             .assistantId(assistantId)
-            .chatMode(chatMode)
+            .assistantType(assistantType)
             .speakerType(SpeakerType.USER)
             .speakerId(userId)
             .text(text)
@@ -88,7 +88,7 @@ public class ChatMessageDocument {
         String sessionId,
         Long userId,
         Long assistantId,
-        ChatMode chatMode,
+        AssistantType assistantType,
         String text,
         LocalDateTime now
     ) {
@@ -96,7 +96,7 @@ public class ChatMessageDocument {
             .sessionId(sessionId)
             .userId(userId)
             .assistantId(assistantId)
-            .chatMode(chatMode)
+            .assistantType(assistantType)
             .speakerType(SpeakerType.ASSISTANT)
             .speakerId(assistantId)
             .text(text)
