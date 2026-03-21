@@ -4,6 +4,9 @@ import json
 from io import BytesIO
 import sys
 import os
+from pathlib import Path
+import subprocess
+import tempfile
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".." )))
 
@@ -15,9 +18,92 @@ from websocket import create_connection
 from app.domains.voice.service import VoiceService
 
 
+COMPOSE_FILE = "docker-compose.integration.yml"
+
+
+def _assert_ffprobe_webm(audio_bytes: bytes) -> None:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        host_path = Path(temp_dir) / "chat-audio.webm"
+        host_path.write_bytes(audio_bytes)
+
+        container_id_result = subprocess.run(
+            ["docker", "compose", "-f", COMPOSE_FILE, "ps", "-q", "ai"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        container_id = container_id_result.stdout.strip()
+        if not container_id:
+            raise AssertionError("AI container is not running for ffprobe validation")
+
+        container_path = "/tmp/chat-audio.webm"
+        subprocess.run(
+            ["docker", "cp", str(host_path), f"{container_id}:{container_path}"],
+            check=True,
+        )
+        try:
+            ffprobe_result = subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    container_id,
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "stream=codec_name,codec_type",
+                    "-show_entries",
+                    "format=format_name",
+                    "-of",
+                    "json",
+                    container_path,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    container_id,
+                    "ffmpeg",
+                    "-v",
+                    "error",
+                    "-i",
+                    container_path,
+                    "-f",
+                    "null",
+                    "-",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        finally:
+            subprocess.run(
+                ["docker", "exec", container_id, "rm", "-f", container_path],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+    probe = json.loads(ffprobe_result.stdout)
+    format_info = probe.get("format") or {}
+    format_name = format_info.get("format_name", "")
+    streams = probe.get("streams") or []
+
+    assert "webm" in format_name
+    assert any(
+        stream.get("codec_type") == "audio" and stream.get("codec_name") == "opus"
+        for stream in streams
+    )
+
+
 def _recv_chat_frames(websocket) -> list[dict]:
     events: list[dict] = []
     pending_voice_delta: dict | None = None
+    pending_voice_end: dict | None = None
 
     while True:
         raw_message = websocket.recv()
@@ -26,24 +112,30 @@ def _recv_chat_frames(websocket) -> list[dict]:
             event = json.loads(raw_message)
             if event["type"] == "voice.delta":
                 pending_voice_delta = event
+            elif event["type"] == "voice.end":
+                pending_voice_end = event
+                events.append(event)
             else:
                 events.append(event)
-                if event["type"] == "voice.end":
-                    break
             continue
 
         if isinstance(raw_message, (bytes, bytearray)):
-            if pending_voice_delta is None:
-                raise AssertionError("Received binary frame without voice.delta metadata")
-            pending_voice_delta["payload"]["data"] = bytes(raw_message)
-            events.append(pending_voice_delta)
-            pending_voice_delta = None
-            continue
+            if pending_voice_delta is not None:
+                pending_voice_delta["payload"]["data"] = bytes(raw_message)
+                events.append(pending_voice_delta)
+                pending_voice_delta = None
+                continue
+            if pending_voice_end is not None:
+                pending_voice_end["payload"]["data"] = bytes(raw_message)
+                break
+            raise AssertionError("Received binary frame without voice metadata")
 
         raise AssertionError(f"Unexpected websocket frame: {type(raw_message)!r}")
 
     if pending_voice_delta is not None:
         raise AssertionError("voice.delta metadata was not followed by a binary frame")
+    if pending_voice_end is not None and "data" not in pending_voice_end["payload"]:
+        raise AssertionError("voice.end metadata was not followed by a binary frame")
 
     return events
 
@@ -250,6 +342,15 @@ def test_chat_websocket_persists_records_in_qdrant(
     assert all(event["payload"]["mimeType"] == "audio/webm" for event in voice_delta_events)
     assert all(isinstance(event["payload"]["data"], bytes) for event in voice_delta_events)
     assert all(event["payload"]["data"] for event in voice_delta_events)
+
+    voice_end_events = [
+        event for event in third_general if event["type"] == "voice.end"
+    ]
+    assert len(voice_end_events) == 1
+    assert voice_end_events[0]["payload"]["mimeType"] == "audio/webm"
+    assert isinstance(voice_end_events[0]["payload"]["data"], bytes)
+    assert voice_end_events[0]["payload"]["data"]
+    _assert_ffprobe_webm(voice_end_events[0]["payload"]["data"])
 
     records, _ = qdrant_client.scroll(
         collection_name="integration_chats",
