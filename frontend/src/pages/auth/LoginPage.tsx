@@ -7,6 +7,7 @@ import AnimatedBackground from '../../components/AnimatedBackground';
 import { useUserStore } from '../../store/useUserStore';
 import authApi from '../../apis/authApi';
 import userApi from '../../apis/userApi';
+import { useVoiceLockStore } from '../../store/useVoiceLockStore';
 import { PATHS } from '../../routes/paths';
 
 export default function LoginPage() {
@@ -21,9 +22,13 @@ export default function LoginPage() {
       // 1. 로그인 요청
       const loginResponse = await authApi.login({ email, password });
 
-      // 2. 토큰 저장 (인터셉터에서 이미 저장하지만, 명시적으로 처리)
-      const token = loginResponse.data.accessToken;
-      localStorage.setItem('token', token);
+      // 2. 토큰 및 타임아웃 저장
+      const { accessToken, timeout } = loginResponse.data;
+      localStorage.setItem('token', accessToken);
+
+      if (timeout) {
+        useVoiceLockStore.getState().setTimeoutDuration(timeout);
+      }
 
       // 3. 유저 정보 조회
       const profile = await userApi.getUserProfile();

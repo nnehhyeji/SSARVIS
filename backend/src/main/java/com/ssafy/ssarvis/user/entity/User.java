@@ -65,6 +65,16 @@ public class User extends BaseTime {
     @Builder.Default
     private Long viewCount = 0L;
 
+    @Column(name = "voice_lock_timeout")
+    @Builder.Default
+    private Long voiceLockTimeout = 1800L;
+
+    @Column(name = "user_prompt", columnDefinition = "TEXT")
+    private String userPrompt;
+
+    @Column(name = "namna_prompt", columnDefinition = "TEXT")
+    private String namnaPrompt;
+
     public static User create(String email, String password, String nickname) {
         return User.builder()
             .email(email)
@@ -88,13 +98,22 @@ public class User extends BaseTime {
         this.withdrawStatus = true;
     }
 
-    public void updateUserVoicePassword(String voicePassword) {
+    public void updateUserVoicePassword(String voicePassword, Long timeout) {
         this.voicePassword = voicePassword;
+        this.voiceLockTimeout = timeout;
         this.isVoiceLockActive = true;
     }
 
     public void deleteUserVoicePassword() {
         this.voicePassword = null;
         this.isVoiceLockActive = false;
+    }
+
+    public void updateUserPrompt(String userPrompt) {
+        this.userPrompt = userPrompt;
+    }
+
+    public void updateNamnaPrompt(String namnaPrompt) {
+        this.namnaPrompt = namnaPrompt;
     }
 }

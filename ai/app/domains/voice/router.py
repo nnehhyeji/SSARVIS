@@ -1,60 +1,64 @@
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
-from app.core.database import get_db_session
-from app.domains.voice.exceptions import VoiceNotFoundError
-from app.domains.voice.repository import VoiceRepository
-from app.domains.voice.schema import VoiceCreateItem, VoiceResponse
+from app.domains.voice.exceptions import VoiceUpdateNotSupportedError
+from app.domains.voice.schema import (
+    VoiceCreateResponse,
+    VoiceDeleteRequest,
+    VoiceMutationResponse,
+    VoiceUpdateRequest,
+)
 from app.domains.voice.service import VoiceService
+from app.infra.audio_transcoder import AudioTranscoder
 from app.infra.dashscope import DashScopeVoiceClient
 
 
-router = APIRouter(prefix="/voices", tags=["voices"])
+router = APIRouter(prefix="/voice", tags=["voice"])
 dashscope_voice_client = DashScopeVoiceClient()
+audio_transcoder = AudioTranscoder()
 
 
-def _get_user_id(x_user_id: str = Header(...)) -> str:
-    user_id = x_user_id.strip()
-    if not user_id:
-        raise HTTPException(status_code=400, detail="X-User-Id header is required")
-    return user_id
+def get_voice_service() -> VoiceService:
+    return VoiceService(dashscope_voice_client, audio_transcoder)
 
 
-@router.post("", response_model=list[VoiceResponse], status_code=status.HTTP_201_CREATED)
-async def create_voices(
-    body: list[VoiceCreateItem] = Body(...),
-    x_user_id: str = Header(...),
-    session: AsyncSession = Depends(get_db_session),
-) -> list[VoiceResponse]:
-    user_id = _get_user_id(x_user_id)
-    if not body:
-        raise HTTPException(status_code=400, detail="At least one voice item is required")
-    voice_service = VoiceService(VoiceRepository(session), dashscope_voice_client)
-    voices = await voice_service.create_voices(user_id, body)
-    return [VoiceResponse.model_validate(voice) for voice in voices]
+@router.post("", response_model=VoiceCreateResponse, status_code=status.HTTP_201_CREATED)
+async def create_voice(
+    audio: UploadFile = File(...),
+    audioText: str = Form(...),
+    voice_service: VoiceService = Depends(get_voice_service),
+) -> VoiceCreateResponse:
+    voice_id = await voice_service.create_voice(
+        audio_file=audio,
+        audio_text=audioText,
+    )
+    return VoiceCreateResponse(
+        message="음성 등록 성공",
+        data={"voiceId": voice_id},
+    )
 
 
-@router.get("", response_model=list[VoiceResponse])
-async def list_voices(
-    x_user_id: str = Header(...),
-    session: AsyncSession = Depends(get_db_session),
-) -> list[VoiceResponse]:
-    user_id = _get_user_id(x_user_id)
-    voice_service = VoiceService(VoiceRepository(session), dashscope_voice_client)
-    voices = await voice_service.list_voices(user_id)
-    return [VoiceResponse.model_validate(voice) for voice in voices]
-
-
-@router.delete("/{voice_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_voice(
-    voice_id: str,
-    x_user_id: str = Header(...),
-    session: AsyncSession = Depends(get_db_session),
-) -> Response:
-    user_id = _get_user_id(x_user_id)
-    voice_service = VoiceService(VoiceRepository(session), dashscope_voice_client)
+@router.put("", response_model=VoiceMutationResponse)
+async def update_voice(
+    body: VoiceUpdateRequest,
+    voice_service: VoiceService = Depends(get_voice_service),
+) -> VoiceMutationResponse:
     try:
-        await voice_service.delete_voice(user_id, voice_id)
-    except VoiceNotFoundError:
-        raise HTTPException(status_code=404, detail="Voice not found")
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+        await voice_service.update_voice(body)
+    except VoiceUpdateNotSupportedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return VoiceMutationResponse(
+        message="음성 수정 성공",
+        data={},
+    )
+
+
+@router.delete("", response_model=VoiceMutationResponse)
+async def delete_voice(
+    body: VoiceDeleteRequest,
+    voice_service: VoiceService = Depends(get_voice_service),
+) -> VoiceMutationResponse:
+    await voice_service.delete_voice(body.voiceId)
+    return VoiceMutationResponse(
+        message="음성 삭제 성공",
+        data={},
+    )

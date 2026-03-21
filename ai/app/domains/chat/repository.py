@@ -1,59 +1,61 @@
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import ValidationError
 
-from app.domains.chat.model import ChatMessage
+from app.domains.chat.schema import SimilarChatItem
+from app.infra.qdrant import QdrantClient
 
 
 class ChatRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+    def __init__(self, qdrant_client: QdrantClient) -> None:
+        self.qdrant_client = qdrant_client
 
-    async def create(
+    async def search_similar(
         self,
-        user_id: str,
-        user_message: str,
-        assistant_message: str,
-    ) -> ChatMessage:
-        record = ChatMessage(
-            user_id=user_id,
-            user_message=user_message,
-            assistant_message=assistant_message,
+        session_id: str,
+        user_id: int,
+        chat_mode: str,
+        memory_policy: str,
+        vector: list[float],
+        limit: int = 1,
+    ) -> list[SimilarChatItem]:
+        payloads = await self.qdrant_client.search(
+            vector=vector,
+            filter_conditions={
+                "session_id": session_id,
+                "user_id": user_id,
+                "chat_mode": chat_mode,
+                "memory_policy": memory_policy,
+            },
+            limit=limit,
         )
-        self.session.add(record)
-        await self.session.commit()
-        await self.session.refresh(record)
-        return record
+        records: list[SimilarChatItem] = []
+        for payload in payloads:
+            try:
+                records.append(SimilarChatItem.model_validate(payload))
+            except ValidationError:
+                continue
+        return records
 
-    async def get_recent(self, user_id: str, limit: int = 30) -> list[ChatMessage]:
-        subquery = (
-            select(ChatMessage.id)
-            .where(ChatMessage.user_id == user_id)
-            .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
-            .limit(limit)
-            .subquery()
-        )
-        result = await self.session.execute(
-            select(ChatMessage)
-            .where(ChatMessage.id.in_(select(subquery.c.id)))
-            .order_by(ChatMessage.created_at.asc(), ChatMessage.id.asc())
-        )
-        return list(result.scalars().all())
-
-    async def set_tts_asset(
+    async def save_chat(
         self,
-        conversation_id: int,
-        file_name: str,
-        s3_object_key: str,
-    ) -> ChatMessage | None:
-        result = await self.session.execute(
-            select(ChatMessage).where(ChatMessage.id == conversation_id)
+        session_id: str,
+        user_id: int,
+        chat_mode: str,
+        memory_policy: str,
+        text: str,
+        response: str,
+        vector: list[float],
+    ) -> SimilarChatItem:
+        payload = {
+            "session_id": session_id,
+            "user_id": user_id,
+            "chat_mode": chat_mode,
+            "memory_policy": memory_policy,
+            "text": text,
+            "response": response,
+        }
+        await self.qdrant_client.upsert(
+            point_id=session_id,
+            vector=vector,
+            payload=payload,
         )
-        record = result.scalar_one_or_none()
-        if record is None:
-            return None
-
-        record.tts_file_name = file_name
-        record.tts_s3_object_key = s3_object_key
-        await self.session.commit()
-        await self.session.refresh(record)
-        return record
+        return SimilarChatItem.model_validate(payload)

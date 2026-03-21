@@ -82,7 +82,7 @@ public enum ErrorCode {
     NOTIFICATION_TYPE_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 알림 타입입니다."),
 
     // ============================================================
-    // 6. Chatting (채팅)
+    // 7. Chatting (채팅)
     // ============================================================
     CHAT_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "채팅 세션을 찾을 수 없습니다."),
     CHAT_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "채팅 메세지를 찾을 수 없습니다."),

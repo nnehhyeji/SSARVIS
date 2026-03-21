@@ -1,420 +1,429 @@
-import { useState } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Mic,
-  Upload,
-  CheckCircle2,
-  ArrowRight,
-  FileAudio,
-  Loader2,
-  Sparkles,
-  RefreshCcw,
-} from 'lucide-react';
+import { CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+
 import AnimatedBackground from '../../components/AnimatedBackground';
 import { PATHS } from '../../routes/paths';
 
-type Step = 'mode-select' | 'file-upload' | 'tutorial' | 'review' | 'loading';
-type InputMode = 'voice' | 'file';
+// 분리된 데이터 및 컴포넌트 임포트
+import { QUESTIONS, VOICE_TOPICS, buildAutoAnswers } from './tutorialConstants';
+import type {
+  TutorialStep,
+  VoicePhase,
+  SpeechRecognitionEvent,
+  SpeechRecognitionType,
+} from './tutorialConstants';
 
-const QUESTIONS = [
-  '당신을 가장 잘 나타내는 한 단어는 무엇인가요?',
-  '가장 행복했던 기억에 대해 들려주세요.',
-  '새로운 도전을 할 때 어떤 마음가짐으로 임하시나요?',
-  '스트레스를 받았을 때 나만의 해소 방법이 있나요?',
-  '10년 후의 당신은 어떤 모습일 것 같나요?',
-  '가장 소중하게 생각하는 가치는 무엇인가요?',
-  '최근 당신을 가장 웃게 했던 일은 무엇인가요?',
-];
+import MbtiStep from './MbtiStep';
+import QuestionStep from './QuestionStep';
+import VoiceStep from './VoiceStep';
+
+import { postGeneratePrompt, postRegisterVoice } from '../../apis/aiApi';
+import type { PromptResponse, VoiceRegisterResponse } from '../../apis/aiApi';
+
+// Window 전역 타입 확장
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognitionType;
+    webkitSpeechRecognition: new () => SpeechRecognitionType;
+  }
+}
+
+// ─── Step Indicator ──────────────────────────────────────────────────────────
+
+function StepIndicator({ current }: { current: TutorialStep }) {
+  const steps: { key: TutorialStep; label: string }[] = [
+    { key: 'mbti', label: 'MBTI' },
+    { key: 'questions', label: '질문' },
+    { key: 'voice', label: '목소리' },
+  ];
+  const order: TutorialStep[] = ['mbti', 'questions', 'voice', 'loading'];
+  const currentIdx = order.indexOf(current);
+
+  return (
+    <div className="flex items-center gap-2 justify-center mb-8">
+      {steps.map((s, i) => {
+        const stepIdx = order.indexOf(s.key);
+        const isDone = currentIdx > stepIdx;
+        const isActive = current === s.key;
+        return (
+          <div key={s.key} className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300 ${
+                isActive
+                  ? 'bg-gradient-to-r from-gray-800 to-gray-600 text-white shadow-lg'
+                  : isDone
+                    ? 'bg-gray-100 text-gray-500 border border-gray-200'
+                    : 'bg-white/40 text-gray-400 border border-white/40'
+              }`}
+            >
+              {isDone ? (
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              ) : (
+                <span className="w-3.5 h-3.5 flex items-center justify-center text-xs">
+                  {i + 1}
+                </span>
+              )}
+              <span>{s.label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <div
+                className={`w-8 h-[2px] rounded-full transition-all duration-500 ${currentIdx > stepIdx ? 'bg-gray-300' : 'bg-white/30'}`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function TutorialPage() {
   const navigate = useNavigate();
 
-  // --- States ---
-  const [step, setStep] = useState<Step>('mode-select');
-  const [inputMode, setInputMode] = useState<InputMode | null>(null);
+  const [step, setStep] = useState<TutorialStep>('mbti');
+
+  // ── MBTI State ────────────────────────────────────────────────────────
+  const [mbtiSlots, setMbtiSlots] = useState({ e_i: '', s_n: '', t_f: '', j_p: '' });
+  const [isMbtiSkipped, setIsMbtiSkipped] = useState(false);
+
+  // ── Questions State ─────────────────────────────────────────────────────
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<string[]>(new Array(QUESTIONS.length).fill(''));
-  const [isRecording, setIsRecording] = useState(false);
-  const [isUploaded, setIsUploaded] = useState(false);
+  const [waveDurations] = useState<number[]>(() =>
+    [...Array(20)].map(() => 0.8 + Math.random() * 1.2),
+  );
 
-  // Wave animation durations (memoized per the previous purity fixes)
-  const [waveDurations] = useState<number[]>(() => [...Array(15)].map(() => 1 + Math.random()));
+  // ── Voice State ─────────────────────────────────────────────────────
+  const [voiceTopic] = useState<string>(
+    () => VOICE_TOPICS[Math.floor(Math.random() * VOICE_TOPICS.length)],
+  );
+  const [voicePhase, setVoicePhase] = useState<VoicePhase>('idle');
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [finalTranscript, setFinalTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [editableTranscript, setEditableTranscript] = useState('');
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 
-  // --- Handlers ---
-  const handleModeSelect = (mode: InputMode) => {
-    setInputMode(mode);
-    if (mode === 'file') {
-      setStep('file-upload');
+  const streamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const finalTranscriptRef = useRef('');
+
+  const MAX_RECORDING_SEC = 30;
+
+  // ── Resources Cleanup ──────────────────────────────────────────────────
+  const stopAllMediaResources = useCallback(() => {
+    // 1. 타이머 정지
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    // 2. STT 정지
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // 중지 오류 무시
+      }
+      recognitionRef.current = null;
+    }
+    // 3. MediaRecorder 정지
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        // 중지 오류 무시
+      }
+      mediaRecorderRef.current = null;
+    }
+    // 4. MediaStream 정지 (마이크 아이콘 사라짐 보장)
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        track.stop();
+        track.enabled = false;
+      });
+      streamRef.current = null;
+    }
+    setInterimTranscript('');
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    stopAllMediaResources();
+  }, [stopAllMediaResources]);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      finalTranscriptRef.current = '';
+      setFinalTranscript('');
+      setInterimTranscript('');
+      setRecordingTime(0);
+
+      // MediaRecorder (WebM)
+      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        setEditableTranscript(finalTranscriptRef.current);
+        setFinalTranscript(finalTranscriptRef.current);
+        setVoicePhase('review');
+        // 녹음이 완전히 끝나면 스트림 정리
+        stopAllMediaResources();
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+
+      // SpeechRecognition
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognitionAPI) {
+        const recognition: SpeechRecognitionType = new SpeechRecognitionAPI();
+        recognition.lang = 'ko-KR';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          let interim = '';
+          let final = finalTranscriptRef.current;
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              final += result[0].transcript + ' ';
+            } else {
+              interim += result[0].transcript;
+            }
+          }
+          finalTranscriptRef.current = final;
+          setFinalTranscript(final);
+          setInterimTranscript(interim);
+        };
+        recognition.onerror = () => {
+          // 에러 시 무시 혹은 처리
+        };
+        recognition.start();
+        recognitionRef.current = recognition;
+      }
+
+      // 30초 타이머
+      setVoicePhase('recording');
+      let elapsed = 0;
+      timerRef.current = setInterval(() => {
+        elapsed += 1;
+        setRecordingTime(elapsed);
+        if (elapsed >= MAX_RECORDING_SEC) {
+          stopRecording();
+        }
+      }, 1000);
+    } catch {
+      alert('마이크 접근 권한이 필요합니다.');
+    }
+  }, [stopRecording, stopAllMediaResources]);
+
+  // 컴포넌트 언마운트 시 모든 리소스 정리
+  useEffect(() => {
+    return () => {
+      stopAllMediaResources();
+    };
+  }, [stopAllMediaResources]);
+
+  // ── MBTI Logic ──────────────────────────────────────────────────────────
+  const hasMbti =
+    !isMbtiSkipped && !!(mbtiSlots.e_i && mbtiSlots.s_n && mbtiSlots.t_f && mbtiSlots.j_p);
+  const selectedMbti = hasMbti
+    ? `${mbtiSlots.e_i}${mbtiSlots.s_n}${mbtiSlots.t_f}${mbtiSlots.j_p}`
+    : '';
+  const isValidToProceed = isMbtiSkipped || hasMbti;
+
+  const handleMbtiNext = () => {
+    if (hasMbti) {
+      const auto = buildAutoAnswers(selectedMbti);
+      setAnswers(auto);
     } else {
-      setStep('tutorial');
+      setAnswers(new Array(QUESTIONS.length).fill(''));
+    }
+    setCurrentIndex(0);
+    setStep('questions');
+  };
+
+  // ── Question Logic ──────────────────────────────────────────────────────
+  const manualIndices = useMemo(() => {
+    if (!hasMbti) return QUESTIONS.map((_, i) => i);
+    const chars = selectedMbti.split('');
+    return QUESTIONS.reduce<number[]>((acc, q, i) => {
+      const hasAutoMatch = chars.some((char) => !!q.autochoice[char]);
+      if (!hasAutoMatch) acc.push(i);
+      return acc;
+    }, []);
+  }, [hasMbti, selectedMbti]);
+
+  const actualIdx = manualIndices[currentIndex] ?? 0;
+  const currentQuestion = QUESTIONS[actualIdx];
+  const currentAnswer = answers[actualIdx];
+
+  const handleSelectAnswer = (ans: string) => {
+    const updated = [...answers];
+    updated[actualIdx] = ans;
+    setAnswers(updated);
+  };
+
+  const totalManual = manualIndices.length;
+  const answeredCount = manualIndices.filter((idx) => !!answers[idx]).length;
+  const isCurrentAnswered = !!currentAnswer;
+  const allAnswered = answeredCount === totalManual;
+
+  const handleNextQuestion = () => {
+    if (currentIndex < totalManual - 1) {
+      setCurrentIndex((p) => p + 1);
+    } else if (allAnswered) {
+      setStep('voice');
     }
   };
 
-  const currentAnswer = answers[currentIndex];
-  const setStepAnswer = (val: string) => {
-    const newAnswers = [...answers];
-    newAnswers[currentIndex] = val;
-    setAnswers(newAnswers);
+  const handlePrevQuestion = () => {
+    if (currentIndex > 0) setCurrentIndex((p) => p - 1);
   };
 
-  const handleNext = () => {
-    if (step === 'file-upload') {
-      setStep('tutorial');
-      return;
-    }
+  const progress = totalManual > 0 ? ((currentIndex + 1) / totalManual) * 100 : 100;
+  const timerPercent = (recordingTime / MAX_RECORDING_SEC) * 100;
 
-    if (currentIndex < QUESTIONS.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      setStep('review');
-    }
-  };
-
-  const handleFinish = () => {
+  // ── Final Finish Action ──────────────────────────────────────────────────
+  const handleFinish = async () => {
     setStep('loading');
-    // Simulate AI creation loading
-    setTimeout(() => {
-      navigate(PATHS.HOME);
-    }, 3500);
+    const qna = QUESTIONS.map((q, i) => ({ question: q.question, answer: answers[i] }));
+
+    try {
+      // 병렬 호출 (Promise.all) - 두 API를 동시에 실행하여 시간을 절약합니다.
+      const tasks: Promise<PromptResponse | VoiceRegisterResponse>[] = [postGeneratePrompt(qna)];
+
+      if (audioBlob) {
+        // 녹음된 데이터가 있는 경우에만 보이스 모델 등록 작업을 추가
+        tasks.push(postRegisterVoice(audioBlob, editableTranscript));
+      }
+
+      await Promise.all(tasks);
+
+      // 성공 시 잠시 대기 후 이동
+      setTimeout(() => {
+        navigate(PATHS.HOME);
+      }, 2000);
+    } catch (err) {
+      console.error('[Tutorial] AI registration failed:', err);
+      alert('데이터 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setStep('voice'); // 마지막 단계로 되돌려 다시 제출할 기회 제공
+    }
   };
 
-  const progress = ((currentIndex + 1) / QUESTIONS.length) * 100;
+  // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4">
+    <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center p-4">
       <AnimatedBackground />
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-2xl z-10"
-      >
-        <div className="bg-white/40 backdrop-blur-2xl border border-white/40 rounded-[3rem] shadow-2xl p-10 min-h-[500px] flex flex-col">
-          <AnimatePresence mode="wait">
-            {/* 1. Mode Selection Step */}
-            {step === 'mode-select' && (
-              <motion.div
-                key="mode"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="flex-1 flex flex-col items-center justify-center text-center space-y-10"
-              >
-                <div className="space-y-4">
-                  <div className="w-20 h-20 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto shadow-xl">
-                    <Sparkles className="w-10 h-10 text-white" />
-                  </div>
-                  <h1 className="text-3xl font-black text-gray-800">환영합니다!</h1>
-                  <p className="text-gray-500 font-medium">
-                    나만의 AI를 만들기 위해 당신의 목소리와 성격을 들려주세요.
-                  </p>
+      <div className="w-full max-w-2xl z-10">
+        {step !== 'loading' && <StepIndicator current={step} />}
+
+        <AnimatePresence mode="wait">
+          {step === 'mbti' && (
+            <MbtiStep
+              mbtiSlots={mbtiSlots}
+              setMbtiSlots={setMbtiSlots}
+              isMbtiSkipped={isMbtiSkipped}
+              setIsMbtiSkipped={setIsMbtiSkipped}
+              hasMbti={hasMbti}
+              selectedMbti={selectedMbti}
+              isValidToProceed={isValidToProceed}
+              handleMbtiNext={handleMbtiNext}
+            />
+          )}
+
+          {step === 'questions' && currentQuestion && (
+            <QuestionStep
+              currentIndex={currentIndex}
+              totalManual={totalManual}
+              answeredCount={answeredCount}
+              progress={progress}
+              currentQuestion={currentQuestion}
+              currentAnswer={currentAnswer}
+              handleSelectAnswer={handleSelectAnswer}
+              handlePrevQuestion={handlePrevQuestion}
+              handleNextQuestion={handleNextQuestion}
+              isCurrentAnswered={isCurrentAnswered}
+              allAnswered={allAnswered}
+            />
+          )}
+
+          {step === 'voice' && (
+            <VoiceStep
+              voiceTopic={voiceTopic}
+              voicePhase={voicePhase}
+              recordingTime={recordingTime}
+              finalTranscript={finalTranscript}
+              interimTranscript={interimTranscript}
+              editableTranscript={editableTranscript}
+              setEditableTranscript={setEditableTranscript}
+              startRecording={startRecording}
+              stopRecording={stopRecording}
+              handleFinish={handleFinish}
+              timerPercent={timerPercent}
+              waveDurations={waveDurations}
+              setVoicePhase={setVoicePhase}
+              setRecordingTime={setRecordingTime}
+              setAudioBlob={setAudioBlob}
+              setFinalTranscript={setFinalTranscript}
+              MAX_RECORDING_SEC={MAX_RECORDING_SEC}
+            />
+          )}
+
+          {step === 'loading' && (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center text-center space-y-8"
+            >
+              <div className="relative">
+                <div className="w-24 h-24 bg-white/20 backdrop-blur-xl rounded-[2rem] border border-white/40 shadow-2xl flex items-center justify-center">
+                  <Loader2 className="w-10 h-10 text-gray-800 animate-spin" />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                  <button
-                    onClick={() => handleModeSelect('voice')}
-                    className="p-8 bg-white/60 hover:bg-white/80 border border-white/60 rounded-[2rem] shadow-lg transition-all transform hover:scale-[1.02] group flex flex-col items-center text-center space-y-4"
-                  >
-                    <div className="p-4 bg-purple-100 rounded-2xl group-hover:bg-purple-200 transition-colors">
-                      <Mic className="w-8 h-8 text-purple-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-800">직접 말하기</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        질문에 목소리로 답하며
-                        <br />
-                        데이터를 수집합니다.
-                      </p>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleModeSelect('file')}
-                    className="p-8 bg-white/60 hover:bg-white/80 border border-white/60 rounded-[2rem] shadow-lg transition-all transform hover:scale-[1.02] group flex flex-col items-center text-center space-y-4"
-                  >
-                    <div className="p-4 bg-indigo-100 rounded-2xl group-hover:bg-indigo-200 transition-colors">
-                      <Upload className="w-8 h-8 text-indigo-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-800">파일 업로드</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        목소리 파일을 올리고
-                        <br />
-                        텍스트로 응답합니다.
-                      </p>
-                    </div>
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* 2. File Upload Step (Sub-step for File Mode) */}
-            {step === 'file-upload' && (
-              <motion.div
-                key="file-upload"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="flex-1 flex flex-col items-center justify-center text-center space-y-10"
-              >
-                <div className="space-y-4">
-                  <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto">
-                    <Upload className="w-8 h-8 text-indigo-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-800">목소리 파일 업로드</h2>
-                  <p className="text-gray-500 text-sm font-medium">
-                    AI가 당신의 목소리를 학습할 수 있도록
-                    <br />
-                    녹음된 오디오 파일을 업로드해주세요.
-                  </p>
-                </div>
-
-                <div className="w-full p-8 border-2 border-dashed border-indigo-200 rounded-[2rem] bg-indigo-50/10 flex flex-col items-center space-y-4 transition-all hover:border-indigo-300">
-                  <FileAudio className="w-12 h-12 text-indigo-400" />
-                  <div className="text-center">
-                    <p className={`font-bold ${isUploaded ? 'text-green-600' : 'text-gray-700'}`}>
-                      {isUploaded ? '파일이 준비되었습니다!' : '오디오 파일 선택'}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {isUploaded ? '파일명: my_voice_sample.wav' : 'MP3, WAV, M4A 지원'}
-                    </p>
-                  </div>
-                  {!isUploaded ? (
-                    <button
-                      onClick={() => setIsUploaded(true)}
-                      className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition active:scale-95"
-                    >
-                      파일 찾기
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setIsUploaded(false)}
-                      className="text-xs font-bold text-gray-400 hover:text-red-400 transition"
-                    >
-                      다시 선택하기
-                    </button>
-                  )}
-                </div>
-
-                <button
-                  onClick={handleNext}
-                  disabled={!isUploaded}
-                  className="w-full py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-xl hover:bg-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
+                  transition={{ duration: 4, repeat: Infinity }}
+                  className="absolute -top-2 -right-2 p-2 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg"
                 >
-                  업로드 완료 및 진행하기{' '}
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </motion.div>
-            )}
+                  <Sparkles className="w-4 h-4 text-white" />
+                </motion.div>
+              </div>
 
-            {/* 3. Tutorial Q&A Step */}
-            {step === 'tutorial' && (
-              <motion.div
-                key="tutorial"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="flex-1 flex flex-col"
-              >
-                {/* Progress Bar */}
-                <div className="w-full h-2 bg-gray-200/50 rounded-full mb-10 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    className="h-full bg-gradient-to-r from-purple-500 to-indigo-500"
-                  />
-                </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-gray-800">AI 페르소나 생성 중...</h2>
+                <p className="text-gray-500 font-medium">
+                  당신의 답변과 목소리를 학습하고 있습니다.
+                  <br />
+                  잠시만 기다려 주세요.
+                </p>
+              </div>
 
-                <div className="flex-1 flex flex-col items-center text-center space-y-8">
-                  <span className="px-4 py-1.5 bg-purple-500/10 text-purple-600 rounded-full text-sm font-bold">
-                    질문 {currentIndex + 1} / {QUESTIONS.length}
-                  </span>
-                  <h2 className="text-2xl font-bold text-gray-800 leading-tight h-16">
-                    {QUESTIONS[currentIndex]}
-                  </h2>
-
-                  {/* Input Area */}
-                  <div className="w-full flex-1 flex flex-col items-center justify-center space-y-8">
-                    {inputMode === 'voice' ? (
-                      <div className="space-y-6 flex flex-col items-center">
-                        <div className="flex items-center justify-center gap-1.5 h-16 mb-4">
-                          {waveDurations.map((d, i) => (
-                            <motion.div
-                              key={i}
-                              animate={{
-                                height: isRecording ? [8, 48, 12, 56, 8] : 8,
-                                opacity: isRecording ? [0.4, 1, 0.4] : 0.3,
-                              }}
-                              transition={{
-                                duration: d,
-                                repeat: Infinity,
-                                ease: 'easeInOut',
-                                delay: i * 0.05,
-                              }}
-                              className="w-1.5 bg-purple-500 rounded-full shadow-sm"
-                            />
-                          ))}
-                        </div>
-                        <button
-                          onClick={() => setIsRecording(!isRecording)}
-                          className={`w-24 h-24 rounded-full flex items-center justify-center transition-all shadow-xl shadow-purple-500/20 ${
-                            isRecording
-                              ? 'bg-red-500 hover:bg-red-600 ring-8 ring-red-500/20'
-                              : 'bg-purple-600 hover:bg-purple-700'
-                          }`}
-                        >
-                          <Mic
-                            className={`w-10 h-10 text-white ${isRecording ? 'animate-pulse' : ''}`}
-                          />
-                        </button>
-                        <p
-                          className={`text-sm font-bold ${isRecording ? 'text-red-500' : 'text-gray-400'}`}
-                        >
-                          {isRecording
-                            ? '목소리를 녹음 중입니다...'
-                            : '마이크를 눌러 답변을 시작하세요'}
-                        </p>
-                        {!isRecording && currentIndex > 0 && (
-                          <span className="text-xs text-green-500 font-bold">
-                            ✓ 이전 답변 수집 완료
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="w-full space-y-6">
-                        <div className="relative">
-                          <textarea
-                            value={currentAnswer}
-                            onChange={(e) => setStepAnswer(e.target.value)}
-                            placeholder="여기에 답변을 입력하세요..."
-                            className="w-full h-40 p-6 bg-white/50 border border-white/80 rounded-[2rem] focus:outline-none focus:ring-2 focus:ring-indigo-400/50 resize-none font-medium placeholder:text-gray-300"
-                          />
-                          <div className="absolute bottom-4 right-6 text-xs text-gray-400 font-bold">
-                            {currentAnswer.length} 자
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={handleNext}
-                    className="w-full py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-xl hover:bg-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group"
-                  >
-                    {currentIndex < QUESTIONS.length - 1 ? (
-                      <>
-                        다음 질문으로{' '}
-                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                      </>
-                    ) : (
-                      <>
-                        최종 확인하기 <CheckCircle2 className="w-5 h-5" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* 3. Review Step */}
-            {step === 'review' && (
-              <motion.div
-                key="review"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="flex-1 flex flex-col space-y-8"
-              >
-                <div className="text-center">
-                  <h2 className="text-2xl font-black text-gray-800">거의 다 왔어요!</h2>
-                  <p className="text-gray-500 font-medium">
-                    작성하신 내용은 나만의 AI 페르소나를 구성하는 데 사용됩니다.
-                  </p>
-                </div>
-
-                <div className="flex-1 overflow-y-auto pr-2 space-y-4 max-h-[400px] custom-scrollbar">
-                  {QUESTIONS.map((q, i) => (
-                    <div
-                      key={i}
-                      className="p-6 bg-white/50 border border-white/60 rounded-3xl space-y-2"
-                    >
-                      <p className="text-xs font-black text-purple-600 uppercase tracking-widest">
-                        Q{i + 1}. {q}
-                      </p>
-                      <p className="text-gray-700 font-medium leading-relaxed italic">
-                        {inputMode === 'voice'
-                          ? '목소리 데이터를 분석하여 반영합니다.'
-                          : answers[i] || '(입력된 내용 없음)'}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => {
-                      setCurrentIndex(0);
-                      setStep('tutorial');
-                    }}
-                    className="flex-1 py-4 bg-white/60 text-gray-700 rounded-2xl font-bold border border-white/60 hover:bg-white/80 transition flex items-center justify-center gap-2"
-                  >
-                    <RefreshCcw className="w-5 h-5" /> 다시 시작
-                  </button>
-                  <button
-                    onClick={handleFinish}
-                    className="flex-[2] py-4 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl font-bold shadow-xl hover:scale-[1.01] transition-all"
-                  >
-                    이대로 AI 생성하기
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* 4. Loading Step */}
-            {step === 'loading' && (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex-1 flex flex-col items-center justify-center text-center space-y-8"
-              >
-                <div className="relative">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                    className="w-32 h-32 rounded-full border-4 border-dashed border-purple-500/30"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="w-12 h-12 text-purple-600 animate-spin" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <h2 className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    AI 페르소나 생성 중...
-                  </h2>
-                  <p className="text-gray-500 font-medium">
-                    당신의 목소리와 성격을 학습하고 있습니다.
-                    <br />
-                    잠시만 기다려 주세요.
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  {[...Array(3)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.7, 0.3] }}
-                      transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                      className="w-3 h-3 bg-purple-500 rounded-full"
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
+              <div className="w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: '100%' }}
+                  transition={{ duration: 3, ease: 'easeInOut' }}
+                  className="h-full bg-gradient-to-r from-gray-800 to-gray-600"
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

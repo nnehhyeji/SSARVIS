@@ -1,17 +1,25 @@
-from datetime import datetime
-
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
-class VoiceCreateItem(BaseModel):
-    audio_uri: str
-    audio_text: str
+class VoiceUpdateRequest(BaseModel):
+    voiceId: str
+    audioUrl: str
+    audioText: str
 
 
-class VoiceResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class VoiceDeleteRequest(BaseModel):
+    voiceId: str
 
-    voice_id: str
-    file_name: str
-    audio_text: str
-    created_at: datetime
+
+class VoiceCreateResponseData(BaseModel):
+    voiceId: str
+
+
+class VoiceCreateResponse(BaseModel):
+    message: str
+    data: VoiceCreateResponseData
+
+
+class VoiceMutationResponse(BaseModel):
+    message: str
+    data: dict

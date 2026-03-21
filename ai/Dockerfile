@@ -5,7 +5,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.10.6 /uv /usr/local/bin/uv
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg libopus0 \
+    && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock ./
@@ -15,8 +15,7 @@ COPY app ./app
 
 # 보안: non-root 유저 설정
 RUN groupadd -r fastapi && useradd -r -g fastapi fastapi \
-    && mkdir -p /data \
-    && chown -R fastapi:fastapi /app /data
+    && chown -R fastapi:fastapi /app
 USER fastapi
 
 ENV PATH="/app/.venv/bin:${PATH}"

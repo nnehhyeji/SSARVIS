@@ -4,3 +4,7 @@ class VoiceError(Exception):
 
 class VoiceNotFoundError(VoiceError):
     """Raised when a voice cannot be found."""
+
+
+class VoiceUpdateNotSupportedError(VoiceError):
+    """Raised when the provider cannot update an enrolled voice in place."""
