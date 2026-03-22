@@ -20,7 +20,6 @@ import QuestionStep from './QuestionStep';
 import VoiceStep from './VoiceStep';
 
 import { postGeneratePrompt, postRegisterVoice } from '../../apis/aiApi';
-import type { PromptResponse, VoiceRegisterResponse } from '../../apis/aiApi';
 
 // Window 전역 타입 확장
 declare global {
@@ -114,6 +113,7 @@ export default function TutorialPage() {
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const finalTranscriptRef = useRef('');
+  const interimTranscriptRef = useRef('');
 
   const MAX_RECORDING_SEC = 30;
 
@@ -163,6 +163,7 @@ export default function TutorialPage() {
       streamRef.current = stream;
       chunksRef.current = [];
       finalTranscriptRef.current = '';
+      interimTranscriptRef.current = '';
       setFinalTranscript('');
       setInterimTranscript('');
       setRecordingTime(0);
@@ -173,10 +174,11 @@ export default function TutorialPage() {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mr.onstop = () => {
+        const fullTranscript = (finalTranscriptRef.current + interimTranscriptRef.current).trim();
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         setAudioBlob(blob);
-        setEditableTranscript(finalTranscriptRef.current);
-        setFinalTranscript(finalTranscriptRef.current);
+        setEditableTranscript(fullTranscript);
+        setFinalTranscript(fullTranscript);
         setVoicePhase('review');
         // 녹음이 완전히 끝나면 스트림 정리
         stopAllMediaResources();
@@ -203,6 +205,7 @@ export default function TutorialPage() {
             }
           }
           finalTranscriptRef.current = final;
+          interimTranscriptRef.current = interim;
           setFinalTranscript(final);
           setInterimTranscript(interim);
         };
@@ -298,26 +301,53 @@ export default function TutorialPage() {
   // ── Final Finish Action ──────────────────────────────────────────────────
   const handleFinish = async () => {
     setStep('loading');
-    const qna = QUESTIONS.map((q, i) => ({ question: q.question, answer: answers[i] }));
+    // 답변이 있는 질문만 필터링하여 전송 데이터 최적화
+    const qna = QUESTIONS.map((q, i) => ({ question: q.question, answer: answers[i] })).filter(
+      (item) => item.answer && item.answer.trim() !== '',
+    );
+
+    // 질문 답변이 하나도 없는지 체크 (AI 서버 min_length=1 대응)
+    if (qna.length === 0) {
+      alert('최소 하나 이상의 질문에 답변해 주세요.');
+      setStep('questions');
+      return;
+    }
 
     try {
-      // 병렬 호출 (Promise.all) - 두 API를 동시에 실행하여 시간을 절약합니다.
-      const tasks: Promise<PromptResponse | VoiceRegisterResponse>[] = [postGeneratePrompt(qna)];
+      // 대량의 AI 연산을 병렬로 실행하여 네트워크 탭에서 모든 요청을 확인할 수 있게 함
+      const requests: Promise<unknown>[] = [postGeneratePrompt(qna)];
 
       if (audioBlob) {
-        // 녹음된 데이터가 있는 경우에만 보이스 모델 등록 작업을 추가
-        tasks.push(postRegisterVoice(audioBlob, editableTranscript));
+        requests.push(postRegisterVoice(audioBlob, editableTranscript));
       }
 
-      await Promise.all(tasks);
+      const results = await Promise.allSettled(requests);
 
-      // 성공 시 잠시 대기 후 이동
-      setTimeout(() => {
-        navigate(PATHS.HOME);
-      }, 2000);
+      const promptResult = results[0];
+      const voiceResult = results[1];
+
+      // 모든 요청이 성공했는지 확인
+      const isAllSuccess = results.every((res) => res.status === 'fulfilled');
+
+      if (isAllSuccess) {
+        // 성공 시 잠시 대기 후 이동
+        setTimeout(() => {
+          navigate(PATHS.HOME);
+        }, 2000);
+      } else {
+        // 어느 하나라도 실패한 경우 로그 출력 및 에러 처리
+        if (promptResult?.status === 'rejected') {
+          console.error('[Tutorial] Prompt API failed:', promptResult.reason);
+        }
+        if (voiceResult?.status === 'rejected') {
+          console.error('[Tutorial] Voice API failed:', voiceResult.reason);
+        }
+
+        throw new Error('일부 API 요청 실패');
+      }
     } catch (err) {
       console.error('[Tutorial] AI registration failed:', err);
-      alert('데이터 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      alert('데이터 전송 중 오류가 발생했습니다. 네트워크 상태나 서버 로그를 확인해주세요.');
       setStep('voice'); // 마지막 단계로 되돌려 다시 제출할 기회 제공
     }
   };
