@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Bell, User, QrCode, LogOut, Eye } from 'lucide-react';
+import { Bell, User, QrCode, LogOut, Eye, Sparkles } from 'lucide-react';
 
 import type { Alarm } from '../../types';
 
@@ -21,6 +21,7 @@ interface HeaderProps {
   onLeaveVisitor: () => void;
   viewCount?: number;
   onUsersClick?: () => void;
+  onSharePersonaClick?: () => void;
 }
 
 export default function Header({
@@ -35,6 +36,7 @@ export default function Header({
   onLeaveVisitor,
   viewCount = 0,
   onUsersClick,
+  onSharePersonaClick,
 }: HeaderProps) {
   const location = useLocation();
   const isCardPage = location.pathname.startsWith('/card/');
@@ -47,13 +49,25 @@ export default function Header({
             SSARVIS
           </div>
           {!isVisitorMode && !isCardPage && (
-            <button
-              onClick={onMyCardClick}
-              className="p-2 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/40 transition-all duration-300 shadow-md text-white"
-              title="내 명함 보기"
-            >
-              <QrCode className="w-5 h-5" />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={onMyCardClick}
+                className="p-2 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/40 transition-all duration-300 shadow-md text-white"
+                title="내 명함 보러가기"
+              >
+                <QrCode className="w-5 h-5" />
+              </button>
+              {onSharePersonaClick && (
+                <button
+                  onClick={onSharePersonaClick}
+                  className="p-2 rounded-full bg-yellow-400/20 hover:bg-yellow-400/50 backdrop-blur-md border border-yellow-300/50 transition-all duration-300 shadow-md text-yellow-300 flex items-center gap-1 group"
+                  title="내 페르소나 문답 공유하기"
+                >
+                  <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-bold leading-none ml-1 hidden sm:block">공유</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
         {isVisitorMode && (

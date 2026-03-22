@@ -19,6 +19,7 @@ import FollowSidebar from '../../components/features/follow/FollowSidebar';
 import MyCardModal from '../../components/features/follow/MyCardModal';
 import UserMenuModal from '../../components/features/user/UserMenuModal';
 import ModePanel from '../../components/features/assistant/ModePanel';
+import SharePersonaModal from '../../components/features/follow/SharePersonaModal';
 
 // Constants & Types
 import { BG_COLORS, LOCK_MODE_PALETTE } from '../../constants/theme';
@@ -67,6 +68,7 @@ export default function HomePage() {
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
+  const [isSharePersonaOpen, setIsSharePersonaOpen] = useState(false);
   const [my_view_count] = useState(1234);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
@@ -139,6 +141,7 @@ export default function HomePage() {
         onLeaveVisitor={() => {}}
         viewCount={my_view_count}
         onUsersClick={() => setIsUserMenuOpen(true)}
+        onSharePersonaClick={() => setIsSharePersonaOpen(true)}
       />
 
       <main className="flex-1 flex items-center justify-center relative w-full h-full z-10">
@@ -261,6 +264,8 @@ export default function HomePage() {
       />
 
       <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
+
+      <SharePersonaModal isOpen={isSharePersonaOpen} onClose={() => setIsSharePersonaOpen(false)} />
 
       <UserMenuModal
         isOpen={isUserMenuOpen}
