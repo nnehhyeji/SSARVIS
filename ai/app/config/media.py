@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings
 
+from app.config.base import SETTINGS_CONFIG
+
 
 class MediaConfig(BaseSettings):
     opus_dll_directory: str = ""
@@ -8,7 +10,7 @@ class MediaConfig(BaseSettings):
     opus_frame_duration_ms: int = 40
     opus_bitrate: int = 24000
 
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = SETTINGS_CONFIG
 
 
 media_config = MediaConfig()

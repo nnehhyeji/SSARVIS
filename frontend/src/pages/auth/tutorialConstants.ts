@@ -21,20 +21,27 @@ export interface SpeechRecognitionResultList {
   [index: number]: SpeechRecognitionResult;
 }
 
-export interface SpeechRecognitionEvent {
+export interface SpeechRecognitionEvent extends Event {
   resultIndex: number;
   results: SpeechRecognitionResultList;
 }
 
-export type SpeechRecognitionType = {
+export interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+export interface SpeechRecognitionType extends EventTarget {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  onstart: ((event: Event) => void) | null;
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: unknown) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: ((event: Event) => void) | null;
   start: () => void;
   stop: () => void;
-};
+  abort: () => void;
+}
 
 export const QUESTIONS: Question[] = [
   {

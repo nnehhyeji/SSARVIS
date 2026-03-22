@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings
 
+from app.config.base import SETTINGS_CONFIG
+
 
 class DashScopeConfig(BaseSettings):
     dashscope_api_key: str = ""
@@ -10,7 +12,7 @@ class DashScopeConfig(BaseSettings):
     tts_enrollment_url: str = "https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/customization"
     tts_http_timeout_seconds: float = 20.0
 
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = SETTINGS_CONFIG
 
 
 dashscope_config = DashScopeConfig()

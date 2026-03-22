@@ -6,6 +6,11 @@ import VoiceVisualizer from '../common/VoiceVisualizer';
 import CharacterScene from '../features/character/CharacterScene';
 import { useAICharacter } from '../../hooks/useAICharacter';
 import authApi from '../../apis/authApi';
+import type {
+  SpeechRecognitionErrorEvent,
+  SpeechRecognitionEvent,
+  SpeechRecognitionType,
+} from '../../pages/auth/tutorialConstants';
 
 interface VoiceLockRegistrationModalProps {
   onClose: () => void;
@@ -13,37 +18,9 @@ interface VoiceLockRegistrationModalProps {
 
 type Step = 'intro' | 'recording' | 'confirm' | 'edit' | 'success';
 
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-}
-
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (event: Event) => void;
-  onresult: (event: SpeechRecognitionEvent) => void;
-  onerror: (event: SpeechRecognitionErrorEvent) => void;
-  onend: (event: Event) => void;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-}
-
-interface SpeechRecognitionStatic {
-  new (): SpeechRecognition;
-}
-
-interface CustomWindow extends Window {
-  SpeechRecognition?: SpeechRecognitionStatic;
-  webkitSpeechRecognition?: SpeechRecognitionStatic;
+type CustomWindow = Window & {
   webkitAudioContext?: typeof AudioContext;
-}
+};
 
 const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({ onClose }) => {
   const { setLockPhrase, setIsVoiceLockRegistered, setVoiceLockEnabled, timeoutDuration } =
@@ -58,7 +35,7 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
   const [isRecognitionActive, setIsRecognitionActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 

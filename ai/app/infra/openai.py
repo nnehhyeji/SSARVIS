@@ -1,7 +1,11 @@
+import logging
+
 from openai import APITimeoutError, AsyncOpenAI
 
 from app.config.openai import openai_config
 from app.exceptions.infra import EmbeddingError, OpenAIError
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAIClient:
@@ -12,6 +16,7 @@ class OpenAIClient:
         )
 
     async def generate(self, messages: list[dict[str, str]]) -> str:
+        self._validate_configuration()
         try:
             response = await self._responses_create(
                 timeout=openai_config.llm_timeout_seconds,
@@ -23,10 +28,14 @@ class OpenAIClient:
                 messages=messages,
             )
         except Exception as exc:
-            raise OpenAIError("Failed to generate completion") from exc
+            logger.exception("OpenAI completion request failed")
+            raise OpenAIError(
+                f"Failed to generate completion: {type(exc).__name__}: {exc}"
+            ) from exc
         return response.output_text
 
     async def embed(self, text: str) -> list[float]:
+        self._validate_configuration()
         try:
             response = await self._embeddings_create(
                 timeout=openai_config.llm_timeout_seconds,
@@ -38,12 +47,20 @@ class OpenAIClient:
                 text=text,
             )
         except Exception as exc:
-            raise EmbeddingError("Failed to generate embedding") from exc
+            logger.exception("OpenAI embedding request failed")
+            raise EmbeddingError(
+                f"Failed to generate embedding: {type(exc).__name__}: {exc}"
+            ) from exc
 
         if not response.data or not response.data[0].embedding:
             raise EmbeddingError("Embedding response was empty")
 
         return list(response.data[0].embedding)
+
+    @staticmethod
+    def _validate_configuration() -> None:
+        if not openai_config.openai_api_key.strip():
+            raise OpenAIError("OPENAI_API_KEY is not configured")
 
     async def _responses_create(
         self,
