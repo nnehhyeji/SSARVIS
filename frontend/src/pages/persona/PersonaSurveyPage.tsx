@@ -6,6 +6,7 @@ import { Save, Sparkles, MessageCircle, User as UserIcon, Home } from 'lucide-re
 import AnimatedBackground from '../../components/AnimatedBackground';
 import { BG_COLORS } from '../../constants/theme';
 import { PATHS } from '../../routes/paths';
+import { postGeneratePrompt } from '../../apis/aiApi';
 
 export default function PersonaSurveyPage() {
   const { userId } = useParams();
@@ -34,7 +35,7 @@ export default function PersonaSurveyPage() {
   };
 
   const handleSubmit = async () => {
-    if (!description) {
+    if (!description.trim()) {
       alert('설명을 입력해주세요!');
       return;
     }
@@ -45,11 +46,22 @@ export default function PersonaSurveyPage() {
     }
     
     setIsSubmitting(true);
-    // TODO: 페르소나 응답 제출 API 연동
-    setTimeout(() => {
+    try {
+      // 프롬프트 생성을 위한 Q&A 배열 조립 (튜토리얼 방식과 동일하게)
+      const payload = [
+        { question: '이 사람은 당신에게 어떤 사람인가요?', answer: description.trim() },
+        ...qna.map((q) => ({ question: q.question, answer: q.answer.trim() }))
+      ];
+      
+      await postGeneratePrompt(payload);
+      
       setIsSubmitting(false);
       setIsDone(true);
-    }, 1000);
+    } catch (error) {
+      console.error('페르소나 문답 제출 실패:', error);
+      alert('문답 제출에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
