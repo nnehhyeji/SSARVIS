@@ -20,6 +20,8 @@ import PersonaModal from '../../components/features/follow/PersonaModal';
 
 // Constants & Types
 import { PATHS } from '../../routes/paths';
+import type { Mode } from '../../types';
+import { BG_COLORS } from '../../constants/theme';
 
 export default function VisitPage() {
   const { userId } = useParams();
@@ -81,6 +83,7 @@ export default function VisitPage() {
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [currentMode, setCurrentMode] = useState<Mode>('normal');
   const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
     'following',
   );
@@ -103,10 +106,11 @@ export default function VisitPage() {
     return user?.view_count ?? 0;
   }, [targetId, follows]);
 
-  // 방문 페이지에서는 내 시크릿 모드 상태와 상관없이 항상 상대방 배경(visitorBg)만 표시
+  // 방문 페이지에서도 페르소나 모드 시 전용 배경 표시
   const backgroundProps = useMemo(() => {
+    if (currentMode === 'persona') return BG_COLORS.persona;
     return visitorBg;
-  }, [visitorBg]);
+  }, [visitorBg, currentMode]);
 
   if (!isVisitorMode || !visitedFollowName) {
     return (
@@ -168,7 +172,7 @@ export default function VisitPage() {
                 <CharacterScene
                   faceType={faceType}
                   mouthOpenRadius={myMouthOpenRadius}
-                  mode={'normal'}
+                  mode={currentMode}
                   isLockMode={false}
                   isSpeaking={isMyAiSpeaking}
                   isMicOn={isMicOn}
@@ -193,7 +197,7 @@ export default function VisitPage() {
               <CharacterScene
                 faceType={(faceType + 2) % 6}
                 mouthOpenRadius={mouthOpenRadius}
-                mode={'normal'}
+                mode={currentMode}
                 isLockMode={false}
                 isSpeaking={isSpeaking}
                 isMicOn={isMicOn}
@@ -228,12 +232,12 @@ export default function VisitPage() {
       </main>
 
       <ModePanel
-        currentMode={'normal'}
+        currentMode={currentMode}
         isVisitorMode={true}
         isInteractionModalOpen={isInteractionModalOpen}
         isDualAiMode={isDualAiMode}
         onToggleInteraction={() => setIsInteractionModalOpen(!isInteractionModalOpen)}
-        onModeChange={() => {}}
+        onModeChange={(m) => setCurrentMode(m)}
         onChangeFace={changeFace}
         onStartDualAi={() => {
           setIsDualAiMode(true);

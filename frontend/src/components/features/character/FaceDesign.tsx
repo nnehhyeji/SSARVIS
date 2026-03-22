@@ -14,6 +14,8 @@ interface FaceDesignProps {
 }
 
 export default function FaceDesign({ type, mouthOpenRadius, mode }: FaceDesignProps) {
+  const effectiveType = mode === 'persona' ? 5 : type;
+
   // 공통 눈 렌더링 함수 (크기 대폭 확대)
   const renderEyes = (eyeStyle: React.CSSProperties) => (
     <>
@@ -306,7 +308,54 @@ export default function FaceDesign({ type, mouthOpenRadius, mode }: FaceDesignPr
         </div>
       )}
 
-      {type === 0 && (
+      {/* 페르소나 모드: 화사한 반짝임 효과 (Sparkles & Aura) */}
+      {mode === 'persona' && (
+        <div
+          className="absolute inset-0 pointer-events-none [transform-style:preserve-3d]"
+          style={{ transform: 'translateZ(100px)' }}
+        >
+          <style>
+            {`
+              @keyframes twinkle {
+                0%, 100% { transform: scale(0.8) rotate(0deg); opacity: 0.3; }
+                50% { transform: scale(1.2) rotate(45deg); opacity: 1; }
+              }
+              @keyframes orbit {
+                from { transform: rotateY(0deg) translateX(180px) rotateY(0deg); }
+                to { transform: rotateY(360deg) translateX(180px) rotateY(-360deg); }
+              }
+            `}
+          </style>
+          {/* 반짝이는 별들 */}
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute text-yellow-300 drop-shadow-[0_0_10px_rgba(255,255,0,0.8)]"
+              style={{
+                left: '50%',
+                top: '50%',
+                fontSize: `${20 + (i % 3) * 10}px`,
+                animation: `twinkle ${1.5 + i * 0.2}s infinite ease-in-out, orbit ${3 + i * 0.5}s infinite linear`,
+                animationDelay: `${i * 0.4}s`,
+                marginTop: '-25px',
+                marginLeft: '-25px',
+              }}
+            >
+              ✨
+            </div>
+          ))}
+          {/* 머리 위 머리띠 형태의 오라 */}
+          <div
+            className="absolute top-[10%] left-1/2 -translate-x-1/2 w-48 h-4 bg-gradient-to-r from-transparent via-yellow-200 to-transparent blur-lg opacity-60"
+            style={{ transform: 'translateZ(-50px)' }}
+          />
+        </div>
+      )}
+
+      {/* 페르소나 모드일 때는 항상 웃는 얼굴(타입 5)이 베이스가 되도록 강제하거나,
+          각 타입별로 페르소나 효과를 추가할 수 있습니다. 여기서는 모드에 따라 얼굴 타입 구성을 살짝 변경합니다. */}
+      {/* 페르소나 모드일 때는 항상 웃는 얼굴(타입 5)이 베임이 되도록 강제합니다. */}
+      {effectiveType === 0 && (
         // 디자인 1: 세로로 긴 타원 눈, 알파벳 O 모양 입
         <>
           {renderEyes({ width: '24px', height: '48px' })}
@@ -322,7 +371,7 @@ export default function FaceDesign({ type, mouthOpenRadius, mode }: FaceDesignPr
         </>
       )}
 
-      {type === 1 && (
+      {effectiveType === 1 && (
         // 디자인 2: 엄청 큰 왕눈이 동그란 눈
         <>
           {renderEyes({ width: '40px', height: '40px' })}
@@ -337,7 +386,7 @@ export default function FaceDesign({ type, mouthOpenRadius, mode }: FaceDesignPr
         </>
       )}
 
-      {type === 2 && (
+      {effectiveType === 2 && (
         // 디자인 3: 가로 라인 눈 (감은 눈 혹은 웃는 눈)
         <>
           <div
@@ -359,7 +408,7 @@ export default function FaceDesign({ type, mouthOpenRadius, mode }: FaceDesignPr
         </>
       )}
 
-      {type === 3 && (
+      {effectiveType === 3 && (
         // 디자인 4: 사각형 눈
         <>
           {renderEyes({ width: '36px', height: '36px', borderRadius: '8px' })}
@@ -375,7 +424,7 @@ export default function FaceDesign({ type, mouthOpenRadius, mode }: FaceDesignPr
         </>
       )}
 
-      {type === 4 && (
+      {effectiveType === 4 && (
         // 디자인 5: V 모양 입꼬리 상승
         <>
           {renderEyes({ width: '32px', height: '40px' })}
@@ -395,7 +444,7 @@ export default function FaceDesign({ type, mouthOpenRadius, mode }: FaceDesignPr
         </>
       )}
 
-      {type === 5 && (
+      {effectiveType === 5 && (
         // 디자인 6: 깜찍한 반달 눈
         <>
           <svg

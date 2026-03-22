@@ -8,6 +8,7 @@ import {
   MessageSquare,
   PenTool,
   RefreshCcw,
+  Sparkles,
 } from 'lucide-react';
 import type { Mode } from '../../../types';
 
@@ -62,6 +63,12 @@ export default function ModePanel({
       color: 'from-indigo-200/60 to-blue-100/40',
       glow: 'bg-indigo-300/50',
     },
+    {
+      id: 'persona',
+      icon: <Sparkles className="w-7 h-7 text-white" />,
+      color: 'from-amber-200/60 to-yellow-100/40',
+      glow: 'bg-yellow-200/50',
+    },
   ];
 
   const enterModePanel = () => setShowModePanel(true);
@@ -70,8 +77,8 @@ export default function ModePanel({
   return (
     <div
       className="absolute left-6 top-1/2 -translate-y-1/2 z-50 text-center flex flex-col items-center gap-2"
-      onMouseEnter={!isVisitorMode ? enterModePanel : undefined}
-      onMouseLeave={!isVisitorMode ? leaveModePanel : undefined}
+      onMouseEnter={enterModePanel}
+      onMouseLeave={leaveModePanel}
     >
       {/* 트리거 버튼 */}
       <div
@@ -87,17 +94,23 @@ export default function ModePanel({
           <>
             {modes.find((m) => m.id === currentMode)?.icon}
             <span className="text-[8px] font-semibold text-white/80 leading-none">
-              {currentMode === 'normal' ? '일반' : currentMode === 'study' ? '학습' : '상담'}
+              {currentMode === 'normal'
+                ? '일반'
+                : currentMode === 'study'
+                  ? '학습'
+                  : currentMode === 'counseling'
+                    ? '상담'
+                    : '페르소나'}
             </span>
           </>
         )}
       </div>
 
-      {/* 1) 일반 모드: 모드 선택 팝업 */}
+      {/* 1) 일반 모드 전용: 모드 선택 팝업 (내 집에만 표시) */}
       {!isVisitorMode && (
         <div
           className={`
-            absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2
+            absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2
             flex flex-col items-center gap-3 p-4 rounded-[50px]
             bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl
             transition-all duration-400 ease-out
@@ -110,10 +123,16 @@ export default function ModePanel({
           onMouseEnter={enterModePanel}
           onMouseLeave={leaveModePanel}
         >
+          {/* 브릿지 레이어: 버튼과 메뉴 사이의 빈 공간을 채워 호버 유지 */}
+          <div className="absolute -left-4 top-0 w-4 h-full pointer-events-auto cursor-default" />
           {modes.map((mode) => (
             <button
               key={mode.id}
-              onClick={() => onModeChange(mode.id)}
+              onClick={() => {
+                onModeChange(mode.id);
+                setShowModePanel(false);
+              }}
+              title={`${mode.id === 'persona' ? '페르소나 모드' : mode.id}`}
               className={`
                 relative w-14 h-14 rounded-full flex items-center justify-center
                 bg-gradient-to-br ${mode.color} border-2 transition-all duration-300
@@ -147,7 +166,25 @@ export default function ModePanel({
 
       {/* 2) 방문 모드: 상호작용 팝업 */}
       {isVisitorMode && isInteractionModalOpen && (
-        <div className="absolute left-[calc(100%+12px)] top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 p-4 rounded-[50px] bg-white/10 backdrop-blur-xl border border-white/40 shadow-2xl animate-in fade-in slide-in-from-left-4 duration-300">
+        <div className="absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 p-4 rounded-[50px] bg-white/10 backdrop-blur-xl border border-white/40 shadow-2xl animate-in fade-in slide-in-from-left-4 duration-300">
+          <div className="absolute -left-4 top-0 w-4 h-full pointer-events-auto cursor-default" />
+          
+          {/* 방문 모드에서 친구 페르소나를 체험하는 토글 버튼 */}
+          <button
+            onClick={() => onModeChange(currentMode === 'persona' ? 'normal' : 'persona')}
+            className={`relative w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-amber-200/60 to-yellow-100/40 border-2 transition-all duration-300 shadow-lg ${
+              currentMode === 'persona'
+                ? 'border-white/80 scale-105'
+                : 'border-white/20 hover:border-white/50 hover:scale-105'
+            }`}
+            title={currentMode === 'persona' ? '일반 모드로 돌아가기' : '친구 페르소나 모드 체험'}
+          >
+            {currentMode === 'persona' && (
+              <div className="absolute inset-0 rounded-full bg-yellow-200/50 blur-md -z-10" />
+            )}
+            <Sparkles className="w-7 h-7 text-white" />
+          </button>
+
           <button
             onClick={onStartDualAi}
             className="w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-400/60 to-indigo-300/40 border-2 border-white/20 hover:border-white/60 hover:scale-110 transition-all shadow-lg group"
