@@ -1,7 +1,7 @@
 package com.ssafy.ssarvis.chat.dto.response;
 
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.chat.document.ChatSessionDocument;
-import com.ssafy.ssarvis.chat.domain.ChatMode;
 import com.ssafy.ssarvis.chat.domain.ChatSessionStatus;
 import com.ssafy.ssarvis.chat.domain.ChatSessionType;
 import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
@@ -11,7 +11,7 @@ public record ChatSessionResponseDto(
     String id,
     Long userId,
     Long assistantId,
-    ChatMode chatMode,
+    AssistantType assistantType,
     ChatSessionType chatSessionType,
     String title,
     ChatSessionStatus chatSessionStatus,
@@ -27,7 +27,7 @@ public record ChatSessionResponseDto(
             chatSessionDocument.getId(),
             chatSessionDocument.getUserId(),
             chatSessionDocument.getAssistantId(),
-            chatSessionDocument.getChatMode(),
+            chatSessionDocument.getAssistantType(),
             chatSessionDocument.getChatSessionType(),
             chatSessionDocument.getTitle(),
             chatSessionDocument.getChatSessionStatus(),
