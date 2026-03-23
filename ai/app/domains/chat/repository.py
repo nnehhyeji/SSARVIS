@@ -14,8 +14,8 @@ class ChatRepository:
         self,
         session_id: str,
         user_id: int,
+        chat_session_type: str,
         chat_mode: str,
-        memory_policy: str,
         vector: list[float],
         limit: int = 1,
     ) -> list[SimilarChatItem]:
@@ -24,8 +24,8 @@ class ChatRepository:
             filter_conditions={
                 "session_id": session_id,
                 "user_id": user_id,
+                "chat_session_type": chat_session_type,
                 "chat_mode": chat_mode,
-                "memory_policy": memory_policy,
             },
             limit=limit,
         )
@@ -41,6 +41,7 @@ class ChatRepository:
         self,
         session_id: str,
         user_id: int,
+        chat_session_type: str,
         chat_mode: str,
         memory_policy: str,
         text: str,
@@ -50,6 +51,7 @@ class ChatRepository:
         payload = {
             "session_id": session_id,
             "user_id": user_id,
+            "chat_session_type": chat_session_type,
             "chat_mode": chat_mode,
             "memory_policy": memory_policy,
             "text": text,

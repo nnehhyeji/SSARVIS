@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field, StringConstraints
@@ -5,17 +6,40 @@ from typing_extensions import Annotated
 
 
 NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-ChatRole = Literal["system", "user", "assistant"]
+
+
+class ChatRole(StrEnum):
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
+class ChatSessionType(StrEnum):
+    USER_AI = "USER_AI"
+    AVATAR_AI = "AVATAR_AI"
+
+
+class ChatMode(StrEnum):
+    DAILY = "DAILY"
+    STUDY = "STUDY"
+    COUNSEL = "COUNSEL"
+    PERSONA = "PERSONA"
+
+
+class MemoryPolicy(StrEnum):
+    GENERAL = "GENERAL"
+    SECRET = "SECRET"
 
 
 class ChatRequest(BaseModel):
     sessionId: NonEmptyStr
     userId: int
-    chatMode: NonEmptyStr
-    memoryPolicy: NonEmptyStr
-    isPublic: bool = False
+    ChatSessionType: ChatSessionType
+    chatMode: ChatMode
+    isFollowing: bool | None = None
+    memoryPolicy: MemoryPolicy
     systemPrompt: NonEmptyStr
-    history: list["ChatHistoryItem"] = Field(default_factory=list)
+    history: list["ChatHistoryItem"] = Field(default_factory=list, max_length=30)
     text: NonEmptyStr
     voiceId: NonEmptyStr
 
@@ -28,6 +52,7 @@ class ChatHistoryItem(BaseModel):
 class SimilarChatItem(BaseModel):
     session_id: str
     user_id: int
+    chat_session_type: ChatSessionType
     chat_mode: str
     memory_policy: str
     text: str
