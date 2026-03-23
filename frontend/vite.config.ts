@@ -1,19 +1,35 @@
-import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
+import { defineConfig, loadEnv } from 'vite';
+
+function getApiTarget(rawUrl: string | undefined): string {
+  const fallback = 'http://localhost:8080';
+  const candidate = rawUrl || fallback;
+
+  try {
+    return new URL(candidate).origin;
+  } catch {
+    return candidate;
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // .env 파일의 변수들을 로드합니다 (VITE_ 접두사 없는 것도 포함하려면 세 번째 인자를 ''로 줄 수 있습니다)
   const env = loadEnv(mode, process.cwd(), '');
+  const apiTarget = getApiTarget(env.VITE_API_BASE_URL);
 
   return {
     plugins: [react(), tailwindcss()],
     server: {
       proxy: {
         '/api/v1': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:8080',
+          target: apiTarget,
           changeOrigin: true,
+        },
+        '/ws': {
+          target: apiTarget,
+          changeOrigin: true,
+          ws: true,
         },
       },
     },

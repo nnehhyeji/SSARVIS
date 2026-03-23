@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import notificationApi from '../apis/notificationApi';
+import { getApiHttpBaseUrl } from '../config/api';
 import type { NotificationDTO } from '../apis/notificationApi';
 import type { Alarm } from '../types';
 
@@ -111,7 +112,7 @@ export function useNotification() {
 
     if (token) {
       eventSource = new EventSourcePolyfill(
-        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/sse/subscribe`,
+        `${getApiHttpBaseUrl()}/sse/subscribe`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

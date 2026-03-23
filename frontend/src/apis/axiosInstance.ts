@@ -1,10 +1,11 @@
 import axios from 'axios';
+import { getApiHttpBaseUrl } from '../config/api';
 import { useVoiceLockStore } from '../store/useVoiceLockStore';
 
 // 1. 기본 인스턴스 생성
 const axiosInstance = axios.create({
   // 백엔드 API 서버 주소와 공통 경로(/api/v1)를 결합
-  baseURL: (import.meta.env.VITE_API_BASE_URL || '') + '/api/v1',
+  baseURL: getApiHttpBaseUrl(),
   // 요청이 10초 이상 지연되면 에러 처리
   timeout: 10000,
   withCredentials: true,
@@ -75,7 +76,7 @@ axiosInstance.interceptors.response.use(
       try {
         // reissue API 호출 (baseURL이 반영된 인스턴스가 아닌 기본 axios 사용 시 경로 주의)
         const response = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/auth/reissue`,
+          `${getApiHttpBaseUrl()}/auth/reissue`,
           {},
           { withCredentials: true },
         );
