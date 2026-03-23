@@ -13,8 +13,10 @@ import com.ssafy.ssarvis.chat.service.ChatMessageService;
 import com.ssafy.ssarvis.chat.service.ChatSessionService;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.constant.Constants;
+import com.ssafy.ssarvis.common.dto.ListResponseDto;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -106,6 +109,33 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             .sorted(Comparator.comparing(ChatMessageDocument::getCreatedAt))
             .map(ChatMessageResponseDto::from)
             .toList();
+    }
+
+    @Override
+    public ListResponseDto<ChatMessageResponseDto> getChatMessage(Long userId, String sessionId, String lastOffsetId,
+        int limit) {
+        PageRequest pageRequest = PageRequest.of(0, limit);
+        List<ChatMessageDocument> messages;
+        ChatSessionDocument sessionDocument = chatSessionRepository.findById(sessionId).orElseThrow(
+            () -> new CustomException("존재하지 않는 채팅 세션입니다.", ErrorCode.CHAT_SESSION_NOT_FOUND));
+
+//        if (!sessionDocument.getUserId().equals(userId)) {
+//
+//        }
+        // Cursor Pagination 분기 처리
+        if (!StringUtils.hasText(lastOffsetId)) {
+            // 첫 조회
+            messages = chatMessageRepository.findBySessionIdOrderByIdDesc(sessionId, pageRequest);
+        } else {
+            // 이전 대화 스크롤 조회
+            messages = chatMessageRepository.findBySessionIdAndIdLessThanOrderByIdDesc(sessionId, lastOffsetId, pageRequest);
+        }
+        // ASC로 뒤집기
+        Collections.reverse(messages);
+        List<ChatMessageResponseDto> messageList =messages.stream()
+            .map(ChatMessageResponseDto::from)
+            .toList();
+        return ListResponseDto.from(messageList);
     }
 
     private ChatSessionDocument getSession(String sessionId) {

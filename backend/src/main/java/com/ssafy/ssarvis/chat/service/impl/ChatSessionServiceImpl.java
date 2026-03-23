@@ -43,6 +43,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
         ChatSessionDocument chatSessionDocument = ChatSessionDocument.create(
             chatSessionCreateRequestDto.userId(),
+            chatSessionCreateRequestDto.targetUserId(),
             chatSessionCreateRequestDto.assistantId(),
             chatSessionCreateRequestDto.assistantType(),
             chatSessionCreateRequestDto.chatSessionType(),

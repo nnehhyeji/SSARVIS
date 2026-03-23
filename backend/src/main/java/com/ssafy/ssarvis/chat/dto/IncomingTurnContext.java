@@ -1,6 +1,7 @@
 package com.ssafy.ssarvis.chat.dto;
 
 import com.ssafy.ssarvis.assistant.entity.AssistantType;
+import com.ssafy.ssarvis.chat.domain.ChatSessionType;
 import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -12,7 +13,9 @@ import lombok.Getter;
 public class IncomingTurnContext {
     private String sessionId;
     private Long userId;
+    private Long targetUserId;
     private Long assistantId;
+    private ChatSessionType chatSessionType;
     private AssistantType assistantType;
     private MemoryPolicy memoryPolicy;
 

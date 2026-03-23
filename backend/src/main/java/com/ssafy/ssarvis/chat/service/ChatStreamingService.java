@@ -38,9 +38,9 @@ public class ChatStreamingService {
     private final ChatMessageService chatMessageService;
     private final PromptRepository promptRepository;
 
-    public void completeUserInput(WebSocketSession frontendSession, Long userId, String sessionId,
-                                  AssistantType assistantType, MemoryPolicy memoryPolicy, File inputAudioTempFile,
-                                  String finalText) {
+    public void completeUserInput(WebSocketSession frontendSession, Long userId, Long targetUserId, String sessionId,
+        ChatSessionType chatSessionType, AssistantType assistantType, MemoryPolicy memoryPolicy, File inputAudioTempFile,
+        String finalText) {
 
         if (!StringUtils.hasText(finalText)) {
             throw new CustomException("최종 STT 텍스트가 비어있습니다.", ErrorCode.USER_INPUT_TEXT_EMPTY);
@@ -56,8 +56,10 @@ public class ChatStreamingService {
 
         ChatSessionResponseDto chatSession = resolveSession(
             userId,
+            targetUserId,
             sessionId,
             assistantId,
+            chatSessionType,
             assistantType,
             memoryPolicy
         );
@@ -89,8 +91,7 @@ public class ChatStreamingService {
         aiRequestRelayService.send(frontendSession, aiRequest);
 
         // 비동기로 저장 요청 전송 (S3, Mongo)
-        userInputStorageService.saveUserInputAsync(chatSession.id(), userId, inputAudioTempFile,
-            finalText);
+        userInputStorageService.saveUserInputAsync(chatSession.id(), userId, inputAudioTempFile, finalText);
 
         log.info("사용자 입력 처리 완료. userId={}, sessionId={}",
             userId, chatSession.id());
@@ -98,8 +99,10 @@ public class ChatStreamingService {
 
     private ChatSessionResponseDto resolveSession(
         Long userId,
+        Long targetUserId,
         String sessionId,
         Long assistantId,
+        ChatSessionType chatSessionType,
         AssistantType assistantType,
         MemoryPolicy memoryPolicy
     ) {
@@ -116,6 +119,7 @@ public class ChatStreamingService {
         return chatSessionService.getOrCreateSession(
             new ChatSessionCreateRequestDto(
                 userId,
+                targetUserId,
                 assistantId,
                 assistantType,
                 ChatSessionType.USER_AI,
@@ -128,6 +132,7 @@ public class ChatStreamingService {
     private AiChatRequestDto buildAiChatRequest(
         ChatSessionResponseDto chatSession,
         Long userId,
+        ChatSessionType chatSessionType,
         String systemPrompt,
         List<Map<String, String>> history,
         String finalText,
@@ -136,6 +141,7 @@ public class ChatStreamingService {
         return new AiChatRequestDto(
             chatSession.id(),
             userId,
+
             chatSession.assistantType(),
             chatSession.memoryPolicy(),
             systemPrompt,
