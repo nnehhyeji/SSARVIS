@@ -44,18 +44,20 @@ Base URL:
 }
 ```
 
-### 2. Prompt 생성
+### 2. Prompt 생성/업데이트
 
 `POST /api/v1/prompt`
 
 설명:
 
 - QnA 목록을 받아 시스템 프롬프트를 생성합니다.
+- `systemPrompt`를 함께 보내면 기존 시스템 프롬프트를 기반으로 업데이트합니다.
 
 요청 바디:
 
 ```json
 {
+  "systemPrompt": "나는 차분하고 따뜻한 말투를 유지한다.",
   "qna": [
     {
       "question": "어떤 사람 같아?",
@@ -71,6 +73,7 @@ Base URL:
 
 필드:
 
+- `systemPrompt`: 선택, 기존 시스템 프롬프트. 값이 있으면 업데이트 모드로 동작
 - `qna`: 배열, 최소 1개
 - `qna[].question`: 문자열
 - `qna[].answer`: 문자열

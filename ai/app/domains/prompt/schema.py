@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class PromptRequest(BaseModel):
+    systemPrompt: str | None = None
     qna: list["PromptQnAItem"] = Field(min_length=1)
 
 
