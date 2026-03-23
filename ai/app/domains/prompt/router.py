@@ -9,6 +9,7 @@ from app.infra.prompt_loader import PromptTemplateLoader
 router = APIRouter(prefix="/prompt", tags=["prompt"])
 openai_client = OpenAIClient()
 prompt_loader = PromptTemplateLoader()
+prompt_update_loader = PromptTemplateLoader("app/prompts/system_prompt_meta_update.md")
 
 
 def get_openai_client() -> OpenAIClient:
@@ -19,11 +20,16 @@ def get_prompt_loader() -> PromptTemplateLoader:
     return prompt_loader
 
 
+def get_prompt_update_loader() -> PromptTemplateLoader:
+    return prompt_update_loader
+
+
 def get_prompt_service(
     client: OpenAIClient = Depends(get_openai_client),
     loader: PromptTemplateLoader = Depends(get_prompt_loader),
+    update_loader: PromptTemplateLoader = Depends(get_prompt_update_loader),
 ) -> PromptService:
-    return PromptService(client, loader)
+    return PromptService(client, loader, update_loader)
 
 
 @router.post("", response_model=PromptResponse, status_code=status.HTTP_201_CREATED)
