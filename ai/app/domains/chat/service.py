@@ -60,13 +60,13 @@ class ChatContextBuilder:
             )
             messages.append({"role": "system", "content": similar_text})
 
-        if response_guideline_prompt:
-            messages.append({"role": "system", "content": response_guideline_prompt})
-
         if public_conversation_guideline_prompt:
             messages.append(
                 {"role": "system", "content": public_conversation_guideline_prompt}
             )
+
+        if response_guideline_prompt:
+            messages.append({"role": "system", "content": response_guideline_prompt})
 
         messages.append({"role": "user", "content": context.user_text})
         return messages

@@ -26,18 +26,11 @@ class PromptService:
         qna_items: list[PromptQnAItem],
         current_system_prompt: str | None = None,
     ) -> str:
-        meta_prompt = self.prompt_meta
+        system_prompt = self.prompt_meta if not current_system_prompt else self.prompt_update_meta
         source_text = self._format_input(qna_items, current_system_prompt)
-        if current_system_prompt and current_system_prompt.strip():
-            meta_prompt = "\n\n".join(
-                [
-                    meta_prompt,
-                    self.prompt_update_meta,
-                ]
-            )
         return await self.openai_client.generate(
             [
-                {"role": "system", "content": meta_prompt},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": source_text},
             ]
         )
