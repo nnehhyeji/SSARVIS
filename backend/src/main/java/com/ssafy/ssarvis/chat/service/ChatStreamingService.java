@@ -12,10 +12,14 @@ import com.ssafy.ssarvis.chat.dto.response.ChatMessageResponseDto;
 import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
-import com.ssafy.ssarvis.user.repository.UserRepository;
+
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+
+import com.ssafy.ssarvis.voice.entity.Prompt;
+import com.ssafy.ssarvis.voice.entity.PromptType;
+import com.ssafy.ssarvis.voice.repository.PromptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,11 +36,11 @@ public class ChatStreamingService {
     private final AiRequestRelayService aiRequestRelayService;
     private final UserInputStorageService userInputStorageService;
     private final ChatMessageService chatMessageService;
-    private final UserRepository userRepository;
+    private final PromptRepository promptRepository;
 
     public void completeUserInput(WebSocketSession frontendSession, Long userId, String sessionId,
-        AssistantType assistantType, MemoryPolicy memoryPolicy, File inputAudioTempFile,
-        String finalText) {
+                                  AssistantType assistantType, MemoryPolicy memoryPolicy, File inputAudioTempFile,
+                                  String finalText) {
 
         if (!StringUtils.hasText(finalText)) {
             throw new CustomException("최종 STT 텍스트가 비어있습니다.", ErrorCode.USER_INPUT_TEXT_EMPTY);
@@ -58,7 +62,11 @@ public class ChatStreamingService {
             memoryPolicy
         );
 
-        String systemPrompt = userRepository.findUserPromptById(userId);
+        Prompt prompt = promptRepository
+            .findTopByUserIdAndPromptTypeOrderByIdDesc(userId, PromptType.USER)
+            .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND.getMessage(), ErrorCode.NOT_FOUND));
+
+        String systemPrompt = prompt.getPrompt();
 
         List<ChatMessageResponseDto> recentMessage = chatMessageService.findRecentMessagesBySessionId(
             userId, chatSession.id());
@@ -77,7 +85,7 @@ public class ChatStreamingService {
             history,
             finalText,
             modelId
-            );
+        );
         aiRequestRelayService.send(frontendSession, aiRequest);
 
         // 비동기로 저장 요청 전송 (S3, Mongo)
@@ -124,7 +132,7 @@ public class ChatStreamingService {
         List<Map<String, String>> history,
         String finalText,
         String modelId
-        ) {
+    ) {
         return new AiChatRequestDto(
             chatSession.id(),
             userId,
@@ -134,6 +142,6 @@ public class ChatStreamingService {
             history,
             finalText,
             modelId
-            );
+        );
     }
 }

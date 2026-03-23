@@ -4,6 +4,7 @@ import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
+import com.ssafy.ssarvis.follow.dto.response.FollowAiResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.UserSearchResponseDto;
 
@@ -24,5 +25,7 @@ public interface FollowService {
     List<FollowRequestListResponseDto> getFollowRequestList(Long userId);
 
     List<UserSearchResponseDto> searchUser(Long userId, String nickname, String email);
+
+    FollowAiResponseDto getFollowDailyAi(Long loginUserId, Long followId);
 
 }

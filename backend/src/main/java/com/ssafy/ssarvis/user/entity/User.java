@@ -50,6 +50,11 @@ public class User extends BaseTime {
     private Boolean isVoiceLockActive = false;
 
     @NotNull
+    @Column(name = "is_accept_prompt")
+    @Builder.Default
+    private Boolean isAcceptPrompt = true;
+
+    @NotNull
     @Column(name = "costume")
     @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
@@ -69,12 +74,6 @@ public class User extends BaseTime {
     @Builder.Default
     private Long voiceLockTimeout = 1800L;
 
-    @Column(name = "user_prompt", columnDefinition = "TEXT")
-    private String userPrompt;
-
-    @Column(name = "namna_prompt", columnDefinition = "TEXT")
-    private String namnaPrompt;
-
     public static User create(String email, String password, String nickname) {
         return User.builder()
             .email(email)
@@ -83,7 +82,7 @@ public class User extends BaseTime {
             .build();
     }
 
-    public void update(String password, String nickname, String description, Costume costume, String voicePassword){
+    public void update(String password, String nickname, String description, Costume costume, String voicePassword) {
         if (password != null) this.password = password;
         if (nickname != null) this.nickname = nickname;
         if (description != null) this.description = description;
@@ -109,11 +108,8 @@ public class User extends BaseTime {
         this.isVoiceLockActive = false;
     }
 
-    public void updateUserPrompt(String userPrompt) {
-        this.userPrompt = userPrompt;
+    public void toggleAcceptPrompt() {
+        this.isAcceptPrompt = !this.isAcceptPrompt;
     }
 
-    public void updateNamnaPrompt(String namnaPrompt) {
-        this.namnaPrompt = namnaPrompt;
-    }
 }
