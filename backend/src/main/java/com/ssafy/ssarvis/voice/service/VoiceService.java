@@ -1,5 +1,6 @@
 package com.ssafy.ssarvis.voice.service;
 
+import com.ssafy.ssarvis.voice.dto.response.NonMemberPromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceInfoResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
@@ -11,7 +12,7 @@ public interface VoiceService {
 
     PromptResponseDto generateSystemPrompt(Long userId, Object rawJson);
 
-    PromptResponseDto generateSystemPromptNonMember(Long targetUserId, Object rawJson);
+    NonMemberPromptResponseDto generateSystemPromptNonMember(Long targetUserId, Object rawJson);
 
     VoiceInfoResponseDto getVoiceInfo(Long userId);
 }

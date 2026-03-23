@@ -100,7 +100,7 @@ public class VoiceServiceImpl implements VoiceService {
     }
 
     @Override
-    public PromptResponseDto generateSystemPromptNonMember(Long targetUserId, Object rawJson) {
+    public NonMemberPromptResponseDto generateSystemPromptNonMember(Long targetUserId, Object rawJson) {
         try {
             log.info("AI 서버로 전달할 데이터: {}", rawJson);
 
@@ -123,9 +123,10 @@ public class VoiceServiceImpl implements VoiceService {
                     .build();
 
                 promptRepository.save(prompt);
+                Long count = promptRepository.countByUserIdAndPromptType(targetUserId, PromptType.NAMNA);
 
                 log.info("타 사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
-                return new PromptResponseDto(generatedPrompt);
+                return new NonMemberPromptResponseDto(generatedPrompt, count);
             }
 
             throw new RuntimeException("AI 서버 응답 오류");

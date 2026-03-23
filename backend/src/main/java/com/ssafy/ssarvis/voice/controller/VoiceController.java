@@ -2,6 +2,7 @@ package com.ssafy.ssarvis.voice.controller;
 
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
+import com.ssafy.ssarvis.voice.dto.response.NonMemberPromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceInfoResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
@@ -44,11 +45,11 @@ public class VoiceController {
     }
 
     @PostMapping("/prompts/{targetUserId}")
-    public ResponseEntity<BaseResponse<PromptResponseDto>> createPrompt(
+    public ResponseEntity<BaseResponse<NonMemberPromptResponseDto>> createPrompt(
         @RequestBody Object requestBody,
         @PathVariable("targetUserId") Long targetUserId
     ) {
-        PromptResponseDto response = voiceService.generateSystemPromptNonMember(targetUserId, requestBody);
+        NonMemberPromptResponseDto response = voiceService.generateSystemPromptNonMember(targetUserId, requestBody);
         return ResponseEntity.ok(BaseResponse.success("상대방 프롬프트 생성 및 저장 성공", response));
     }
 
