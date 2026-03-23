@@ -9,8 +9,10 @@ public record UserResponseDto(
     String nickname,
     String description,
     Boolean isVoiceLockActive,
+    Boolean isAcceptPrompt,
     Costume costume,
-    Long viewCount
+    Long viewCount,
+    Long voiceLockTimeout
 ){
     public static UserResponseDto from(User user) {
         return new UserResponseDto(
@@ -19,8 +21,10 @@ public record UserResponseDto(
             user.getNickname(),
             user.getDescription(),
             user.getIsVoiceLockActive(),
+            user.getIsAcceptPrompt(),
             user.getCostume(),
-            user.getViewCount()
+            user.getViewCount(),
+            user.getVoiceLockTimeout()
         );
     }
 }

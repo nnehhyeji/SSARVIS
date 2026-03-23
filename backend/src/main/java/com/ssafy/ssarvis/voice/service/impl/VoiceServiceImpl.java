@@ -1,9 +1,15 @@
 package com.ssafy.ssarvis.voice.service.impl;
 
+import com.ssafy.ssarvis.assistant.entity.Assistant;
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
+import com.ssafy.ssarvis.assistant.repository.AssistantRepository;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.voice.dto.response.*;
+import com.ssafy.ssarvis.voice.entity.Prompt;
+import com.ssafy.ssarvis.voice.entity.PromptType;
 import com.ssafy.ssarvis.voice.entity.Voice;
+import com.ssafy.ssarvis.voice.repository.PromptRepository;
 import com.ssafy.ssarvis.voice.repository.VoiceRepository;
 import com.ssafy.ssarvis.voice.service.VoiceService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +37,8 @@ public class VoiceServiceImpl implements VoiceService {
 
     private final VoiceRepository voiceRepository;
     private final UserRepository userRepository;
+    private final PromptRepository promptRepository;
+    private final AssistantRepository assistantRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${spring.app.ai-server.url}")
@@ -75,10 +83,54 @@ public class VoiceServiceImpl implements VoiceService {
                 User user = userRepository.findById(userId)
                     .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-                user.updateUserPrompt(generatedPrompt);
+                Prompt prompt = Prompt.builder()
+                    .prompt(generatedPrompt)
+                    .promptType(PromptType.USER)
+                    .user(user)
+                    .build();
+
+                promptRepository.save(prompt);
 
                 log.info("사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
                 return new PromptResponseDto(generatedPrompt);
+            }
+
+            throw new RuntimeException("AI 서버 응답 오류");
+
+        } catch (Exception e) {
+            log.error("프롬프트 생성 중 오류 발생: {}", e.getMessage());
+            throw new RuntimeException("시스템 프롬프트 생성에 실패했습니다.");
+        }
+    }
+
+    @Override
+    public NonMemberPromptResponseDto generateSystemPromptNonMember(Long targetUserId, Object rawJson) {
+        try {
+            log.info("AI 서버로 전달할 데이터: {}", rawJson);
+
+            ResponseEntity<AiPromptResponseDto> response = restTemplate.postForEntity(
+                aiServerUrl + "/api/v1/prompt",
+                rawJson,
+                AiPromptResponseDto.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                String generatedPrompt = response.getBody().data().systemPrompt();
+
+                User user = userRepository.findById(targetUserId)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+                Prompt prompt = Prompt.builder()
+                    .prompt(generatedPrompt)
+                    .promptType(PromptType.NAMNA)
+                    .user(user)
+                    .build();
+
+                promptRepository.save(prompt);
+                Long count = promptRepository.countByUserIdAndPromptType(targetUserId, PromptType.NAMNA);
+
+                log.info("타 사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
+                return new NonMemberPromptResponseDto(generatedPrompt, count);
             }
 
             throw new RuntimeException("AI 서버 응답 오류");
@@ -94,7 +146,6 @@ public class VoiceServiceImpl implements VoiceService {
             HttpHeaders headers = new HttpHeaders();
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
 
-            // 오디오 파일 파트
             HttpHeaders audioHeaders = new HttpHeaders();
             audioHeaders.setContentType(MediaType.parseMediaType(audioFile.getContentType()));
             body.add("audio", new HttpEntity<>(new ByteArrayResource(audioFile.getBytes()) {
@@ -112,6 +163,7 @@ public class VoiceServiceImpl implements VoiceService {
 
             ResponseEntity<AiVoiceResponseDto> response = restTemplate.postForEntity(
                 aiServerUrl + "/api/v1/voice", requestEntity, AiVoiceResponseDto.class);
+
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return response.getBody().data().voiceId();
@@ -136,6 +188,18 @@ public class VoiceServiceImpl implements VoiceService {
             .build();
 
         voiceRepository.save(voice);
-        log.info("Voice 저장 완료: {} (ID: {})", user.getNickname(), modelId);
+
+        for (AssistantType assistantType : AssistantType.values()) {
+            Assistant assistant = Assistant.builder()
+                .assistantType(assistantType)
+                .name(user.getNickname() + "_" + assistantType.name())
+                .voice(voice)
+                .user(user)
+                .build();
+            assistantRepository.save(assistant);
+        }
+
+        log.info("Voice & Assistant Model 저장 완료: {} (ID: {})", user.getNickname(), modelId);
     }
+
 }

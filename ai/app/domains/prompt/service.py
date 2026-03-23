@@ -1,4 +1,5 @@
 from app.domains.prompt.schema import PromptQnAItem, PromptRequest
+from app.config.prompt import prompt_config
 from app.infra.openai import OpenAIClient
 from app.infra.prompt_loader import PromptTemplateLoader
 
@@ -8,17 +9,35 @@ class PromptService:
         self,
         openai_client: OpenAIClient,
         prompt_loader: PromptTemplateLoader,
+        prompt_update_loader: PromptTemplateLoader | None = None,
     ) -> None:
         self.openai_client = openai_client
         self.prompt_loader = prompt_loader
+        self.prompt_update_loader = prompt_update_loader or PromptTemplateLoader(
+            prompt_config.prompt_update_meta_file
+        )
 
     async def generate_prompt(self, body: PromptRequest) -> str:
-        generated_prompt = await self._generate_prompt(body.qna)
+        generated_prompt = await self._generate_prompt(
+            qna_items=body.qna,
+            current_system_prompt=body.systemPrompt,
+        )
         return generated_prompt.strip()
 
-    async def _generate_prompt(self, qna_items: list[PromptQnAItem]) -> str:
+    async def _generate_prompt(
+        self,
+        qna_items: list[PromptQnAItem],
+        current_system_prompt: str | None = None,
+    ) -> str:
         meta_prompt = self.prompt_loader.load_system_prompt_meta()
-        source_text = self._format_qna(qna_items)
+        source_text = self._format_input(qna_items, current_system_prompt)
+        if current_system_prompt and current_system_prompt.strip():
+            meta_prompt = "\n\n".join(
+                [
+                    meta_prompt,
+                    self.prompt_update_loader.load_system_prompt_meta(),
+                ]
+            )
         return await self.openai_client.generate(
             [
                 {"role": "system", "content": meta_prompt},
@@ -31,4 +50,21 @@ class PromptService:
         return "\n\n".join(
             f"Q: {item.question}\nA: {item.answer}"
             for item in qna_items
+        )
+
+    @classmethod
+    def _format_input(
+        cls,
+        qna_items: list[PromptQnAItem],
+        current_system_prompt: str | None = None,
+    ) -> str:
+        qna_text = cls._format_qna(qna_items)
+        if not current_system_prompt or not current_system_prompt.strip():
+            return qna_text
+
+        return (
+            "Current system prompt:\n"
+            f"{current_system_prompt.strip()}\n\n"
+            "New Q&A source text:\n"
+            f"{qna_text}"
         )

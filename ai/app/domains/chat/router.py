@@ -49,6 +49,9 @@ def get_chat_service(
         response_guideline_loader=PromptTemplateLoader(
             "app/prompts/response_guideline.md"
         ),
+        public_conversation_guideline_loader=PromptTemplateLoader(
+            "app/prompts/public_conversation_guideline.md"
+        ),
     )
 
 

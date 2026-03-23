@@ -1,14 +1,19 @@
 package com.ssafy.ssarvis.follow.service.impl;
 
+import com.ssafy.ssarvis.assistant.entity.Assistant;
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
+import com.ssafy.ssarvis.assistant.repository.AssistantRepository;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
+import com.ssafy.ssarvis.follow.dto.response.FollowAiResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.UserSearchResponseDto;
 import com.ssafy.ssarvis.follow.entity.Follow;
+import com.ssafy.ssarvis.follow.entity.FollowAccessType;
 import com.ssafy.ssarvis.follow.entity.FollowRequest;
 import com.ssafy.ssarvis.follow.entity.FollowStatus;
 import com.ssafy.ssarvis.follow.repository.FollowRepository;
@@ -32,8 +37,9 @@ public class FollowServiceImpl implements FollowService {
 
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
-    private final FollowRequestRepository followRequestRepository;
     private final NotificationService notificationService;
+    private final AssistantRepository assistantRepository;
+    private final FollowRequestRepository followRequestRepository;
 
     @Override
     public void requestFollow(Long senderId, FollowRequestDto followRequestDto) {
@@ -176,7 +182,30 @@ public class FollowServiceImpl implements FollowService {
                 resolveFollowStatus(userId, user.getId())
             ))
             .toList();  // 없으면 빈 리스트 반환
+
     }
+
+    @Transactional(readOnly = true)
+    public FollowAiResponseDto getFollowDailyAi(Long loginUserId, Long followId) {
+
+        Assistant assistant = assistantRepository
+            .findByUserIdAndAssistantType(followId, AssistantType.DAILY)
+            .orElseThrow(() -> new IllegalArgumentException("해당 유저의 DAILY AI가 없습니다."));
+
+        FollowAccessType accessType = FollowAccessType.PUBLIC;
+
+        if (loginUserId != null) {
+            boolean isFriend = followRepository
+                .existsByFollowerIdAndFollowingId(loginUserId, followId);
+
+            if (isFriend) {
+                accessType = FollowAccessType.PRIVATE;
+            }
+        }
+
+        return FollowAiResponseDto.of(assistant, accessType);
+    }
+
 
     private FollowStatus resolveFollowStatus(Long myId, Long targetId) {
         if (followRepository.existsByFollowerIdAndFollowingId(myId, targetId)) {
@@ -187,5 +216,6 @@ public class FollowServiceImpl implements FollowService {
         }
         return FollowStatus.NONE;
     }
+
 
 }

@@ -20,8 +20,8 @@ import lombok.NoArgsConstructor;
 @Getter
 @Entity
 @Builder
-@AllArgsConstructor(access = AccessLevel.PROTECTED)
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "voices")
 public class Voice {
 

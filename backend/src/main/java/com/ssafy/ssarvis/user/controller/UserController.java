@@ -67,7 +67,7 @@ public class UserController {
     @GetMapping
     public ResponseEntity<BaseResponse<UserResponseDto>> getUser(
         @AuthenticationPrincipal CustomUserDetails customUserDetails
-    ){
+    ) {
         UserResponseDto userResponseDto = userService.getUser(customUserDetails.getUserId());
         return ResponseEntity.ok(
             BaseResponse.success("유저 조회 성공", userResponseDto));
@@ -77,7 +77,7 @@ public class UserController {
     public ResponseEntity<BaseResponse<UserUpdateResponseDto>> updateUser(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,
         @RequestBody @Valid UserUpdateRequestDto userUpdateRequestDto
-    ){
+    ) {
         UserUpdateResponseDto userUpdateResponseDto = userService.updateUser(customUserDetails.getUserId(), userUpdateRequestDto);
         return ResponseEntity.ok(
             BaseResponse.success("유저 수정 성공", userUpdateResponseDto));
@@ -87,7 +87,7 @@ public class UserController {
     public ResponseEntity<BaseResponse<Void>> deleteUser(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,
         @CookieValue(name = "refreshToken", required = false) String refreshToken
-    ){
+    ) {
         userService.deleteUser(customUserDetails.getUserId());
         authService.logout(refreshToken);
 
@@ -95,6 +95,15 @@ public class UserController {
 
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
-                .body(BaseResponse.success("유저 탈퇴 성공"));
+            .body(BaseResponse.success("유저 탈퇴 성공"));
     }
+
+    @GetMapping("/namna/toggle")
+    public ResponseEntity<BaseResponse<Boolean>> toggleNamnaStatus(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        boolean result = userService.toggleNamna(customUserDetails.getUserId());
+        return ResponseEntity.ok(BaseResponse.success(String.valueOf(result)));
+    }
+
 }

@@ -15,6 +15,8 @@ from qdrant_client import QdrantClient
 from starlette.datastructures import Headers
 from websocket import create_connection
 
+from app.domains.chat.schema import ChatRequest
+from app.domains.chat.service import ChatService
 from app.domains.voice.service import VoiceService
 
 
@@ -154,6 +156,7 @@ def _chat_payload(
         "userId": user_id,
         "chatMode": chat_mode,
         "memoryPolicy": memory_policy,
+        "isPublic": False,
         "systemPrompt": "친절한 친구처럼 대답해.",
         "history": [],
         "text": text,
@@ -216,6 +219,124 @@ def test_prompt_endpoint_generates_system_prompt(http_client) -> None:
     assert payload["message"] == "시스템 프롬프트 생성 성공"
     assert isinstance(payload["data"]["systemPrompt"], str)
     assert payload["data"]["systemPrompt"].strip()
+
+
+def test_prompt_endpoint_updates_existing_system_prompt(http_client) -> None:
+    response = http_client.post(
+        "/api/v1/prompt",
+        json={
+            "systemPrompt": "차분하고 따뜻한 말투를 유지하며, 솔직하지만 공격적이지 않게 답한다.",
+            "qna": [
+                {"question": "요즘 말투는 어때?", "answer": "조금 더 장난스럽고 친근해."},
+                {"question": "대화에서 중요한 건 뭐야?", "answer": "상대를 편하게 해주는 것."},
+            ],
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["message"] == "시스템 프롬프트 생성 성공"
+    assert isinstance(payload["data"]["systemPrompt"], str)
+    assert payload["data"]["systemPrompt"].strip()
+
+
+def test_chat_service_adds_public_conversation_guideline_when_is_public_true() -> None:
+    class StubChatRepository:
+        async def search_similar(self, **kwargs):
+            return []
+
+    class StubOpenAIClient:
+        async def embed(self, text: str) -> list[float]:
+            return [0.1, 0.2, 0.3]
+
+    class StubPromptLoader:
+        def __init__(self, content: str) -> None:
+            self.content = content
+
+        def load_system_prompt_meta(self) -> str:
+            return self.content
+
+    service = ChatService(
+        chat_repository=StubChatRepository(),
+        openai_client=StubOpenAIClient(),
+        similar_conversations_prefix_loader=StubPromptLoader("similar prefix"),
+        response_guideline_loader=StubPromptLoader("response guideline"),
+        public_conversation_guideline_loader=StubPromptLoader(
+            "Do not reveal private or sensitive personal details in public settings."
+        ),
+    )
+
+    preparation = asyncio.run(
+        service.prepare_chat(
+            ChatRequest(
+                sessionId="public-session-1",
+                userId=101,
+                chatMode="NORMAL",
+                memoryPolicy="GENERAL",
+                isPublic=True,
+                systemPrompt="친절한 친구처럼 대답해.",
+                history=[],
+                text="우리 집 주소 기억해?",
+                voiceId="voice-id-123",
+            )
+        )
+    )
+
+    assert any(
+        message["role"] == "system"
+        and "Do not reveal private or sensitive personal details in public settings."
+        in message["content"]
+        for message in preparation.messages
+    )
+
+
+def test_chat_service_skips_public_conversation_guideline_when_is_public_false() -> None:
+    class StubChatRepository:
+        async def search_similar(self, **kwargs):
+            return []
+
+    class StubOpenAIClient:
+        async def embed(self, text: str) -> list[float]:
+            return [0.1, 0.2, 0.3]
+
+    class StubPromptLoader:
+        def __init__(self, content: str) -> None:
+            self.content = content
+
+        def load_system_prompt_meta(self) -> str:
+            return self.content
+
+    service = ChatService(
+        chat_repository=StubChatRepository(),
+        openai_client=StubOpenAIClient(),
+        similar_conversations_prefix_loader=StubPromptLoader("similar prefix"),
+        response_guideline_loader=StubPromptLoader("response guideline"),
+        public_conversation_guideline_loader=StubPromptLoader(
+            "Do not reveal private or sensitive personal details in public settings."
+        ),
+    )
+
+    preparation = asyncio.run(
+        service.prepare_chat(
+            ChatRequest(
+                sessionId="private-session-1",
+                userId=101,
+                chatMode="NORMAL",
+                memoryPolicy="GENERAL",
+                isPublic=False,
+                systemPrompt="친절한 친구처럼 대답해.",
+                history=[],
+                text="우리 집 주소 기억해?",
+                voiceId="voice-id-123",
+            )
+        )
+    )
+
+    assert all(
+        "Do not reveal private or sensitive personal details in public settings."
+        not in message["content"]
+        for message in preparation.messages
+    )
 
 
 def test_voice_endpoints_follow_new_contract(

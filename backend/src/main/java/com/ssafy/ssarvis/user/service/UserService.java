@@ -19,4 +19,7 @@ public interface UserService {
     UserUpdateResponseDto updateUser(Long userId, UserUpdateRequestDto userUpdateRequestDto);
 
     void deleteUser(Long userId);
+
+    boolean toggleNamna(Long userId);
+
 }
