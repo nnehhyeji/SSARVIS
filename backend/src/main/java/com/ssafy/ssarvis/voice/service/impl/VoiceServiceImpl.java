@@ -3,7 +3,10 @@ package com.ssafy.ssarvis.voice.service.impl;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.voice.dto.response.*;
+import com.ssafy.ssarvis.voice.entity.Prompt;
+import com.ssafy.ssarvis.voice.entity.PromptType;
 import com.ssafy.ssarvis.voice.entity.Voice;
+import com.ssafy.ssarvis.voice.repository.PromptRepository;
 import com.ssafy.ssarvis.voice.repository.VoiceRepository;
 import com.ssafy.ssarvis.voice.service.VoiceService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +34,7 @@ public class VoiceServiceImpl implements VoiceService {
 
     private final VoiceRepository voiceRepository;
     private final UserRepository userRepository;
+    private final PromptRepository promptRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${spring.app.ai-server.url}")
@@ -75,7 +79,13 @@ public class VoiceServiceImpl implements VoiceService {
                 User user = userRepository.findById(userId)
                     .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-//                user.updateUserPrompt(generatedPrompt);
+                Prompt prompt = Prompt.builder()
+                    .prompt(generatedPrompt)
+                    .promptType(PromptType.USER)
+                    .user(user)
+                    .build();
+
+                promptRepository.save(prompt);
 
                 log.info("사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
                 return new PromptResponseDto(generatedPrompt);

@@ -30,4 +30,5 @@ public class Prompt {
     @JoinColumn(name = "user_id")
     @ManyToOne(fetch = FetchType.LAZY)
     private User user;
+
 }
