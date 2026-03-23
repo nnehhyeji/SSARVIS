@@ -52,7 +52,7 @@ public class User extends BaseTime {
     @NotNull
     @Column(name = "is_accept_prompt")
     @Builder.Default
-    private Boolean isAcceptPrompt = false;
+    private Boolean isAcceptPrompt = true;
 
     @NotNull
     @Column(name = "costume")
