@@ -6,6 +6,7 @@ import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
+import com.ssafy.ssarvis.follow.dto.response.FollowAiResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.UserSearchResponseDto;
 import com.ssafy.ssarvis.follow.service.FollowService;
@@ -91,6 +92,23 @@ public class FollowController {
         Long userId = customUserDetails.getUserId();
         List<UserSearchResponseDto> result = followService.searchUser(userId, nickname, email);
         return ResponseEntity.ok(BaseResponse.success("유저 검색 성공", result));
+    }
+
+    @GetMapping("/ai/{followId}")
+    public ResponseEntity<BaseResponse<FollowAiResponseDto>> searchUser(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @PathVariable("followId") Long followId
+    ) {
+
+        Long loginUserId = (customUserDetails != null)
+            ? customUserDetails.getUserId()
+            : null;
+
+        FollowAiResponseDto response = followService.getFollowDailyAi(loginUserId, followId);
+
+        return ResponseEntity.ok(
+            BaseResponse.success("친구 AI 조회 성공", response)
+        );
     }
 
 }
