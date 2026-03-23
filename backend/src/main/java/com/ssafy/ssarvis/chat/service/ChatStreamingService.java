@@ -13,6 +13,7 @@ import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 
+import com.ssafy.ssarvis.follow.repository.FollowRepository;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class ChatStreamingService {
     private final UserInputStorageService userInputStorageService;
     private final ChatMessageService chatMessageService;
     private final PersonaRepository personaRepository;
+    private final FollowRepository followRepository;
 
     public void completeUserInput(WebSocketSession frontendSession, Long userId, Long targetUserId, String sessionId,
         ChatSessionType chatSessionType, AssistantType assistantType, MemoryPolicy memoryPolicy, File inputAudioTempFile,
@@ -46,8 +48,10 @@ public class ChatStreamingService {
             throw new CustomException("최종 STT 텍스트가 비어있습니다.", ErrorCode.USER_INPUT_TEXT_EMPTY);
         }
 
+        Long aiOwnerId = (chatSessionType == ChatSessionType.AVATAR_AI) ? targetUserId : userId;
+
         AssistantVoiceProjection assistantVoice = assistantRepository.getAssistantIdAndModelIdByUserIdAndAssistantType(
-                userId, assistantType)
+                aiOwnerId, assistantType)
             .orElseThrow(
                 () -> new CustomException("ASSISTANT가 존재하지 않습니다.", ErrorCode.ASSISTANT_NOT_FOUND));
 
@@ -65,7 +69,8 @@ public class ChatStreamingService {
         );
 
         Persona persona = personaRepository
-            .findTopByUserIdAndPromptTypeOrderByIdDesc(userId, PromptType.USER)
+            .findTopByUserIdAndPromptTypeOrderByIdDesc(aiOwnerId, assistantType.equals(AssistantType.PERSONA) ? PromptType.NAMNA : PromptType.USER)
+
             .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND.getMessage(), ErrorCode.NOT_FOUND));
 
         String systemPrompt = persona.getPrompt();
@@ -79,10 +84,17 @@ public class ChatStreamingService {
                 "content", message.text() != null ? message.text() : ""
             )).toList();
 
+        Boolean isFollowing = null;
+        if (assistantType.equals(AssistantType.PERSONA)) {
+            isFollowing = followRepository.existsByFollowerIdAndFollowingId(userId, targetUserId);
+        }
+
         // fast api 에 요청 전달
         AiChatRequestDto aiRequest = buildAiChatRequest(
             chatSession,
             userId,
+            chatSessionType,
+            isFollowing,
             systemPrompt,
             history,
             finalText,
@@ -122,7 +134,7 @@ public class ChatStreamingService {
                 targetUserId,
                 assistantId,
                 assistantType,
-                ChatSessionType.USER_AI,
+                chatSessionType,
                 null,
                 memoryPolicy
             )
@@ -133,6 +145,7 @@ public class ChatStreamingService {
         ChatSessionResponseDto chatSession,
         Long userId,
         ChatSessionType chatSessionType,
+        Boolean isFollowing,
         String systemPrompt,
         List<Map<String, String>> history,
         String finalText,
@@ -141,7 +154,8 @@ public class ChatStreamingService {
         return new AiChatRequestDto(
             chatSession.id(),
             userId,
-
+            chatSessionType,
+            isFollowing,
             chatSession.assistantType(),
             chatSession.memoryPolicy(),
             systemPrompt,

@@ -106,7 +106,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     private LocalDateTime calculateExpiredAt(MemoryPolicy memoryPolicy, LocalDateTime now) {
         if (memoryPolicy == MemoryPolicy.SECRET) {
-            return now.plusMinutes(Constants.SECRET_IDLE_TIMEOUT_MINUTES);
+            return now.plusHours(Constants.SECRET_IDLE_TIMEOUT_HOURS);
         }
         return now.plusHours(Constants.GENERAL_IDLE_TIMEOUT_HOURS);
     }
