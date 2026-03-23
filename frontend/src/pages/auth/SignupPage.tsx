@@ -54,7 +54,7 @@ export default function SignupPage() {
 
       // 회원가입 직후 자동 로그인 수행
       const loginResponse = await authApi.login({ email, password });
-      
+
       const { accessToken, timeout } = loginResponse.data;
       localStorage.setItem('token', accessToken);
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Copy, Check, Sparkles } from 'lucide-react';
+import { PATHS } from '../../../routes/paths';
 
 interface SharePersonaModalProps {
   isOpen: boolean;
@@ -12,7 +13,7 @@ export default function SharePersonaModal({ isOpen, onClose }: SharePersonaModal
 
   // TODO: 실제로는 현재 로그인한 유저의 식별자(userId)를 사용해야 합니다.
   const myUserId = 1;
-  const shareUrl = `${window.location.origin}/persona/${myUserId}`;
+  const shareUrl = `${window.location.origin}${PATHS.VISIT(myUserId)}?mode=persona`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
@@ -44,13 +45,10 @@ export default function SharePersonaModal({ isOpen, onClose }: SharePersonaModal
                   <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
                 </div>
                 <h3 className="font-extrabold text-gray-800 text-lg sm:text-xl tracking-tight">
-                  내 페르소나 문답 공유
+                  내 페르소나 AI 페이지 공유
                 </h3>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full hover:bg-gray-100 transition"
-              >
+              <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -58,11 +56,11 @@ export default function SharePersonaModal({ isOpen, onClose }: SharePersonaModal
             {/* Description */}
             <div className="mb-6 space-y-2 text-center">
               <p className="text-gray-600 font-medium">
-                링크를 복사해서 친구나 주변 사람들에게 <strong>나를 평가하는 문답</strong> 작성을 요청해보세요!
+                링크를 공유해서 지인들에게 내 AI와 대화하고
+                <br />
+                <strong>문답</strong>을 작성하여 페르소나를 키우도록 요청해보세요!
               </p>
-              <p className="text-sm text-gray-400">
-                (비회원도 링크를 통해 작성할 수 있습니다)
-              </p>
+              <p className="text-sm text-gray-400">(비회원도 링크를 통해 작성할 수 있습니다)</p>
             </div>
 
             {/* URL Display */}

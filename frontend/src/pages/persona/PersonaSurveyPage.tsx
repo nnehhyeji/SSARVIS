@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Sparkles, MessageCircle, User as UserIcon, Home } from 'lucide-react';
+import { Save, Sparkles, MessageCircle, User as UserIcon } from 'lucide-react';
 
 import AnimatedBackground from '../../components/AnimatedBackground';
 import { BG_COLORS } from '../../constants/theme';
@@ -11,16 +11,21 @@ import { postGeneratePrompt } from '../../apis/aiApi';
 export default function PersonaSurveyPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  // TODO: 실제로는 API를 호출하여 유저 이름을 가져와야 함
+  const [searchParams] = useSearchParams();
+  const isFirst = searchParams.get('isFirst') === 'true';
+
   const [userName, setUserName] = useState('사용자');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDone, setIsDone] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     // API 호줄 예시 자리 (임시 로직)
-    const idNum = Number(userId);
-    if (idNum === 1) setUserName('김싸피'); 
-    else setUserName('친구');
+    const fetchUser = async () => {
+      const idNum = Number(userId);
+      if (idNum === 1) setUserName('김싸피');
+      else setUserName('친구');
+    };
+    fetchUser();
   }, [userId]);
 
   const [description, setDescription] = useState('');
@@ -44,23 +49,29 @@ export default function PersonaSurveyPage() {
       alert('모든 질문에 답해주세요!');
       return;
     }
-    
-    setIsSubmitting(true);
-    try {
-      // 프롬프트 생성을 위한 Q&A 배열 조립 (튜토리얼 방식과 동일하게)
-      const payload = [
-        { question: '이 사람은 당신에게 어떤 사람인가요?', answer: description.trim() },
-        ...qna.map((q) => ({ question: q.question, answer: q.answer.trim() }))
-      ];
-      
-      await postGeneratePrompt(payload);
-      
-      setIsSubmitting(false);
-      setIsDone(true);
-    } catch (error) {
-      console.error('페르소나 문답 제출 실패:', error);
-      alert('문답 제출에 실패했습니다. 잠시 후 다시 시도해주세요.');
-      setIsSubmitting(false);
+
+    const payload = [
+      { question: '이 사람은 당신에게 어떤 사람인가요?', answer: description.trim() },
+      ...qna.map((q) => ({ question: q.question, answer: q.answer.trim() })),
+    ];
+
+    if (isFirst) {
+      // 첫 응답: 생성 중 화면을 띄우고 기다린 뒤 이동
+      setIsGenerating(true);
+      try {
+        await postGeneratePrompt(payload);
+      } catch (error) {
+        console.error('프롬프트 생성 실패:', error);
+      } finally {
+        navigate(`${PATHS.VISIT(Number(userId))}?mode=persona`);
+      }
+    } else {
+      // 기존 페르소나가 있는 경우: fire-and-forget 백그라운드 처리 후 즉시 이동
+      setIsSubmitting(true); // 버튼 더블클릭 방지용
+      postGeneratePrompt(payload).catch((error) => console.error('프롬프트 업데이트 실패:', error));
+
+      alert('설문이 반영되었습니다! 감사합니다.');
+      navigate(`${PATHS.VISIT(Number(userId))}?mode=persona`);
     }
   };
 
@@ -69,7 +80,32 @@ export default function PersonaSurveyPage() {
       <AnimatedBackground {...BG_COLORS.persona} />
 
       <AnimatePresence mode="wait">
-        {!isDone ? (
+        {isGenerating ? (
+          <motion.div
+            key="generating"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-[90%] max-w-md bg-white/30 backdrop-blur-3xl rounded-[40px] border border-white/40 shadow-2xl p-10 flex flex-col items-center gap-6 text-center"
+          >
+            <div className="w-24 h-24 bg-blue-400/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-xl border-2 border-blue-300/50 animate-pulse">
+              <Sparkles className="w-12 h-12 text-blue-500 animate-[spin_3s_linear_infinite]" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-gray-800 mb-3 tracking-tight">
+                {userName}님의 AI를
+                <br />
+                생성 중입니다!
+              </h2>
+              <p className="text-gray-700 font-bold leading-relaxed">
+                작성해주신 소중한 데이터로
+                <br />
+                페르소나를 구축하고 있어요.
+                <br />
+                잠시만 기다려주세요...
+              </p>
+            </div>
+          </motion.div>
+        ) : (
           <motion.div
             key="form"
             initial={{ opacity: 0, y: 30 }}
@@ -87,14 +123,15 @@ export default function PersonaSurveyPage() {
                 {userName}님의 페르소나 설정
               </h1>
               <p className="text-gray-600 font-semibold text-sm sm:text-base px-4">
-                {userName}님은 어떤 분인가요?<br className="sm:hidden" /> 소중한 답변이 AI의 성격 형성에 도움을 줍니다.
+                {userName}님은 어떤 분인가요?
+                <br className="sm:hidden" /> 소중한 답변이 AI의 성격 형성에 도움을 줍니다.
               </p>
             </div>
 
             {/* Section 1 */}
             <section className="flex flex-col gap-4">
               <div className="flex items-center gap-2 text-gray-800 font-black text-lg">
-                <UserIcon className="w-6 h-6 text-pink-500" /> 
+                <UserIcon className="w-6 h-6 text-pink-500" />
                 <span>이 사람은 당신에게 어떤 사람인가요?</span>
               </div>
               <textarea
@@ -114,9 +151,7 @@ export default function PersonaSurveyPage() {
               <div className="flex flex-col gap-5">
                 {qna.map((item) => (
                   <div key={item.id} className="flex flex-col gap-2">
-                    <label className="text-gray-700 text-sm font-bold ml-2">
-                      {item.question}
-                    </label>
+                    <label className="text-gray-700 text-sm font-bold ml-2">{item.question}</label>
                     <input
                       type="text"
                       value={item.answer}
@@ -135,42 +170,12 @@ export default function PersonaSurveyPage() {
                 disabled={isSubmitting}
                 className="w-full max-w-sm py-4 rounded-full bg-gradient-to-r from-pink-500 to-rose-400 text-white font-black text-lg shadow-xl shadow-pink-500/20 hover:scale-[1.03] active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:scale-100"
               >
-                {isSubmitting ? (
-                  <span className="animate-pulse">제출 중...</span>
-                ) : (
-                  <>
-                    <Save className="w-6 h-6" />
-                    제출 완료하기
-                  </>
-                )}
+                <>
+                  <Save className="w-6 h-6" />
+                  제출 완료하기
+                </>
               </button>
             </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="success"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-[90%] max-w-md bg-white/30 backdrop-blur-3xl rounded-[40px] border border-white/40 shadow-2xl p-10 flex flex-col items-center gap-6 text-center"
-          >
-            <div className="w-24 h-24 bg-green-400/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-xl border-2 border-green-300/50">
-              <Sparkles className="w-12 h-12 text-green-500" />
-            </div>
-            <div>
-              <h2 className="text-3xl font-black text-gray-800 mb-3 tracking-tight">설문 감사합니다!</h2>
-              <p className="text-gray-700 font-semibold leading-relaxed">
-                작성해주신 소중한 데이터는<br />
-                {userName}님의 AI를 똑닮게 만드는데 사용됩니다.
-              </p>
-            </div>
-            
-            <button
-              onClick={() => navigate(PATHS.HOME)}
-              className="mt-6 px-8 py-3.5 rounded-full bg-white/60 hover:bg-white/80 text-gray-800 font-bold border border-white/50 shadow-md transition-all flex items-center gap-2 hover:scale-105"
-            >
-              <Home className="w-5 h-5" />
-              SSARVIS 구경가기
-            </button>
           </motion.div>
         )}
       </AnimatePresence>

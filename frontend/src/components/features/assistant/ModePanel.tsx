@@ -6,7 +6,6 @@ import {
   Heart,
   Smile,
   MessageSquare,
-  PenTool,
   RefreshCcw,
   Sparkles,
 } from 'lucide-react';
@@ -26,7 +25,6 @@ interface ModePanelProps {
   onModeChange: (mode: Mode) => void;
   onChangeFace: () => void;
   onStartDualAi: () => void;
-  onPersonaClick: () => void;
   onStopDualAi: () => void;
 }
 
@@ -39,7 +37,6 @@ export default function ModePanel({
   onModeChange,
   onChangeFace,
   onStartDualAi,
-  onPersonaClick,
   onStopDualAi,
 }: ModePanelProps) {
   const [showModePanel, setShowModePanel] = useState(false);
@@ -168,7 +165,7 @@ export default function ModePanel({
       {isVisitorMode && isInteractionModalOpen && (
         <div className="absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 p-4 rounded-[50px] bg-white/10 backdrop-blur-xl border border-white/40 shadow-2xl animate-in fade-in slide-in-from-left-4 duration-300">
           <div className="absolute -left-4 top-0 w-4 h-full pointer-events-auto cursor-default" />
-          
+
           {/* 방문 모드에서 친구 페르소나를 체험하는 토글 버튼 */}
           <button
             onClick={() => onModeChange(currentMode === 'persona' ? 'normal' : 'persona')}
@@ -192,13 +189,7 @@ export default function ModePanel({
           >
             <MessageSquare className="w-7 h-7 text-white" />
           </button>
-          <button
-            onClick={onPersonaClick}
-            className="w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-pink-400/60 to-rose-300/40 border-2 border-white/20 hover:border-white/60 hover:scale-110 transition-all shadow-lg group"
-            title="페르소나 설정"
-          >
-            <PenTool className="w-7 h-7 text-white" />
-          </button>
+
           {isDualAiMode && (
             <>
               <div className="w-8 h-px bg-white/30 my-1 font-semibold" />

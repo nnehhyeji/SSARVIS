@@ -8,6 +8,7 @@ import { useAICharacter } from '../../hooks/useAICharacter';
 import { useChat } from '../../hooks/useChat';
 import { useFollow } from '../../hooks/useFollow';
 import { useNotification } from '../../hooks/useNotification';
+import { useUserStore } from '../../store/useUserStore';
 
 // Components
 import AnimatedBackground from '../../components/AnimatedBackground';
@@ -29,6 +30,7 @@ import { PATHS } from '../../routes/paths';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { userInfo } = useUserStore();
 
   // --- Custom Hooks ---
   const {
@@ -231,7 +233,6 @@ export default function HomePage() {
         onModeChange={(m) => setCurrentMode(m)}
         onChangeFace={changeFace}
         onStartDualAi={() => {}}
-        onPersonaClick={() => {}}
         onStopDualAi={() => {}}
       />
 
@@ -270,7 +271,10 @@ export default function HomePage() {
       <UserMenuModal
         isOpen={isUserMenuOpen}
         onClose={() => setIsUserMenuOpen(false)}
-        user={{ name: '김싸피', email: 'kim@ssafy.com' }}
+        user={{
+          name: userInfo?.nickname || '회원',
+          email: userInfo?.email || '이메일 정보 없음',
+        }}
       />
     </div>
   );

@@ -25,11 +25,7 @@ export const router = createBrowserRouter([
   },
   {
     path: PATHS.VISIT_PARAM,
-    element: (
-      <ProtectedRoute>
-        <VisitPage />
-      </ProtectedRoute>
-    ),
+    element: <VisitPage />,
   },
   {
     path: PATHS.CARD_PARAM,

@@ -38,11 +38,11 @@ export default function PersonaModal({ isOpen, onClose, followName }: PersonaMod
     try {
       const payload = [
         { question: '이 사람은 당신에게 어떤 사람인가요?', answer: description.trim() },
-        ...qna.map((q) => ({ question: q.question, answer: q.answer.trim() }))
+        ...qna.map((q) => ({ question: q.question, answer: q.answer.trim() })),
       ];
 
       await postGeneratePrompt(payload);
-      
+
       alert(`${followName}님의 페르소나가 성공적으로 저장되었습니다.`);
       setIsSubmitting(false);
       onClose();
