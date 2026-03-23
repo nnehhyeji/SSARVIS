@@ -9,26 +9,33 @@ import lombok.*;
 @Entity
 @Builder
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-@Table(name = "prompts")
-public class Prompt {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(name = "evaluations")
+public class Evaluation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NotNull
-    @Column(columnDefinition = "TEXT")
-    private String prompt;
+    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private User user;
+
+    @NotNull
+    @Column(name = "user_input_que", columnDefinition = "TEXT")
+    private String userInputQue;
+
+    @NotNull
+    @Column(name = "user_input_ans", columnDefinition = "TEXT")
+    private String userInputAns;
+
+    @NotNull
+    private String writer;
 
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "prompt_type")
     private PromptType promptType;
-
-    @NotNull
-    @JoinColumn(name = "user_id")
-    @ManyToOne(fetch = FetchType.LAZY)
-    private User user;
 
 }
