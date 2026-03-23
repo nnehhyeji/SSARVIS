@@ -218,6 +218,25 @@ def test_prompt_endpoint_generates_system_prompt(http_client) -> None:
     assert payload["data"]["systemPrompt"].strip()
 
 
+def test_prompt_endpoint_updates_existing_system_prompt(http_client) -> None:
+    response = http_client.post(
+        "/api/v1/prompt",
+        json={
+            "systemPrompt": "차분하고 따뜻한 말투를 유지하며, 솔직하지만 공격적이지 않게 답한다.",
+            "qna": [
+                {"question": "요즘 말투는 어때?", "answer": "조금 더 장난스럽고 친근해."},
+                {"question": "대화에서 중요한 건 뭐야?", "answer": "상대를 편하게 해주는 것."},
+            ],
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["message"] == "시스템 프롬프트 생성 성공"
+    assert isinstance(payload["data"]["systemPrompt"], str)
+    assert payload["data"]["systemPrompt"].strip()
+
+
 def test_voice_endpoints_follow_new_contract(
     http_client,
     sample_voice_audio_bytes: bytes,
