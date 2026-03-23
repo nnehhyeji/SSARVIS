@@ -6,7 +6,11 @@ from app.config.chat import chat_config
 from app.domains.chat.repository import ChatRepository
 from app.domains.chat.schema import ChatContext, ChatHistoryItem, ChatRequest, SimilarChatItem
 from app.infra.openai import OpenAIClient
-from app.infra.prompt_loader import PromptTemplateLoader
+from app.prompts import (
+    PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
+    RESPONSE_GUIDELINE_PROMPT,
+    SIMILAR_CONVERSATIONS_PREFIX,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -115,24 +119,16 @@ class ChatService:
         chat_repository: ChatRepository,
         openai_client: OpenAIClient,
         context_builder: ChatContextBuilder | None = None,
-        similar_conversations_prefix_loader: PromptTemplateLoader | None = None,
-        response_guideline_loader: PromptTemplateLoader | None = None,
-        public_conversation_guideline_loader: PromptTemplateLoader | None = None,
+        similar_conversations_prefix: str = SIMILAR_CONVERSATIONS_PREFIX,
+        response_guideline_prompt: str = RESPONSE_GUIDELINE_PROMPT,
+        public_conversation_guideline_prompt: str = PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
     ) -> None:
         self.chat_repository = chat_repository
         self.openai_client = openai_client
         self.context_builder = context_builder or ChatContextBuilder()
-        self.similar_conversations_prefix_loader = (
-            similar_conversations_prefix_loader
-            or PromptTemplateLoader(chat_config.similar_conversations_prefix_file)
-        )
-        self.response_guideline_loader = response_guideline_loader or PromptTemplateLoader(
-            chat_config.response_guideline_prompt_file
-        )
-        self.public_conversation_guideline_loader = (
-            public_conversation_guideline_loader
-            or PromptTemplateLoader(chat_config.public_conversation_guideline_prompt_file)
-        )
+        self.similar_conversations_prefix = similar_conversations_prefix
+        self.response_guideline_prompt = response_guideline_prompt
+        self.public_conversation_guideline_prompt = public_conversation_guideline_prompt
 
     async def prepare_chat(self, request: ChatRequest) -> ChatPreparation:
         query_vector = await self.openai_client.embed(
@@ -154,10 +150,10 @@ class ChatService:
         )
         messages = self.context_builder.build_messages(
             context=context,
-            similar_conversations_prefix=self.similar_conversations_prefix_loader.load_system_prompt_meta(),
-            response_guideline_prompt=self.response_guideline_loader.load_system_prompt_meta(),
+            similar_conversations_prefix=self.similar_conversations_prefix,
+            response_guideline_prompt=self.response_guideline_prompt,
             public_conversation_guideline_prompt=(
-                self.public_conversation_guideline_loader.load_system_prompt_meta()
+                self.public_conversation_guideline_prompt
                 if request.isPublic
                 else None
             ),
