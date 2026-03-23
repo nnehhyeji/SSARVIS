@@ -99,4 +99,13 @@ public class UserServiceImpl implements UserService {
         return trimmed;
     }
 
+    @Override
+    @Transactional
+    public boolean toggleNamna(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        user.toggleAcceptPrompt();
+        return user.getIsAcceptPrompt();
+    }
+
 }

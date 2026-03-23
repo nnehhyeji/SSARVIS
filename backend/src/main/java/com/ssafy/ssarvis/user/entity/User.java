@@ -108,4 +108,8 @@ public class User extends BaseTime {
         this.isVoiceLockActive = false;
     }
 
+    public void toggleAcceptPrompt() {
+        this.isAcceptPrompt = !this.isAcceptPrompt;
+    }
+
 }
