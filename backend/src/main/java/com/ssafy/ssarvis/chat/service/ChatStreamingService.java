@@ -18,9 +18,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 
-import com.ssafy.ssarvis.voice.entity.Persona;
-import com.ssafy.ssarvis.voice.entity.PromptType;
-import com.ssafy.ssarvis.voice.repository.PersonaRepository;
+import com.ssafy.ssarvis.user.entity.Prompt;
+import com.ssafy.ssarvis.user.entity.PromptType;
+import com.ssafy.ssarvis.user.repository.PromptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,7 +37,7 @@ public class ChatStreamingService {
     private final AiRequestRelayService aiRequestRelayService;
     private final UserInputStorageService userInputStorageService;
     private final ChatMessageService chatMessageService;
-    private final PersonaRepository personaRepository;
+    private final PromptRepository promptRepository;
     private final FollowRepository followRepository;
 
     public void completeUserInput(WebSocketSession frontendSession, Long userId, Long targetUserId, String sessionId,
@@ -68,12 +68,12 @@ public class ChatStreamingService {
             memoryPolicy
         );
 
-        Persona persona = personaRepository
+        Prompt prompt = promptRepository
             .findTopByUserIdAndPromptTypeOrderByIdDesc(aiOwnerId, assistantType.equals(AssistantType.PERSONA) ? PromptType.NAMNA : PromptType.USER)
 
             .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND.getMessage(), ErrorCode.NOT_FOUND));
 
-        String systemPrompt = persona.getPrompt();
+        String systemPrompt = prompt.getPromptText();
 
         List<ChatMessageResponseDto> recentMessage = chatMessageService.findRecentMessagesBySessionId(
             userId, chatSession.id());
