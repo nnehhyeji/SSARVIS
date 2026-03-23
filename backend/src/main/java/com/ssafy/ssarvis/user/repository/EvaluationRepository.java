@@ -1,8 +1,8 @@
-package com.ssafy.ssarvis.voice.repository;
+package com.ssafy.ssarvis.user.repository;
 
 import com.ssafy.ssarvis.user.entity.User;
-import com.ssafy.ssarvis.voice.entity.Evaluation;
-import com.ssafy.ssarvis.voice.entity.PromptType;
+import com.ssafy.ssarvis.user.entity.Evaluation;
+import com.ssafy.ssarvis.user.entity.PromptType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

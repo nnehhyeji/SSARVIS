@@ -6,6 +6,7 @@ import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
 
 public record ChatSessionCreateRequestDto(
     Long userId,
+    Long targetUserId,
     Long assistantId,
     AssistantType assistantType,
     ChatSessionType chatSessionType,

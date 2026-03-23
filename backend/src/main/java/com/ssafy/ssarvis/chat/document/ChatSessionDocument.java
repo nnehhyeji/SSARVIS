@@ -38,6 +38,9 @@ public class ChatSessionDocument {
     @Indexed
     private Long userId;
 
+    @Indexed
+    private Long targetUserId;
+
     private Long assistantId;
 
     @Indexed
@@ -53,7 +56,7 @@ public class ChatSessionDocument {
     @Indexed
     private ChatSessionStatus chatSessionStatus;
 
-    // PUBLIC, PRIVATE
+    // GENERAL, SECRET
     private MemoryPolicy memoryPolicy;
 
     private Integer messageCount;
@@ -66,12 +69,13 @@ public class ChatSessionDocument {
     private LocalDateTime expiredAt;
 
     public static ChatSessionDocument create(
-        Long userId, Long assistantId, AssistantType assistantType,
+        Long userId, Long targetUserId, Long assistantId, AssistantType assistantType,
         ChatSessionType chatSessionType, String title,
         MemoryPolicy memoryPolicy, LocalDateTime now, LocalDateTime expiredAt
     ) {
         return ChatSessionDocument.builder()
             .userId(userId)
+            .targetUserId(targetUserId != null ? targetUserId : userId)
             .assistantId(assistantId)
             .assistantType(assistantType)
             .chatSessionType(chatSessionType)

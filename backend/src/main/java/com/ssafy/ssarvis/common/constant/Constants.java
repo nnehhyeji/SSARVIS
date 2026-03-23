@@ -12,7 +12,7 @@ public final class Constants {
     public static final String X_FORWARDED_FOR_HEADER_PREFIX = "X-Forwarded-For";
 
     // Chat
-    public static final int SECRET_IDLE_TIMEOUT_MINUTES = 30;
+    public static final int SECRET_IDLE_TIMEOUT_HOURS = 6;
     public static final int GENERAL_IDLE_TIMEOUT_HOURS = 6;
 
     public static final String AUDIO_CONTENT_TYPE = "audio/webm";

@@ -1,6 +1,5 @@
-package com.ssafy.ssarvis.voice.entity;
+package com.ssafy.ssarvis.user.entity;
 
-import com.ssafy.ssarvis.user.entity.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -10,8 +9,8 @@ import lombok.*;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "evaluations")
-public class Evaluation {
+@Table(name = "prompts")
+public class Prompt {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,15 +22,8 @@ public class Evaluation {
     private User user;
 
     @NotNull
-    @Column(name = "user_input_que", columnDefinition = "TEXT")
-    private String userInputQue;
-
-    @NotNull
-    @Column(name = "user_input_ans", columnDefinition = "TEXT")
-    private String userInputAns;
-
-    @NotNull
-    private String writer;
+    @Column(name = "prompt_text", columnDefinition = "TEXT")
+    private String promptText;
 
     @NotNull
     @Enumerated(EnumType.STRING)

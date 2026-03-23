@@ -13,13 +13,14 @@ import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 
+import com.ssafy.ssarvis.follow.repository.FollowRepository;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
 
-import com.ssafy.ssarvis.voice.entity.Persona;
-import com.ssafy.ssarvis.voice.entity.PromptType;
-import com.ssafy.ssarvis.voice.repository.PersonaRepository;
+import com.ssafy.ssarvis.user.entity.Prompt;
+import com.ssafy.ssarvis.user.entity.PromptType;
+import com.ssafy.ssarvis.user.repository.PromptRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,18 +37,21 @@ public class ChatStreamingService {
     private final AiRequestRelayService aiRequestRelayService;
     private final UserInputStorageService userInputStorageService;
     private final ChatMessageService chatMessageService;
-    private final PersonaRepository personaRepository;
+    private final PromptRepository promptRepository;
+    private final FollowRepository followRepository;
 
-    public void completeUserInput(WebSocketSession frontendSession, Long userId, String sessionId,
-                                  AssistantType assistantType, MemoryPolicy memoryPolicy, File inputAudioTempFile,
-                                  String finalText) {
+    public void completeUserInput(WebSocketSession frontendSession, Long userId, Long targetUserId, String sessionId,
+        ChatSessionType chatSessionType, AssistantType assistantType, MemoryPolicy memoryPolicy, File inputAudioTempFile,
+        String finalText) {
 
         if (!StringUtils.hasText(finalText)) {
             throw new CustomException("최종 STT 텍스트가 비어있습니다.", ErrorCode.USER_INPUT_TEXT_EMPTY);
         }
 
+        Long aiOwnerId = (chatSessionType == ChatSessionType.AVATAR_AI) ? targetUserId : userId;
+
         AssistantVoiceProjection assistantVoice = assistantRepository.getAssistantIdAndModelIdByUserIdAndAssistantType(
-                userId, assistantType)
+                aiOwnerId, assistantType)
             .orElseThrow(
                 () -> new CustomException("ASSISTANT가 존재하지 않습니다.", ErrorCode.ASSISTANT_NOT_FOUND));
 
@@ -56,17 +60,20 @@ public class ChatStreamingService {
 
         ChatSessionResponseDto chatSession = resolveSession(
             userId,
+            targetUserId,
             sessionId,
             assistantId,
+            chatSessionType,
             assistantType,
             memoryPolicy
         );
 
-        Persona persona = personaRepository
-            .findTopByUserIdAndPromptTypeOrderByIdDesc(userId, PromptType.USER)
+        Prompt prompt = promptRepository
+            .findTopByUserIdAndPromptTypeOrderByIdDesc(aiOwnerId, assistantType.equals(AssistantType.PERSONA) ? PromptType.NAMNA : PromptType.USER)
+
             .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND.getMessage(), ErrorCode.NOT_FOUND));
 
-        String systemPrompt = persona.getPrompt();
+        String systemPrompt = prompt.getPromptText();
 
         List<ChatMessageResponseDto> recentMessage = chatMessageService.findRecentMessagesBySessionId(
             userId, chatSession.id());
@@ -77,10 +84,17 @@ public class ChatStreamingService {
                 "content", message.text() != null ? message.text() : ""
             )).toList();
 
+        Boolean isFollowing = null;
+        if (assistantType.equals(AssistantType.PERSONA)) {
+            isFollowing = followRepository.existsByFollowerIdAndFollowingId(userId, targetUserId);
+        }
+
         // fast api 에 요청 전달
         AiChatRequestDto aiRequest = buildAiChatRequest(
             chatSession,
             userId,
+            chatSessionType,
+            isFollowing,
             systemPrompt,
             history,
             finalText,
@@ -89,8 +103,7 @@ public class ChatStreamingService {
         aiRequestRelayService.send(frontendSession, aiRequest);
 
         // 비동기로 저장 요청 전송 (S3, Mongo)
-        userInputStorageService.saveUserInputAsync(chatSession.id(), userId, inputAudioTempFile,
-            finalText);
+        userInputStorageService.saveUserInputAsync(chatSession.id(), userId, inputAudioTempFile, finalText);
 
         log.info("사용자 입력 처리 완료. userId={}, sessionId={}",
             userId, chatSession.id());
@@ -98,8 +111,10 @@ public class ChatStreamingService {
 
     private ChatSessionResponseDto resolveSession(
         Long userId,
+        Long targetUserId,
         String sessionId,
         Long assistantId,
+        ChatSessionType chatSessionType,
         AssistantType assistantType,
         MemoryPolicy memoryPolicy
     ) {
@@ -116,9 +131,10 @@ public class ChatStreamingService {
         return chatSessionService.getOrCreateSession(
             new ChatSessionCreateRequestDto(
                 userId,
+                targetUserId,
                 assistantId,
                 assistantType,
-                ChatSessionType.USER_AI,
+                chatSessionType,
                 null,
                 memoryPolicy
             )
@@ -128,6 +144,8 @@ public class ChatStreamingService {
     private AiChatRequestDto buildAiChatRequest(
         ChatSessionResponseDto chatSession,
         Long userId,
+        ChatSessionType chatSessionType,
+        Boolean isFollowing,
         String systemPrompt,
         List<Map<String, String>> history,
         String finalText,
@@ -136,6 +154,8 @@ public class ChatStreamingService {
         return new AiChatRequestDto(
             chatSession.id(),
             userId,
+            chatSessionType,
+            isFollowing,
             chatSession.assistantType(),
             chatSession.memoryPolicy(),
             systemPrompt,

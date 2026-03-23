@@ -11,12 +11,12 @@ import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.voice.dto.request.AiPromptRequestDto;
 import com.ssafy.ssarvis.voice.dto.request.EvaluationPromptRequestDto;
 import com.ssafy.ssarvis.voice.dto.response.*;
-import com.ssafy.ssarvis.voice.entity.Evaluation;
-import com.ssafy.ssarvis.voice.entity.Persona;
-import com.ssafy.ssarvis.voice.entity.PromptType;
+import com.ssafy.ssarvis.user.entity.Evaluation;
+import com.ssafy.ssarvis.user.entity.Prompt;
+import com.ssafy.ssarvis.user.entity.PromptType;
 import com.ssafy.ssarvis.voice.entity.Voice;
-import com.ssafy.ssarvis.voice.repository.EvaluationRepository;
-import com.ssafy.ssarvis.voice.repository.PersonaRepository;
+import com.ssafy.ssarvis.user.repository.EvaluationRepository;
+import com.ssafy.ssarvis.user.repository.PromptRepository;
 import com.ssafy.ssarvis.voice.repository.VoiceRepository;
 import com.ssafy.ssarvis.voice.service.VoiceService;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +49,7 @@ public class VoiceServiceImpl implements VoiceService {
     private final UserRepository userRepository;
     private final AssistantRepository assistantRepository;
     private final EvaluationRepository evaluationRepository;
-    private final PersonaRepository personaRepository;
+    private final PromptRepository promptRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${spring.app.ai-server.url}")
@@ -94,13 +94,13 @@ public class VoiceServiceImpl implements VoiceService {
                 User user = userRepository.findById(userId)
                     .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
 
-                Persona persona = Persona.builder()
+                Prompt prompt = Prompt.builder()
                     .user(user)
-                    .prompt(generatedPrompt)
+                    .promptText(generatedPrompt)
                     .promptType(PromptType.USER)
                     .build();
 
-                personaRepository.save(persona);
+                promptRepository.save(prompt);
 
                 log.info("사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
                 return new PromptResponseDto(generatedPrompt);
@@ -145,9 +145,9 @@ public class VoiceServiceImpl implements VoiceService {
 
         // 4. 5의 배수 도달 → 최신 5개 Q&A로 AI 서버 호출
         // 4-1. 가장 최신 NAMNA Persona 프롬프트 조회 (없으면 빈 문자열)
-        String existingSystemPrompt = personaRepository
+        String existingSystemPrompt = promptRepository
             .findTopByUserAndPromptTypeOrderByIdDesc(targetUser, PromptType.NAMNA)
-            .map(Persona::getPrompt)
+            .map(Prompt::getPromptText)
             .orElse("");
 
         // 4-2. 최신 5개 Q&A 조회 후 시간순 정렬 (id desc → asc 역정렬)
@@ -177,12 +177,12 @@ public class VoiceServiceImpl implements VoiceService {
         String generatedPrompt = aiResponse.getBody().data().systemPrompt();
 
         // 5. 새 Persona 저장
-        Persona persona = Persona.builder()
+        Prompt prompt = Prompt.builder()
             .user(targetUser)
-            .prompt(generatedPrompt)
+            .promptText(generatedPrompt)
             .promptType(PromptType.NAMNA)
             .build();
-        personaRepository.save(persona);
+        promptRepository.save(prompt);
 
         return new EvaluationPromptResponseDto(generatedPrompt, currentCount);
     }
