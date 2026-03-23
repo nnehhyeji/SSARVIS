@@ -111,16 +111,13 @@ export function useNotification() {
     const token = localStorage.getItem('token');
 
     if (token) {
-      eventSource = new EventSourcePolyfill(
-        `${getApiHttpBaseUrl()}/sse/subscribe`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          heartbeatTimeout: 86400000,
-          withCredentials: true,
+      eventSource = new EventSourcePolyfill(`${getApiHttpBaseUrl()}/sse/subscribe`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+        heartbeatTimeout: 86400000,
+        withCredentials: true,
+      });
 
       eventSource.onopen = () => {
         console.log('SSE 연결 성공');

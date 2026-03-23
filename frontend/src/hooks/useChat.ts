@@ -77,6 +77,7 @@ export function useChat() {
   const wakeWordActiveRef = useRef(false);
   const finalizeSpeechOnEndRef = useRef(false);
   const speechTurnCompletedRef = useRef(false);
+  const isSpeechRecognitionSupported = useRef(true);
 
   const processAudioQueue = useCallback(() => {
     const sourceBuffer = sourceBufferRef.current;
@@ -444,7 +445,7 @@ export function useChat() {
         .webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      updateVoiceStatus('이 브라우저는 음성 인식을 지원하지 않습니다.');
+      isSpeechRecognitionSupported.current = false;
       return;
     }
 
@@ -592,6 +593,11 @@ export function useChat() {
 
   const startRecording = useCallback(
     async (sessionId: string | null, assistantType: string, memoryPolicy: string) => {
+      if (!isSpeechRecognitionSupported.current) {
+        updateVoiceStatus('이 브라우저는 음성 인식을 지원하지 않습니다.');
+        return;
+      }
+
       currentRecordingOptionsRef.current = { sessionId, assistantType, memoryPolicy };
 
       try {
@@ -632,7 +638,13 @@ export function useChat() {
     setSttText('');
     sttTextRef.current = '';
     updateVoiceStatus('웨이크 워드 대기가 중지되었습니다.');
-  }, [clearSpeechSilenceTimer, finalizeSpeechTurn, stopMediaRecorder, stopRecognition, updateVoiceStatus]);
+  }, [
+    clearSpeechSilenceTimer,
+    finalizeSpeechTurn,
+    stopMediaRecorder,
+    stopRecognition,
+    updateVoiceStatus,
+  ]);
 
   const cancelTurn = useCallback(() => {
     setSttText('');
