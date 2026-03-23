@@ -40,6 +40,7 @@ class ChatContextBuilder:
         context: ChatContext,
         similar_conversations_prefix: str | None = None,
         response_guideline_prompt: str | None = None,
+        public_conversation_guideline_prompt: str | None = None,
     ) -> list[dict[str, str]]:
         messages: list[dict[str, str]] = [
             {"role": "system", "content": context.system_prompt}
@@ -57,6 +58,11 @@ class ChatContextBuilder:
 
         if response_guideline_prompt:
             messages.append({"role": "system", "content": response_guideline_prompt})
+
+        if public_conversation_guideline_prompt:
+            messages.append(
+                {"role": "system", "content": public_conversation_guideline_prompt}
+            )
 
         messages.append({"role": "user", "content": context.user_text})
         return messages
@@ -111,6 +117,7 @@ class ChatService:
         context_builder: ChatContextBuilder | None = None,
         similar_conversations_prefix_loader: PromptTemplateLoader | None = None,
         response_guideline_loader: PromptTemplateLoader | None = None,
+        public_conversation_guideline_loader: PromptTemplateLoader | None = None,
     ) -> None:
         self.chat_repository = chat_repository
         self.openai_client = openai_client
@@ -121,6 +128,10 @@ class ChatService:
         )
         self.response_guideline_loader = response_guideline_loader or PromptTemplateLoader(
             chat_config.response_guideline_prompt_file
+        )
+        self.public_conversation_guideline_loader = (
+            public_conversation_guideline_loader
+            or PromptTemplateLoader(chat_config.public_conversation_guideline_prompt_file)
         )
 
     async def prepare_chat(self, request: ChatRequest) -> ChatPreparation:
@@ -145,6 +156,11 @@ class ChatService:
             context=context,
             similar_conversations_prefix=self.similar_conversations_prefix_loader.load_system_prompt_meta(),
             response_guideline_prompt=self.response_guideline_loader.load_system_prompt_meta(),
+            public_conversation_guideline_prompt=(
+                self.public_conversation_guideline_loader.load_system_prompt_meta()
+                if request.isPublic
+                else None
+            ),
         )
         return ChatPreparation(
             context=context,

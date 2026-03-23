@@ -174,6 +174,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
   "userId": 101,
   "chatMode": "NORMAL",
   "memoryPolicy": "GENERAL",
+  "isPublic": true,
   "systemPrompt": "친절한 친구처럼 대답해.",
   "history": [
     {"role": "user", "content": "지난번 이야기 기억나?"},
@@ -190,6 +191,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 - `userId`: 사용자 식별 ID, Long
 - `chatMode`: 대화 모드, NORMAL | COUNSELING | STUDY
 - `memoryPolicy`: 시크릿 모드 여부, GENERAL | SECRET
+- `isPublic`: 선택, 기본값 `false`. `true`이면 공개된 장소에 맞게 사생활 관련 내용을 발설하지 않도록 추가 가이드 적용
 - `systemPrompt`: AI의 페르소나, String
 - `history`: 선택, 기본값 `[]`
 - `history[].role`: 발화자, SYSTEM | USER | ASSISTANT
