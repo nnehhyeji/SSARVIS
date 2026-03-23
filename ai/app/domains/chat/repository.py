@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from pydantic import ValidationError
 
 from app.domains.chat.schema import SimilarChatItem
@@ -54,8 +56,12 @@ class ChatRepository:
             "response": response,
         }
         await self.qdrant_client.upsert(
-            point_id=session_id,
+            point_id=self._build_point_id(session_id),
             vector=vector,
             payload=payload,
         )
         return SimilarChatItem.model_validate(payload)
+
+    @staticmethod
+    def _build_point_id(session_id: str) -> str:
+        return f"{session_id}:{uuid4()}"

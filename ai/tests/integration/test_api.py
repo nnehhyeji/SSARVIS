@@ -485,6 +485,66 @@ def test_chat_websocket_persists_records_in_qdrant(
     assert deleted.status_code == 200
 
 
+def test_chat_websocket_accumulates_multiple_records_in_same_session(
+    http_client,
+    qdrant_client: QdrantClient,
+    sample_voice_audio_bytes: bytes,
+    sample_voice_text: str,
+) -> None:
+    voice_id = _create_voice(http_client, sample_voice_audio_bytes, sample_voice_text)
+
+    first_chat = _run_chat(
+        _chat_payload(
+            session_id="session-repeat-1",
+            user_id=101,
+            chat_mode="NORMAL",
+            memory_policy="GENERAL",
+            text="첫 번째 메시지야.",
+            voice_id=voice_id,
+        )
+    )
+    second_chat = _run_chat(
+        _chat_payload(
+            session_id="session-repeat-1",
+            user_id=101,
+            chat_mode="NORMAL",
+            memory_policy="GENERAL",
+            text="같은 세션의 두 번째 메시지야.",
+            voice_id=voice_id,
+        )
+    )
+
+    assert first_chat[1]["type"] == "text.end"
+    assert second_chat[1]["type"] == "text.end"
+    assert first_chat[1]["payload"]["text"].strip()
+    assert second_chat[1]["payload"]["text"].strip()
+
+    records, _ = qdrant_client.scroll(
+        collection_name="integration_chats",
+        with_payload=True,
+        with_vectors=False,
+        limit=10,
+    )
+    payloads = [record.payload for record in records]
+
+    same_session_payloads = [
+        payload for payload in payloads if payload["session_id"] == "session-repeat-1"
+    ]
+
+    assert len(same_session_payloads) == 2
+    assert {payload["text"] for payload in same_session_payloads} == {
+        "첫 번째 메시지야.",
+        "같은 세션의 두 번째 메시지야.",
+    }
+
+    deleted = http_client.request(
+        "DELETE",
+        "/api/v1/voice",
+        json={"voiceId": voice_id},
+    )
+    assert deleted.status_code == 200
+
+
 def test_chat_websocket_rejects_invalid_request(http_client) -> None:
     events = _run_chat_until_close(
         {
