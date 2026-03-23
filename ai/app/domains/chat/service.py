@@ -4,7 +4,13 @@ from dataclasses import dataclass
 
 from app.config.chat import chat_config
 from app.domains.chat.repository import ChatRepository
-from app.domains.chat.schema import ChatContext, ChatHistoryItem, ChatRequest, SimilarChatItem
+from app.domains.chat.schema import (
+    ChatContext,
+    ChatHistoryItem,
+    ChatRequest,
+    MemoryPolicy,
+    SimilarChatItem,
+)
 from app.infra.openai import OpenAIClient
 from app.prompts import (
     PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
@@ -135,7 +141,7 @@ class ChatService:
             self.build_query_embedding_text(request.text)
         )
         similar_conversations: list[SimilarChatItem] = []
-        if request.memoryPolicy == "GENERAL":
+        if request.memoryPolicy == MemoryPolicy.GENERAL:
             similar_conversations = await self.chat_repository.search_similar(
                 session_id=request.sessionId,
                 user_id=request.userId,
@@ -171,7 +177,7 @@ class ChatService:
         request: ChatRequest,
         response: str,
     ) -> SimilarChatItem | None:
-        if request.memoryPolicy != "GENERAL":
+        if request.memoryPolicy != MemoryPolicy.GENERAL:
             return None
 
         embedding = await self.openai_client.embed(
