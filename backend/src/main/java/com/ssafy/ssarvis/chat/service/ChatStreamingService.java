@@ -12,7 +12,6 @@ import com.ssafy.ssarvis.chat.dto.response.ChatMessageResponseDto;
 import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
-import com.ssafy.ssarvis.user.repository.UserRepository;
 
 import java.io.File;
 import java.util.List;
