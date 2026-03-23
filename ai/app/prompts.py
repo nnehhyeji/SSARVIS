@@ -298,7 +298,7 @@ Use the following past interaction as contextual reference only. Do not repeat i
 
 # 컨텍스트 마지막에 붙이는 프롬프트
 RESPONSE_GUIDELINE_PROMPT = """
-Stay in character. Respond consistently with the system prompt, while adapting naturally to the current context. ans Answer in User's language.
+Stay in character. Respond consistently with the system prompt, while adapting naturally to the current context. And Answer in User's language.
 Please make answer less than 4 sentences. But if you truly need more sentences, You can answer more than 4 sentences.
 """.strip()
 
