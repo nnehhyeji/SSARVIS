@@ -32,8 +32,17 @@ export default function Character3D({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  const prevMode = useRef(mode);
+
   useFrame((_state, delta) => {
     if (!meshRef.current) return;
+
+    // 모드가 'persona'로 바뀌는 순간 y축 회전값을 -360도(Math.PI * 2) 빼줍니다.
+    // 그러면 아래의 lerp 함수가 타겟값(0)을 향해 부드럽게 딱 1바퀴(+360도)만 돌려줍니다.
+    if (mode === 'persona' && prevMode.current !== 'persona') {
+      meshRef.current.rotation.y -= Math.PI * 2;
+    }
+    prevMode.current = mode;
 
     // 마우스 위치에 따른 부드러운 회전 보간
     const targetX = mouse.current.y * Math.PI * 0.15;

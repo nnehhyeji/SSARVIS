@@ -8,6 +8,7 @@ import { useAICharacter } from '../../hooks/useAICharacter';
 import { useChat } from '../../hooks/useChat';
 import { useFollow } from '../../hooks/useFollow';
 import { useNotification } from '../../hooks/useNotification';
+import { useUserStore } from '../../store/useUserStore';
 
 // Components
 import AnimatedBackground from '../../components/AnimatedBackground';
@@ -19,6 +20,7 @@ import FollowSidebar from '../../components/features/follow/FollowSidebar';
 import MyCardModal from '../../components/features/follow/MyCardModal';
 import UserMenuModal from '../../components/features/user/UserMenuModal';
 import ModePanel from '../../components/features/assistant/ModePanel';
+import SharePersonaModal from '../../components/features/follow/SharePersonaModal';
 
 // Constants & Types
 import { BG_COLORS, LOCK_MODE_PALETTE } from '../../constants/theme';
@@ -28,6 +30,7 @@ import { PATHS } from '../../routes/paths';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { userInfo } = useUserStore();
 
   // --- Custom Hooks ---
   const {
@@ -67,6 +70,7 @@ export default function HomePage() {
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
+  const [isSharePersonaOpen, setIsSharePersonaOpen] = useState(false);
   const [my_view_count] = useState(1234);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
@@ -139,6 +143,7 @@ export default function HomePage() {
         onLeaveVisitor={() => {}}
         viewCount={my_view_count}
         onUsersClick={() => setIsUserMenuOpen(true)}
+        onSharePersonaClick={() => setIsSharePersonaOpen(true)}
       />
 
       <main className="flex-1 flex items-center justify-center relative w-full h-full z-10">
@@ -228,7 +233,6 @@ export default function HomePage() {
         onModeChange={(m) => setCurrentMode(m)}
         onChangeFace={changeFace}
         onStartDualAi={() => {}}
-        onPersonaClick={() => {}}
         onStopDualAi={() => {}}
       />
 
@@ -262,10 +266,15 @@ export default function HomePage() {
 
       <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
 
+      <SharePersonaModal isOpen={isSharePersonaOpen} onClose={() => setIsSharePersonaOpen(false)} />
+
       <UserMenuModal
         isOpen={isUserMenuOpen}
         onClose={() => setIsUserMenuOpen(false)}
-        user={{ name: '김싸피', email: 'kim@ssafy.com' }}
+        user={{
+          name: userInfo?.nickname || '회원',
+          email: userInfo?.email || '이메일 정보 없음',
+        }}
       />
     </div>
   );

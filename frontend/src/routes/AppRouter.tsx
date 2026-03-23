@@ -6,6 +6,7 @@ import LoginPage from '../pages/auth/LoginPage';
 import SettingsPage from '../pages/settings/SettingsPage';
 import SignupPage from '../pages/auth/SignupPage';
 import TutorialPage from '../pages/auth/TutorialPage';
+import PersonaSurveyPage from '../pages/persona/PersonaSurveyPage';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 import { PATHS } from './paths';
 
@@ -24,11 +25,7 @@ export const router = createBrowserRouter([
   },
   {
     path: PATHS.VISIT_PARAM,
-    element: (
-      <ProtectedRoute>
-        <VisitPage />
-      </ProtectedRoute>
-    ),
+    element: <VisitPage />,
   },
   {
     path: PATHS.CARD_PARAM,
@@ -61,5 +58,9 @@ export const router = createBrowserRouter([
         <TutorialPage />
       </ProtectedRoute>
     ),
+  },
+  {
+    path: PATHS.PERSONA_PARAM,
+    element: <PersonaSurveyPage />,
   },
 ]);

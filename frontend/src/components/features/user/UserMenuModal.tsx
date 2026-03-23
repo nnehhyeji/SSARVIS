@@ -2,6 +2,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '../../../routes/paths';
+import authApi from '../../../apis/authApi';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface UserMenuModalProps {
   isOpen: boolean;
@@ -21,10 +23,18 @@ export default function UserMenuModal({ isOpen, onClose, user }: UserMenuModalPr
     onClose();
   };
 
-  const handleLogout = () => {
-    // 로그아웃 로직 (일단 로그인 페이지로)
-    onClose();
-    navigate(PATHS.LOGIN);
+  const logout = useUserStore((state) => state.logout);
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('로그아웃 중 오류:', error);
+    } finally {
+      logout(); // Zustand 스토어 및 localStorage의 토큰 초기화
+      onClose();
+      navigate(PATHS.LOGIN, { replace: true });
+    }
   };
 
   return (

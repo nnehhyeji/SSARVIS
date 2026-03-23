@@ -35,6 +35,16 @@ export const BG_COLORS: Record<Mode, BgColors> = {
     plume: '#F4FAF0',
     streak: '#E8D4E8',
   },
+  persona: {
+    baseTop: '#FFF8E1',
+    baseBottom: '#FFD700',
+    purple: '#FFECB3',
+    teal: '#FFD54F',
+    pink: '#FFF9C4',
+    mint: '#FFFDE7',
+    plume: '#FFFDE7',
+    streak: '#FFD54F',
+  },
 };
 
 // ─── 시크릿(잠금) 모드 배경 팔레트 ───
