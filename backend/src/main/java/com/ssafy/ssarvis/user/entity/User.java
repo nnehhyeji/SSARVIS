@@ -69,12 +69,6 @@ public class User extends BaseTime {
     @Builder.Default
     private Long voiceLockTimeout = 1800L;
 
-    @Column(name = "user_prompt", columnDefinition = "TEXT")
-    private String userPrompt;
-
-    @Column(name = "namna_prompt", columnDefinition = "TEXT")
-    private String namnaPrompt;
-
     public static User create(String email, String password, String nickname) {
         return User.builder()
             .email(email)
@@ -109,11 +103,4 @@ public class User extends BaseTime {
         this.isVoiceLockActive = false;
     }
 
-    public void updateUserPrompt(String userPrompt) {
-        this.userPrompt = userPrompt;
-    }
-
-    public void updateNamnaPrompt(String namnaPrompt) {
-        this.namnaPrompt = namnaPrompt;
-    }
 }

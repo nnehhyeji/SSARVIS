@@ -20,6 +20,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByEmailContaining(String email);
 
-    @Query("SELECT u.userPrompt FROM User u WHERE u.id = :id")
-    String findUserPromptById(@Param("id") Long userId);
 }

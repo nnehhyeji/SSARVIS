@@ -11,5 +11,7 @@ public interface VoiceService {
 
     PromptResponseDto generateSystemPrompt(Long userId, Object rawJson);
 
+    PromptResponseDto generateSystemPromptNonMember(Long targetUserId, Object rawJson);
+
     VoiceInfoResponseDto getVoiceInfo(Long userId);
 }

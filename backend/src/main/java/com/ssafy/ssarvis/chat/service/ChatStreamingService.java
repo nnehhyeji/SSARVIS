@@ -58,7 +58,9 @@ public class ChatStreamingService {
             memoryPolicy
         );
 
-        String systemPrompt = userRepository.findUserPromptById(userId);
+//        String systemPrompt = userRepository.findUserPromptById(userId);
+        String systemPrompt = "--";
+        // TODO : 시스템 프롬프트 테이블 수정사항에 맞게 변경 요망
 
         List<ChatMessageResponseDto> recentMessage = chatMessageService.findRecentMessagesBySessionId(
             userId, chatSession.id());

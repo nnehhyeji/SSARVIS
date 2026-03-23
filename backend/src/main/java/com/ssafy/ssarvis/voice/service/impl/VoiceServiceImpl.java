@@ -75,7 +75,7 @@ public class VoiceServiceImpl implements VoiceService {
                 User user = userRepository.findById(userId)
                     .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-                user.updateUserPrompt(generatedPrompt);
+//                user.updateUserPrompt(generatedPrompt);
 
                 log.info("사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
                 return new PromptResponseDto(generatedPrompt);
@@ -87,6 +87,11 @@ public class VoiceServiceImpl implements VoiceService {
             log.error("프롬프트 생성 중 오류 발생: {}", e.getMessage());
             throw new RuntimeException("시스템 프롬프트 생성에 실패했습니다.");
         }
+    }
+
+    @Override
+    public PromptResponseDto generateSystemPromptNonMember(Long targetUserId, Object rawJson) {
+        return null;
     }
 
     private String registerVoiceWithAi(MultipartFile audioFile, String text) {
