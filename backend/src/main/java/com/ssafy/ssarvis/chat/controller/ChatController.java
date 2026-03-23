@@ -7,7 +7,6 @@ import com.ssafy.ssarvis.chat.service.ChatMessageService;
 import com.ssafy.ssarvis.chat.service.ChatSessionService;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
 import com.ssafy.ssarvis.common.dto.ListResponseDto;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
