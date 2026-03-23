@@ -129,6 +129,10 @@ infra_compose_validate:
       MYSQL_PASSWORD=dummy
       EOF
 
+      cat <<EOF > infra/deploy/env/app.secret.env
+      JWT_SECRET=dummy
+      EOF
+
       cat <<EOF > infra/deploy/env/db.env
       MYSQL_USER=dummy
       MYSQL_PASSWORD=dummy
@@ -136,10 +140,25 @@ infra_compose_validate:
       MYSQL_ROOT_PASSWORD=dummy
       EOF
 
+      cat <<EOF > infra/deploy/env/db.secret.env
+      MYSQL_PASSWORD=dummy
+      MYSQL_ROOT_PASSWORD=dummy
+      EOF
+
       cat <<EOF > infra/deploy/env/ai.env
       OPENAI_API_KEY=dummy
       DASHSCOPE_API_KEY=dummy
       QDRANT_URL=http://qdrant:6333
+      EOF
+
+      cat <<EOF > infra/deploy/env/ai.secret.env
+      OPENAI_API_KEY=dummy
+      EOF
+
+      cat <<EOF > infra/deploy/env/monitoring.env
+      EOF
+
+      cat <<EOF > infra/deploy/env/monitoring.secret.env
       EOF
 
       export BACKEND_IMAGE=dummy/backend
@@ -378,7 +397,6 @@ deploy:
       WEB_IMAGE=$DOCKERHUB_USERNAME/ssarvis-web
       WEB_TAG=$CI_COMMIT_SHA
       DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME
-      DOCKERHUB_TOKEN=$DOCKERHUB_TOKEN
       MYSQL_HOST=$MYSQL_HOST
       MYSQL_PORT=$MYSQL_PORT
       MYSQL_DATABASE=$MYSQL_DATABASE
@@ -387,15 +405,10 @@ deploy:
       REDIS_HOST=$REDIS_HOST
       REDIS_PORT=$REDIS_PORT
       SSE_TIMEOUT=$SSE_TIMEOUT
-      SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
       AI_SERVER_URL=$AI_SERVER_URL
-      JWT_SECRET=$JWT_SECRET
       JWT_ACCESS_TOKEN_TIME=$JWT_ACCESS_TOKEN_TIME
       JWT_REFRESH_TOKEN_TIME=$JWT_REFRESH_TOKEN_TIME
       S3_BUCKET_NAME=$S3_BUCKET_NAME
-      MONGO_URI=$MONGO_URI
-      AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       AWS_REGION=$AWS_REGION
       ELASTIC_APM_SERVER_URL=$ELASTIC_APM_SERVER_URL
       ELASTIC_APM_SERVICE_NAME=$ELASTIC_APM_SERVICE_NAME
@@ -406,14 +419,11 @@ deploy:
       cat <<EOF > .deploy/env/db.env
       MYSQL_DATABASE=$MYSQL_DATABASE
       MYSQL_USER=$MYSQL_USER
-      MYSQL_PASSWORD=$MYSQL_PASSWORD
-      MYSQL_ROOT_PASSWORD=$MYSQL_PASSWORD
       EOF
     - |
       cat <<EOF > .deploy/env/ai.env
       AI_IMAGE=$DOCKERHUB_USERNAME/ssarvis-ai
       AI_TAG=$CI_COMMIT_SHA
-      OPENAI_API_KEY=$OPENAI_API_KEY
       OPENAI_BASE_URL=$OPENAI_BASE_URL
       LLM_MODEL=$LLM_MODEL
       LLM_TIMEOUT_SECONDS=$LLM_TIMEOUT_SECONDS
@@ -423,7 +433,6 @@ deploy:
       SIMILAR_CONVERSATIONS_LIMIT=$SIMILAR_CONVERSATIONS_LIMIT
       SIMILAR_CONVERSATIONS_PREFIX_FILE=$SIMILAR_CONVERSATIONS_PREFIX_FILE
       RESPONSE_GUIDELINE_PROMPT_FILE=$RESPONSE_GUIDELINE_PROMPT_FILE
-      DASHSCOPE_API_KEY=$DASHSCOPE_API_KEY
       TTS_MODEL=$TTS_MODEL
       TTS_VOICE_ENROLLMENT_MODEL=$TTS_VOICE_ENROLLMENT_MODEL
       TTS_AUDIO_MIME_TYPE=$TTS_AUDIO_MIME_TYPE
@@ -431,7 +440,6 @@ deploy:
       TTS_ENROLLMENT_URL=$TTS_ENROLLMENT_URL
       TTS_HTTP_TIMEOUT_SECONDS=$TTS_HTTP_TIMEOUT_SECONDS
       QDRANT_URL=$QDRANT_URL
-      QDRANT_API_KEY=$QDRANT_API_KEY
       QDRANT_COLLECTION_NAME=$QDRANT_COLLECTION_NAME
       QDRANT_TIMEOUT_SECONDS=$QDRANT_TIMEOUT_SECONDS
       QDRANT_VECTOR_SIZE=$QDRANT_VECTOR_SIZE
@@ -443,7 +451,6 @@ deploy:
       EOF
     - |
       cat <<EOF > .deploy/env/monitoring.env
-      SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL
       EOF
     - ssh -i "$SSH_KEY" "$USER@$HOST" "mkdir -p '$REMOTE_DEPLOY_DIR/compose' '$REMOTE_DEPLOY_DIR/scripts' '$REMOTE_DEPLOY_DIR/env'"
     - scp -i "$SSH_KEY" infra/deploy/compose/docker-compose.app.yml "$USER@$HOST:$REMOTE_DEPLOY_DIR/compose/"
