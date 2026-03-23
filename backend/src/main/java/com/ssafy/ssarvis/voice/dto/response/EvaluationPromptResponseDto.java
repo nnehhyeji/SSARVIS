@@ -1,6 +1,6 @@
 package com.ssafy.ssarvis.voice.dto.response;
 
-public record NonMemberPromptResponseDto(
+public record EvaluationPromptResponseDto(
     String systemPrompt,
     Long promptCount
 ) {
