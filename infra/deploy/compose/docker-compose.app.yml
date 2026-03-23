@@ -25,6 +25,7 @@ services:
     container_name: backend
     env_file:
       - ../env/app.env
+      - ../env/app.secret.env
     environment:
       ELASTIC_APM_SERVER_URL: ${ELASTIC_APM_SERVER_URL:-http://apm-server:8200}
       ELASTIC_APM_SERVICE_NAME: ${ELASTIC_APM_SERVICE_NAME:-backend}
