@@ -101,7 +101,39 @@ public class VoiceServiceImpl implements VoiceService {
 
     @Override
     public PromptResponseDto generateSystemPromptNonMember(Long targetUserId, Object rawJson) {
-        return null;
+        try {
+            log.info("AI 서버로 전달할 데이터: {}", rawJson);
+
+            ResponseEntity<AiPromptResponseDto> response = restTemplate.postForEntity(
+                aiServerUrl + "/api/v1/prompt",
+                rawJson,
+                AiPromptResponseDto.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                String generatedPrompt = response.getBody().data().systemPrompt();
+
+                User user = userRepository.findById(targetUserId)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+                Prompt prompt = Prompt.builder()
+                    .prompt(generatedPrompt)
+                    .promptType(PromptType.NAMNA)
+                    .user(user)
+                    .build();
+
+                promptRepository.save(prompt);
+
+                log.info("타 사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
+                return new PromptResponseDto(generatedPrompt);
+            }
+
+            throw new RuntimeException("AI 서버 응답 오류");
+
+        } catch (Exception e) {
+            log.error("프롬프트 생성 중 오류 발생: {}", e.getMessage());
+            throw new RuntimeException("시스템 프롬프트 생성에 실패했습니다.");
+        }
     }
 
     private String registerVoiceWithAi(MultipartFile audioFile, String text) {

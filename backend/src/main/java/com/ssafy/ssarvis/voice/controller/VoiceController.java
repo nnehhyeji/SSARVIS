@@ -43,6 +43,15 @@ public class VoiceController {
         return ResponseEntity.ok(BaseResponse.success("시스템 프롬프트 생성 및 저장 성공", response));
     }
 
+    @PostMapping("/prompts/{targetUserId}")
+    public ResponseEntity<BaseResponse<PromptResponseDto>> createPrompt(
+        @RequestBody Object requestBody,
+        @PathVariable("targetUserId") Long targetUserId
+    ) {
+        PromptResponseDto response = voiceService.generateSystemPromptNonMember(targetUserId, requestBody);
+        return ResponseEntity.ok(BaseResponse.success("상대방 프롬프트 생성 및 저장 성공", response));
+    }
+
     @GetMapping("/voices")
     public ResponseEntity<BaseResponse<VoiceInfoResponseDto>> getVoiceInfo(
         @AuthenticationPrincipal CustomUserDetails customUserDetails
