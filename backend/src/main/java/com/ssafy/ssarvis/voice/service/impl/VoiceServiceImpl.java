@@ -1,5 +1,8 @@
 package com.ssafy.ssarvis.voice.service.impl;
 
+import com.ssafy.ssarvis.assistant.entity.Assistant;
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
+import com.ssafy.ssarvis.assistant.repository.AssistantRepository;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.voice.dto.response.*;
@@ -35,6 +38,7 @@ public class VoiceServiceImpl implements VoiceService {
     private final VoiceRepository voiceRepository;
     private final UserRepository userRepository;
     private final PromptRepository promptRepository;
+    private final AssistantRepository assistantRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${spring.app.ai-server.url}")
@@ -142,7 +146,6 @@ public class VoiceServiceImpl implements VoiceService {
             HttpHeaders headers = new HttpHeaders();
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
 
-            // 오디오 파일 파트
             HttpHeaders audioHeaders = new HttpHeaders();
             audioHeaders.setContentType(MediaType.parseMediaType(audioFile.getContentType()));
             body.add("audio", new HttpEntity<>(new ByteArrayResource(audioFile.getBytes()) {
@@ -160,6 +163,7 @@ public class VoiceServiceImpl implements VoiceService {
 
             ResponseEntity<AiVoiceResponseDto> response = restTemplate.postForEntity(
                 aiServerUrl + "/api/v1/voice", requestEntity, AiVoiceResponseDto.class);
+
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return response.getBody().data().voiceId();
@@ -184,6 +188,18 @@ public class VoiceServiceImpl implements VoiceService {
             .build();
 
         voiceRepository.save(voice);
-        log.info("Voice 저장 완료: {} (ID: {})", user.getNickname(), modelId);
+
+        for (AssistantType assistantType : AssistantType.values()) {
+            Assistant assistant = Assistant.builder()
+                .assistantType(assistantType)
+                .name(user.getNickname() + "_" + assistantType.name())
+                .voice(voice)
+                .user(user)
+                .build();
+            assistantRepository.save(assistant);
+        }
+
+        log.info("Voice & Assistant Model 저장 완료: {} (ID: {})", user.getNickname(), modelId);
     }
+
 }
