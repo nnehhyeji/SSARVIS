@@ -1,8 +1,8 @@
 package com.ssafy.ssarvis.chat.document;
 
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.chat.domain.AudioMeta;
 import com.ssafy.ssarvis.chat.domain.ChatMessageStatus;
-import com.ssafy.ssarvis.chat.domain.ChatMode;
 import com.ssafy.ssarvis.chat.domain.SpeakerType;
 import org.springframework.data.annotation.Id;
 import java.time.LocalDateTime;
@@ -41,7 +41,7 @@ public class ChatMessageDocument {
 
     private Long assistantId;
 
-    private ChatMode chatMode;
+    private AssistantType assistantType;
 
     private SpeakerType speakerType;
 
@@ -65,7 +65,7 @@ public class ChatMessageDocument {
         String sessionId,
         Long userId,
         Long assistantId,
-        ChatMode chatMode,
+        AssistantType assistantType,
         String text,
         AudioMeta audio,
         LocalDateTime now
@@ -74,8 +74,11 @@ public class ChatMessageDocument {
             .sessionId(sessionId)
             .userId(userId)
             .assistantId(assistantId)
-            .chatMode(chatMode)
+            .assistantType(assistantType)
+            .speakerType(SpeakerType.USER)
+            .speakerId(userId)
             .text(text)
+            .chatMessageStatus(ChatMessageStatus.COMPLETE)
             .audio(audio)
             .createdAt(now)
             .build();
@@ -85,7 +88,7 @@ public class ChatMessageDocument {
         String sessionId,
         Long userId,
         Long assistantId,
-        ChatMode chatMode,
+        AssistantType assistantType,
         String text,
         LocalDateTime now
     ) {
@@ -93,15 +96,33 @@ public class ChatMessageDocument {
             .sessionId(sessionId)
             .userId(userId)
             .assistantId(assistantId)
-            .chatMode(chatMode)
+            .assistantType(assistantType)
+            .speakerType(SpeakerType.ASSISTANT)
+            .speakerId(assistantId)
             .text(text)
             .chatMessageStatus(ChatMessageStatus.STREAMING)
             .createdAt(now)
             .build();
     }
 
+    public void appendText(String chunk) {
+        if (this.text == null) {
+            this.text = chunk;
+            return;
+        }
+        this.text += chunk;
+    }
+
+    public void attachAudio(AudioMeta audio) {
+        this.audio = audio;
+    }
+
     public void complete(AudioMeta audio) {
         this.audio = audio;
+        this.chatMessageStatus = ChatMessageStatus.COMPLETE;
+    }
+
+    public void completeWithoutAudio() {
         this.chatMessageStatus = ChatMessageStatus.COMPLETE;
     }
 

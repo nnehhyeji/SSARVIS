@@ -7,38 +7,15 @@ import { useAICharacter } from '../../hooks/useAICharacter';
 import authApi from '../../apis/authApi';
 import { RefreshCw } from 'lucide-react';
 import VoiceVisualizer from './VoiceVisualizer';
+import type {
+  SpeechRecognitionErrorEvent,
+  SpeechRecognitionEvent,
+  SpeechRecognitionType,
+} from '../../pages/auth/tutorialConstants';
 
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-}
-
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (event: Event) => void;
-  onresult: (event: SpeechRecognitionEvent) => void;
-  onerror: (event: SpeechRecognitionErrorEvent) => void;
-  onend: (event: Event) => void;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-}
-
-interface SpeechRecognitionStatic {
-  new (): SpeechRecognition;
-}
-
-interface CustomWindow extends Window {
-  SpeechRecognition?: SpeechRecognitionStatic;
-  webkitSpeechRecognition?: SpeechRecognitionStatic;
+type CustomWindow = Window & {
   webkitAudioContext?: typeof AudioContext;
-}
+};
 
 const VoiceLockOverlay: React.FC = () => {
   const { isLocked, setIsLocked, lockPhrase } = useVoiceLockStore();
@@ -54,7 +31,7 @@ const VoiceLockOverlay: React.FC = () => {
   const [isWrong, setIsWrong] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
   const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleVerify = React.useCallback(

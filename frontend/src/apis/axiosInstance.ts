@@ -27,7 +27,7 @@ axiosInstance.interceptors.request.use(
     if (!isPublicPath && !isSignupPath) {
       const token = localStorage.getItem('token');
       if (token && token !== 'mock_token_for_testing') {
-        config.headers.Authorization = `Bearer ${token}`;
+        config.headers.Authorization = `Bearer ${token.trim()}`;
       }
     }
     return config;
@@ -43,7 +43,7 @@ axiosInstance.interceptors.response.use(
     // 응답 헤더에 Authorization이 있으면 (재발급 혹은 로그인 시) 로컬 스토리지 업데이트
     const authHeader = response.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
+      const token = authHeader.substring(7).trim();
       localStorage.setItem('token', token);
     }
     return response;
@@ -81,8 +81,9 @@ axiosInstance.interceptors.response.use(
         );
 
         // 새 토큰이 헤더나 바디에 왔을 경우 (명세서엔 둘 다 명시됨)
-        const newAccessToken =
-          response.headers['authorization']?.substring(7) || response.data?.data?.accessToken;
+        const newAccessToken = (
+          response.headers['authorization']?.substring(7) || response.data?.data?.accessToken
+        )?.trim();
 
         if (newAccessToken) {
           localStorage.setItem('token', newAccessToken);
@@ -94,7 +95,7 @@ axiosInstance.interceptors.response.use(
           }
 
           // 원래 요청의 헤더 업데이트 후 재시도
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken.trim()}`;
           return axiosInstance(originalRequest);
         }
       } catch (reissueError) {

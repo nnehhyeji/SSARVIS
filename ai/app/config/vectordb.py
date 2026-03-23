@@ -1,6 +1,8 @@
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
+from app.config.base import SETTINGS_CONFIG
+
 
 class VectorDBConfig(BaseSettings):
     qdrant_url: str = "http://qdrant:6333"
@@ -9,7 +11,7 @@ class VectorDBConfig(BaseSettings):
     qdrant_timeout_seconds: float = 20.0
     qdrant_vector_size: int = 1536
 
-    model_config = {"env_file": ".env", "extra": "ignore"}
+    model_config = SETTINGS_CONFIG
 
     @field_validator("qdrant_url", mode="before")
     @classmethod

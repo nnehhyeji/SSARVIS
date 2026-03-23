@@ -3,8 +3,10 @@ import type { Follow, FollowRequest } from '../types';
 import { VISITOR_PALETTES } from '../constants/theme';
 import type { BgColors } from '../constants/theme';
 import followApi from '../apis/followApi';
+import { useUserStore } from '../store/useUserStore';
 
 export function useFollow() {
+  const { isLoggedIn } = useUserStore();
   const [follows, setFollows] = useState<Follow[]>([]);
   const [followRequests, setFollowRequests] = useState<FollowRequest[]>([]);
 
@@ -66,8 +68,8 @@ export function useFollow() {
     let isMounted = true;
 
     const loadInitialData = async () => {
-      // API 호출이 중복되거나 컴포넌트 언마운트 후 상태 업데이트 방지
-      if (!isMounted) return;
+      // API 호출이 중복되거나 컴포넌트 언마운트 후 상태 업데이트 방지, 그리고 비로그인 상태 제외
+      if (!isMounted || !isLoggedIn) return;
       await Promise.all([fetchFollows(), fetchFollowRequests()]);
     };
 
@@ -79,7 +81,7 @@ export function useFollow() {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [fetchFollows, fetchFollowRequests]);
+  }, [fetchFollows, fetchFollowRequests, isLoggedIn]);
 
   const visitFollow = useCallback(
     (id: number, isReturn: boolean = false) => {

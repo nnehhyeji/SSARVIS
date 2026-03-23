@@ -12,8 +12,13 @@ DB_COMPOSE_FILE="$COMPOSE_DIR/docker-compose.db.yml"
 MONITORING_COMPOSE_FILE="$COMPOSE_DIR/docker-compose.monitoring.yml"
 AI_COMPOSE_FILE="$COMPOSE_DIR/docker-compose.ai.yml"
 APP_ENV_FILE="$ENV_DIR/app.env"
+APP_SECRET_ENV_FILE="$ENV_DIR/app.secret.env"
 DB_ENV_FILE="$ENV_DIR/db.env"
+DB_SECRET_ENV_FILE="$ENV_DIR/db.secret.env"
 AI_ENV_FILE="$ENV_DIR/ai.env"
+AI_SECRET_ENV_FILE="$ENV_DIR/ai.secret.env"
+MONITORING_ENV_FILE="$ENV_DIR/monitoring.env"
+MONITORING_SECRET_ENV_FILE="$ENV_DIR/monitoring.secret.env"
 DOCKER_CMD=()
 APP_STACK_COMPOSE_ARGS=()
 
@@ -23,33 +28,33 @@ log() {
 
 print_app_diagnostics() {
   log "Application deployment failed. Printing compose status."
-  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" ps || true
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$APP_SECRET_ENV_FILE" --env-file "$AI_ENV_FILE" --env-file "$AI_SECRET_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" ps || true
 
   log "Recent backend logs:"
-  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=200 backend || true
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$APP_SECRET_ENV_FILE" --env-file "$AI_ENV_FILE" --env-file "$AI_SECRET_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=200 backend || true
 
   log "Recent redis logs:"
-  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=100 redis || true
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$APP_SECRET_ENV_FILE" --env-file "$AI_ENV_FILE" --env-file "$AI_SECRET_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=100 redis || true
 
   log "Recent AI logs:"
-  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=200 ai || true
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$APP_SECRET_ENV_FILE" --env-file "$AI_ENV_FILE" --env-file "$AI_SECRET_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=200 ai || true
 
   log "Recent qdrant logs:"
-  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=100 qdrant || true
+  "${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$APP_SECRET_ENV_FILE" --env-file "$AI_ENV_FILE" --env-file "$AI_SECRET_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" logs --tail=100 qdrant || true
 }
 
 print_monitoring_diagnostics() {
   log "Monitoring deployment failed. Printing compose status."
-  "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" ps || true
+  "${DOCKER_CMD[@]}" compose --env-file "$MONITORING_ENV_FILE" --env-file "$MONITORING_SECRET_ENV_FILE" -f "$MONITORING_COMPOSE_FILE" ps || true
 
   log "Recent elasticsearch logs:"
-  "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" logs --tail=200 elasticsearch || true
+  "${DOCKER_CMD[@]}" compose --env-file "$MONITORING_ENV_FILE" --env-file "$MONITORING_SECRET_ENV_FILE" -f "$MONITORING_COMPOSE_FILE" logs --tail=200 elasticsearch || true
 
   log "Recent kibana logs:"
-  "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" logs --tail=100 kibana || true
+  "${DOCKER_CMD[@]}" compose --env-file "$MONITORING_ENV_FILE" --env-file "$MONITORING_SECRET_ENV_FILE" -f "$MONITORING_COMPOSE_FILE" logs --tail=100 kibana || true
 
   log "Recent logstash logs:"
-  "${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" logs --tail=100 logstash || true
+  "${DOCKER_CMD[@]}" compose --env-file "$MONITORING_ENV_FILE" --env-file "$MONITORING_SECRET_ENV_FILE" -f "$MONITORING_COMPOSE_FILE" logs --tail=100 logstash || true
 }
 
 wait_for_container_health() {
@@ -125,8 +130,13 @@ require_file "$DB_COMPOSE_FILE"
 require_file "$MONITORING_COMPOSE_FILE"
 require_file "$AI_COMPOSE_FILE"
 require_file "$APP_ENV_FILE"
+require_file "$APP_SECRET_ENV_FILE"
 require_file "$DB_ENV_FILE"
+require_file "$DB_SECRET_ENV_FILE"
 require_file "$AI_ENV_FILE"
+require_file "$AI_SECRET_ENV_FILE"
+require_file "$MONITORING_ENV_FILE"
+require_file "$MONITORING_SECRET_ENV_FILE"
 trap 'print_app_diagnostics' ERR
 
 log "Initializing Docker networks"
@@ -134,6 +144,7 @@ log "Initializing Docker networks"
 
 log "Loading deployment environment from $APP_ENV_FILE"
 export_env_file "$APP_ENV_FILE"
+export_env_file "$APP_SECRET_ENV_FILE"
 
 if [[ -n "${DOCKERHUB_USERNAME:-}" && -n "${DOCKERHUB_TOKEN:-}" ]]; then
   log "Logging in to Docker Hub"
@@ -143,23 +154,23 @@ else
 fi
 
 log "Pulling application images"
-"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" pull
+"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$APP_SECRET_ENV_FILE" --env-file "$AI_ENV_FILE" --env-file "$AI_SECRET_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" pull
 
 log "Starting database services"
-"${DOCKER_CMD[@]}" compose --env-file "$DB_ENV_FILE" -f "$DB_COMPOSE_FILE" up -d
+"${DOCKER_CMD[@]}" compose --env-file "$DB_ENV_FILE" --env-file "$DB_SECRET_ENV_FILE" -f "$DB_COMPOSE_FILE" up -d
 wait_for_container_health mysql 24
 wait_for_container_health mongodb 24
 
 log "Starting monitoring services"
 trap 'print_monitoring_diagnostics' ERR
-"${DOCKER_CMD[@]}" compose -f "$MONITORING_COMPOSE_FILE" up -d
+"${DOCKER_CMD[@]}" compose --env-file "$MONITORING_ENV_FILE" --env-file "$MONITORING_SECRET_ENV_FILE" -f "$MONITORING_COMPOSE_FILE" up -d
 wait_for_container_health elasticsearch 24
 wait_for_container_health logstash 24
 wait_for_container_health kibana 24
 
 trap 'print_app_diagnostics' ERR
 log "Starting application stack services"
-"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$AI_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" up -d
+"${DOCKER_CMD[@]}" compose --env-file "$APP_ENV_FILE" --env-file "$APP_SECRET_ENV_FILE" --env-file "$AI_ENV_FILE" --env-file "$AI_SECRET_ENV_FILE" "${APP_STACK_COMPOSE_ARGS[@]}" up -d
 wait_for_container_health qdrant 24
 wait_for_container_health ai 24
 wait_for_container_health redis 24

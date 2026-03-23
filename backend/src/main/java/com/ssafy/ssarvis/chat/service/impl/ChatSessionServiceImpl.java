@@ -21,14 +21,13 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     private final ChatSessionRepository chatSessionRepository;
 
-
     @Override
     public ChatSessionResponseDto getOrCreateSession(ChatSessionCreateRequestDto chatSessionCreateRequestDto) {
-        if (chatSessionCreateRequestDto.memoryPolicy() == MemoryPolicy.PUBLIC) {
-            return chatSessionRepository.findByUserIdAndChatModeAndMemoryPolicyAndChatSessionStatus(
+        if (chatSessionCreateRequestDto.memoryPolicy() == MemoryPolicy.GENERAL) {
+            return chatSessionRepository.findByUserIdAndAssistantTypeAndMemoryPolicyAndChatSessionStatus(
                     chatSessionCreateRequestDto.userId(),
-                    chatSessionCreateRequestDto.chatMode(),
-                    MemoryPolicy.PUBLIC,
+                    chatSessionCreateRequestDto.assistantType(),
+                    MemoryPolicy.GENERAL,
                     ChatSessionStatus.ACTIVE
                 )
                 .map(ChatSessionResponseDto::from)
@@ -45,7 +44,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         ChatSessionDocument chatSessionDocument = ChatSessionDocument.create(
             chatSessionCreateRequestDto.userId(),
             chatSessionCreateRequestDto.assistantId(),
-            chatSessionCreateRequestDto.chatMode(),
+            chatSessionCreateRequestDto.assistantType(),
             chatSessionCreateRequestDto.chatSessionType(),
             chatSessionCreateRequestDto.title(),
             chatSessionCreateRequestDto.memoryPolicy(),
@@ -105,10 +104,10 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     }
 
     private LocalDateTime calculateExpiredAt(MemoryPolicy memoryPolicy, LocalDateTime now) {
-        if (memoryPolicy == MemoryPolicy.PRIVATE) {
-            return now.plusMinutes(Constants.PRIVATE_IDLE_TIMEOUT_MINUTES);
+        if (memoryPolicy == MemoryPolicy.SECRET) {
+            return now.plusMinutes(Constants.SECRET_IDLE_TIMEOUT_MINUTES);
         }
-        return now.plusHours(Constants.PUBLIC_IDLE_TIMEOUT_HOURS);
+        return now.plusHours(Constants.GENERAL_IDLE_TIMEOUT_HOURS);
     }
 
     private ChatSessionDocument getSession(String sessionId) {

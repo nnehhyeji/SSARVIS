@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save, Sparkles, MessageCircle, User as UserIcon, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { postGeneratePrompt } from '../../../apis/aiApi';
 
 interface PersonaModalProps {
   isOpen: boolean;
@@ -20,10 +21,36 @@ export default function PersonaModal({ isOpen, onClose, followName }: PersonaMod
     setQna((prev) => prev.map((item) => (item.id === id ? { ...item, answer: value } : item)));
   };
 
-  const handleSave = () => {
-    // TODO: API 연동하여 저장 로직 구현
-    alert(`${followName}님의 페르소나가 저장되었습니다.`);
-    onClose();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSave = async () => {
+    if (!description.trim()) {
+      alert('설명을 입력해주세요!');
+      return;
+    }
+    const hasEmptyAnswers = qna.some((q) => !q.answer.trim());
+    if (hasEmptyAnswers) {
+      alert('모든 질문에 답해주세요!');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = [
+        { question: '이 사람은 당신에게 어떤 사람인가요?', answer: description.trim() },
+        ...qna.map((q) => ({ question: q.question, answer: q.answer.trim() })),
+      ];
+
+      await postGeneratePrompt(payload);
+
+      alert(`${followName}님의 페르소나가 성공적으로 저장되었습니다.`);
+      setIsSubmitting(false);
+      onClose();
+    } catch (error) {
+      console.error('페르소나 문답 제출 실패:', error);
+      alert('설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -115,10 +142,17 @@ export default function PersonaModal({ isOpen, onClose, followName }: PersonaMod
               </button>
               <button
                 onClick={handleSave}
-                className="px-8 py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-400 text-white font-bold shadow-lg shadow-pink-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                disabled={isSubmitting}
+                className="px-8 py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-400 text-white font-bold shadow-lg shadow-pink-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:scale-100"
               >
-                <Save className="w-5 h-5" />
-                설정 완료
+                {isSubmitting ? (
+                  <span className="animate-pulse">저장 중...</span>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    설정 완료
+                  </>
+                )}
               </button>
             </div>
           </motion.div>

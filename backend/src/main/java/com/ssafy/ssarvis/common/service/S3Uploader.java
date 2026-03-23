@@ -1,5 +1,7 @@
 package com.ssafy.ssarvis.common.service;
 
+import java.io.File;
+import java.io.FileInputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,6 +52,32 @@ public class S3Uploader {
         }
     }
 
+    public String uploadFile(File file, String directory, String contentType) {
+        String fileName = directory + "/" + UUID.randomUUID() + "_" + file.getName();
+
+        try (FileInputStream fis = new FileInputStream(file)) {
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(fileName)
+                .contentType(contentType)
+                .contentLength(file.length())
+                .build();
+
+            s3Client.putObject(
+                putObjectRequest,
+                RequestBody.fromInputStream(fis, file.length())
+            );
+
+            String s3Url = buildS3Url(fileName);
+            log.info("S3 파일 업로드 성공 - url: {}", s3Url);
+            return s3Url;
+
+        } catch (IOException e) {
+            log.error("S3 파일 업로드 실패 - fileName: {}", fileName, e);
+            throw new RuntimeException("S3 파일 업로드 실패", e);
+        }
+    }
+
     public void delete(String s3Url) {
         String key = s3Url.substring(s3Url.indexOf(".amazonaws.com/") + ".amazonaws.com/".length());
         s3Client.deleteObject(DeleteObjectRequest.builder()
@@ -57,6 +85,10 @@ public class S3Uploader {
             .key(key)
             .build());
         log.info("S3 삭제 성공 - key: {}", key);
+    }
+
+    private String buildS3Url(String key) {
+        return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + key;
     }
 
 }

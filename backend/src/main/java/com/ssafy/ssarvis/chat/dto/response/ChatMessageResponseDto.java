@@ -1,9 +1,9 @@
 package com.ssafy.ssarvis.chat.dto.response;
 
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.chat.document.ChatMessageDocument;
 import com.ssafy.ssarvis.chat.domain.AudioMeta;
 import com.ssafy.ssarvis.chat.domain.ChatMessageStatus;
-import com.ssafy.ssarvis.chat.domain.ChatMode;
 import com.ssafy.ssarvis.chat.domain.SpeakerType;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -14,7 +14,7 @@ public record ChatMessageResponseDto(
     String sessionId,
     Long userId,
     Long assistantId,
-    ChatMode chatMode,
+    AssistantType assistantType,
     SpeakerType speakerType,
     Long speakerId,
     String text,
@@ -28,7 +28,7 @@ public record ChatMessageResponseDto(
             .sessionId(document.getSessionId())
             .userId(document.getUserId())
             .assistantId(document.getAssistantId())
-            .chatMode(document.getChatMode())
+            .assistantType(document.getAssistantType())
             .speakerType(document.getSpeakerType())
             .speakerId(document.getSpeakerId())
             .text(document.getText())

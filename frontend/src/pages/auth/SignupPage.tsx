@@ -15,9 +15,13 @@ import {
 import AnimatedBackground from '../../components/AnimatedBackground';
 import { PATHS } from '../../routes/paths';
 import userApi from '../../apis/userApi';
+import authApi from '../../apis/authApi';
+import { useUserStore } from '../../store/useUserStore';
+import { useVoiceLockStore } from '../../store/useVoiceLockStore';
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const { login } = useUserStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,6 +51,24 @@ export default function SignupPage() {
     try {
       setIsSubmitting(true);
       const response = await userApi.signup({ email, password, nickname });
+
+      // 회원가입 직후 자동 로그인 수행
+      const loginResponse = await authApi.login({ email, password });
+
+      const { accessToken, timeout } = loginResponse.data;
+      localStorage.setItem('token', accessToken);
+
+      if (timeout) {
+        useVoiceLockStore.getState().setTimeoutDuration(timeout);
+      }
+
+      const profile = await userApi.getUserProfile();
+      login({
+        id: profile.userId,
+        email: profile.email,
+        nickname: profile.nickname,
+      });
+
       alert(response.message || '회원가입이 완료되었습니다!');
       navigate(PATHS.TUTORIAL);
     } catch (error: unknown) {

@@ -8,7 +8,7 @@ export type Alarm = {
 };
 
 // AI 동작 모드 타입
-export type Mode = 'normal' | 'study' | 'counseling';
+export type Mode = 'normal' | 'study' | 'counseling' | 'persona';
 export type Visibility = 'public' | 'private';
 
 // 채팅 메시지 타입

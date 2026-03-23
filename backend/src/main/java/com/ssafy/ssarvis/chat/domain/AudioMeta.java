@@ -11,11 +11,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AudioMeta {
 
-    private String s3Key;
-
-    private Integer durationMs;
+    private String audioUrl;
 
     private String contentType;
+
+    private String fileName;
 
     private Long fileSize;
 }

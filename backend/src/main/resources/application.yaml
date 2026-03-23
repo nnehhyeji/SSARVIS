@@ -71,3 +71,6 @@ springdoc:
     operations-sorter: alpha
     tags-sorter: alpha
 
+app:
+  fast-api:
+    ws-url: ${FAST_API_SERVER_WS_URL}
