@@ -1,21 +1,18 @@
 from app.domains.prompt.schema import PromptQnAItem, PromptRequest
-from app.config.prompt import prompt_config
 from app.infra.openai import OpenAIClient
-from app.infra.prompt_loader import PromptTemplateLoader
+from app.prompts import SYSTEM_PROMPT_META, SYSTEM_PROMPT_UPDATE_META
 
 
 class PromptService:
     def __init__(
         self,
         openai_client: OpenAIClient,
-        prompt_loader: PromptTemplateLoader,
-        prompt_update_loader: PromptTemplateLoader | None = None,
+        prompt_meta: str = SYSTEM_PROMPT_META,
+        prompt_update_meta: str = SYSTEM_PROMPT_UPDATE_META,
     ) -> None:
         self.openai_client = openai_client
-        self.prompt_loader = prompt_loader
-        self.prompt_update_loader = prompt_update_loader or PromptTemplateLoader(
-            prompt_config.prompt_update_meta_file
-        )
+        self.prompt_meta = prompt_meta
+        self.prompt_update_meta = prompt_update_meta
 
     async def generate_prompt(self, body: PromptRequest) -> str:
         generated_prompt = await self._generate_prompt(
@@ -29,18 +26,11 @@ class PromptService:
         qna_items: list[PromptQnAItem],
         current_system_prompt: str | None = None,
     ) -> str:
-        meta_prompt = self.prompt_loader.load_system_prompt_meta()
+        system_prompt = self.prompt_meta if not current_system_prompt else self.prompt_update_meta
         source_text = self._format_input(qna_items, current_system_prompt)
-        if current_system_prompt and current_system_prompt.strip():
-            meta_prompt = "\n\n".join(
-                [
-                    meta_prompt,
-                    self.prompt_update_loader.load_system_prompt_meta(),
-                ]
-            )
         return await self.openai_client.generate(
             [
-                {"role": "system", "content": meta_prompt},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": source_text},
             ]
         )
