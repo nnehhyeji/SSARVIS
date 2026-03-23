@@ -249,19 +249,12 @@ def test_chat_service_adds_public_conversation_guideline_when_is_public_true() -
         async def embed(self, text: str) -> list[float]:
             return [0.1, 0.2, 0.3]
 
-    class StubPromptLoader:
-        def __init__(self, content: str) -> None:
-            self.content = content
-
-        def load_system_prompt_meta(self) -> str:
-            return self.content
-
     service = ChatService(
         chat_repository=StubChatRepository(),
         openai_client=StubOpenAIClient(),
-        similar_conversations_prefix_loader=StubPromptLoader("similar prefix"),
-        response_guideline_loader=StubPromptLoader("response guideline"),
-        public_conversation_guideline_loader=StubPromptLoader(
+        similar_conversations_prefix="similar prefix",
+        response_guideline_prompt="response guideline",
+        public_conversation_guideline_prompt=(
             "Do not reveal private or sensitive personal details in public settings."
         ),
     )
@@ -299,19 +292,12 @@ def test_chat_service_skips_public_conversation_guideline_when_is_public_false()
         async def embed(self, text: str) -> list[float]:
             return [0.1, 0.2, 0.3]
 
-    class StubPromptLoader:
-        def __init__(self, content: str) -> None:
-            self.content = content
-
-        def load_system_prompt_meta(self) -> str:
-            return self.content
-
     service = ChatService(
         chat_repository=StubChatRepository(),
         openai_client=StubOpenAIClient(),
-        similar_conversations_prefix_loader=StubPromptLoader("similar prefix"),
-        response_guideline_loader=StubPromptLoader("response guideline"),
-        public_conversation_guideline_loader=StubPromptLoader(
+        similar_conversations_prefix="similar prefix",
+        response_guideline_prompt="response guideline",
+        public_conversation_guideline_prompt=(
             "Do not reveal private or sensitive personal details in public settings."
         ),
     )
