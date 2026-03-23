@@ -50,6 +50,11 @@ public class User extends BaseTime {
     private Boolean isVoiceLockActive = false;
 
     @NotNull
+    @Column(name = "is_accept_prompt")
+    @Builder.Default
+    private Boolean isAcceptPrompt = false;
+
+    @NotNull
     @Column(name = "costume")
     @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
@@ -77,7 +82,7 @@ public class User extends BaseTime {
             .build();
     }
 
-    public void update(String password, String nickname, String description, Costume costume, String voicePassword){
+    public void update(String password, String nickname, String description, Costume costume, String voicePassword) {
         if (password != null) this.password = password;
         if (nickname != null) this.nickname = nickname;
         if (description != null) this.description = description;
