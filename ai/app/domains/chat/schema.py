@@ -13,6 +13,7 @@ class ChatRequest(BaseModel):
     userId: int
     chatMode: NonEmptyStr
     memoryPolicy: NonEmptyStr
+    isPublic: bool = False
     systemPrompt: NonEmptyStr
     history: list["ChatHistoryItem"] = Field(default_factory=list)
     text: NonEmptyStr
