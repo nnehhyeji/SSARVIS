@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 // - 마이크 토글, 입 애니메이션, 표정 변경 등의 기능을 제공합니다.
 
 export function useAICharacter() {
-  const [isMicOn, setIsMicOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [mouthOpenRadius, setMouthOpenRadius] = useState(2);
   const [triggerText, setTriggerText] = useState('');
@@ -72,6 +72,7 @@ export function useAICharacter() {
     setMyTriggerText,
     setIsSpeaking,
     setIsMyAiSpeaking,
+    setIsMicOn,
     setMouthOpenRadius,
     setMyMouthOpenRadius,
   };

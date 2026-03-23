@@ -8,33 +8,33 @@ import { memo, useEffect, useState } from 'react';
 // - memo로 감싸서 triggerText가 바뀔 때만 리렌더링합니다.
 
 interface SpeechBubbleProps {
-  triggerText: string;
-  onStart: () => void;
-  onEnd: () => void;
+  text: string;
+  onStart?: () => void;
+  onEnd?: () => void;
 }
 
-const SpeechBubble = memo(({ triggerText, onStart, onEnd }: SpeechBubbleProps) => {
+const SpeechBubble = memo(({ text, onStart, onEnd }: SpeechBubbleProps) => {
   const [displayedText, setDisplayedText] = useState('');
 
   useEffect(() => {
-    if (!triggerText) return;
+    if (!text) return;
     let i = 0;
     let current = '';
     setDisplayedText('');
-    onStart(); // 타이핑 시작 → 입 움직이기 시작
+    if (onStart) onStart(); // 타이핑 시작 → 입 움직이기 시작
     const interval = setInterval(() => {
-      if (i < triggerText.length) {
-        current += triggerText.charAt(i);
+      if (i < text.length) {
+        current += text.charAt(i);
         setDisplayedText(current);
         i++;
       } else {
         clearInterval(interval);
-        onEnd(); // 타이핑 완료 → 입 멈추기
+        if (onEnd) onEnd(); // 타이핑 완료 → 입 멈추기
       }
     }, 100);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [triggerText]);
+  }, [text]);
 
   if (!displayedText) return null;
 
