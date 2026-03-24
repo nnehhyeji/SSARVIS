@@ -1,7 +1,5 @@
 package com.ssafy.ssarvis.chat.service.impl;
 
-import static com.ssafy.ssarvis.common.exception.ErrorCode.UNAUTHORIZED;
-
 import com.ssafy.ssarvis.chat.document.ChatMessageDocument;
 import com.ssafy.ssarvis.chat.document.ChatSessionDocument;
 import com.ssafy.ssarvis.chat.domain.AudioMeta;
