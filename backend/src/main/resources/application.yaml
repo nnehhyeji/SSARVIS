@@ -37,6 +37,9 @@ spring:
     slack:
       webhook-url: ${SLACK_WEBHOOK_URL}
       enabled: true
+    mattermost:
+      webhook-url: ${MATTERMOST_WEBHOOK_URL}
+      enabled: true
     s3:
       bucket: ${S3_BUCKET_NAME}
     ai-server:
