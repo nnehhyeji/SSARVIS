@@ -13,7 +13,7 @@ public interface UserService {
 
     boolean isAlreadyExistsEmail(String email);
 
-    boolean isAlreadyExistsNickname(String nickname);
+    boolean isAlreadyExistsCustomId(String customId);
 
     UserResponseDto getUser(Long userId);
 
@@ -26,5 +26,9 @@ public interface UserService {
     boolean toggleProfile(Long userId);
 
     String updateProfileImage(Long userId, MultipartFile profileImage);
+
+    void sendVerificationEmail(String email);
+
+    boolean verifyEmailCode(String email, String code);
 
 }

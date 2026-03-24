@@ -10,20 +10,17 @@ public class StretchingScheduler {
 
     private final MattermostService mattermostService;
 
-    // 오전 10:20
-    @Scheduled(cron = "0 20 10 * * *")
+    @Scheduled(cron = "0 20 10 * * *", zone = "Asia/Seoul")
     public void sendMorningStretch() {
         mattermostService.sendStretchMessage();
     }
 
-    // 오후 2시
-    @Scheduled(cron = "0 0 14 * * *")
+    @Scheduled(cron = "0 0 14 * * *", zone = "Asia/Seoul")
     public void sendAfternoonStretch() {
         mattermostService.sendStretchMessage();
     }
 
-    // 오후 4시
-    @Scheduled(cron = "0 0 16 * * *")
+    @Scheduled(cron = "0 0 16 * * *", zone = "Asia/Seoul")
     public void sendEveningStretch() {
         mattermostService.sendStretchMessage();
     }
