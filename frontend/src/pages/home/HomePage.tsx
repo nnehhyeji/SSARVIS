@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { MessageCircle, Mic, MicOff, Lock, Unlock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import userApi from '../../apis/userApi';
 
 // Hooks
 import { useAICharacter } from '../../hooks/useAICharacter';
@@ -80,11 +81,35 @@ export default function HomePage() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
   const [isSharePersonaOpen, setIsSharePersonaOpen] = useState(false);
-  const [my_view_count] = useState(1234);
+  const [myViewCount, setMyViewCount] = useState(0);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
     'following',
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMyViewCount = async () => {
+      try {
+        const profile = await userApi.getUserProfile();
+        if (isMounted) {
+          setMyViewCount(profile.viewCount ?? 0);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setMyViewCount(0);
+        }
+        console.warn('방문 수 조회 실패:', error);
+      }
+    };
+
+    void loadMyViewCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleAlarmClick = useCallback(
     (alarm: Alarm) => {
@@ -150,7 +175,7 @@ export default function HomePage() {
         onMyCardClick={() => setIsMyCardModalOpen(true)}
         isVisitorMode={false}
         onLeaveVisitor={() => {}}
-        viewCount={my_view_count}
+        viewCount={myViewCount}
         onUsersClick={() => setIsUserMenuOpen(true)}
         onSharePersonaClick={() => setIsSharePersonaOpen(true)}
       />
