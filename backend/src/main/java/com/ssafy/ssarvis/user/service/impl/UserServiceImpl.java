@@ -14,6 +14,7 @@ import com.ssafy.ssarvis.user.service.UserService;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -37,6 +38,9 @@ public class UserServiceImpl implements UserService {
 
     private final JavaMailSender mailSender; // 메일 발송용
     private final StringRedisTemplate redisTemplate; // Redis 활용
+
+    @Value("${spring.app.s3.cloudfront-domain}")
+    private String cloudFrontDomain;
 
     @Transactional
     @Override
@@ -80,18 +84,23 @@ public class UserServiceImpl implements UserService {
     }
 
     @Transactional
+    @Override
     public String updateProfileImage(Long userId, MultipartFile profileImage) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
 
+        // 1. 기존 이미지가 있다면 삭제 (URL을 그대로 넘기면 S3Uploader가 내부에서 키를 추출함)
         if (user.getProfileImageUrl() != null) {
             s3Uploader.delete(user.getProfileImageUrl());
         }
 
-        String newImageUrl = s3Uploader.upload(profileImage, "profiles");
-        user.updateProfileImage(newImageUrl);
+        // 2. S3에 업로드하고 CloudFront URL을 바로 받아옴
+        String cloudFrontUrl = s3Uploader.upload(profileImage, "profiles");
 
-        return newImageUrl;
+        // 3. DB에 업데이트 및 반환
+        user.updateProfileImage(cloudFrontUrl);
+
+        return cloudFrontUrl;
     }
 
     @Override
