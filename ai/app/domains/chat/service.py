@@ -4,7 +4,13 @@ from dataclasses import dataclass
 
 from app.config.chat import chat_config
 from app.domains.chat.repository import ChatRepository
-from app.domains.chat.schema import ChatContext, ChatHistoryItem, ChatRequest, SimilarChatItem
+from app.domains.chat.schema import (
+    ChatContext,
+    ChatHistoryItem,
+    ChatRequest,
+    MemoryPolicy,
+    SimilarChatItem,
+)
 from app.infra.openai import OpenAIClient
 from app.prompts import (
     PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
@@ -134,14 +140,16 @@ class ChatService:
         query_vector = await self.openai_client.embed(
             self.build_query_embedding_text(request.text)
         )
-        similar_conversations = await self.chat_repository.search_similar(
-            session_id=request.sessionId,
-            user_id=request.userId,
-            chat_mode=request.chatMode,
-            memory_policy=request.memoryPolicy,
-            vector=query_vector,
-            limit=chat_config.similar_conversations_limit,
-        )
+        similar_conversations: list[SimilarChatItem] = []
+        if request.memoryPolicy == MemoryPolicy.GENERAL:
+            similar_conversations = await self.chat_repository.search_similar(
+                session_id=request.sessionId,
+                user_id=request.userId,
+                chat_session_type=request.chatSessionType,
+                chat_mode=request.chatMode,
+                vector=query_vector,
+                limit=chat_config.similar_conversations_limit,
+            )
         context = self.context_builder.build_context(
             system_prompt=request.systemPrompt,
             user_text=request.text,
@@ -154,7 +162,7 @@ class ChatService:
             response_guideline_prompt=self.response_guideline_prompt,
             public_conversation_guideline_prompt=(
                 self.public_conversation_guideline_prompt
-                if request.isPublic
+                if not request.isFollowing
                 else None
             ),
         )
@@ -164,13 +172,21 @@ class ChatService:
             query_vector=query_vector,
         )
 
-    async def save_chat(self, request: ChatRequest, response: str) -> SimilarChatItem:
+    async def save_chat(
+        self,
+        request: ChatRequest,
+        response: str,
+    ) -> SimilarChatItem | None:
+        if request.memoryPolicy != MemoryPolicy.GENERAL:
+            return None
+
         embedding = await self.openai_client.embed(
             self.build_storage_embedding_text(request.text, response)
         )
         return await self.chat_repository.save_chat(
             session_id=request.sessionId,
             user_id=request.userId,
+            chat_session_type=request.chatSessionType,
             chat_mode=request.chatMode,
             memory_policy=request.memoryPolicy,
             text=request.text,

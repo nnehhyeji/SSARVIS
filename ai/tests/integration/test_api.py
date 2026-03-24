@@ -146,17 +146,20 @@ def _chat_payload(
     *,
     session_id: str,
     user_id: int,
+    chat_session_type: str,
     chat_mode: str,
     memory_policy: str,
+    is_following: bool | None,
     text: str,
     voice_id: str,
 ) -> dict:
     return {
         "sessionId": session_id,
         "userId": user_id,
+        "chatSessionType": chat_session_type,
         "chatMode": chat_mode,
+        "isFollowing": is_following,
         "memoryPolicy": memory_policy,
-        "isPublic": False,
         "systemPrompt": "친절한 친구처럼 대답해.",
         "history": [],
         "text": text,
@@ -240,7 +243,7 @@ def test_prompt_endpoint_updates_existing_system_prompt(http_client) -> None:
     assert payload["data"]["systemPrompt"].strip()
 
 
-def test_chat_service_adds_public_conversation_guideline_when_is_public_true() -> None:
+def test_chat_service_adds_public_conversation_guideline_when_is_following_true() -> None:
     class StubChatRepository:
         async def search_similar(self, **kwargs):
             return []
@@ -264,9 +267,10 @@ def test_chat_service_adds_public_conversation_guideline_when_is_public_true() -
             ChatRequest(
                 sessionId="public-session-1",
                 userId=101,
-                chatMode="NORMAL",
+                chatSessionType="USER_AI",
+                chatMode="DAILY",
                 memoryPolicy="GENERAL",
-                isPublic=True,
+                isFollowing=False,
                 systemPrompt="친절한 친구처럼 대답해.",
                 history=[],
                 text="우리 집 주소 기억해?",
@@ -283,7 +287,7 @@ def test_chat_service_adds_public_conversation_guideline_when_is_public_true() -
     )
 
 
-def test_chat_service_skips_public_conversation_guideline_when_is_public_false() -> None:
+def test_chat_service_skips_public_conversation_guideline_when_is_following_false() -> None:
     class StubChatRepository:
         async def search_similar(self, **kwargs):
             return []
@@ -307,9 +311,10 @@ def test_chat_service_skips_public_conversation_guideline_when_is_public_false()
             ChatRequest(
                 sessionId="private-session-1",
                 userId=101,
-                chatMode="NORMAL",
+                chatSessionType="USER_AI",
+                chatMode="DAILY",
                 memoryPolicy="GENERAL",
-                isPublic=False,
+                isFollowing=True,
                 systemPrompt="친절한 친구처럼 대답해.",
                 history=[],
                 text="우리 집 주소 기억해?",
@@ -403,8 +408,10 @@ def test_chat_websocket_persists_records_in_qdrant(
         _chat_payload(
             session_id="session-general-1",
             user_id=101,
-            chat_mode="NORMAL",
+            chat_session_type="USER_AI",
+            chat_mode="DAILY",
             memory_policy="GENERAL",
+            is_following=False,
             text="안녕, 오늘 기분 어때?",
             voice_id=voice_id,
         )
@@ -413,8 +420,10 @@ def test_chat_websocket_persists_records_in_qdrant(
         _chat_payload(
             session_id="session-secret-1",
             user_id=101,
-            chat_mode="NORMAL",
+            chat_session_type="USER_AI",
+            chat_mode="DAILY",
             memory_policy="SECRET",
+            is_following=False,
             text="오늘 있었던 비밀 얘기야.",
             voice_id=voice_id,
         )
@@ -423,8 +432,10 @@ def test_chat_websocket_persists_records_in_qdrant(
         _chat_payload(
             session_id="session-general-2",
             user_id=101,
-            chat_mode="NORMAL",
+            chat_session_type="AVATAR_AI",
+            chat_mode="STUDY",
             memory_policy="GENERAL",
+            is_following=True,
             text="방금 이야기 이어서 해줘.",
             voice_id=voice_id,
         )
@@ -467,15 +478,79 @@ def test_chat_websocket_persists_records_in_qdrant(
     )
     payloads = [record.payload for record in records]
 
-    assert len(payloads) == 3
+    assert len(payloads) == 2
     assert {payload["session_id"] for payload in payloads} == {
         "session-general-1",
-        "session-secret-1",
         "session-general-2",
     }
     assert sum(1 for payload in payloads if payload["memory_policy"] == "GENERAL") == 2
-    assert sum(1 for payload in payloads if payload["memory_policy"] == "SECRET") == 1
+    assert sum(1 for payload in payloads if payload["chat_session_type"] == "USER_AI") == 1
+    assert sum(1 for payload in payloads if payload["chat_session_type"] == "AVATAR_AI") == 1
     assert all(payload["response"].strip() for payload in payloads)
+
+    deleted = http_client.request(
+        "DELETE",
+        "/api/v1/voice",
+        json={"voiceId": voice_id},
+    )
+    assert deleted.status_code == 200
+
+
+def test_chat_websocket_accumulates_multiple_records_in_same_session(
+    http_client,
+    qdrant_client: QdrantClient,
+    sample_voice_audio_bytes: bytes,
+    sample_voice_text: str,
+) -> None:
+    voice_id = _create_voice(http_client, sample_voice_audio_bytes, sample_voice_text)
+
+    first_chat = _run_chat(
+        _chat_payload(
+            session_id="session-repeat-1",
+            user_id=101,
+            chat_session_type="USER_AI",
+            chat_mode="DAILY",
+            memory_policy="GENERAL",
+            is_following=False,
+            text="첫 번째 메시지야.",
+            voice_id=voice_id,
+        )
+    )
+    second_chat = _run_chat(
+        _chat_payload(
+            session_id="session-repeat-1",
+            user_id=101,
+            chat_session_type="USER_AI",
+            chat_mode="DAILY",
+            memory_policy="GENERAL",
+            is_following=False,
+            text="같은 세션의 두 번째 메시지야.",
+            voice_id=voice_id,
+        )
+    )
+
+    assert first_chat[1]["type"] == "text.end"
+    assert second_chat[1]["type"] == "text.end"
+    assert first_chat[1]["payload"]["text"].strip()
+    assert second_chat[1]["payload"]["text"].strip()
+
+    records, _ = qdrant_client.scroll(
+        collection_name="integration_chats",
+        with_payload=True,
+        with_vectors=False,
+        limit=10,
+    )
+    payloads = [record.payload for record in records]
+
+    same_session_payloads = [
+        payload for payload in payloads if payload["session_id"] == "session-repeat-1"
+    ]
+
+    assert len(same_session_payloads) == 2
+    assert {payload["text"] for payload in same_session_payloads} == {
+        "첫 번째 메시지야.",
+        "같은 세션의 두 번째 메시지야.",
+    }
 
     deleted = http_client.request(
         "DELETE",
@@ -490,8 +565,10 @@ def test_chat_websocket_rejects_invalid_request(http_client) -> None:
         {
             "sessionId": "   ",
             "userId": 101,
-            "chatMode": "NORMAL",
+            "chatSessionType": "USER_AI",
+            "chatMode": "DAILY",
             "memoryPolicy": "GENERAL",
+            "isFollowing": False,
             "systemPrompt": "",
             "history": [{"role": "developer", "content": "금지된 role"}],
             "text": "   ",
