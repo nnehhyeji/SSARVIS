@@ -3,6 +3,7 @@ package com.ssafy.ssarvis.follow.service.impl;
 import com.ssafy.ssarvis.assistant.entity.Assistant;
 import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.assistant.repository.AssistantRepository;
+import com.ssafy.ssarvis.chat.repository.ChatSessionRepository;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
@@ -13,7 +14,6 @@ import com.ssafy.ssarvis.follow.dto.response.FollowAiResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.UserSearchResponseDto;
 import com.ssafy.ssarvis.follow.entity.Follow;
-import com.ssafy.ssarvis.follow.entity.FollowAccessType;
 import com.ssafy.ssarvis.follow.entity.FollowRequest;
 import com.ssafy.ssarvis.follow.entity.FollowStatus;
 import com.ssafy.ssarvis.follow.repository.FollowRepository;
@@ -39,6 +39,7 @@ public class FollowServiceImpl implements FollowService {
     private final FollowRepository followRepository;
     private final NotificationService notificationService;
     private final AssistantRepository assistantRepository;
+    private final ChatSessionRepository chatSessionRepository;
     private final FollowRequestRepository followRequestRepository;
 
     @Override

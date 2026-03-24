@@ -4,9 +4,9 @@ import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.chat.document.ChatSessionDocument;
 import com.ssafy.ssarvis.chat.domain.ChatSessionStatus;
 import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface ChatSessionRepository extends MongoRepository<ChatSessionDocument, String> {
@@ -26,8 +26,6 @@ public interface ChatSessionRepository extends MongoRepository<ChatSessionDocume
         AssistantType assistantType
     );
 
-    List<ChatSessionDocument> findByChatSessionStatusAndExpiredAtBefore(
-        ChatSessionStatus chatSessionStatus,
-        LocalDateTime now
-    );
+    List<ChatSessionDocument> findByTargetUserIdAndUserIdIn(Long targetUserId, List<Long> friendUserIds);
+
 }
