@@ -5,6 +5,7 @@ import com.ssafy.ssarvis.chat.domain.ChatSessionStatus;
 import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
 import com.ssafy.ssarvis.chat.dto.request.ChatSessionCreateRequestDto;
 import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
+import com.ssafy.ssarvis.chat.dto.response.TopChatterResponseDto;
 import com.ssafy.ssarvis.chat.repository.ChatSessionRepository;
 import com.ssafy.ssarvis.chat.service.ChatSessionService;
 import com.ssafy.ssarvis.common.advice.CustomException;
@@ -12,6 +13,14 @@ import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.dto.ListResponseDto;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import com.ssafy.ssarvis.follow.repository.FollowRepository;
+import com.ssafy.ssarvis.user.entity.User;
+import com.ssafy.ssarvis.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +29,8 @@ import org.springframework.stereotype.Service;
 public class ChatSessionServiceImpl implements ChatSessionService {
 
     private final ChatSessionRepository chatSessionRepository;
+    private final UserRepository userRepository;
+    private final FollowRepository followRepository;
 
     @Override
     public ChatSessionResponseDto getOrCreateSession(ChatSessionCreateRequestDto chatSessionCreateRequestDto) {
@@ -103,6 +114,50 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         session.timeout();
         chatSessionRepository.save(session);
     }
+
+    @Override
+    public List<TopChatterResponseDto> getTopChattingFriends(Long myUserId) {
+        // 1. 나에게 친구 신청을 보낸(= 내가 수락한) 친구 userId 목록
+        List<Long> friendUserIds = followRepository.findByFollowingId(myUserId)
+            .stream()
+            .map(follow -> follow.getFollower().getId())
+            .toList();
+
+        if (friendUserIds.isEmpty()) {
+            return List.of();
+        }
+
+        // 2. 그 친구들이 나(targetUserId)를 방문한 채팅 세션 조회
+        List<ChatSessionDocument> sessions = chatSessionRepository
+            .findByTargetUserIdAndUserIdIn(myUserId, friendUserIds);
+
+        if (sessions.isEmpty()) {
+            return List.of();
+        }
+
+        // 3. userId 기준으로 messageCount 합산
+        Map<Long, Long> messageCountByUserId = sessions.stream()
+            .collect(Collectors.groupingBy(
+                ChatSessionDocument::getUserId,
+                Collectors.summingLong(session -> session.getMessageCount() != null ? session.getMessageCount() : 0L)
+            ));
+
+        // 4. 유저 정보 조회 후 DTO 변환, 내림차순 정렬
+        return messageCountByUserId.entrySet().stream()
+            .sorted(Map.Entry.<Long, Long>comparingByValue(Comparator.reverseOrder()))
+            .map(entry -> {
+                User user = userRepository.findById(entry.getKey())
+                    .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+                return new TopChatterResponseDto(
+                    user.getId(),
+                    user.getNickname(),
+                    user.getProfileImageUrl(),
+                    entry.getValue()
+                );
+            })
+            .toList();
+    }
+
 
     private LocalDateTime calculateExpiredAt(MemoryPolicy memoryPolicy, LocalDateTime now) {
         if (memoryPolicy == MemoryPolicy.SECRET) {

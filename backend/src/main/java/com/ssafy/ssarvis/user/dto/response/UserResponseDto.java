@@ -12,7 +12,8 @@ public record UserResponseDto(
     Boolean isAcceptPrompt,
     Costume costume,
     Long viewCount,
-    Long voiceLockTimeout
+    Long voiceLockTimeout,
+    String userProfileImageUrl
 ){
     public static UserResponseDto from(User user) {
         return new UserResponseDto(
@@ -24,7 +25,8 @@ public record UserResponseDto(
             user.getIsAcceptPrompt(),
             user.getCostume(),
             user.getViewCount(),
-            user.getVoiceLockTimeout()
+            user.getVoiceLockTimeout(),
+            user.getProfileImageUrl()
         );
     }
 }

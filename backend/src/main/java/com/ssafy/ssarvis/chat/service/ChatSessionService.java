@@ -2,7 +2,10 @@ package com.ssafy.ssarvis.chat.service;
 
 import com.ssafy.ssarvis.chat.dto.request.ChatSessionCreateRequestDto;
 import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
+import com.ssafy.ssarvis.chat.dto.response.TopChatterResponseDto;
 import com.ssafy.ssarvis.common.dto.ListResponseDto;
+
+import java.util.List;
 
 public interface ChatSessionService {
 
@@ -21,4 +24,7 @@ public interface ChatSessionService {
     void increaseMessageCount(String sessionId);
 
     void timeoutSession(String sessionId);
+
+    List<TopChatterResponseDto> getTopChattingFriends(Long myUserId);
+
 }
