@@ -330,6 +330,48 @@ def test_chat_service_skips_public_conversation_guideline_when_is_following_fals
     )
 
 
+def test_chat_service_adds_ai_ai_discussion_prompt_for_ai_ai_session() -> None:
+    class StubChatRepository:
+        async def search_similar(self, **kwargs):
+            return []
+
+    class StubOpenAIClient:
+        async def embed(self, text: str) -> list[float]:
+            return [0.1, 0.2, 0.3]
+
+    service = ChatService(
+        chat_repository=StubChatRepository(),
+        openai_client=StubOpenAIClient(),
+        similar_conversations_prefix="similar prefix",
+        response_guideline_prompt="response guideline",
+        public_conversation_guideline_prompt="public guideline",
+        ai_ai_discussion_prompt="Discuss the user's topic as two AI participants.",
+    )
+
+    preparation = asyncio.run(
+        service.prepare_chat(
+            ChatRequest(
+                sessionId="ai-ai-session-1",
+                userId=101,
+                chatSessionType="AI_AI",
+                chatMode="DAILY",
+                memoryPolicy="GENERAL",
+                isFollowing=False,
+                systemPrompt="친절한 친구처럼 대답해.",
+                history=[],
+                text="기후 위기에 대해 토론해줘.",
+                voiceId="voice-id-123",
+            )
+        )
+    )
+
+    assert any(
+        message["role"] == "system"
+        and message["content"] == "Discuss the user's topic as two AI participants."
+        for message in preparation.messages
+    )
+
+
 def test_voice_endpoints_follow_new_contract(
     http_client,
     sample_voice_audio_bytes: bytes,

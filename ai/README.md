@@ -172,7 +172,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 {
   "sessionId": "manual-session-1",
   "userId": 101,
-  "chatSessionType": "USER_AI",
+  "chatSessionType": "AI_AI",
   "chatMode": "DAILY",
   "memoryPolicy": "GENERAL",
   "isFollowing": true,
@@ -190,7 +190,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 
 - `sessionId`: 대화를 구분하는 고유값, String
 - `userId`: 사용자 식별 ID, Long
-- `chatSessionType`: 채팅 세션 타입, `USER_AI | AVATAR_AI`
+- `chatSessionType`: 채팅 세션 타입, `USER_AI | AVATAR_AI | AI_AI`
 - `chatMode`: 대화 모드, `DAILY | STUDY | COUNSEL | PERSONA`
 - `memoryPolicy`: 메모리 저장 정책, `GENERAL | SECRET`
 - `isFollowing`: 선택, 기본값 `null`. `true`이면 민감정보 발설 주의 가이드가 추가 적용됨
@@ -200,6 +200,10 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 - `history[].content`: 대화 내용, String
 - `text`: 사용자 입력, String
 - `voiceId`: 음성 ID, String
+
+추가 동작:
+
+- `chatSessionType`이 `AI_AI`이면 서버는 해당 주제에 대해 두 AI가 짧게 논의하도록 유도하는 시스템 프롬프트를 추가합니다.
 
 정상 이벤트 순서:
 
