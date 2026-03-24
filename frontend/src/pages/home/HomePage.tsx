@@ -175,7 +175,13 @@ export default function HomePage() {
                       : currentMode === 'normal'
                         ? 'DAILY'
                         : currentMode.toUpperCase();
-                  startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL');
+                  startRecording(
+                    null,
+                    assistantType,
+                    isLockMode ? 'SECRET' : 'GENERAL',
+                    'USER_AI',
+                    null,
+                  );
                 } else {
                   stopRecordingAndSendSTT();
                 }
@@ -241,7 +247,7 @@ export default function HomePage() {
                   : currentMode.toUpperCase();
             const memoryPolicy = isLockMode ? 'SECRET' : 'GENERAL';
 
-            sendMessage(chatInput, null, assistantType, memoryPolicy);
+            sendMessage(chatInput, null, assistantType, memoryPolicy, 'USER_AI', null);
           }}
           onClose={() => setIsChatHistoryOpen(false)}
         />

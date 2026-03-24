@@ -243,7 +243,7 @@ export default function VisitPage() {
                 onClick={() => {
                   toggleMic();
                   if (!isMicOn) {
-                    startRecording(null, 'PERSONA', 'GENERAL');
+                    startRecording(null, 'PERSONA', 'GENERAL', 'AVATAR_AI', targetId);
                   } else {
                     stopRecordingAndSendSTT();
                   }
@@ -347,7 +347,7 @@ export default function VisitPage() {
                 const assistantType = 'PERSONA';
                 const memoryPolicy = 'GENERAL'; // Visit 페이지에서는 시크릿 모드를 사용하지 않음
 
-                sendMessage(chatInput, null, assistantType, memoryPolicy);
+                sendMessage(chatInput, null, assistantType, memoryPolicy, 'AVATAR_AI', targetId);
               }}
               onClose={() => setIsChatHistoryOpen(false)}
             />

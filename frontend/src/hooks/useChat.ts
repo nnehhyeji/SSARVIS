@@ -39,11 +39,24 @@ interface RecordingOptions {
   sessionId: string | null;
   assistantType: string;
   memoryPolicy: string;
+  chatSessionType: string;
+  targetUserId: number | null;
 }
 
 const WAKE_WORD = '자비스';
 const SPEECH_SILENCE_MS = 2000;
 const TRANSCRIPT_VISIBLE_MS = 3000;
+
+const WAKE_WORD_ALIASES = [WAKE_WORD, '자비', '자빗', '자빕', '자비스', '서비스', '잡스'];
+
+function normalizeWakeTranscript(text: string) {
+  return text.replace(/\s+/g, '').toLowerCase();
+}
+
+function containsWakeWord(text: string) {
+  const normalizedText = normalizeWakeTranscript(text);
+  return WAKE_WORD_ALIASES.some((alias) => normalizedText.includes(normalizeWakeTranscript(alias)));
+}
 
 export function useChat() {
   const [chatInput, setChatInput] = useState('');
@@ -192,6 +205,23 @@ export function useChat() {
 
       const message = JSON.parse(event.data);
       if (message.type === 'ACK') return;
+      if (message.type === 'END_OF_STREAM') {
+        console.debug('WebSocket stream ended:', message.type);
+        return;
+      }
+      if (message.type === 'CANCELLED') {
+        console.warn('WebSocket request cancelled:', message.type, message.message);
+        return;
+      }
+      if (message.type === 'ERROR' || message.type === 'error') {
+        console.error('WebSocket state:', message.type, {
+          message: message.message,
+          detail: message.detail,
+          code: message.payload?.code,
+          errors: message.payload?.errors,
+        });
+        return;
+      }
 
       switch (message.type) {
         case 'text.start':
@@ -357,7 +387,7 @@ export function useChat() {
       sttTextRef.current = heardText;
       updateVoiceStatus(`들음: "${heardText}"`);
 
-      if (heardText.includes(WAKE_WORD)) {
+      if (containsWakeWord(heardText)) {
         updateVoiceStatus('웨이크 워드 감지! 음성을 듣고 있어요.');
         setSttText('음성을 듣고 있어요...');
         pendingSpeechCaptureRef.current = true;
@@ -377,13 +407,16 @@ export function useChat() {
       return;
     }
 
-    const { sessionId, assistantType, memoryPolicy } = currentRecordingOptionsRef.current;
+    const { sessionId, assistantType, memoryPolicy, chatSessionType, targetUserId } =
+      currentRecordingOptionsRef.current;
     wsRef.current.send(
       JSON.stringify({
         type: 'CHAT_START',
         sessionId,
         assistantType,
         memoryPolicy,
+        chatSessionType,
+        targetUserId,
       }),
     );
 
@@ -592,13 +625,25 @@ export function useChat() {
   }, [backupMessages, chatMessages, isLockMode]);
 
   const startRecording = useCallback(
-    async (sessionId: string | null, assistantType: string, memoryPolicy: string) => {
+    async (
+      sessionId: string | null,
+      assistantType: string,
+      memoryPolicy: string,
+      chatSessionType: string = 'USER_AI',
+      targetUserId: number | null = null,
+    ) => {
       if (!isSpeechRecognitionSupported.current) {
         updateVoiceStatus('이 브라우저는 음성 인식을 지원하지 않습니다.');
         return;
       }
 
-      currentRecordingOptionsRef.current = { sessionId, assistantType, memoryPolicy };
+      currentRecordingOptionsRef.current = {
+        sessionId,
+        assistantType,
+        memoryPolicy,
+        chatSessionType,
+        targetUserId,
+      };
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -665,7 +710,14 @@ export function useChat() {
   }, [clearSpeechSilenceTimer, startWakeMode, stopMediaRecorder, stopRecognition]);
 
   const sendMessage = useCallback(
-    (text: string, sessionId: string | null, assistantType: string, memoryPolicy: string) => {
+    (
+      text: string,
+      sessionId: string | null,
+      assistantType: string,
+      memoryPolicy: string,
+      chatSessionType: string = 'USER_AI',
+      targetUserId: number | null = null,
+    ) => {
       if (!text.trim()) return;
 
       setChatInput('');
@@ -673,7 +725,14 @@ export function useChat() {
 
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(
-          JSON.stringify({ type: 'CHAT_START', sessionId, assistantType, memoryPolicy }),
+          JSON.stringify({
+            type: 'CHAT_START',
+            sessionId,
+            assistantType,
+            memoryPolicy,
+            chatSessionType,
+            targetUserId,
+          }),
         );
         wsRef.current.send(JSON.stringify({ type: 'AUDIO_END' }));
         wsRef.current.send(JSON.stringify({ type: 'TEXT', text }));
