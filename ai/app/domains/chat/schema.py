@@ -34,7 +34,7 @@ class MemoryPolicy(StrEnum):
 class ChatRequest(BaseModel):
     sessionId: NonEmptyStr
     userId: int
-    ChatSessionType: ChatSessionType
+    chatSessionType: ChatSessionType
     chatMode: ChatMode
     isFollowing: bool | None = None
     memoryPolicy: MemoryPolicy

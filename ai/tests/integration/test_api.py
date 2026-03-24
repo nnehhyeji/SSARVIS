@@ -156,7 +156,7 @@ def _chat_payload(
     return {
         "sessionId": session_id,
         "userId": user_id,
-        "ChatSessionType": chat_session_type,
+        "chatSessionType": chat_session_type,
         "chatMode": chat_mode,
         "isFollowing": is_following,
         "memoryPolicy": memory_policy,
@@ -267,10 +267,10 @@ def test_chat_service_adds_public_conversation_guideline_when_is_following_true(
             ChatRequest(
                 sessionId="public-session-1",
                 userId=101,
-                ChatSessionType="USER_AI",
+                chatSessionType="USER_AI",
                 chatMode="DAILY",
                 memoryPolicy="GENERAL",
-                isFollowing=True,
+                isFollowing=False,
                 systemPrompt="친절한 친구처럼 대답해.",
                 history=[],
                 text="우리 집 주소 기억해?",
@@ -311,10 +311,10 @@ def test_chat_service_skips_public_conversation_guideline_when_is_following_fals
             ChatRequest(
                 sessionId="private-session-1",
                 userId=101,
-                ChatSessionType="USER_AI",
+                chatSessionType="USER_AI",
                 chatMode="DAILY",
                 memoryPolicy="GENERAL",
-                isFollowing=False,
+                isFollowing=True,
                 systemPrompt="친절한 친구처럼 대답해.",
                 history=[],
                 text="우리 집 주소 기억해?",
@@ -565,7 +565,7 @@ def test_chat_websocket_rejects_invalid_request(http_client) -> None:
         {
             "sessionId": "   ",
             "userId": 101,
-            "ChatSessionType": "USER_AI",
+            "chatSessionType": "USER_AI",
             "chatMode": "DAILY",
             "memoryPolicy": "GENERAL",
             "isFollowing": False,

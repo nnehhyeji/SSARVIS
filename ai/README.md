@@ -172,7 +172,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 {
   "sessionId": "manual-session-1",
   "userId": 101,
-  "ChatSessionType": "USER_AI",
+  "chatSessionType": "USER_AI",
   "chatMode": "DAILY",
   "memoryPolicy": "GENERAL",
   "isFollowing": true,
@@ -190,7 +190,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 
 - `sessionId`: 대화를 구분하는 고유값, String
 - `userId`: 사용자 식별 ID, Long
-- `ChatSessionType`: 채팅 세션 타입, `USER_AI | AVATAR_AI`
+- `chatSessionType`: 채팅 세션 타입, `USER_AI | AVATAR_AI`
 - `chatMode`: 대화 모드, `DAILY | STUDY | COUNSEL | PERSONA`
 - `memoryPolicy`: 메모리 저장 정책, `GENERAL | SECRET`
 - `isFollowing`: 선택, 기본값 `null`. `true`이면 민감정보 발설 주의 가이드가 추가 적용됨

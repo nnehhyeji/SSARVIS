@@ -145,7 +145,7 @@ class ChatService:
             similar_conversations = await self.chat_repository.search_similar(
                 session_id=request.sessionId,
                 user_id=request.userId,
-                chat_session_type=request.ChatSessionType,
+                chat_session_type=request.chatSessionType,
                 chat_mode=request.chatMode,
                 vector=query_vector,
                 limit=chat_config.similar_conversations_limit,
@@ -162,7 +162,7 @@ class ChatService:
             response_guideline_prompt=self.response_guideline_prompt,
             public_conversation_guideline_prompt=(
                 self.public_conversation_guideline_prompt
-                if request.isFollowing
+                if not request.isFollowing
                 else None
             ),
         )
@@ -186,7 +186,7 @@ class ChatService:
         return await self.chat_repository.save_chat(
             session_id=request.sessionId,
             user_id=request.userId,
-            chat_session_type=request.ChatSessionType,
+            chat_session_type=request.chatSessionType,
             chat_mode=request.chatMode,
             memory_policy=request.memoryPolicy,
             text=request.text,
