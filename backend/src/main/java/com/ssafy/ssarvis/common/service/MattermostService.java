@@ -10,10 +10,10 @@ import java.util.Map;
 @Service
 public class MattermostService {
 
-    @Value("${app.mattermost.webhook-url}")
+    @Value("${spring.app.mattermost.webhook-url}")
     private String webhookUrl;
 
-    @Value("${app.mattermost.enabled}")
+    @Value("${spring.app.mattermost.enabled}")
     private boolean enabled;
 
     private final RestTemplate restTemplate = new RestTemplate();
