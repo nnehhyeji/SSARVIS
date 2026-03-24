@@ -124,4 +124,8 @@ public class User extends BaseTime {
         this.isAcceptPrompt = !this.isAcceptPrompt;
     }
 
+    public void toggleProfile() {
+        this.isPublic = !this.isPublic;
+    }
+
 }

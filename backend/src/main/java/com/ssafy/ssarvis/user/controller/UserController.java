@@ -101,6 +101,14 @@ public class UserController {
         return ResponseEntity.ok(BaseResponse.success(String.valueOf(result)));
     }
 
+    @GetMapping("/profile/toggle")
+    public ResponseEntity<BaseResponse<Boolean>> toggleProfileStatus(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        boolean result = userService.toggleProfile(customUserDetails.getUserId());
+        return ResponseEntity.ok(BaseResponse.success(String.valueOf(result)));
+    }
+
     @PatchMapping(value = "/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<BaseResponse<String>> updateProfileImage(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,

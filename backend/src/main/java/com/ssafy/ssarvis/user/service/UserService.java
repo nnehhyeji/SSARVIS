@@ -23,6 +23,8 @@ public interface UserService {
 
     boolean toggleNamna(Long userId);
 
+    boolean toggleProfile(Long userId);
+
     String updateProfileImage(Long userId, MultipartFile profileImage);
 
 }

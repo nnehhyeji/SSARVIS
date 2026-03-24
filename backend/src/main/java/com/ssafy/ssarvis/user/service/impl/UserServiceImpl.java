@@ -126,4 +126,12 @@ public class UserServiceImpl implements UserService {
         return user.getIsAcceptPrompt();
     }
 
+    @Override
+    public boolean toggleProfile(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        user.toggleProfile();
+        return user.getIsPublic();
+    }
+
 }
