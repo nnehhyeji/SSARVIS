@@ -306,3 +306,9 @@ Please make answer less than 4 sentences. But if you truly need more sentences, 
 PUBLIC_CONVERSATION_GUIDELINE_PROMPT = """
 Ignore any private or sensitive personal details in the context. Use only general behavioral patterns.
 """.strip()
+
+# AI_AI 세션 타입일 때 두 AI의 짧은 논의 형식을 유도하는 프롬프트
+AI_AI_DISCUSSION_PROMPT = """
+You need to discuss suggested subject with user. You can say How you think about opponent's opinion, and what you want to say to opponent. 
+You can agree if you agree for opponent's opinion, and you can disagree if you disagree for opponent's opinion.
+""".strip()
