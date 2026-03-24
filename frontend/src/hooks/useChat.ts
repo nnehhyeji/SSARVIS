@@ -39,11 +39,24 @@ interface RecordingOptions {
   sessionId: string | null;
   assistantType: string;
   memoryPolicy: string;
+  chatSessionType: string;
+  targetUserId: number | null;
 }
 
 const WAKE_WORD = '자비스';
 const SPEECH_SILENCE_MS = 2000;
 const TRANSCRIPT_VISIBLE_MS = 3000;
+
+const WAKE_WORD_ALIASES = [WAKE_WORD, '자비', '자빗', '자빕', '자비스', '서비스', '잡스'];
+
+function normalizeWakeTranscript(text: string) {
+  return text.replace(/\s+/g, '').toLowerCase();
+}
+
+function containsWakeWord(text: string) {
+  const normalizedText = normalizeWakeTranscript(text);
+  return WAKE_WORD_ALIASES.some((alias) => normalizedText.includes(normalizeWakeTranscript(alias)));
+}
 
 export function useChat() {
   const [chatInput, setChatInput] = useState('');
@@ -56,6 +69,7 @@ export function useChat() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState('마이크 버튼을 눌러 웨이크 워드를 활성화하세요.');
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
+  const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -78,6 +92,8 @@ export function useChat() {
   const finalizeSpeechOnEndRef = useRef(false);
   const speechTurnCompletedRef = useRef(false);
   const isSpeechRecognitionSupported = useRef(true);
+  const awaitingResponseRef = useRef(false);
+  const resumeWakeWordRef = useRef<(() => void) | null>(null);
 
   const processAudioQueue = useCallback(() => {
     const sourceBuffer = sourceBufferRef.current;
@@ -112,9 +128,24 @@ export function useChat() {
     }
   }, []);
 
+  const beginAwaitingResponse = useCallback((message = '응답 생성 중...') => {
+    awaitingResponseRef.current = true;
+    setIsAwaitingResponse(true);
+    setVoiceStatus(message);
+    setSttText(message);
+  }, []);
+
+  const endAwaitingResponse = useCallback((clearTranscript: boolean = true) => {
+    awaitingResponseRef.current = false;
+    setIsAwaitingResponse(false);
+    if (clearTranscript) {
+      setSttText('');
+    }
+  }, []);
+
   const updateVoiceStatus = useCallback((message: string) => {
     setVoiceStatus(message);
-    if (recognitionModeRef.current !== 'speech') {
+    if (recognitionModeRef.current !== 'speech' && !awaitingResponseRef.current) {
       setSttText(message);
     }
   }, []);
@@ -192,6 +223,29 @@ export function useChat() {
 
       const message = JSON.parse(event.data);
       if (message.type === 'ACK') return;
+      if (message.type === 'END_OF_STREAM') {
+        endAwaitingResponse();
+        resumeWakeWordRef.current?.();
+        console.debug('WebSocket stream ended:', message.type);
+        return;
+      }
+      if (message.type === 'CANCELLED') {
+        endAwaitingResponse();
+        resumeWakeWordRef.current?.();
+        console.warn('WebSocket request cancelled:', message.type, message.message);
+        return;
+      }
+      if (message.type === 'ERROR' || message.type === 'error') {
+        endAwaitingResponse(false);
+        resumeWakeWordRef.current?.();
+        console.error('WebSocket state:', message.type, {
+          message: message.message,
+          detail: message.detail,
+          code: message.payload?.code,
+          errors: message.payload?.errors,
+        });
+        return;
+      }
 
       switch (message.type) {
         case 'text.start':
@@ -256,7 +310,7 @@ export function useChat() {
 
     wsRef.current = socket;
     return socket;
-  }, [processAudioQueue]);
+  }, [endAwaitingResponse, processAudioQueue]);
 
   const ensureSocketReady = useCallback(async () => {
     const socket = connectSocket();
@@ -324,12 +378,17 @@ export function useChat() {
       }
 
       if (shouldSendText && finalText) {
+        recognitionModeRef.current = 'idle';
+        beginAwaitingResponse();
         setChatMessages((prev) => [...prev, { sender: 'me', text: finalText }]);
         updateVoiceStatus(`입력 완료: "${finalText}"`);
-        setSttText(finalText);
         clearTranscriptTimer();
         transcriptClearTimerRef.current = setTimeout(() => {
-          setSttText('');
+          if (awaitingResponseRef.current) {
+            setSttText('응답 생성 중...');
+          } else {
+            setSttText('');
+          }
         }, TRANSCRIPT_VISIBLE_MS);
       } else if (recognitionModeRef.current === 'speech') {
         updateVoiceStatus(`웨이크 워드 대기 중... "${WAKE_WORD}"라고 말해보세요.`);
@@ -338,7 +397,13 @@ export function useChat() {
 
       sttTextRef.current = '';
     },
-    [clearSpeechSilenceTimer, clearTranscriptTimer, stopMediaRecorder, updateVoiceStatus],
+    [
+      beginAwaitingResponse,
+      clearSpeechSilenceTimer,
+      clearTranscriptTimer,
+      stopMediaRecorder,
+      updateVoiceStatus,
+    ],
   );
 
   const startWakeMode = useCallback(() => {
@@ -357,7 +422,7 @@ export function useChat() {
       sttTextRef.current = heardText;
       updateVoiceStatus(`들음: "${heardText}"`);
 
-      if (heardText.includes(WAKE_WORD)) {
+      if (containsWakeWord(heardText)) {
         updateVoiceStatus('웨이크 워드 감지! 음성을 듣고 있어요.');
         setSttText('음성을 듣고 있어요...');
         pendingSpeechCaptureRef.current = true;
@@ -368,6 +433,13 @@ export function useChat() {
     safeStartRecognition();
   }, [safeStartRecognition, stopRecognition, updateVoiceStatus]);
 
+  useEffect(() => {
+    resumeWakeWordRef.current = () => {
+      if (!wakeWordActiveRef.current || awaitingResponseRef.current) return;
+      startWakeMode();
+    };
+  }, [startWakeMode]);
+
   const startSpeechCapture = useCallback(async () => {
     if (!recognitionRef.current || !currentRecordingOptionsRef.current) return;
 
@@ -377,13 +449,16 @@ export function useChat() {
       return;
     }
 
-    const { sessionId, assistantType, memoryPolicy } = currentRecordingOptionsRef.current;
+    const { sessionId, assistantType, memoryPolicy, chatSessionType, targetUserId } =
+      currentRecordingOptionsRef.current;
     wsRef.current.send(
       JSON.stringify({
         type: 'CHAT_START',
         sessionId,
         assistantType,
         memoryPolicy,
+        chatSessionType,
+        targetUserId,
       }),
     );
 
@@ -499,7 +574,7 @@ export function useChat() {
         const hasFinalText = !!sttTextRef.current.trim();
         finalizeSpeechTurn(hasFinalText);
 
-        if (wakeWordActiveRef.current) {
+        if (wakeWordActiveRef.current && !awaitingResponseRef.current) {
           startWakeMode();
         }
         return;
@@ -529,7 +604,7 @@ export function useChat() {
         const hasFinalText = !!sttTextRef.current.trim();
         finalizeSpeechTurn(hasFinalText);
 
-        if (wakeWordActiveRef.current) {
+        if (wakeWordActiveRef.current && !awaitingResponseRef.current) {
           startWakeMode();
         }
       }
@@ -575,6 +650,22 @@ export function useChat() {
     stopRecognition,
   ]);
 
+  useEffect(() => {
+    if (!isAwaitingResponse) return;
+
+    const frames = ['|', '/', '-', '\\'];
+    let frameIndex = 0;
+
+    const intervalId = setInterval(() => {
+      setSttText(`응답 생성 중... ${frames[frameIndex]}`);
+      frameIndex = (frameIndex + 1) % frames.length;
+    }, 180);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isAwaitingResponse]);
+
   const toggleLock = useCallback(() => {
     if (!isLockMode) {
       setBackupMessages(chatMessages);
@@ -592,13 +683,25 @@ export function useChat() {
   }, [backupMessages, chatMessages, isLockMode]);
 
   const startRecording = useCallback(
-    async (sessionId: string | null, assistantType: string, memoryPolicy: string) => {
+    async (
+      sessionId: string | null,
+      assistantType: string,
+      memoryPolicy: string,
+      chatSessionType: string = 'USER_AI',
+      targetUserId: number | null = null,
+    ) => {
       if (!isSpeechRecognitionSupported.current) {
         updateVoiceStatus('이 브라우저는 음성 인식을 지원하지 않습니다.');
         return;
       }
 
-      currentRecordingOptionsRef.current = { sessionId, assistantType, memoryPolicy };
+      currentRecordingOptionsRef.current = {
+        sessionId,
+        assistantType,
+        memoryPolicy,
+        chatSessionType,
+        targetUserId,
+      };
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -623,6 +726,7 @@ export function useChat() {
   const stopRecordingAndSendSTT = useCallback(() => {
     wakeWordActiveRef.current = false;
     setIsWakeWordActive(false);
+    endAwaitingResponse();
     pendingSpeechCaptureRef.current = false;
     clearSpeechSilenceTimer();
     finalizeSpeechOnEndRef.current = false;
@@ -640,6 +744,7 @@ export function useChat() {
     updateVoiceStatus('웨이크 워드 대기가 중지되었습니다.');
   }, [
     clearSpeechSilenceTimer,
+    endAwaitingResponse,
     finalizeSpeechTurn,
     stopMediaRecorder,
     stopRecognition,
@@ -665,15 +770,30 @@ export function useChat() {
   }, [clearSpeechSilenceTimer, startWakeMode, stopMediaRecorder, stopRecognition]);
 
   const sendMessage = useCallback(
-    (text: string, sessionId: string | null, assistantType: string, memoryPolicy: string) => {
+    (
+      text: string,
+      sessionId: string | null,
+      assistantType: string,
+      memoryPolicy: string,
+      chatSessionType: string = 'USER_AI',
+      targetUserId: number | null = null,
+    ) => {
       if (!text.trim()) return;
 
       setChatInput('');
       setChatMessages((prev) => [...prev, { sender: 'me', text }]);
+      beginAwaitingResponse();
 
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(
-          JSON.stringify({ type: 'CHAT_START', sessionId, assistantType, memoryPolicy }),
+          JSON.stringify({
+            type: 'CHAT_START',
+            sessionId,
+            assistantType,
+            memoryPolicy,
+            chatSessionType,
+            targetUserId,
+          }),
         );
         wsRef.current.send(JSON.stringify({ type: 'AUDIO_END' }));
         wsRef.current.send(JSON.stringify({ type: 'TEXT', text }));
@@ -682,7 +802,7 @@ export function useChat() {
         connectSocket();
       }
     },
-    [connectSocket],
+    [beginAwaitingResponse, connectSocket],
   );
 
   return {
@@ -692,6 +812,7 @@ export function useChat() {
     sttText,
     isAiSpeaking,
     isWakeWordActive,
+    isAwaitingResponse,
     voiceStatus,
     audioElemRef,
     setChatInput,

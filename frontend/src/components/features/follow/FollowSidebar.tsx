@@ -296,13 +296,23 @@ export default function FollowSidebar({
                             >
                               방문
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => onRequest(u.id, u.name)}
-                              className="p-1.5 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition shadow-sm"
-                            >
-                              <UserPlus className="w-4 h-4" />
-                            </button>
+                            {u.followStatus === 'REQUESTED' ? (
+                              <div className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-600 text-xs font-bold">
+                                요청됨
+                              </div>
+                            ) : u.followStatus === 'FOLLOWING' ? (
+                              <div className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold">
+                                친구
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onRequest(u.id, u.name)}
+                                className="p-1.5 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition shadow-sm"
+                              >
+                                <UserPlus className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))

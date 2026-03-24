@@ -30,11 +30,13 @@ export interface SignupRequest {
 }
 
 export interface UserResponse {
+  id?: number;
   userId: number;
   email: string;
   nickname: string;
   description: string;
   costume: number;
+  viewCount: number;
 }
 
 // --- API Functions ---
@@ -72,7 +74,12 @@ const userApi = {
   // 5. 유저 정보 조회
   getUserProfile: async () => {
     const response = await axiosInstance.get<CommonResponse<UserResponse>>('/users');
-    return response.data.data;
+    const profile = response.data.data;
+    return {
+      ...profile,
+      userId: profile.userId ?? profile.id ?? 0,
+      viewCount: profile.viewCount ?? 0,
+    };
   },
 };
 

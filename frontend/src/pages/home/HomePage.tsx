@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { MessageCircle, Mic, MicOff, Lock, Unlock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import userApi from '../../apis/userApi';
 
 // Hooks
 import { useAICharacter } from '../../hooks/useAICharacter';
@@ -41,6 +42,7 @@ export default function HomePage() {
     isLockMode,
     sttText,
     isAiSpeaking,
+    isAwaitingResponse,
     setChatInput,
     toggleLock,
     sendMessage,
@@ -79,11 +81,35 @@ export default function HomePage() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
   const [isSharePersonaOpen, setIsSharePersonaOpen] = useState(false);
-  const [my_view_count] = useState(1234);
+  const [myViewCount, setMyViewCount] = useState(0);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
     'following',
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMyViewCount = async () => {
+      try {
+        const profile = await userApi.getUserProfile();
+        if (isMounted) {
+          setMyViewCount(profile.viewCount ?? 0);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setMyViewCount(0);
+        }
+        console.warn('방문 수 조회 실패:', error);
+      }
+    };
+
+    void loadMyViewCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleAlarmClick = useCallback(
     (alarm: Alarm) => {
@@ -149,7 +175,7 @@ export default function HomePage() {
         onMyCardClick={() => setIsMyCardModalOpen(true)}
         isVisitorMode={false}
         onLeaveVisitor={() => {}}
-        viewCount={my_view_count}
+        viewCount={myViewCount}
         onUsersClick={() => setIsUserMenuOpen(true)}
         onSharePersonaClick={() => setIsSharePersonaOpen(true)}
       />
@@ -175,7 +201,13 @@ export default function HomePage() {
                       : currentMode === 'normal'
                         ? 'DAILY'
                         : currentMode.toUpperCase();
-                  startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL');
+                  startRecording(
+                    null,
+                    assistantType,
+                    isLockMode ? 'SECRET' : 'GENERAL',
+                    'USER_AI',
+                    null,
+                  );
                 } else {
                   stopRecordingAndSendSTT();
                 }
@@ -219,8 +251,8 @@ export default function HomePage() {
             {isMicOn && lastAiMessage && <SpeechBubble text={lastAiMessage} />}
 
             {/* STT 실시간 말풍선 (화면 아래쪽) */}
-            {isMicOn && sttText && (
-              <div className="absolute bottom-[-100px] left-1/2 -translate-x-1/2 px-8 py-4 bg-black/40 backdrop-blur-xl text-white font-black text-lg rounded-3xl shadow-2xl border border-white/20 z-50 min-w-[280px] text-center max-w-[80vw] whitespace-pre-wrap">
+            {isMicOn && (isAwaitingResponse || sttText) && (
+              <div className="absolute bottom-[-220px] left-1/2 -translate-x-1/2 px-8 py-4 bg-black/40 backdrop-blur-xl text-white font-black text-lg rounded-3xl shadow-2xl border border-white/20 z-50 min-w-[280px] text-center max-w-[80vw] whitespace-pre-wrap">
                 🎙️ {sttText}
               </div>
             )}
@@ -241,7 +273,7 @@ export default function HomePage() {
                   : currentMode.toUpperCase();
             const memoryPolicy = isLockMode ? 'SECRET' : 'GENERAL';
 
-            sendMessage(chatInput, null, assistantType, memoryPolicy);
+            sendMessage(chatInput, null, assistantType, memoryPolicy, 'USER_AI', null);
           }}
           onClose={() => setIsChatHistoryOpen(false)}
         />
@@ -296,7 +328,15 @@ export default function HomePage() {
         }}
       />
 
-      <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
+      <MyCardModal
+        isOpen={isMyCardModalOpen}
+        onClose={() => setIsMyCardModalOpen(false)}
+        userId={userInfo?.id ?? null}
+        userName={userInfo?.nickname || '내 프로필'}
+        userHandle={userInfo?.email ? `@${userInfo.email.split('@')[0]}` : '@ssarvis_me'}
+        followingCount={follows.filter((follow) => follow.isFollowing).length}
+        followerCount={follows.filter((follow) => follow.isFollower).length}
+      />
 
       <SharePersonaModal isOpen={isSharePersonaOpen} onClose={() => setIsSharePersonaOpen(false)} />
 
