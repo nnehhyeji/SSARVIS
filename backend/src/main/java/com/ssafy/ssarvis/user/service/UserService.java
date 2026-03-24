@@ -13,7 +13,7 @@ public interface UserService {
 
     boolean isAlreadyExistsEmail(String email);
 
-    boolean isAlreadyExistsNickname(String nickname);
+    boolean isAlreadyExistsCustomId(String customId);
 
     UserResponseDto getUser(Long userId);
 

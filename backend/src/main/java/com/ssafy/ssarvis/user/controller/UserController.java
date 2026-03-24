@@ -48,14 +48,14 @@ public class UserController {
             BaseResponse.success("이메일 중복 확인 조회 성공", DuplicateCheckResponseDto.from(isDuplicate)));
     }
 
-    @PostMapping("/check-nickname")
-    public ResponseEntity<BaseResponse<DuplicateCheckResponseDto>> isNicknameAlreadyExists(
-        @RequestBody @Valid UserNicknameCheckRequestDto userNicknameCheckRequestDto
+    @PostMapping("/check-customId")
+    public ResponseEntity<BaseResponse<DuplicateCheckResponseDto>> isCustomIdAlreadyExists(
+        @RequestBody @Valid UserCustomIdCheckRequestDto userCustomIdCheckRequestDto
     ) {
-        boolean isDuplicate = userService.isAlreadyExistsNickname(
-            userNicknameCheckRequestDto.nickname());
+        boolean isDuplicate = userService.isAlreadyExistsCustomId(
+            userCustomIdCheckRequestDto.customId());
         return ResponseEntity.ok(
-            BaseResponse.success("닉네임 중복 확인 조회 성공", DuplicateCheckResponseDto.from(isDuplicate)));
+            BaseResponse.success("아이디 중복 확인 조회 성공", DuplicateCheckResponseDto.from(isDuplicate)));
     }
 
     @PostMapping("/email/verification")

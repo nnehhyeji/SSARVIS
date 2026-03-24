@@ -1,17 +1,15 @@
 package com.ssafy.ssarvis.user.dto.response;
 
-import com.ssafy.ssarvis.user.entity.Costume;
 import com.ssafy.ssarvis.user.entity.User;
 
 public record UserResponseDto(
     Long id,
     String email,
     String nickname,
+    String customId,
     String description,
     Boolean isVoiceLockActive,
     Boolean isAcceptPrompt,
-    Costume costume,
-    Long viewCount,
     Long voiceLockTimeout,
     String userProfileImageUrl
 ){
@@ -20,11 +18,10 @@ public record UserResponseDto(
             user.getId(),
             user.getEmail(),
             user.getNickname(),
+            user.getCustomId(),
             user.getDescription(),
             user.getIsVoiceLockActive(),
             user.getIsAcceptPrompt(),
-            user.getCostume(),
-            user.getViewCount(),
             user.getVoiceLockTimeout(),
             user.getProfileImageUrl()
         );

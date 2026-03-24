@@ -39,9 +39,6 @@ public class UserServiceImpl implements UserService {
     private final JavaMailSender mailSender; // 메일 발송용
     private final StringRedisTemplate redisTemplate; // Redis 활용
 
-    @Value("${spring.app.s3.cloudfront-domain}")
-    private String cloudFrontDomain;
-
     @Transactional
     @Override
     public void signupUser(UserCreateRequestDto userCreateRequestDto) {
@@ -55,12 +52,12 @@ public class UserServiceImpl implements UserService {
             throw new CustomException("이메일 인증이 필요합니다.", ErrorCode.INVALID_PARAMETER);
         }
 
-        if (isAlreadyExistsNickname(userCreateRequestDto.nickname())) {
-            throw new CustomException("닉네임 중복", ErrorCode.NICKNAME_ALREADY_EXISTS);
+        if (isAlreadyExistsCustomId(userCreateRequestDto.customId())) {
+            throw new CustomException("아이디 중복", ErrorCode.BAD_REQUEST);
         }
 
         String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
-        User newUser = User.create(userCreateRequestDto.email(), encryptedPassword, userCreateRequestDto.nickname());
+        User newUser = User.create(userCreateRequestDto.email(), encryptedPassword, userCreateRequestDto.nickname(), userCreateRequestDto.customId());
         userRepository.save(newUser);
 
         redisTemplate.delete(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
@@ -72,8 +69,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean isAlreadyExistsNickname(String nickname) {
-        return userRepository.existsByNickname(nickname);
+    public boolean isAlreadyExistsCustomId(String customId) {
+        return userRepository.existsByCustomId(customId);
     }
 
     @Override
@@ -149,7 +146,8 @@ public class UserServiceImpl implements UserService {
             trimToNull(userUpdateRequestDto.nickname()),
             trimToNull(userUpdateRequestDto.description()),
             userUpdateRequestDto.costume(),
-            trimToNull(userUpdateRequestDto.voicePassword())
+            trimToNull(userUpdateRequestDto.voicePassword()),
+            trimToNull(userUpdateRequestDto.customId())
         );
 
         return new UserUpdateResponseDto(userId);
