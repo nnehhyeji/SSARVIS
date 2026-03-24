@@ -88,13 +88,7 @@ public class FollowServiceImpl implements FollowService {
             .following(followRequest.getReceiver())
             .build();
 
-        Follow follower = Follow.builder()
-            .follower(followRequest.getReceiver())
-            .following(followRequest.getSender())
-            .build();
-
         followRepository.save(follow);
-        followRepository.save(follower);
         followRequestRepository.delete(followRequest);
 
         notificationService.sendFollowAcceptNotification(followRequest.getSender(), followRequest.getReceiver());
@@ -123,14 +117,9 @@ public class FollowServiceImpl implements FollowService {
         Follow myFollow = followRepository.findByIdAndFollowerIdOrFollowingId(followId, userId)
             .orElseThrow(() -> new CustomException(ErrorCode.FOLLOW_REQUEST_NOT_FOUND.getMessage(), ErrorCode.FOLLOW_NOT_FOUND));
 
-        Long otherUserId = myFollow.getFollower().getId().equals(userId)
-            ? myFollow.getFollowing().getId()
-            : myFollow.getFollower().getId();
+        followRepository.delete(myFollow);
 
-        List<Follow> bothFollows = followRepository.findBothFollows(userId, otherUserId);
-        followRepository.deleteAll(bothFollows);
-
-        log.info("친구 삭제 완료 - 요청자 PK: {}, 상대방 PK: {}", userId, otherUserId);
+        log.info("팔로우 삭제 완료 - 실행자(팔로워) PK: {}, 대상(팔로잉) PK: {}", userId, myFollow.getFollowing().getId());
     }
 
     @Override
