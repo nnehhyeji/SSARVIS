@@ -4,6 +4,7 @@ import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserUpdateRequestDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
+import org.springframework.web.multipart.MultipartFile;
 
 
 public interface UserService {
@@ -21,5 +22,7 @@ public interface UserService {
     void deleteUser(Long userId);
 
     boolean toggleNamna(Long userId);
+
+    String updateProfileImage(Long userId, MultipartFile profileImage);
 
 }
