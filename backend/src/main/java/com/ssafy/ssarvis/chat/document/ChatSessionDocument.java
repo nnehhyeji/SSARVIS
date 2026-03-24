@@ -102,9 +102,13 @@ public class ChatSessionDocument {
         this.expiredAt = expiredAt;
     }
 
-    public void increaseMessageCount(LocalDateTime now, LocalDateTime expiredAt) {
+    public void updateSessionState(LocalDateTime now, LocalDateTime expiredAt, String text) {
         this.messageCount = this.messageCount + 1;
         this.lastMessageAt = now;
         this.expiredAt = expiredAt;
+
+        if (text != null && !text.isBlank()) {
+            this.title = text.length() > 50 ? text.substring(0, 50) + "..." : text;
+        }
     }
 }
