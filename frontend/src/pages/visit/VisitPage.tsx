@@ -328,7 +328,7 @@ export default function VisitPage() {
 
             {/* STT 실시간 말풍선 (화면 아래쪽) / 듀얼 모드일 시 조금 더 넓게 */}
             {isMicOn && sttText && (
-              <div className="absolute bottom-[-100px] left-1/2 -translate-x-1/2 px-8 py-4 bg-black/40 backdrop-blur-xl text-white font-black text-lg rounded-3xl shadow-2xl border border-white/20 z-50 min-w-[280px] text-center max-w-[80vw] whitespace-pre-wrap">
+              <div className="absolute bottom-[-220px] left-1/2 -translate-x-1/2 px-8 py-4 bg-black/40 backdrop-blur-xl text-white font-black text-lg rounded-3xl shadow-2xl border border-white/20 z-50 min-w-[280px] text-center max-w-[80vw] whitespace-pre-wrap">
                 🎙️ {sttText}
               </div>
             )}
