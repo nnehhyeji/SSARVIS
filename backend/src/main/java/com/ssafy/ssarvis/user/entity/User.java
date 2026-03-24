@@ -55,6 +55,11 @@ public class User extends BaseTime {
     private Boolean isAcceptPrompt = true;
 
     @NotNull
+    @Column(name = "is_public")
+    @Builder.Default
+    private Boolean isPublic = true;
+
+    @NotNull
     @Column(name = "costume")
     @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default

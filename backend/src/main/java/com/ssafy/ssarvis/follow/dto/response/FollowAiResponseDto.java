@@ -1,7 +1,6 @@
 package com.ssafy.ssarvis.follow.dto.response;
 
 import com.ssafy.ssarvis.assistant.entity.Assistant;
-import com.ssafy.ssarvis.follow.entity.FollowAccessType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -12,14 +11,14 @@ public class FollowAiResponseDto {
     private Long assistantId;
     private String name;
     private String modelId;
-    private FollowAccessType accessType;
+    private Boolean isAccessible; // 접근 가능 여부
 
-    public static FollowAiResponseDto of(Assistant assistant, FollowAccessType accessType) {
+    public static FollowAiResponseDto of(Assistant assistant, boolean isAccessible) {
         return FollowAiResponseDto.builder()
             .assistantId(assistant.getId())
             .name(assistant.getName())
             .modelId(assistant.getVoice().getModelId())
-            .accessType(accessType)
+            .isAccessible(isAccessible)
             .build();
     }
 }

@@ -174,27 +174,32 @@ public class FollowServiceImpl implements FollowService {
 
     }
 
+    @Override
     @Transactional(readOnly = true)
-    public FollowAiResponseDto getFollowDailyAi(Long loginUserId, Long followId) {
-
+    public FollowAiResponseDto getFollowDailyAi(Long loginUserId, Long targetUserId) {
         Assistant assistant = assistantRepository
-            .findByUserIdAndAssistantType(followId, AssistantType.DAILY)
-            .orElseThrow(() -> new IllegalArgumentException("해당 유저의 DAILY AI가 없습니다."));
+            .findByUserIdAndAssistantType(targetUserId, AssistantType.DAILY)
+            .orElseThrow(() -> new CustomException("해당 유저의 DAILY AI가 없습니다.", ErrorCode.NOT_FOUND));
 
-        FollowAccessType accessType = FollowAccessType.PUBLIC;
+        User targetUser = userRepository.findById(targetUserId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
 
-        if (loginUserId != null) {
-            boolean isFriend = followRepository
-                .existsByFollowerIdAndFollowingId(loginUserId, followId);
+        boolean isAccessible = false;
 
-            if (isFriend) {
-                accessType = FollowAccessType.PRIVATE;
-            }
+        if (targetUser.getIsPublic()) {
+            isAccessible = true;
+        }
+        // Case B: 비공개(false)이지만, 로그인한 사용자가 대상을 팔로우 중인 경우
+        else if (loginUserId != null) {
+            isAccessible = followRepository.existsByFollowerIdAndFollowingId(loginUserId, targetUserId);
         }
 
-        return FollowAiResponseDto.of(assistant, accessType);
-    }
+        if (!isAccessible) {
+            throw new CustomException("해당 AI에 접근할 권한이 없습니다.", ErrorCode.UNAUTHORIZED);
+        }
 
+        return FollowAiResponseDto.of(assistant, isAccessible);
+    }
 
     private FollowStatus resolveFollowStatus(Long myId, Long targetId) {
         if (followRepository.existsByFollowerIdAndFollowingId(myId, targetId)) {
