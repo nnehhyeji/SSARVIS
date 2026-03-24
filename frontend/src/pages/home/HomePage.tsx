@@ -328,7 +328,15 @@ export default function HomePage() {
         }}
       />
 
-      <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
+      <MyCardModal
+        isOpen={isMyCardModalOpen}
+        onClose={() => setIsMyCardModalOpen(false)}
+        userId={userInfo?.id ?? null}
+        userName={userInfo?.nickname || '내 프로필'}
+        userHandle={userInfo?.email ? `@${userInfo.email.split('@')[0]}` : '@ssarvis_me'}
+        followingCount={follows.filter((follow) => follow.isFollowing).length}
+        followerCount={follows.filter((follow) => follow.isFollower).length}
+      />
 
       <SharePersonaModal isOpen={isSharePersonaOpen} onClose={() => setIsSharePersonaOpen(false)} />
 

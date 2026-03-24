@@ -123,6 +123,13 @@ export function useFollow() {
   const requestFollow = useCallback(async (receiverId: number, name: string) => {
     try {
       await followApi.requestFollow({ receiverId });
+      setSearchResults((prev) =>
+        prev.map((user) =>
+          user.id === receiverId
+            ? { ...user, followStatus: 'REQUESTED', isFollowing: false }
+            : user,
+        ),
+      );
       alert(`${name}님에게 친구 신청을 보냈습니다.`);
     } catch (error) {
       console.error('친구 신청 실패:', error);
@@ -207,7 +214,9 @@ export function useFollow() {
               color: 'bg-gray-200',
               profileExp: 'o_o',
               view_count: 0,
-              isFollowing: follows.some((f) => f.id === u.userId),
+              followStatus: u.followStatus,
+              isFollowing:
+                u.followStatus === 'FOLLOWING' || follows.some((f) => f.id === u.userId),
               isFollower: false,
             }));
             setSearchResults(mappedUsers);
