@@ -433,10 +433,12 @@ export function useChat() {
     safeStartRecognition();
   }, [safeStartRecognition, stopRecognition, updateVoiceStatus]);
 
-  resumeWakeWordRef.current = () => {
-    if (!wakeWordActiveRef.current || awaitingResponseRef.current) return;
-    startWakeMode();
-  };
+  useEffect(() => {
+    resumeWakeWordRef.current = () => {
+      if (!wakeWordActiveRef.current || awaitingResponseRef.current) return;
+      startWakeMode();
+    };
+  }, [startWakeMode]);
 
   const startSpeechCapture = useCallback(async () => {
     if (!recognitionRef.current || !currentRecordingOptionsRef.current) return;
