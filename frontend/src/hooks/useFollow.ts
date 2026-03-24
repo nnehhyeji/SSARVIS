@@ -215,8 +215,7 @@ export function useFollow() {
               profileExp: 'o_o',
               view_count: 0,
               followStatus: u.followStatus,
-              isFollowing:
-                u.followStatus === 'FOLLOWING' || follows.some((f) => f.id === u.userId),
+              isFollowing: u.followStatus === 'FOLLOWING' || follows.some((f) => f.id === u.userId),
               isFollower: false,
             }));
             setSearchResults(mappedUsers);
