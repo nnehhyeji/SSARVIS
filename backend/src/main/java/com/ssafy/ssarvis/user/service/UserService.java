@@ -27,4 +27,8 @@ public interface UserService {
 
     String updateProfileImage(Long userId, MultipartFile profileImage);
 
+    void sendVerificationEmail(String email);
+
+    boolean verifyEmailCode(String email, String code);
+
 }

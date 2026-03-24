@@ -23,4 +23,7 @@ public final class Constants {
 
     public static final String USER_TEMP_FILE_PREFIX = "user_voice_%s_";
     public static final String AI_TEMP_FILE_PREFIX = "ai_response_%s_";
+
+    public static final String VERIFY_CODE_PREFIX = "email:code:";
+    public static final String VERIFIED_EMAIL_PREFIX = "email:verified:";
 }

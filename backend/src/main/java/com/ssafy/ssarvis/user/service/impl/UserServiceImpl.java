@@ -1,6 +1,7 @@
 package com.ssafy.ssarvis.user.service.impl;
 
 import com.ssafy.ssarvis.common.advice.CustomException;
+import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.common.service.S3Uploader;
 import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
@@ -10,12 +11,19 @@ import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.user.service.UserService;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -27,11 +35,20 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final S3Uploader s3Uploader;
 
+    private final JavaMailSender mailSender; // 메일 발송용
+    private final StringRedisTemplate redisTemplate; // Redis 활용
+
     @Transactional
     @Override
     public void signupUser(UserCreateRequestDto userCreateRequestDto) {
+
         if (isAlreadyExistsEmail(userCreateRequestDto.email())) {
             throw new CustomException("이메일 중복", ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        String isVerified = redisTemplate.opsForValue().get(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
+        if (isVerified == null || !isVerified.equals("true")) {
+            throw new CustomException("이메일 인증이 필요합니다.", ErrorCode.INVALID_PARAMETER);
         }
 
         if (isAlreadyExistsNickname(userCreateRequestDto.nickname())) {
@@ -39,14 +56,10 @@ public class UserServiceImpl implements UserService {
         }
 
         String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
-
-        User newUser = User.create(
-            userCreateRequestDto.email(),
-            encryptedPassword,
-            userCreateRequestDto.nickname()
-        );
-
+        User newUser = User.create(userCreateRequestDto.email(), encryptedPassword, userCreateRequestDto.nickname());
         userRepository.save(newUser);
+
+        redisTemplate.delete(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
     }
 
     @Override
@@ -79,6 +92,41 @@ public class UserServiceImpl implements UserService {
         user.updateProfileImage(newImageUrl);
 
         return newImageUrl;
+    }
+
+    @Override
+    public void sendVerificationEmail(String email) {
+        if (isAlreadyExistsEmail(email)) {
+            throw new CustomException("이미 존재하는 이메일입니다.", ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        String code = String.format("%06d", new Random().nextInt(1000000));
+
+        // Redis에 5분간 코드 저장
+        redisTemplate.opsForValue().set(Constants.VERIFY_CODE_PREFIX + email, code, 5, TimeUnit.MINUTES);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(email);
+            helper.setSubject("[SSARVIS] 회원가입 인증 번호입니다.");
+            helper.setText("인증 번호: " + code, true);
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new CustomException("메일 발송 실패", ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
+    public boolean verifyEmailCode(String email, String code) {
+        String savedCode = redisTemplate.opsForValue().get(Constants.VERIFY_CODE_PREFIX + email);
+
+        if (savedCode != null && savedCode.equals(code)) {
+            redisTemplate.opsForValue().set(Constants.VERIFIED_EMAIL_PREFIX + email, "true", 10, TimeUnit.MINUTES);
+            redisTemplate.delete(Constants.VERIFY_CODE_PREFIX + email);
+            return true;
+        }
+        return false;
     }
 
     @Transactional

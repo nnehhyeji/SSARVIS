@@ -3,11 +3,10 @@ package com.ssafy.ssarvis.user.controller;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.auth.service.AuthService;
 import com.ssafy.ssarvis.auth.util.CookieUtil;
+import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
-import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
-import com.ssafy.ssarvis.user.dto.request.UserEmailCheckRequestDto;
-import com.ssafy.ssarvis.user.dto.request.UserNicknameCheckRequestDto;
-import com.ssafy.ssarvis.user.dto.request.UserUpdateRequestDto;
+import com.ssafy.ssarvis.common.exception.ErrorCode;
+import com.ssafy.ssarvis.user.dto.request.*;
 import com.ssafy.ssarvis.user.dto.response.DuplicateCheckResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
@@ -57,6 +56,26 @@ public class UserController {
             userNicknameCheckRequestDto.nickname());
         return ResponseEntity.ok(
             BaseResponse.success("닉네임 중복 확인 조회 성공", DuplicateCheckResponseDto.from(isDuplicate)));
+    }
+
+    @PostMapping("/email/verification")
+    public ResponseEntity<BaseResponse<Void>> sendVerificationCode(
+        @RequestBody @Valid UserEmailCheckRequestDto requestDto
+    ) {
+        userService.sendVerificationEmail(requestDto.email());
+        return ResponseEntity.ok(BaseResponse.success("인증 코드가 발송되었습니다."));
+    }
+
+    @PostMapping("/email/verify")
+    public ResponseEntity<BaseResponse<Void>> verifyCode(
+        @RequestBody UserVerifyRequestDto userVerifyRequestDto
+        ) {
+        boolean isVerified = userService.verifyEmailCode(userVerifyRequestDto.email(), userVerifyRequestDto.code());
+        if (isVerified) {
+            return ResponseEntity.ok(BaseResponse.success("이메일 인증 성공"));
+        } else {
+            throw new CustomException("인증 번호가 일치하지 않습니다.", ErrorCode.INVALID_PARAMETER);
+        }
     }
 
     @GetMapping
