@@ -48,8 +48,11 @@ public class ChatStreamingService {
             throw new CustomException("최종 STT 텍스트가 비어있습니다.", ErrorCode.USER_INPUT_TEXT_EMPTY);
         }
 
-        Long aiOwnerId = (chatSessionType == ChatSessionType.AVATAR_AI) ? targetUserId : userId;
+        if ((chatSessionType == ChatSessionType.AVATAR_AI || chatSessionType == ChatSessionType.AI_AI) && targetUserId == null) {
+            throw new CustomException("타인/AI 대화에는 대상 유저 아이디(targetUserId)가 필수입니다.", ErrorCode.CHAT_TARGET_USER_EMPTY);
+        }
 
+        Long aiOwnerId = (chatSessionType == ChatSessionType.AVATAR_AI || chatSessionType == ChatSessionType.AI_AI) ? targetUserId : userId;
         AssistantVoiceProjection assistantVoice = assistantRepository.getAssistantIdAndModelIdByUserIdAndAssistantType(
                 aiOwnerId, assistantType)
             .orElseThrow(
