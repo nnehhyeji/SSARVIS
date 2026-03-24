@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { MessageCircle, Mic, MicOff, Lock, Unlock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import userApi from '../../apis/userApi';
 
 // Hooks
 import { useAICharacter } from '../../hooks/useAICharacter';
@@ -33,18 +34,21 @@ export default function HomePage() {
   const { userInfo } = useUserStore();
 
   // --- Custom Hooks ---
-  const {
-    isMicOn,
-    mouthOpenRadius,
-    triggerText,
-    faceType,
-    toggleMic,
-    changeFace,
-    isSpeaking,
-    setIsSpeaking,
-  } = useAICharacter();
+  const { isMicOn, mouthOpenRadius, faceType, toggleMic, changeFace } = useAICharacter();
 
-  const { chatInput, chatMessages, isLockMode, setChatInput, toggleLock, sendMessage } = useChat();
+  const {
+    chatInput,
+    chatMessages,
+    isLockMode,
+    sttText,
+    isAiSpeaking,
+    isAwaitingResponse,
+    setChatInput,
+    toggleLock,
+    sendMessage,
+    startRecording,
+    stopRecordingAndSendSTT,
+  } = useChat();
 
   const {
     follows,
@@ -60,9 +64,15 @@ export default function HomePage() {
 
   const { alarms, readAlarm, readAllAlarms, removeAllAlarms } = useNotification();
 
-  // --- Callbacks for Stability ---
-  const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
-  const handleEndSpeaking = useCallback(() => setIsSpeaking(false), [setIsSpeaking]);
+  // 가장 최근 작성된 AI의 메시지를 SpeechBubble용으로 추출
+  const lastAiMessage = useMemo(() => {
+    return (
+      chatMessages
+        .slice()
+        .reverse()
+        .find((m) => m.sender === 'ai')?.text || ''
+    );
+  }, [chatMessages]);
 
   // --- Local States ---
   const [currentMode, setCurrentMode] = useState<Mode>('normal');
@@ -71,11 +81,35 @@ export default function HomePage() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
   const [isSharePersonaOpen, setIsSharePersonaOpen] = useState(false);
-  const [my_view_count] = useState(1234);
+  const [myViewCount, setMyViewCount] = useState(0);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
     'following',
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMyViewCount = async () => {
+      try {
+        const profile = await userApi.getUserProfile();
+        if (isMounted) {
+          setMyViewCount(profile.viewCount ?? 0);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setMyViewCount(0);
+        }
+        console.warn('방문 수 조회 실패:', error);
+      }
+    };
+
+    void loadMyViewCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleAlarmClick = useCallback(
     (alarm: Alarm) => {
@@ -141,7 +175,7 @@ export default function HomePage() {
         onMyCardClick={() => setIsMyCardModalOpen(true)}
         isVisitorMode={false}
         onLeaveVisitor={() => {}}
-        viewCount={my_view_count}
+        viewCount={myViewCount}
         onUsersClick={() => setIsUserMenuOpen(true)}
         onSharePersonaClick={() => setIsSharePersonaOpen(true)}
       />
@@ -158,7 +192,26 @@ export default function HomePage() {
           {/* 마이크 및 잠금 버튼 */}
           <div className="absolute left-[-140px] top-1/2 -translate-y-1/2 z-40">
             <button
-              onClick={toggleMic}
+              onClick={() => {
+                toggleMic();
+                if (!isMicOn) {
+                  const assistantType =
+                    currentMode === 'counseling'
+                      ? 'COUNSEL'
+                      : currentMode === 'normal'
+                        ? 'DAILY'
+                        : currentMode.toUpperCase();
+                  startRecording(
+                    null,
+                    assistantType,
+                    isLockMode ? 'SECRET' : 'GENERAL',
+                    'USER_AI',
+                    null,
+                  );
+                } else {
+                  stopRecordingAndSendSTT();
+                }
+              }}
               className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
             >
               <div className="flex items-center justify-center">
@@ -192,15 +245,16 @@ export default function HomePage() {
               mouthOpenRadius={mouthOpenRadius}
               mode={currentMode}
               isLockMode={isLockMode}
-              isSpeaking={isSpeaking}
+              isSpeaking={isAiSpeaking}
               isMicOn={isMicOn}
             />
-            {isMicOn && (
-              <SpeechBubble
-                triggerText={triggerText}
-                onStart={handleStartSpeaking}
-                onEnd={handleEndSpeaking}
-              />
+            {isMicOn && lastAiMessage && <SpeechBubble text={lastAiMessage} />}
+
+            {/* STT 실시간 말풍선 (화면 아래쪽) */}
+            {isMicOn && (isAwaitingResponse || sttText) && (
+              <div className="absolute bottom-[-220px] left-1/2 -translate-x-1/2 px-8 py-4 bg-black/40 backdrop-blur-xl text-white font-black text-lg rounded-3xl shadow-2xl border border-white/20 z-50 min-w-[280px] text-center max-w-[80vw] whitespace-pre-wrap">
+                🎙️ {sttText}
+              </div>
             )}
           </div>
         </motion.div>
@@ -210,7 +264,17 @@ export default function HomePage() {
           messages={chatMessages}
           input={chatInput}
           onInputChange={setChatInput}
-          onSend={() => sendMessage(chatInput, false, '')}
+          onSend={() => {
+            const assistantType =
+              currentMode === 'counseling'
+                ? 'COUNSEL'
+                : currentMode === 'normal'
+                  ? 'DAILY'
+                  : currentMode.toUpperCase();
+            const memoryPolicy = isLockMode ? 'SECRET' : 'GENERAL';
+
+            sendMessage(chatInput, null, assistantType, memoryPolicy, 'USER_AI', null);
+          }}
           onClose={() => setIsChatHistoryOpen(false)}
         />
 
@@ -264,7 +328,15 @@ export default function HomePage() {
         }}
       />
 
-      <MyCardModal isOpen={isMyCardModalOpen} onClose={() => setIsMyCardModalOpen(false)} />
+      <MyCardModal
+        isOpen={isMyCardModalOpen}
+        onClose={() => setIsMyCardModalOpen(false)}
+        userId={userInfo?.id ?? null}
+        userName={userInfo?.nickname || '내 프로필'}
+        userHandle={userInfo?.email ? `@${userInfo.email.split('@')[0]}` : '@ssarvis_me'}
+        followingCount={follows.filter((follow) => follow.isFollowing).length}
+        followerCount={follows.filter((follow) => follow.isFollower).length}
+      />
 
       <SharePersonaModal isOpen={isSharePersonaOpen} onClose={() => setIsSharePersonaOpen(false)} />
 

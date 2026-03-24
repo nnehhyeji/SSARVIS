@@ -1,4 +1,4 @@
-package com.ssafy.ssarvis.voice.entity;
+package com.ssafy.ssarvis.user.entity;
 
 public enum PromptType {
     USER,

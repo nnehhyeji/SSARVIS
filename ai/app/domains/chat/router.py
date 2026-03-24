@@ -11,9 +11,13 @@ from app.domains.voice.service import VoiceService
 from app.infra.audio_transcoder import AudioTranscoder
 from app.infra.dashscope import DashScopeVoiceClient
 from app.infra.openai import OpenAIClient
-from app.infra.prompt_loader import PromptTemplateLoader
 from app.infra.qdrant import QdrantClient
 from app.infra.webm import WebMAudioEncoder, WebMEncodingError
+from app.prompts import (
+    PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
+    RESPONSE_GUIDELINE_PROMPT,
+    SIMILAR_CONVERSATIONS_PREFIX,
+)
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -43,15 +47,9 @@ def get_chat_service(
     return ChatService(
         chat_repository=ChatRepository(qdrant_client),
         openai_client=client,
-        similar_conversations_prefix_loader=PromptTemplateLoader(
-            "app/prompts/similar_conversations_prefix.md"
-        ),
-        response_guideline_loader=PromptTemplateLoader(
-            "app/prompts/response_guideline.md"
-        ),
-        public_conversation_guideline_loader=PromptTemplateLoader(
-            "app/prompts/public_conversation_guideline.md"
-        ),
+        similar_conversations_prefix=SIMILAR_CONVERSATIONS_PREFIX,
+        response_guideline_prompt=RESPONSE_GUIDELINE_PROMPT,
+        public_conversation_guideline_prompt=PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
     )
 
 

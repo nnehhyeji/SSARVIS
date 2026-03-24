@@ -51,7 +51,16 @@ export default function VisitPage() {
   } = useAICharacter();
 
   // 방문 페이지에서는 시크릿 모드(isLockMode)를 사용하지 않으므로 제거
-  const { chatInput, chatMessages, setChatInput, sendMessage } = useChat();
+  const {
+    chatInput,
+    chatMessages,
+    sttText,
+    isAiSpeaking,
+    setChatInput,
+    sendMessage,
+    startRecording,
+    stopRecordingAndSendSTT,
+  } = useChat();
 
   const {
     follows,
@@ -128,6 +137,37 @@ export default function VisitPage() {
     return visitorBg;
   }, [isLoggedIn, visitorBg, currentMode]);
 
+  // 듀얼모드 로컬 텍스트 시뮬레이션용 자동 립싱크
+  useEffect(() => {
+    if (myTriggerText) {
+      handleStartMyAiSpeaking();
+      const t = setTimeout(handleEndMyAiSpeaking, myTriggerText.length * 100 + 500);
+      return () => clearTimeout(t);
+    }
+  }, [myTriggerText, handleStartMyAiSpeaking, handleEndMyAiSpeaking]);
+
+  useEffect(() => {
+    if (triggerText) {
+      handleStartSpeaking();
+      const t = setTimeout(handleEndSpeaking, triggerText.length * 100 + 500);
+      return () => clearTimeout(t);
+    }
+  }, [triggerText, handleStartSpeaking, handleEndSpeaking]);
+
+  const displayFollowName = isLoggedIn ? visitedFollowName : '친구';
+  const showEmptyPersonaMessage = !hasPersonaAnswers && currentMode === 'persona';
+
+  // 실시간 AI 음성 재생(isAiSpeaking) + 로컬 인사말 텍스트 상태(isSpeaking) 병합
+  const finalIsSpeaking = isAiSpeaking || isSpeaking;
+  const lastAiMessage = useMemo(() => {
+    return (
+      chatMessages
+        .slice()
+        .reverse()
+        .find((m) => m.sender === 'ai')?.text || ''
+    );
+  }, [chatMessages]);
+
   // 비로그인 사용자는 isVisitorMode가 false여도 렌더링되게 우회
   if (isLoggedIn && (!isVisitorMode || !visitedFollowName)) {
     return (
@@ -136,9 +176,6 @@ export default function VisitPage() {
       </div>
     );
   }
-
-  const displayFollowName = isLoggedIn ? visitedFollowName : '친구';
-  const showEmptyPersonaMessage = !hasPersonaAnswers && currentMode === 'persona';
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
@@ -203,7 +240,14 @@ export default function VisitPage() {
           {!showEmptyPersonaMessage && (
             <div className="absolute left-[-140px] top-1/2 -translate-y-1/2 z-40">
               <button
-                onClick={toggleMic}
+                onClick={() => {
+                  toggleMic();
+                  if (!isMicOn) {
+                    startRecording(null, 'PERSONA', 'GENERAL', 'AVATAR_AI', targetId);
+                  } else {
+                    stopRecordingAndSendSTT();
+                  }
+                }}
                 className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
               >
                 <div className="flex items-center justify-center">
@@ -232,11 +276,7 @@ export default function VisitPage() {
                   isMicOn={isMicOn}
                   label="나의 AI"
                 />
-                <SpeechBubble
-                  triggerText={myTriggerText}
-                  onStart={handleStartMyAiSpeaking}
-                  onEnd={handleEndMyAiSpeaking}
-                />
+                <SpeechBubble text={myTriggerText} />
               </div>
             )}
 
@@ -275,20 +315,23 @@ export default function VisitPage() {
                     mouthOpenRadius={mouthOpenRadius}
                     mode={currentMode}
                     isLockMode={false}
-                    isSpeaking={isSpeaking}
+                    isSpeaking={finalIsSpeaking}
                     isMicOn={isMicOn}
                     label={`${displayFollowName}님의 AI`}
                   />
-                  {isMicOn && (
-                    <SpeechBubble
-                      triggerText={triggerText}
-                      onStart={handleStartSpeaking}
-                      onEnd={handleEndSpeaking}
-                    />
+                  {isMicOn && (isDualAiMode ? triggerText : lastAiMessage) && (
+                    <SpeechBubble text={isDualAiMode ? triggerText : lastAiMessage} />
                   )}
                 </>
               )}
             </div>
+
+            {/* STT 실시간 말풍선 (화면 아래쪽) / 듀얼 모드일 시 조금 더 넓게 */}
+            {isMicOn && sttText && (
+              <div className="absolute bottom-[-220px] left-1/2 -translate-x-1/2 px-8 py-4 bg-black/40 backdrop-blur-xl text-white font-black text-lg rounded-3xl shadow-2xl border border-white/20 z-50 min-w-[280px] text-center max-w-[80vw] whitespace-pre-wrap">
+                🎙️ {sttText}
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -300,7 +343,12 @@ export default function VisitPage() {
               messages={chatMessages}
               input={chatInput}
               onInputChange={setChatInput}
-              onSend={() => sendMessage(chatInput, true, displayFollowName || '')}
+              onSend={() => {
+                const assistantType = 'PERSONA';
+                const memoryPolicy = 'GENERAL'; // Visit 페이지에서는 시크릿 모드를 사용하지 않음
+
+                sendMessage(chatInput, null, assistantType, memoryPolicy, 'AVATAR_AI', targetId);
+              }}
               onClose={() => setIsChatHistoryOpen(false)}
             />
 

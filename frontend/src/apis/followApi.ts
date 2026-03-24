@@ -33,6 +33,7 @@ export interface UserSearchResponse {
   userId: number;
   nickname: string;
   email: string;
+  followStatus: 'NONE' | 'REQUESTED' | 'FOLLOWING';
 }
 
 // --- API Functions ---

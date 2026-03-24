@@ -8,6 +8,9 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 public interface ChatMessageRepository extends MongoRepository<ChatMessageDocument, String> {
 
     List<ChatMessageDocument> findBySessionId(String sessionId, Pageable pageable);
-    List<ChatMessageDocument> findTop200BySessionIdOrderByCreatedAtDesc(String sessionId);
+    List<ChatMessageDocument> findBySessionIdOrderByIdDesc(String sessionId, Pageable pageable);
+    List<ChatMessageDocument> findBySessionIdAndIdLessThanOrderByIdDesc(String sessionId, String lastOffsetId, Pageable pageable);
+
+
 
 }

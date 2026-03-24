@@ -1,0 +1,4 @@
+.gitignore
+compose-front/*
+compose-front/
+backend/.gradle-home/

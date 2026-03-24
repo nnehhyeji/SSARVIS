@@ -2,6 +2,7 @@ package com.ssafy.ssarvis.user.service.impl;
 
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
+import com.ssafy.ssarvis.common.service.S3Uploader;
 import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserUpdateRequestDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Slf4j
@@ -23,6 +25,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final S3Uploader s3Uploader;
 
     @Transactional
     @Override
@@ -61,6 +64,21 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
         return UserResponseDto.from(user);
+    }
+
+    @Transactional
+    public String updateProfileImage(Long userId, MultipartFile profileImage) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+
+        if (user.getProfileImageUrl() != null) {
+            s3Uploader.delete(user.getProfileImageUrl());
+        }
+
+        String newImageUrl = s3Uploader.upload(profileImage, "profiles");
+        user.updateProfileImage(newImageUrl);
+
+        return newImageUrl;
     }
 
     @Transactional
@@ -106,6 +124,14 @@ public class UserServiceImpl implements UserService {
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
         user.toggleAcceptPrompt();
         return user.getIsAcceptPrompt();
+    }
+
+    @Override
+    public boolean toggleProfile(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        user.toggleProfile();
+        return user.getIsPublic();
     }
 
 }

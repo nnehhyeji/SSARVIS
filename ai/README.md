@@ -172,9 +172,10 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 {
   "sessionId": "manual-session-1",
   "userId": 101,
-  "chatMode": "NORMAL",
+  "chatSessionType": "USER_AI",
+  "chatMode": "DAILY",
   "memoryPolicy": "GENERAL",
-  "isPublic": true,
+  "isFollowing": true,
   "systemPrompt": "친절한 친구처럼 대답해.",
   "history": [
     {"role": "user", "content": "지난번 이야기 기억나?"},
@@ -189,12 +190,13 @@ curl -X POST http://127.0.0.1:8000/api/v1/voice \
 
 - `sessionId`: 대화를 구분하는 고유값, String
 - `userId`: 사용자 식별 ID, Long
-- `chatMode`: 대화 모드, NORMAL | COUNSELING | STUDY
-- `memoryPolicy`: 시크릿 모드 여부, GENERAL | SECRET
-- `isPublic`: 선택, 기본값 `false`. `true`이면 공개된 장소에 맞게 사생활 관련 내용을 발설하지 않도록 추가 가이드 적용
+- `chatSessionType`: 채팅 세션 타입, `USER_AI | AVATAR_AI`
+- `chatMode`: 대화 모드, `DAILY | STUDY | COUNSEL | PERSONA`
+- `memoryPolicy`: 메모리 저장 정책, `GENERAL | SECRET`
+- `isFollowing`: 선택, 기본값 `null`. `true`이면 민감정보 발설 주의 가이드가 추가 적용됨
 - `systemPrompt`: AI의 페르소나, String
-- `history`: 선택, 기본값 `[]`
-- `history[].role`: 발화자, SYSTEM | USER | ASSISTANT
+- `history`: 선택, 기본값 `[]`, 최대 30개
+- `history[].role`: 발화자, `system | user | assistant`
 - `history[].content`: 대화 내용, String
 - `text`: 사용자 입력, String
 - `voiceId`: 음성 ID, String

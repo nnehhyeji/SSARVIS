@@ -55,6 +55,14 @@ public class User extends BaseTime {
     private Boolean isAcceptPrompt = true;
 
     @NotNull
+    @Column(name = "is_public")
+    @Builder.Default
+    private Boolean isPublic = true;
+
+    @Column(name = "profile_image_url")
+    private String profileImageUrl;
+
+    @NotNull
     @Column(name = "costume")
     @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
@@ -80,6 +88,10 @@ public class User extends BaseTime {
             .password(password)
             .nickname(nickname)
             .build();
+    }
+
+    public void updateProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
     }
 
     public void update(String password, String nickname, String description, Costume costume, String voicePassword) {
@@ -110,6 +122,10 @@ public class User extends BaseTime {
 
     public void toggleAcceptPrompt() {
         this.isAcceptPrompt = !this.isAcceptPrompt;
+    }
+
+    public void toggleProfile() {
+        this.isPublic = !this.isPublic;
     }
 
 }

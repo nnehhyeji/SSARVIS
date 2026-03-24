@@ -4,9 +4,19 @@ from dataclasses import dataclass
 
 from app.config.chat import chat_config
 from app.domains.chat.repository import ChatRepository
-from app.domains.chat.schema import ChatContext, ChatHistoryItem, ChatRequest, SimilarChatItem
+from app.domains.chat.schema import (
+    ChatContext,
+    ChatHistoryItem,
+    ChatRequest,
+    MemoryPolicy,
+    SimilarChatItem,
+)
 from app.infra.openai import OpenAIClient
-from app.infra.prompt_loader import PromptTemplateLoader
+from app.prompts import (
+    PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
+    RESPONSE_GUIDELINE_PROMPT,
+    SIMILAR_CONVERSATIONS_PREFIX,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +66,13 @@ class ChatContextBuilder:
             )
             messages.append({"role": "system", "content": similar_text})
 
-        if response_guideline_prompt:
-            messages.append({"role": "system", "content": response_guideline_prompt})
-
         if public_conversation_guideline_prompt:
             messages.append(
                 {"role": "system", "content": public_conversation_guideline_prompt}
             )
+
+        if response_guideline_prompt:
+            messages.append({"role": "system", "content": response_guideline_prompt})
 
         messages.append({"role": "user", "content": context.user_text})
         return messages
@@ -115,37 +125,31 @@ class ChatService:
         chat_repository: ChatRepository,
         openai_client: OpenAIClient,
         context_builder: ChatContextBuilder | None = None,
-        similar_conversations_prefix_loader: PromptTemplateLoader | None = None,
-        response_guideline_loader: PromptTemplateLoader | None = None,
-        public_conversation_guideline_loader: PromptTemplateLoader | None = None,
+        similar_conversations_prefix: str = SIMILAR_CONVERSATIONS_PREFIX,
+        response_guideline_prompt: str = RESPONSE_GUIDELINE_PROMPT,
+        public_conversation_guideline_prompt: str = PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
     ) -> None:
         self.chat_repository = chat_repository
         self.openai_client = openai_client
         self.context_builder = context_builder or ChatContextBuilder()
-        self.similar_conversations_prefix_loader = (
-            similar_conversations_prefix_loader
-            or PromptTemplateLoader(chat_config.similar_conversations_prefix_file)
-        )
-        self.response_guideline_loader = response_guideline_loader or PromptTemplateLoader(
-            chat_config.response_guideline_prompt_file
-        )
-        self.public_conversation_guideline_loader = (
-            public_conversation_guideline_loader
-            or PromptTemplateLoader(chat_config.public_conversation_guideline_prompt_file)
-        )
+        self.similar_conversations_prefix = similar_conversations_prefix
+        self.response_guideline_prompt = response_guideline_prompt
+        self.public_conversation_guideline_prompt = public_conversation_guideline_prompt
 
     async def prepare_chat(self, request: ChatRequest) -> ChatPreparation:
         query_vector = await self.openai_client.embed(
             self.build_query_embedding_text(request.text)
         )
-        similar_conversations = await self.chat_repository.search_similar(
-            session_id=request.sessionId,
-            user_id=request.userId,
-            chat_mode=request.chatMode,
-            memory_policy=request.memoryPolicy,
-            vector=query_vector,
-            limit=chat_config.similar_conversations_limit,
-        )
+        similar_conversations: list[SimilarChatItem] = []
+        if request.memoryPolicy == MemoryPolicy.GENERAL:
+            similar_conversations = await self.chat_repository.search_similar(
+                session_id=request.sessionId,
+                user_id=request.userId,
+                chat_session_type=request.chatSessionType,
+                chat_mode=request.chatMode,
+                vector=query_vector,
+                limit=chat_config.similar_conversations_limit,
+            )
         context = self.context_builder.build_context(
             system_prompt=request.systemPrompt,
             user_text=request.text,
@@ -154,11 +158,11 @@ class ChatService:
         )
         messages = self.context_builder.build_messages(
             context=context,
-            similar_conversations_prefix=self.similar_conversations_prefix_loader.load_system_prompt_meta(),
-            response_guideline_prompt=self.response_guideline_loader.load_system_prompt_meta(),
+            similar_conversations_prefix=self.similar_conversations_prefix,
+            response_guideline_prompt=self.response_guideline_prompt,
             public_conversation_guideline_prompt=(
-                self.public_conversation_guideline_loader.load_system_prompt_meta()
-                if request.isPublic
+                self.public_conversation_guideline_prompt
+                if not request.isFollowing
                 else None
             ),
         )
@@ -168,13 +172,21 @@ class ChatService:
             query_vector=query_vector,
         )
 
-    async def save_chat(self, request: ChatRequest, response: str) -> SimilarChatItem:
+    async def save_chat(
+        self,
+        request: ChatRequest,
+        response: str,
+    ) -> SimilarChatItem | None:
+        if request.memoryPolicy != MemoryPolicy.GENERAL:
+            return None
+
         embedding = await self.openai_client.embed(
             self.build_storage_embedding_text(request.text, response)
         )
         return await self.chat_repository.save_chat(
             session_id=request.sessionId,
             user_id=request.userId,
+            chat_session_type=request.chatSessionType,
             chat_mode=request.chatMode,
             memory_policy=request.memoryPolicy,
             text=request.text,

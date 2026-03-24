@@ -15,17 +15,12 @@ import com.ssafy.ssarvis.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
@@ -104,6 +99,23 @@ public class UserController {
     ) {
         boolean result = userService.toggleNamna(customUserDetails.getUserId());
         return ResponseEntity.ok(BaseResponse.success(String.valueOf(result)));
+    }
+
+    @GetMapping("/profile/toggle")
+    public ResponseEntity<BaseResponse<Boolean>> toggleProfileStatus(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        boolean result = userService.toggleProfile(customUserDetails.getUserId());
+        return ResponseEntity.ok(BaseResponse.success(String.valueOf(result)));
+    }
+
+    @PatchMapping(value = "/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<BaseResponse<String>> updateProfileImage(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @RequestPart("profileImage") MultipartFile profileImage
+    ) {
+        String imageUrl = userService.updateProfileImage(customUserDetails.getUserId(), profileImage);
+        return ResponseEntity.ok(BaseResponse.success("프로필 이미지 수정 성공", imageUrl));
     }
 
 }

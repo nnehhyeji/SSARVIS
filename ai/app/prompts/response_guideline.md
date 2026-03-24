@@ -1,1 +1,0 @@
-Please make proper response based on the system prompt and conversation history with less than 5 sentences. But if more sentences are needed, you can make more sentences.

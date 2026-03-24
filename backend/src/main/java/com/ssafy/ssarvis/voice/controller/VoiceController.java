@@ -2,7 +2,8 @@ package com.ssafy.ssarvis.voice.controller;
 
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
-import com.ssafy.ssarvis.voice.dto.response.NonMemberPromptResponseDto;
+import com.ssafy.ssarvis.voice.dto.request.EvaluationPromptRequestDto;
+import com.ssafy.ssarvis.voice.dto.response.EvaluationPromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceInfoResponseDto;
 import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
@@ -33,7 +34,7 @@ public class VoiceController {
         return ResponseEntity.ok(BaseResponse.success("음성 등록 요청 수락", response));
     }
 
-    @PostMapping("/prompts")
+    @PostMapping("/prompts") // 튜토리얼에서 사용
     public ResponseEntity<BaseResponse<PromptResponseDto>> createPrompt(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,
         @RequestBody Object requestBody
@@ -45,11 +46,16 @@ public class VoiceController {
     }
 
     @PostMapping("/prompts/{targetUserId}")
-    public ResponseEntity<BaseResponse<NonMemberPromptResponseDto>> createPrompt(
-        @RequestBody Object requestBody,
+    public ResponseEntity<BaseResponse<EvaluationPromptResponseDto>> createPrompt(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @RequestBody EvaluationPromptRequestDto evaluationPromptRequestDto,
         @PathVariable("targetUserId") Long targetUserId
     ) {
-        NonMemberPromptResponseDto response = voiceService.generateSystemPromptNonMember(targetUserId, requestBody);
+        EvaluationPromptResponseDto response = voiceService.generateSystemPromptEvaluation(
+            customUserDetails,        // 추가
+            targetUserId,
+            evaluationPromptRequestDto
+        );
         return ResponseEntity.ok(BaseResponse.success("상대방 프롬프트 생성 및 저장 성공", response));
     }
 

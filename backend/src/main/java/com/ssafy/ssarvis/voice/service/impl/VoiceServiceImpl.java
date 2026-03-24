@@ -3,13 +3,20 @@ package com.ssafy.ssarvis.voice.service.impl;
 import com.ssafy.ssarvis.assistant.entity.Assistant;
 import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.assistant.repository.AssistantRepository;
+import com.ssafy.ssarvis.auth.security.CustomUserDetails;
+import com.ssafy.ssarvis.common.advice.CustomException;
+import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
+import com.ssafy.ssarvis.voice.dto.request.AiPromptRequestDto;
+import com.ssafy.ssarvis.voice.dto.request.EvaluationPromptRequestDto;
 import com.ssafy.ssarvis.voice.dto.response.*;
-import com.ssafy.ssarvis.voice.entity.Prompt;
-import com.ssafy.ssarvis.voice.entity.PromptType;
+import com.ssafy.ssarvis.user.entity.Evaluation;
+import com.ssafy.ssarvis.user.entity.Prompt;
+import com.ssafy.ssarvis.user.entity.PromptType;
 import com.ssafy.ssarvis.voice.entity.Voice;
-import com.ssafy.ssarvis.voice.repository.PromptRepository;
+import com.ssafy.ssarvis.user.repository.EvaluationRepository;
+import com.ssafy.ssarvis.user.repository.PromptRepository;
 import com.ssafy.ssarvis.voice.repository.VoiceRepository;
 import com.ssafy.ssarvis.voice.service.VoiceService;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +34,8 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -35,10 +43,13 @@ import java.util.*;
 @Transactional
 public class VoiceServiceImpl implements VoiceService {
 
+    private static final int PROMPT_GENERATION_THRESHOLD = 5;
+
     private final VoiceRepository voiceRepository;
     private final UserRepository userRepository;
-    private final PromptRepository promptRepository;
     private final AssistantRepository assistantRepository;
+    private final EvaluationRepository evaluationRepository;
+    private final PromptRepository promptRepository;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${spring.app.ai-server.url}")
@@ -81,12 +92,12 @@ public class VoiceServiceImpl implements VoiceService {
                 String generatedPrompt = response.getBody().data().systemPrompt();
 
                 User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                    .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
 
                 Prompt prompt = Prompt.builder()
-                    .prompt(generatedPrompt)
-                    .promptType(PromptType.USER)
                     .user(user)
+                    .promptText(generatedPrompt)
+                    .promptType(PromptType.USER)
                     .build();
 
                 promptRepository.save(prompt);
@@ -103,42 +114,87 @@ public class VoiceServiceImpl implements VoiceService {
         }
     }
 
-    @Override
-    public NonMemberPromptResponseDto generateSystemPromptNonMember(Long targetUserId, Object rawJson) {
-        try {
-            log.info("AI 서버로 전달할 데이터: {}", rawJson);
+    @Transactional
+    public EvaluationPromptResponseDto generateSystemPromptEvaluation(
+        CustomUserDetails customUserDetails,
+        Long targetUserId,
+        EvaluationPromptRequestDto dto
+    ) {
+        User targetUser = userRepository.findById(targetUserId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
 
-            ResponseEntity<AiPromptResponseDto> response = restTemplate.postForEntity(
-                aiServerUrl + "/api/v1/prompt",
-                rawJson,
-                AiPromptResponseDto.class
-            );
+        // 1. writer 결정: 토큰 있으면 nickname, 없으면(null) "익명"
+        String writer = resolveWriter(customUserDetails);
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                String generatedPrompt = response.getBody().data().systemPrompt();
+        // 2. 새 Q&A 저장 (누적, 삭제하지 않음)
+        Evaluation newEvaluation = Evaluation.builder()
+            .user(targetUser)
+            .userInputQue(dto.userInputQuestion())
+            .userInputAns(dto.userInputAnswer())
+            .writer(writer)
+            .promptType(PromptType.NAMNA)
+            .build();
+        evaluationRepository.save(newEvaluation);
 
-                User user = userRepository.findById(targetUserId)
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        // 3. 누적 카운트 확인 (5의 배수일 때만 프롬프트 생성)
+        long currentCount = evaluationRepository.countByUserAndPromptType(targetUser, PromptType.NAMNA);
 
-                Prompt prompt = Prompt.builder()
-                    .prompt(generatedPrompt)
-                    .promptType(PromptType.NAMNA)
-                    .user(user)
-                    .build();
-
-                promptRepository.save(prompt);
-                Long count = promptRepository.countByUserIdAndPromptType(targetUserId, PromptType.NAMNA);
-
-                log.info("타 사용자 {}의 시스템 프롬프트 생성 성공", user.getNickname());
-                return new NonMemberPromptResponseDto(generatedPrompt, count);
-            }
-
-            throw new RuntimeException("AI 서버 응답 오류");
-
-        } catch (Exception e) {
-            log.error("프롬프트 생성 중 오류 발생: {}", e.getMessage());
-            throw new RuntimeException("시스템 프롬프트 생성에 실패했습니다.");
+        if (currentCount % PROMPT_GENERATION_THRESHOLD != 0) {
+            return new EvaluationPromptResponseDto("", currentCount);
         }
+
+        // 4. 5의 배수 도달 → 최신 5개 Q&A로 AI 서버 호출
+        // 4-1. 가장 최신 NAMNA Persona 프롬프트 조회 (없으면 빈 문자열)
+        String existingSystemPrompt = promptRepository
+            .findTopByUserAndPromptTypeOrderByIdDesc(targetUser, PromptType.NAMNA)
+            .map(Prompt::getPromptText)
+            .orElse("");
+
+        // 4-2. 최신 5개 Q&A 조회 후 시간순 정렬 (id desc → asc 역정렬)
+        List<Evaluation> latest5 = evaluationRepository
+            .findTop5ByUserAndPromptTypeOrderByIdDesc(targetUser, PromptType.NAMNA);
+
+        List<AiPromptRequestDto.QnaDto> qnaList = latest5.stream()
+            .sorted(Comparator.comparingLong(Evaluation::getId))
+            .map(e -> new AiPromptRequestDto.QnaDto(e.getUserInputQue(), e.getUserInputAns()))
+            .toList();
+
+        // 4-3. AI 서버 요청
+        AiPromptRequestDto requestDto = new AiPromptRequestDto(existingSystemPrompt, qnaList);
+
+        ResponseEntity<AiPromptResponseDto> aiResponse = restTemplate.postForEntity(
+            aiServerUrl + "/api/v1/prompt",
+            requestDto,
+            AiPromptResponseDto.class
+        );
+
+        if (!aiResponse.getStatusCode().is2xxSuccessful()
+            || aiResponse.getBody() == null
+            || aiResponse.getBody().data() == null) {
+            throw new CustomException("AI 서버 응답 오류", ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+        String generatedPrompt = aiResponse.getBody().data().systemPrompt();
+
+        // 5. 새 Persona 저장
+        Prompt prompt = Prompt.builder()
+            .user(targetUser)
+            .promptText(generatedPrompt)
+            .promptType(PromptType.NAMNA)
+            .build();
+        promptRepository.save(prompt);
+
+        return new EvaluationPromptResponseDto(generatedPrompt, currentCount);
+    }
+
+
+    private String resolveWriter(CustomUserDetails customUserDetails) {
+        if (customUserDetails == null) {
+            return "익명";
+        }
+        User loginUser = userRepository.findById(customUserDetails.getUserId())
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        return loginUser.getNickname();
     }
 
     private String registerVoiceWithAi(MultipartFile audioFile, String text) {
@@ -178,7 +234,7 @@ public class VoiceServiceImpl implements VoiceService {
 
     private void saveVoiceEntity(Long userId, String modelId, String sttText) {
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
 
         Voice voice = Voice.builder()
             .modelId(modelId)

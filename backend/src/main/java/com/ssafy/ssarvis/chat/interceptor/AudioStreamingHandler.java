@@ -95,6 +95,8 @@ public class AudioStreamingHandler extends AbstractWebSocketHandler {
         IncomingTurnContext context = IncomingTurnContext.builder()
             .sessionId(dto.sessionId())
             .userId(userId)
+            .chatSessionType(dto.chatSessionType())
+            .targetUserId(dto.targetUserId())
             .assistantType(dto.assistantType())
             .memoryPolicy(dto.memoryPolicy())
             .inputAudioTempFile(tempFile)
@@ -168,7 +170,9 @@ public class AudioStreamingHandler extends AbstractWebSocketHandler {
         chatStreamingService.completeUserInput(
             session,
             context.getUserId(),
+            context.getTargetUserId(),
             context.getSessionId(),
+            context.getChatSessionType(),
             context.getAssistantType(),
             context.getMemoryPolicy(),
             context.getInputAudioTempFile(),

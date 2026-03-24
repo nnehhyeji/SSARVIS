@@ -1,6 +1,8 @@
 package com.ssafy.ssarvis.follow.controller;
 
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
+import com.ssafy.ssarvis.chat.dto.response.TopChatterResponseDto;
+import com.ssafy.ssarvis.chat.service.ChatSessionService;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
 import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowListResponseDto;
@@ -24,6 +26,7 @@ import java.util.List;
 public class FollowController {
 
     private final FollowService followService;
+    private final ChatSessionService chatSessionService;
 
     @PostMapping("/request")
     public ResponseEntity<BaseResponse<Void>> requestFollow(
@@ -109,6 +112,15 @@ public class FollowController {
         return ResponseEntity.ok(
             BaseResponse.success("친구 AI 조회 성공", response)
         );
+    }
+
+    @GetMapping("/top-chatters")
+    public ResponseEntity<BaseResponse<List<TopChatterResponseDto>>> getTopChattingFriends(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        Long userId = customUserDetails.getUserId();
+        List<TopChatterResponseDto> result = chatSessionService.getTopChattingFriends(userId);
+        return ResponseEntity.ok(BaseResponse.success("대화 많은 친구 순위 조회 성공", result));
     }
 
 }
