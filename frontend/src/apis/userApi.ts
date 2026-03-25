@@ -53,8 +53,10 @@ export interface UserResponse {
   nickname: string;
   customId: string;
   description: string;
+  userProfileImageUrl: string;
   isVoiceLockActive: boolean;
   isAcceptPrompt: boolean;
+  isProfilePublic: boolean;
   viewCount: number;
   voiceLockTimeout: number;
 }
@@ -127,6 +129,32 @@ const userApi = {
   // 9. 유저 정보 수정
   updateUserProfile: async (data: UpdateUserRequest) => {
     const response = await axiosInstance.patch<CommonResponse<{ userId: number }>>('/users', data);
+    return response.data;
+  },
+
+  // 10. 프로필 이미지 수정
+  updateProfileImage: async (formData: FormData) => {
+    const response = await axiosInstance.patch<CommonResponse<string>>(
+      '/users/profile-image',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
+    return response.data;
+  },
+
+  // 11. 남나 문답 여부 토글
+  toggleNamna: async () => {
+    const response = await axiosInstance.get<CommonResponse<string>>('/users/namna/toggle');
+    return response.data;
+  },
+
+  // 12. 공개/비공개 계정 전환 토글
+  toggleProfileVisibility: async () => {
+    const response = await axiosInstance.get<CommonResponse<string>>('/users/profile/toggle');
     return response.data;
   },
 };
