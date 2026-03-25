@@ -109,7 +109,7 @@ export function useFollow() {
     let isMounted = true;
 
     const loadInitialData = async () => {
-      // API ?몄텧??以묐났?섍굅??而댄룷?뚰듃 ?몃쭏?댄듃 ???곹깭 ?낅뜲?댄듃 諛⑹?, 洹몃━怨?鍮꾨줈洹몄씤 ?곹깭 ?쒖쇅
+      // API 호출 중복과 언마운트 후 상태 업데이트를 막고, 비로그인 상태는 제외한다.
       if (!isMounted || !isLoggedIn) return;
       await Promise.all([fetchFollows(), fetchFollowRequests()]);
     };
@@ -235,8 +235,8 @@ export function useFollow() {
       setIsSearchLoading(true);
       searchTimeoutRef.current = setTimeout(async () => {
         try {
-          // ?됰꽕?? ?대찓??寃?됱쓣 蹂묐젹(Promise.all)濡?吏꾪뻾?섏뿬 ?묐떟 ?띾룄 理쒖쟻??
-          // (李⑦썑 諛깆뿏?쒖뿉???듯빀 寃??API瑜??쒓났?댁＜湲??꾧퉴吏 ?대씪?댁뼵??痢??꾩떆 理쒖쟻??
+          // 닉네임과 이메일 검색을 병렬로 호출해 응답 시간을 줄인다.
+          // 백엔드 통합 검색 API가 생기기 전까지의 프론트 임시 최적화다.
           const [nicknameRes, emailRes] = await Promise.all([
             followApi.searchUsers({ nickname: query }).catch(() => ({ data: [] as never[] })),
             followApi.searchUsers({ email: query }).catch(() => ({ data: [] as never[] })),
@@ -244,7 +244,7 @@ export function useFollow() {
 
           const combinedData = [...(nicknameRes.data || []), ...(emailRes.data || [])];
 
-          // 以묐났 ?꾩씠??userId) ?쒓굅 濡쒖쭅
+          // userId 기준으로 중복 검색 결과를 제거한다.
           const uniqueUsers = Array.from(new Map(combinedData.map((u) => [u.userId, u])).values());
 
           if (uniqueUsers.length > 0) {
