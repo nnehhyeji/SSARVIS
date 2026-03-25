@@ -178,7 +178,6 @@ export default function FollowSidebar({
             <div className="flex flex-col gap-2">
               {/* 1. 현재 탭 (팔로잉/팔로워) 검색 결과 (클라이언트 사이드 필터링) */}
               {follows
-                .filter((f) => (sidebarView === 'following' ? f.isFollowing : f.isFollower))
                 .filter((f) => {
                   const lowerQuery = searchQuery.toLowerCase();
                   return (
@@ -226,7 +225,7 @@ export default function FollowSidebar({
                         </button>
                       )}
 
-                      <div className="relative">
+                      {f.followId ? <div className="relative">
                         <button
                           type="button"
                           onClick={() =>
@@ -250,7 +249,7 @@ export default function FollowSidebar({
                             </button>
                           </div>
                         )}
-                      </div>
+                      </div> : null}
                     </div>
                   </div>
                 ))}
