@@ -27,6 +27,7 @@ const mapNotificationToAlarm = (dto: NotificationDTO): Alarm => ({
   isRead: dto.isRead,
   time: timeAgo(dto.createdAt),
   type: dto.eventName?.includes('FOLLOW') ? 'follow' : 'system',
+  payload: dto.payload || {},
 });
 
 export function useNotification() {

@@ -30,6 +30,7 @@ import authApi from '../../apis/authApi';
 export default function HomePage() {
   const navigate = useNavigate();
   const { userInfo, logout: logoutStore } = useUserStore();
+  const currentUserId = userInfo?.id ?? null;
 
   // --- Custom Hooks ---
   const { isMicOn, mouthOpenRadius, faceType, toggleMic } = useAICharacter();
@@ -58,6 +59,7 @@ export default function HomePage() {
     acceptRequest,
     rejectRequest,
     handleSearch,
+    requestFollow,
   } = useFollow();
 
   const { alarms, readAlarm, readAllAlarms, removeAllAlarms, removeAlarm } = useNotification();
@@ -185,6 +187,7 @@ export default function HomePage() {
         onDelete={deleteFollow}
         searchResults={searchResults}
         isSearchLoading={isSearchLoading}
+        requestFollow={requestFollow}
         viewCount={myViewCount}
       />
 
