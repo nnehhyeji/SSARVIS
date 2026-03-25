@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Copy, Check, Sparkles } from 'lucide-react';
+import { X, Copy, Check, Sparkles, MessageCircle, RefreshCw } from 'lucide-react';
 import { PATHS } from '../../../routes/paths';
+import userApi from '../../../apis/userApi';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface SharePersonaModalProps {
   isOpen: boolean;
@@ -10,15 +12,48 @@ interface SharePersonaModalProps {
 
 export default function SharePersonaModal({ isOpen, onClose }: SharePersonaModalProps) {
   const [isCopied, setIsCopied] = useState(false);
+  const [isAcceptPrompt, setIsAcceptPrompt] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // TODO: 실제로는 현재 로그인한 유저의 식별자(userId)를 사용해야 합니다.
-  const myUserId = 1;
+  const { userInfo } = useUserStore();
+  const myUserId = userInfo?.id || 1;
   const shareUrl = `${window.location.origin}${PATHS.VISIT(myUserId)}?mode=persona`;
+
+  useEffect(() => {
+    if (isOpen) {
+      const loadStatus = async () => {
+        try {
+          setIsLoading(true);
+          const profile = await userApi.getUserProfile();
+          setIsAcceptPrompt(profile.isAcceptPrompt);
+        } catch (error) {
+          console.error('Failed to load persona status:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      loadStatus();
+    }
+  }, [isOpen]);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleToggleNamna = async () => {
+    try {
+      setIsSaving(true);
+      await userApi.toggleNamna();
+      setIsAcceptPrompt(!isAcceptPrompt);
+    } catch (error) {
+      console.error('Failed to toggle Namna:', error);
+      alert('설정 변경에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -51,6 +86,42 @@ export default function SharePersonaModal({ isOpen, onClose }: SharePersonaModal
               <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
+            </div>
+
+            {/* Toggle Section */}
+            <div className="mb-8 p-5 rounded-2xl bg-pink-50/50 border border-pink-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5 text-pink-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800 text-sm sm:text-base">
+                      다른 사람의 문답 허용하기
+                    </h4>
+                    <p className="text-xs text-pink-400 font-medium">
+                      ON이면 누구나 질문을 남길 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+                {isLoading ? (
+                  <RefreshCw className="w-5 h-5 text-pink-300 animate-spin" />
+                ) : (
+                  <button
+                    onClick={handleToggleNamna}
+                    disabled={isSaving}
+                    className={`w-12 h-6 rounded-full relative transition-all duration-300 ${
+                      isAcceptPrompt ? 'bg-pink-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 ${
+                        isAcceptPrompt ? 'left-6' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Description */}

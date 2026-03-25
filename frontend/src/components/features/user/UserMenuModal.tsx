@@ -107,10 +107,10 @@ export default function UserMenuModal({ isOpen, onClose, user }: UserMenuModalPr
                 개인정보 변경
               </button>
               <button
-                onClick={() => handleMenuClick('ai')}
+                onClick={() => handleMenuClick('security')}
                 className="w-full py-4 rounded-2xl hover:bg-white/40 transition-all font-bold text-xl text-gray-800"
               >
-                음성 및 성격 설정
+                음성 2차잠금 설정
               </button>
             </div>
 
