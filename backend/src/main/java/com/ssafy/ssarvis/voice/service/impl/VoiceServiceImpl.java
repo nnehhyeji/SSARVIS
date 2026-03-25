@@ -78,6 +78,21 @@ public class VoiceServiceImpl implements VoiceService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public EvaluationListResponseDto getEvaluationList(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+
+        List<EvaluationItemResponseDto> items = evaluationRepository
+            .findByUserAndPromptTypeOrderByCreatedAtAsc(user, PromptType.NAMNA)
+            .stream()
+            .map(EvaluationItemResponseDto::from)
+            .toList();
+
+        return EvaluationListResponseDto.of(userId, items);
+    }
+
+    @Override
     public PromptResponseDto generateSystemPrompt(Long userId, Object rawJson) {
         try {
             log.info("AI 서버로 전달할 데이터: {}", rawJson);

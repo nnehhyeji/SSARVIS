@@ -3,10 +3,7 @@ package com.ssafy.ssarvis.voice.controller;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.common.dto.BaseResponse;
 import com.ssafy.ssarvis.voice.dto.request.EvaluationPromptRequestDto;
-import com.ssafy.ssarvis.voice.dto.response.EvaluationPromptResponseDto;
-import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
-import com.ssafy.ssarvis.voice.dto.response.VoiceInfoResponseDto;
-import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
+import com.ssafy.ssarvis.voice.dto.response.*;
 import com.ssafy.ssarvis.voice.service.VoiceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -67,5 +64,14 @@ public class VoiceController {
 
         return ResponseEntity.ok(BaseResponse.success("음성 정보 조회 성공", response));
     }
+
+    @GetMapping("/evaluations")
+    public ResponseEntity<BaseResponse<EvaluationListResponseDto>> getEvaluationList(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        EvaluationListResponseDto response = voiceService.getEvaluationList(customUserDetails.getUserId());
+        return ResponseEntity.ok(BaseResponse.success("평가 기록 조회 성공", response));
+    }
+
 
 }
