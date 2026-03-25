@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -19,6 +19,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { PATHS } from '../../routes/paths';
 import type { Alarm, Mode, Follow, FollowRequest } from '../../types';
+import { getChatSessions, getChatMessages } from '../../apis/chatApi';
+import type { ChatSession, ChatMessageData } from '../../apis/chatApi';
 
 interface SidebarProps {
   // User Info & Basic Actions
@@ -52,6 +54,7 @@ interface SidebarProps {
   onDelete: (follow: Follow) => void;
   searchResults: Follow[];
   isSearchLoading: boolean;
+  requestFollow: (receiverId: number, name: string) => void;
 
   // View count
   viewCount?: number;
@@ -75,8 +78,10 @@ export default function Sidebar({
   onAccept,
   onReject,
   onDelete,
+  onSearch,
   searchResults,
   isSearchLoading,
+  requestFollow,
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -86,22 +91,92 @@ export default function Sidebar({
   >(null);
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [recentSearches, setRecentSearches] = useState([
-    { id: 'seoyoung', name: '임서영' },
-    { id: 'nnah', name: '냥혜' },
-    { id: 'karina', name: 'ae카리나' },
-  ]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Chat Archive States
   const [chatTab, setChatTab] = useState<'archive' | 'guestbook'>('archive');
   const [chatCategory, setChatCategory] = useState<'assistant' | 'persona' | 'friend'>('assistant');
   const [chatView, setChatView] = useState<'categories' | 'list'>('categories');
   const [assistantFilters, setAssistantFilters] = useState<string[]>(['daily', 'study', 'counsel']);
-  const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [chatMessagesData, setChatMessagesData] = useState<ChatMessageData[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (activeTertiary !== 'chat') return;
+
+    const loadSessions = async () => {
+      try {
+        setIsChatLoading(true);
+        let type = 'SECRETARY';
+
+        if (chatTab === 'guestbook') {
+          type = 'GUESTBOOK';
+        } else {
+          if (chatCategory === 'assistant') type = 'SECRETARY';
+          else if (chatCategory === 'persona') type = 'PERSONA';
+          else if (chatCategory === 'friend') type = 'VISIT';
+        }
+
+        const data = await getChatSessions({ type });
+        if (isMounted) {
+          setChatSessions(data.contents || []);
+        }
+      } catch (err) {
+        console.error('채팅 세션 조회 실패:', err);
+      } finally {
+        if (isMounted) setIsChatLoading(false);
+      }
+    };
+
+    void loadSessions();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTertiary, chatTab, chatCategory]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!selectedChatId) {
+      if (isMounted) setChatMessagesData([]);
+      return;
+    }
+
+    const loadMessages = async () => {
+      try {
+        const data = await getChatMessages(selectedChatId);
+        if (isMounted) {
+          setChatMessagesData(data.contents || []);
+        }
+      } catch (err) {
+        console.error('채팅 메시지 조회 실패:', err);
+      }
+    };
+
+    void loadMessages();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedChatId]);
+
+  const displaySessions = chatSessions.filter((session) => {
+    if (chatTab === 'archive' && chatCategory === 'assistant') {
+      const typeMap: Record<string, string> = {
+        daily: 'DAILY',
+        study: 'STUDY',
+        counsel: 'COUNSEL',
+      };
+      return assistantFilters.some((f) => typeMap[f] === session.assistantType);
+    }
+    return true;
+  });
+
   interface MenuItem {
     id: string;
-    icon?: React.ElementType;
+    icon: React.ElementType<{ className?: string }>;
     label?: string;
     path?: string;
     hasTertiary?: boolean;
@@ -424,21 +499,19 @@ export default function Sidebar({
                     <input
                       type="text"
                       placeholder="Search"
-                      value={searchQuery}
+                      value={searchTerm}
                       onChange={(e) => {
-                        const nextQuery = e.target.value;
-                        setSearchQuery(nextQuery);
-                        onSearch(nextQuery);
+                        setSearchTerm(e.target.value);
+                        onSearch(e.target.value);
                       }}
-                      className="w-full bg-[#e5e0dc] rounded-xl py-3 pl-12 pr-10 text-lg font-medium text-gray-800 placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all"
+                      className="w-full bg-[#e5e0dc] rounded-xl py-3 pl-12 pr-10 text-lg font-medium text-gray-800 placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all shadow-inner"
                     />
                     <button
-                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-300 rounded-full p-0.5 hover:bg-gray-400 transition-colors"
                       onClick={() => {
-                        setSearchQuery('');
+                        setSearchTerm('');
                         onSearch('');
                       }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-300 rounded-full p-0.5"
                     >
                       <X className="w-4 h-4 text-white" />
                     </button>
@@ -509,35 +582,66 @@ export default function Sidebar({
                   {!searchQuery.trim() && (
                   <div>
                     <div className="flex items-center justify-between mb-6">
-                      <h4 className="text-lg font-black text-gray-800">최근 검색 항목</h4>
-                      <button
-                        onClick={() => setRecentSearches([])}
-                        className="text-sm font-black text-rose-500 hover:text-rose-600"
-                      >
-                        모두 지우기
-                      </button>
+                      <h4 className="text-lg font-black text-gray-800">검색 결과</h4>
                     </div>
                     <div className="space-y-4">
-                      {recentSearches.map((s, idx) => (
-                        <div key={idx} className="flex items-center gap-4 group/searchItem">
-                          <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
-                            <img
-                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`}
-                              alt={s.id}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-bold text-gray-800">{s.id}</p>
-                            <p className="text-sm text-gray-500">{s.name}</p>
-                          </div>
-                          <button className="p-1 hover:bg-gray-100 rounded-full transition-all">
-                            <X className="w-5 h-5 text-gray-300" />
-                          </button>
+                      {isSearchLoading ? (
+                        <div className="flex-1 flex items-center justify-center py-20 text-rose-500 animate-pulse font-bold text-sm">
+                          검색 중...
                         </div>
-                      ))}
-                      {recentSearches.length === 0 && (
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((user) => (
+                          <div
+                            key={user.id}
+                            className="flex items-center gap-4 group/searchItem p-2 rounded-2xl hover:bg-black/5 transition-all"
+                          >
+                            <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5 shrink-0">
+                              <img
+                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
+                                alt={user.name}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-gray-800 truncate">{user.name}</p>
+                              <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                            </div>
+                            <div>
+                              {user.followStatus === 'NONE' ? (
+                                <button
+                                  onClick={() => requestFollow(user.id, user.name)}
+                                  className="px-3 py-1.5 bg-rose-500 text-white text-[11px] font-black rounded-xl hover:bg-rose-600 transition-colors shadow-sm whitespace-nowrap"
+                                >
+                                  추가
+                                </button>
+                              ) : user.followStatus === 'REQUESTED' ? (
+                                <button
+                                  disabled
+                                  className="px-3 py-1.5 bg-gray-200 text-gray-500 text-[11px] font-black rounded-xl cursor-not-allowed whitespace-nowrap"
+                                >
+                                  요청됨
+                                </button>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="px-3 py-1.5 bg-rose-50/50 text-rose-500 text-[11px] font-black rounded-xl cursor-not-allowed whitespace-nowrap"
+                                >
+                                  친구
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : searchTerm.trim() !== '' ? (
                         <div className="flex-1 flex items-center justify-center py-20">
-                          <p className="text-gray-400 font-bold text-sm">최근 검색 내역 없음.</p>
+                          <p className="text-gray-400 font-bold text-sm">
+                            해당 사용자를 찾을 수 없습니다.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center py-20">
+                          <p className="text-gray-400 font-bold text-sm">
+                            닉네임 또는 이메일로 검색해보세요.
+                          </p>
                         </div>
                       )}
                     </div>
@@ -583,6 +687,23 @@ export default function Sidebar({
                           <p className="text-[11px] text-gray-400 font-bold mt-1 tracking-tight uppercase italic">
                             {alarm.time}
                           </p>
+                          {alarm.type === 'follow' && alarm.payload?.followRequestId && (
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAccept(
+                                    alarm.payload?.followRequestId,
+                                    alarm.payload?.senderName || '사용자',
+                                  );
+                                  onRemoveAlarm(alarm.id);
+                                }}
+                                className="px-3 py-1.5 bg-rose-500 text-white text-[11px] font-black rounded-xl hover:bg-rose-600 transition-colors shadow-sm"
+                              >
+                                수락
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <button
                           onClick={() => onRemoveAlarm(alarm.id)}
@@ -826,54 +947,56 @@ export default function Sidebar({
                           <div className="flex-1 overflow-y-auto pt-2">
                             <h4 className="text-sm font-black text-gray-800 mb-4 px-10">메시지</h4>
                             <div className="flex flex-col">
-                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => {
-                                const isAiVsAi = i % 2 === 0;
-                                const isActive = selectedChatId === i;
-                                return (
-                                  <div
-                                    key={i}
-                                    onClick={() => setSelectedChatId(i)}
-                                    className={`
+                              {displaySessions.length === 0 && !isChatLoading && (
+                                <div className="py-10 text-center text-sm font-bold opacity-40 text-gray-500 uppercase">
+                                  대화 내역이 없습니다
+                                </div>
+                              )}
+                              {isChatLoading && (
+                                <div className="py-10 text-center text-sm font-bold text-rose-500 animate-pulse">
+                                  불러오는 중...
+                                </div>
+                              )}
+                              {!isChatLoading &&
+                                displaySessions.map((session) => {
+                                  const isActive = selectedChatId === session.id;
+                                  return (
+                                    <div
+                                      key={session.id}
+                                      onClick={() => setSelectedChatId(session.id)}
+                                      className={`
                                       flex items-center gap-4 px-10 py-5 cursor-pointer transition-all border-l-4
                                       ${isActive ? 'bg-black/5 border-rose-500 shadow-inner' : 'border-transparent hover:bg-black/5'}
                                     `}
-                                  >
-                                    <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 bg-white border border-gray-100 shadow-sm">
-                                      <img
-                                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${chatCategory === 'assistant' ? 'AI' : isAiVsAi ? 'BothAI' : 'Person'}${i}`}
-                                        alt="profile"
-                                      />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex justify-between items-center pr-2">
-                                        <p className="font-extrabold text-gray-900 text-[15px] truncate">
-                                          {i === 1
-                                            ? '배지연님'
-                                            : i === 2
-                                              ? '박서연님'
-                                              : `사용자 ${i}`}
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-2 h-2 rounded-full bg-blue-600 shadow-sm" />
-                                          <button className="p-1 hover:bg-gray-200 rounded-full">
-                                            <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                                          </button>
-                                        </div>
+                                    >
+                                      <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 bg-white border border-gray-100 shadow-sm">
+                                        <img
+                                          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session.id}`}
+                                          alt="profile"
+                                        />
                                       </div>
-                                      <p className="text-sm text-gray-600 font-bold truncate mt-0.5">
-                                        {i === 1
-                                          ? '배지연 sent an attachment.'
-                                          : i === 2
-                                            ? '3 new messages'
-                                            : '최근 대화 내용이 표시됩니다.'}
-                                        <span className="text-gray-400 ml-1">
-                                          · {i === 1 ? '1분' : i + '분'}
-                                        </span>
-                                      </p>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-center pr-2">
+                                          <p className="font-extrabold text-gray-900 text-[15px] truncate">
+                                            {session.title || '새로운 대화'}
+                                          </p>
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-blue-600 shadow-sm" />
+                                            <button className="p-1 hover:bg-gray-200 rounded-full">
+                                              <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <p className="text-sm text-gray-600 font-bold truncate mt-0.5">
+                                          메시지 {session.messageCount}개
+                                          <span className="text-gray-400 ml-1">
+                                            · {new Date(session.lastMessageAt).toLocaleDateString()}
+                                          </span>
+                                        </p>
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
                             </div>
                           </div>
                         </div>
@@ -885,21 +1008,42 @@ export default function Sidebar({
                       <h4 className="text-sm font-black text-gray-400 mb-4 px-2 tracking-widest uppercase">
                         방문자 기록
                       </h4>
-                      {[1, 2, 3, 4].map((i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-4 p-4 bg-white/40 rounded-[24px] border border-white/50 hover:bg-white/60 transition-all cursor-pointer shadow-sm"
-                        >
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-green-100 to-teal-100 shadow-inner" />
-                          <div className="flex-1">
-                            <p className="font-black text-gray-800 text-sm">친구 {i}님</p>
-                            <p className="text-xs text-gray-500 mt-1 truncate">
-                              내 AI와 재미있는 이야기를 나누고 감...
-                            </p>
-                          </div>
-                          <span className="text-[10px] text-gray-400 font-bold">{i}시간 전</span>
+                      {displaySessions.length === 0 && !isChatLoading && (
+                        <div className="py-10 text-center text-sm font-bold opacity-40 text-gray-500 uppercase">
+                          방문자 기록이 없습니다
                         </div>
-                      ))}
+                      )}
+                      {isChatLoading && (
+                        <div className="py-10 text-center text-sm font-bold text-rose-500 animate-pulse">
+                          불러오는 중...
+                        </div>
+                      )}
+                      {!isChatLoading &&
+                        displaySessions.map((session) => (
+                          <div
+                            key={session.id}
+                            className="flex items-center gap-4 p-4 bg-white/40 rounded-[24px] border border-white/50 hover:bg-white/60 transition-all cursor-pointer shadow-sm"
+                            onClick={() => setSelectedChatId(session.id)}
+                          >
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-green-100 to-teal-100 shadow-inner overflow-hidden">
+                              <img
+                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session.userId}`}
+                                alt="visitor"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-black text-gray-800 text-sm">
+                                {session.title || '알 수 없는 방문자'}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1 truncate">
+                                내 AI와 이야기를 나누었습니다.
+                              </p>
+                            </div>
+                            <span className="text-[10px] text-gray-400 font-bold">
+                              {new Date(session.startedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        ))}
                     </div>
                   )}
                 </div>
@@ -947,43 +1091,67 @@ export default function Sidebar({
               </div>
             ) : (
               /* Chat History View */
-              <div className="flex-1 flex flex-col p-12 gap-12 max-w-5xl mx-auto w-full">
-                {/* AI Side (Left Top) */}
-                <div className="flex gap-6 items-start">
-                  <div className="shrink-0 flex flex-col items-center gap-2">
-                    <div className="w-24 h-24 rounded-2xl bg-[#eee5df] shadow-lg border border-white/50 overflow-hidden">
-                      <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Jerry" alt="Jerry" />
-                    </div>
-                    <span className="text-lg font-black text-gray-900">Jerry</span>
+              <div className="flex-1 flex flex-col gap-20 overflow-y-auto w-full pt-10">
+                {chatMessagesData.length === 0 && !isChatLoading ? (
+                  <div className="py-20 text-center font-bold text-gray-400 uppercase tracking-widest text-sm opacity-50">
+                    메시지 내역이 없습니다.
                   </div>
-                  <div className="pt-8 flex flex-col gap-2">
-                    <h2 className="text-4xl font-black text-gray-900 max-w-xl leading-snug">
-                      싸비스와 <span className="text-rose-500">대화하</span>는 시간을
-                      <br />
-                      <span className="text-gray-200">가져보아요</span>
-                    </h2>
+                ) : isChatLoading && chatMessagesData.length === 0 ? (
+                  <div className="py-20 text-center font-bold text-rose-500 uppercase tracking-widest text-sm opacity-50 animate-pulse">
+                    메시지를 불러오는 중...
                   </div>
-                </div>
-
-                {/* User Side (Right Bottom) */}
-                <div className="mt-20 flex gap-6 items-end justify-end self-end">
-                  <div className="pb-8 text-right">
-                    <h2 className="text-4xl font-black text-gray-900 max-w-xl leading-snug">
-                      제리야 <span className="text-rose-500">밥은 먹</span>었니 내 말에
-                      <br />
-                      <span className="text-gray-200">먼저 대답해줘</span>
-                    </h2>
-                  </div>
-                  <div className="shrink-0 flex flex-col items-center gap-2">
-                    <div className="w-24 h-24 rounded-2xl bg-black shadow-2xl relative overflow-hidden">
-                      <img
-                        src="https://api.dicebear.com/7.x/avataaars/svg?seed=Seoyoung"
-                        alt="Seoyoung"
-                      />
-                    </div>
-                    <span className="text-lg font-black text-gray-900">Seoyoung</span>
-                  </div>
-                </div>
+                ) : (
+                  chatMessagesData.map((msg, idx) => {
+                    const isAi = msg.speakerType === 'AVATAR' || msg.speakerType === 'AI';
+                    return isAi ? (
+                      <div
+                        key={msg.id || idx}
+                        className="flex gap-6 items-start self-start max-w-[85%]"
+                      >
+                        <div className="shrink-0 flex flex-col items-center gap-2">
+                          <div className="w-24 h-24 rounded-2xl bg-[#eee5df] shadow-lg border border-white/50 overflow-hidden">
+                            <img
+                              src={`https://api.dicebear.com/7.x/bottts/svg?seed=${msg.assistantId}`}
+                              alt="AI"
+                            />
+                          </div>
+                          <span className="text-sm font-black text-gray-500 mt-1">AI</span>
+                        </div>
+                        <div className="pt-2 flex flex-col gap-2">
+                          <h2 className="text-3xl font-black text-gray-900 leading-snug break-keep bg-black/5 p-6 rounded-[2.5rem] rounded-tl-sm border border-black/5 shadow-sm">
+                            {msg.text}
+                          </h2>
+                          <span className="text-xs font-bold text-gray-400 pl-2">
+                            {new Date(msg.createdAt).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        key={msg.id || idx}
+                        className="flex gap-6 items-start self-end max-w-[85%] flex-row-reverse"
+                      >
+                        <div className="shrink-0 flex flex-col items-center gap-2">
+                          <div className="w-24 h-24 rounded-2xl bg-black shadow-2xl relative overflow-hidden">
+                            <img
+                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.userId}`}
+                              alt="User"
+                            />
+                          </div>
+                          <span className="text-sm font-black text-gray-800 mt-1">You</span>
+                        </div>
+                        <div className="pt-2 flex flex-col gap-2 text-right">
+                          <h2 className="text-3xl font-black text-white bg-rose-500 p-6 rounded-[2.5rem] rounded-tr-sm leading-snug break-keep shadow-lg">
+                            {msg.text}
+                          </h2>
+                          <span className="text-xs font-bold text-gray-400 pr-2">
+                            {new Date(msg.createdAt).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
           </motion.div>
