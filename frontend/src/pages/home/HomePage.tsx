@@ -30,6 +30,7 @@ import authApi from '../../apis/authApi';
 export default function HomePage() {
   const navigate = useNavigate();
   const { userInfo, logout: logoutStore } = useUserStore();
+  const currentUserId = userInfo?.id ?? null;
 
   // --- Custom Hooks ---
   const { isMicOn, mouthOpenRadius, faceType, toggleMic } = useAICharacter();
