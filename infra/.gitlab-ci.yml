@@ -300,11 +300,11 @@ build_and_scan_backend:
     - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true -v "$CI_PROJECT_DIR:/work" -w /work docker.io/aquasec/trivy:0.63.0 image --format template --template "@infra/trivy/html.tpl" -o backend-image-report.html "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
     - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true docker.io/aquasec/trivy:0.63.0 image --exit-code 1 --severity HIGH,CRITICAL "$DOCKERHUB_USERNAME/ssarvis-backend:$CI_COMMIT_SHA"
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
-      changes:
-        - infra/.gitlab-ci.yml
-        - backend/**/*
-      when: on_success
+    # - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
+    #   changes:
+    #     - infra/.gitlab-ci.yml
+    #     - backend/**/*
+    #   when: on_success
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
       when: on_success
     - when: never
@@ -325,12 +325,12 @@ build_and_scan_web:
     - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true -v "$CI_PROJECT_DIR:/work" -w /work docker.io/aquasec/trivy:0.63.0 image --format template --template "@infra/trivy/html.tpl" -o web-image-report.html "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
     - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true docker.io/aquasec/trivy:0.63.0 image --exit-code 1 --severity HIGH,CRITICAL "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
-      changes:
-        - infra/.gitlab-ci.yml
-        - frontend/**/*
-        - infra/nginx/**/*
-      when: on_success
+    # - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
+    #   changes:
+    #     - infra/.gitlab-ci.yml
+    #     - frontend/**/*
+    #     - infra/nginx/**/*
+    #   when: on_success
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
       when: on_success
     - when: never
@@ -353,11 +353,11 @@ build_and_scan_ai:
     - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true -v "$CI_PROJECT_DIR:/work" -w /work docker.io/aquasec/trivy:0.63.0 image --format template --template "@infra/trivy/html.tpl" -o ai-image-report.html "$DOCKERHUB_USERNAME/ssarvis-ai:$CI_COMMIT_SHA"
     - docker run --rm -e TRIVY_USERNAME="$DOCKERHUB_USERNAME" -e TRIVY_PASSWORD="$DOCKERHUB_TOKEN" -e TRIVY_NO_PROGRESS=true docker.io/aquasec/trivy:0.63.0 image --exit-code 1 --severity "$TRIVY_FAIL_SEVERITY" "$DOCKERHUB_USERNAME/ssarvis-ai:$CI_COMMIT_SHA"
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
-      changes:
-        - infra/.gitlab-ci.yml
-        - ai/**/*
-      when: on_success
+    # - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"'
+    #   changes:
+    #     - infra/.gitlab-ci.yml
+    #     - ai/**/*
+    #   when: on_success
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
       when: on_success
     - when: never
