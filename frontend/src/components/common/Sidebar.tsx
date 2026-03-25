@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -60,6 +60,15 @@ interface SidebarProps {
   viewCount?: number;
 }
 
+type RecentSearchItem = {
+  id: number;
+  name: string;
+  subtitle: string;
+};
+
+const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
+const RECENT_SEARCH_LIMIT = 5;
+
 export default function Sidebar({
   onLogout,
   onMyCardClick,
@@ -91,7 +100,18 @@ export default function Sidebar({
   >(null);
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(RECENT_SEARCHES_KEY);
+      if (!saved) return [];
+
+      const parsed = JSON.parse(saved) as RecentSearchItem[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Chat Archive States
   const [chatTab, setChatTab] = useState<'archive' | 'guestbook'>('archive');
@@ -254,6 +274,47 @@ export default function Sidebar({
     },
     { id: 'logout', icon: LogOut, label: '로그아웃', action: onLogout, color: 'text-stone-400' },
   ];
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches));
+    } catch {
+      // Ignore localStorage errors and keep in-memory recent searches.
+    }
+  }, [recentSearches]);
+
+  const persistRecentSearches = (items: RecentSearchItem[]) => {
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(items));
+    } catch {
+      // Ignore localStorage errors and keep in-memory recent searches.
+    }
+  };
+
+  const addRecentSearch = (user: RecentSearchItem) => {
+    setRecentSearches((prev) => {
+      const next = [user, ...prev.filter((item) => item.id !== user.id)].slice(
+        0,
+        RECENT_SEARCH_LIMIT,
+      );
+      persistRecentSearches(next);
+      return next;
+    });
+  };
+
+  const removeRecentSearch = (id: number) => {
+    setRecentSearches((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      persistRecentSearches(next);
+      return next;
+    });
+  };
+
+  const handleRecentSearchClick = (item: RecentSearchItem) => {
+    setSearchQuery(item.name);
+    onSearch(item.name);
+  };
+
   const handleItemClick = (item: MenuItem) => {
     if (item.path) {
       setActiveTertiary(null);
@@ -499,9 +560,9 @@ export default function Sidebar({
                     <input
                       type="text"
                       placeholder="Search"
-                      value={searchTerm}
+                      value={searchQuery}
                       onChange={(e) => {
-                        setSearchTerm(e.target.value);
+                        setSearchQuery(e.target.value);
                         onSearch(e.target.value);
                       }}
                       className="w-full bg-[#e5e0dc] rounded-xl py-3 pl-12 pr-10 text-lg font-medium text-gray-800 placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all shadow-inner"
@@ -545,7 +606,14 @@ export default function Sidebar({
                               <div className="flex shrink-0 items-center gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => onVisit(user.id)}
+                                  onClick={() => {
+                                    addRecentSearch({
+                                      id: user.id,
+                                      name: user.name,
+                                      subtitle: user.email,
+                                    });
+                                    onVisit(user.id);
+                                  }}
                                   className="rounded-lg bg-white/70 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-white"
                                 >
                                   Visit
@@ -561,7 +629,14 @@ export default function Sidebar({
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => onRequest(user.id, user.name)}
+                                    onClick={() => {
+                                      addRecentSearch({
+                                        id: user.id,
+                                        name: user.name,
+                                        subtitle: user.email,
+                                      });
+                                      onRequest(user.id, user.name);
+                                    }}
                                     className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-rose-600"
                                   >
                                     Add
@@ -582,12 +657,42 @@ export default function Sidebar({
                   {!searchQuery.trim() && (
                   <div>
                     <div className="flex items-center justify-between mb-6">
-                      <h4 className="text-lg font-black text-gray-800">검색 결과</h4>
+                      <h4 className="text-lg font-black text-gray-800">최근 검색 항목</h4>
+                      <button
+                        onClick={() => {
+                          setRecentSearches([]);
+                          persistRecentSearches([]);
+                        }}
+                        className="text-sm font-black text-rose-500 hover:text-rose-600"
+                      >
+                        모두 지우기
+                      </button>
                     </div>
                     <div className="space-y-4">
-                      {isSearchLoading ? (
-                        <div className="flex-1 flex items-center justify-center py-20 text-rose-500 animate-pulse font-bold text-sm">
-                          검색 중...
+                      {recentSearches.map((s) => (
+                        <div key={s.id} className="flex items-center gap-4 group/searchItem">
+                          <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
+                            <img
+                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`}
+                              alt={s.name}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRecentSearchClick(s)}
+                            className="flex-1 text-left"
+                          >
+                            <p className="font-bold text-gray-800">{s.name}</p>
+                            <p className="text-sm text-gray-500">{s.subtitle}</p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeRecentSearch(s.id)}
+                            className="p-1 hover:bg-gray-100 rounded-full transition-all"
+                          >
+                            <X className="w-5 h-5 text-gray-300" />
+                          </button>
+1e73a5319f96131efa00b210585b72344c812cfb
                         </div>
                       ) : searchResults.length > 0 ? (
                         searchResults.map((user) => (
@@ -631,7 +736,7 @@ export default function Sidebar({
                             </div>
                           </div>
                         ))
-                      ) : searchTerm.trim() !== '' ? (
+                      ) : searchQuery.trim() !== '' ? (
                         <div className="flex-1 flex items-center justify-center py-20">
                           <p className="text-gray-400 font-bold text-sm">
                             해당 사용자를 찾을 수 없습니다.
@@ -1160,3 +1265,4 @@ export default function Sidebar({
     </div>
   );
 }
+
