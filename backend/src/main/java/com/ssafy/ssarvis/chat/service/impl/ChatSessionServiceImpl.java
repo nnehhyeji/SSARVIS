@@ -25,6 +25,11 @@ import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,6 +39,8 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     private final ChatSessionRepository chatSessionRepository;
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
+
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public ChatSessionResponseDto getOrCreateSession(ChatSessionCreateRequestDto chatSessionCreateRequestDto) {
@@ -54,10 +61,14 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     @Override
     public ChatSessionResponseDto createNewSession(ChatSessionCreateRequestDto chatSessionCreateRequestDto) {
         LocalDateTime now = LocalDateTime.now();
-
+        User targetUser = userRepository.findById(chatSessionCreateRequestDto.targetUserId()).orElseThrow(
+            () -> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND)
+        );
         ChatSessionDocument chatSessionDocument = ChatSessionDocument.create(
             chatSessionCreateRequestDto.userId(),
-            chatSessionCreateRequestDto.targetUserId(),
+            targetUser.getId(),
+            targetUser.getCustomId(),
+            targetUser.getProfileImageUrl(),
             chatSessionCreateRequestDto.assistantId(),
             chatSessionCreateRequestDto.assistantType(),
             chatSessionCreateRequestDto.chatSessionType(),
@@ -171,6 +182,21 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 );
             })
             .toList();
+    }
+
+    @Async
+    @Override
+    public void updateChatSessionTargetUsers(Long targetUserId, String newTargetUserProfileImageUrl) {
+        Query query = new Query(Criteria.where("targetUserId").is(targetUserId));
+
+        Update update = new Update();
+        if (newTargetUserProfileImageUrl != null) {
+            update.set("target_user_profile_image_url", newTargetUserProfileImageUrl);
+        }
+
+        if (!update.getUpdateObject().isEmpty()) {
+            mongoTemplate.updateMulti(query, update, ChatSessionDocument.class);
+        }
     }
 
 

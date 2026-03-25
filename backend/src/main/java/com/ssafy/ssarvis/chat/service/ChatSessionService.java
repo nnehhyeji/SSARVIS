@@ -33,4 +33,5 @@ public interface ChatSessionService {
 
     List<TopChatterResponseDto> getTopChattingFriends(Long myUserId);
 
+    void updateChatSessionTargetUsers(Long targetUserId, String newTargetUserProfileImageUrl);
 }
