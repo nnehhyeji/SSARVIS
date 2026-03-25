@@ -9,7 +9,7 @@ import java.util.Optional;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface ChatSessionRepository extends MongoRepository<ChatSessionDocument, String> {
+public interface ChatSessionRepository extends MongoRepository<ChatSessionDocument, String>, ChatSessionCustomRepository{
 
     Optional<ChatSessionDocument> findByUserIdAndAssistantTypeAndMemoryPolicyAndChatSessionStatus(
         Long userId,
@@ -27,5 +27,6 @@ public interface ChatSessionRepository extends MongoRepository<ChatSessionDocume
     );
 
     List<ChatSessionDocument> findByTargetUserIdAndUserIdIn(Long targetUserId, List<Long> friendUserIds);
+
 
 }
