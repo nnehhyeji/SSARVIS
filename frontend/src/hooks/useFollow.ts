@@ -31,7 +31,8 @@ export function useFollow() {
           id: f.userId,
           followId: f.followId,
           name: f.nickname || '이름없음',
-          email: f.description || '',
+          email: '',
+          description: f.description || '',
           color: 'bg-indigo-100',
           profileExp: '^-^',
           view_count: 0,
@@ -211,6 +212,7 @@ export function useFollow() {
               followId: undefined, // 검색 결과에는 followId가 없을 수 있음
               name: u.nickname,
               email: u.email,
+              description: '',
               color: 'bg-gray-200',
               profileExp: 'o_o',
               view_count: 0,
