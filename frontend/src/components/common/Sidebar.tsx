@@ -606,17 +606,6 @@ export default function Sidebar({
 
               {activeTertiary === 'friends' && (
                 <div className="flex flex-col h-full bg-[#eee5df]">
-                  {/* Header */}
-                  <div className="flex justify-between items-center px-8 mb-6 mt-4">
-                    <h2 className="text-2xl font-black text-gray-600">팔로우 목록</h2>
-                    <button
-                      onClick={() => setActiveTertiary(null)}
-                      className="p-2 hover:bg-black/5 rounded-full transition-colors"
-                    >
-                      <X className="w-6 h-6 text-gray-400" />
-                    </button>
-                  </div>
-
                   {friendView === 'main' ? (
                     <>
                       {/* Requests Link */}
