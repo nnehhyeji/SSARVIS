@@ -1,5 +1,6 @@
 package com.ssafy.ssarvis.user.entity;
 
+import com.ssafy.ssarvis.common.entity.BaseTime;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -10,7 +11,7 @@ import lombok.*;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "evaluations")
-public class Evaluation {
+public class Evaluation extends BaseTime {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
