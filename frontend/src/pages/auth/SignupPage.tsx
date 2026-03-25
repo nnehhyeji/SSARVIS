@@ -95,9 +95,10 @@ export default function SignupPage() {
 
       const profile = await userApi.getUserProfile();
       login({
-        id: profile.userId,
+        id: profile.id,
         email: profile.email,
         nickname: profile.nickname,
+        customId: profile.customId,
       });
 
       alert(response.message || '회원가입이 완료되었습니다!');

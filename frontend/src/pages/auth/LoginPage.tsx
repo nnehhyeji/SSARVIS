@@ -26,9 +26,10 @@ export default function LoginPage() {
       // 토큰이 유효한지 프로필 조회를 통해 확인
       const profile = await userApi.getUserProfile();
       login({
-        id: profile.userId,
+        id: profile.id,
         email: profile.email,
         nickname: profile.nickname,
+        customId: profile.customId,
       });
       navigate(PATHS.HOME);
     } catch (error) {
@@ -86,9 +87,10 @@ export default function LoginPage() {
 
       // 4. Store 업데이트
       login({
-        id: profile.userId,
+        id: profile.id,
         email: profile.email,
         nickname: profile.nickname,
+        customId: profile.customId,
       });
 
       navigate(PATHS.HOME);

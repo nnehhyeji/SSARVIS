@@ -48,13 +48,23 @@ export interface SignupRequest {
 }
 
 export interface UserResponse {
-  id?: number;
-  userId: number;
+  id: number;
   email: string;
   nickname: string;
+  customId: string;
   description: string;
-  costume: number;
+  userProfileImageUrl: string;
+  isVoiceLockActive: boolean;
+  isAcceptPrompt: boolean;
+  isProfilePublic: boolean;
   viewCount: number;
+  voiceLockTimeout: number;
+}
+
+export interface UpdateUserRequest {
+  password?: string;
+  nickname?: string;
+  description?: string;
 }
 
 // --- API Functions ---
@@ -113,12 +123,39 @@ const userApi = {
   // 8. 유저 정보 조회
   getUserProfile: async () => {
     const response = await axiosInstance.get<CommonResponse<UserResponse>>('/users');
-    const profile = response.data.data;
-    return {
-      ...profile,
-      userId: profile.userId ?? profile.id ?? 0,
-      viewCount: profile.viewCount ?? 0,
-    };
+    return response.data.data;
+  },
+
+  // 9. 유저 정보 수정
+  updateUserProfile: async (data: UpdateUserRequest) => {
+    const response = await axiosInstance.patch<CommonResponse<{ userId: number }>>('/users', data);
+    return response.data;
+  },
+
+  // 10. 프로필 이미지 수정
+  updateProfileImage: async (formData: FormData) => {
+    const response = await axiosInstance.patch<CommonResponse<string>>(
+      '/users/profile-image',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
+    return response.data;
+  },
+
+  // 11. 남나 문답 여부 토글
+  toggleNamna: async () => {
+    const response = await axiosInstance.get<CommonResponse<string>>('/users/namna/toggle');
+    return response.data;
+  },
+
+  // 12. 공개/비공개 계정 전환 토글
+  toggleProfileVisibility: async () => {
+    const response = await axiosInstance.get<CommonResponse<string>>('/users/profile/toggle');
+    return response.data;
   },
 };
 

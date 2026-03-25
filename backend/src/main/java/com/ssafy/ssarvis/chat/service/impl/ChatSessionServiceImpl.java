@@ -78,7 +78,21 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     @Override
     public ChatSessionResponseDto createNewSession(ChatSessionCreateRequestDto chatSessionCreateRequestDto) {
         LocalDateTime now = LocalDateTime.now();
-        User targetUser = userRepository.findById(chatSessionCreateRequestDto.targetUserId()).orElseThrow(
+
+        Long actualTargetUserId;
+
+        if (chatSessionCreateRequestDto.chatSessionType() == ChatSessionType.USER_AI) {
+            // USER_AI일 때는 타겟 아이디 == 나 자신(userId)
+            actualTargetUserId = chatSessionCreateRequestDto.userId();
+        } else {
+            // AVATAR_AI 또는 AI_AI 인데 타겟이 null로 들어오면 에러
+            if (chatSessionCreateRequestDto.targetUserId() == null) {
+                throw new CustomException("타겟 유저 아이디가 누락되었습니다.", ErrorCode.INVALID_PARAMETER);
+            }
+            actualTargetUserId = chatSessionCreateRequestDto.targetUserId();
+        }
+
+        User targetUser = userRepository.findById(actualTargetUserId).orElseThrow(
             () -> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND)
         );
         ChatSessionDocument chatSessionDocument = ChatSessionDocument.create(

@@ -212,7 +212,7 @@ export default function HomePage() {
                     assistantType,
                     isLockMode ? 'SECRET' : 'GENERAL',
                     'USER_AI',
-                    null,
+                    currentUserId,
                   );
                 } else {
                   stopRecordingAndSendSTT();
@@ -279,7 +279,7 @@ export default function HomePage() {
                   : currentMode.toUpperCase();
             const memoryPolicy = isLockMode ? 'SECRET' : 'GENERAL';
 
-            sendMessage(chatInput, null, assistantType, memoryPolicy, 'USER_AI', null);
+            sendMessage(chatInput, null, assistantType, memoryPolicy, 'USER_AI', currentUserId);
           }}
           onClose={() => setIsChatHistoryOpen(false)}
         />

@@ -6,6 +6,7 @@ interface UserInfo {
   id: number | null;
   email: string | null;
   nickname: string | null;
+  customId: string | null;
 }
 
 interface UserState {
