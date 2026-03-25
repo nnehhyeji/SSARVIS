@@ -47,7 +47,7 @@ public class ChatSessionDocument {
     // DAILY, STUDY, COUNSEL, PERSONA
     private AssistantType assistantType;
 
-    // USER_AI, AVATAR_AI
+    // USER_AI, AVATAR_AI, AI_AI
     private ChatSessionType chatSessionType;
 
     private String title;

@@ -1,7 +1,9 @@
 package com.ssafy.ssarvis.chat.service.impl;
 
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.chat.document.ChatSessionDocument;
 import com.ssafy.ssarvis.chat.domain.ChatSessionStatus;
+import com.ssafy.ssarvis.chat.domain.ChatSessionType;
 import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
 import com.ssafy.ssarvis.chat.dto.request.ChatSessionCreateRequestDto;
 import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
@@ -22,6 +24,7 @@ import com.ssafy.ssarvis.follow.repository.FollowRepository;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -76,6 +79,18 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     public ListResponseDto<ChatSessionResponseDto> findByUserId(Long userId) {
         return ListResponseDto.from(
             chatSessionRepository.findByUserIdOrTargetUserIdOrderByLastMessageAtDesc(userId, userId)
+                .stream()
+                .map(ChatSessionResponseDto::from)
+                .toList()
+        );
+    }
+
+    @Override
+    public ListResponseDto<ChatSessionResponseDto> getUserSessionsList(Long userId, String type,
+        AssistantType assistantType, ChatSessionType chatSessionType, Pageable pageable) {
+        return ListResponseDto.from(
+            chatSessionRepository
+                .findDynamicSessionsByType(userId, type, assistantType, chatSessionType, pageable)
                 .stream()
                 .map(ChatSessionResponseDto::from)
                 .toList()
