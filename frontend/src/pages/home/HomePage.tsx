@@ -13,14 +13,11 @@ import { useUserStore } from '../../store/useUserStore';
 
 // Components
 import AnimatedBackground from '../../components/AnimatedBackground';
-import Header from '../../components/common/Header';
+import Sidebar from '../../components/common/Sidebar';
 import SpeechBubble from '../../components/common/SpeechBubble';
 import CharacterScene from '../../components/features/character/CharacterScene';
 import ChatWindow from '../../components/features/chat/ChatWindow';
-import FollowSidebar from '../../components/features/follow/FollowSidebar';
 import MyCardModal from '../../components/features/follow/MyCardModal';
-import UserMenuModal from '../../components/features/user/UserMenuModal';
-import ModePanel from '../../components/features/assistant/ModePanel';
 import SharePersonaModal from '../../components/features/follow/SharePersonaModal';
 
 // Constants & Types
@@ -28,14 +25,14 @@ import { BG_COLORS, LOCK_MODE_PALETTE } from '../../constants/theme';
 import type { Alarm, Mode } from '../../types';
 
 import { PATHS } from '../../routes/paths';
+import authApi from '../../apis/authApi';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { userInfo } = useUserStore();
-  const currentUserId = userInfo?.id ?? null;
+  const { userInfo, logout: logoutStore } = useUserStore();
 
   // --- Custom Hooks ---
-  const { isMicOn, mouthOpenRadius, faceType, toggleMic, changeFace } = useAICharacter();
+  const { isMicOn, mouthOpenRadius, faceType, toggleMic } = useAICharacter();
 
   const {
     chatInput,
@@ -56,14 +53,13 @@ export default function HomePage() {
     followRequests,
     searchResults,
     isSearchLoading,
-    requestFollow,
     deleteFollow,
     acceptRequest,
     rejectRequest,
     handleSearch,
   } = useFollow();
 
-  const { alarms, readAlarm, readAllAlarms, removeAllAlarms } = useNotification();
+  const { alarms, readAlarm, readAllAlarms, removeAllAlarms, removeAlarm } = useNotification();
 
   // 가장 최근 작성된 AI의 메시지를 SpeechBubble용으로 추출
   const lastAiMessage = useMemo(() => {
@@ -77,16 +73,10 @@ export default function HomePage() {
 
   // --- Local States ---
   const [currentMode, setCurrentMode] = useState<Mode>('normal');
-  const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
-  const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
   const [isSharePersonaOpen, setIsSharePersonaOpen] = useState(false);
   const [myViewCount, setMyViewCount] = useState(0);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
-  const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
-    'following',
-  );
 
   useEffect(() => {
     let isMounted = true;
@@ -115,11 +105,6 @@ export default function HomePage() {
   const handleAlarmClick = useCallback(
     (alarm: Alarm) => {
       readAlarm(alarm.id);
-      if (alarm.type === 'follow') {
-        setIsAlarmModalOpen(false);
-        setSidebarView('requests');
-        setIsUsersModalOpen(true);
-      }
     },
     [readAlarm],
   );
@@ -132,10 +117,22 @@ export default function HomePage() {
   const handleVisit = useCallback(
     (id: number) => {
       navigate(PATHS.VISIT(id));
-      setIsUsersModalOpen(false);
     },
     [navigate],
   );
+
+  const handleLogout = async () => {
+    if (window.confirm('로그아웃 하시겠습니까?')) {
+      try {
+        await authApi.logout();
+        logoutStore();
+        navigate(PATHS.LOGIN);
+      } catch {
+        logoutStore();
+        navigate(PATHS.LOGIN);
+      }
+    }
+  };
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
@@ -166,19 +163,27 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      <Header
+      <Sidebar
+        userInfo={userInfo}
+        onLogout={handleLogout}
+        onMyCardClick={() => setIsMyCardModalOpen(true)}
+        currentMode={currentMode}
+        onModeChange={(m) => setCurrentMode(m)}
         alarms={alarms}
-        isAlarmModalOpen={isAlarmModalOpen}
-        onToggleAlarm={() => setIsAlarmModalOpen(!isAlarmModalOpen)}
+        onAlarmClick={handleAlarmClick}
         onReadAllAlarms={readAllAlarms}
         onDeleteAllAlarms={removeAllAlarms}
-        onAlarmClick={handleAlarmClick}
-        onMyCardClick={() => setIsMyCardModalOpen(true)}
-        isVisitorMode={false}
-        onLeaveVisitor={() => {}}
+        onRemoveAlarm={removeAlarm}
+        follows={follows}
+        followRequests={followRequests}
+        onSearch={handleSearch}
+        onVisit={handleVisit}
+        onAccept={acceptRequest}
+        onReject={rejectRequest}
+        onDelete={deleteFollow}
+        searchResults={searchResults}
+        isSearchLoading={isSearchLoading}
         viewCount={myViewCount}
-        onUsersClick={() => setIsUserMenuOpen(true)}
-        onSharePersonaClick={() => setIsSharePersonaOpen(true)}
       />
 
       <main className="flex-1 flex items-center justify-center relative w-full h-full z-10">
@@ -289,46 +294,6 @@ export default function HomePage() {
         </button>
       </main>
 
-      <ModePanel
-        currentMode={currentMode}
-        isVisitorMode={false}
-        isInteractionModalOpen={false}
-        isDualAiMode={false}
-        onToggleInteraction={() => {}}
-        onModeChange={(m) => setCurrentMode(m)}
-        onChangeFace={changeFace}
-        onStartDualAi={() => {}}
-        onStopDualAi={() => {}}
-      />
-
-      <FollowSidebar
-        isOpen={isUsersModalOpen}
-        view={sidebarView}
-        onViewChange={setSidebarView}
-        follows={follows}
-        requests={followRequests}
-        searchResults={searchResults}
-        isSearchLoading={isSearchLoading}
-        onSearch={handleSearch}
-        visitedId={null}
-        isVisitorMode={false}
-        onVisit={(id) => {
-          if (typeof id === 'number') handleVisit(id);
-        }}
-        onDelete={deleteFollow}
-        onRequest={requestFollow}
-        onAccept={acceptRequest}
-        onReject={rejectRequest}
-        onClose={() => {
-          setIsUsersModalOpen(false);
-          setSidebarView('following');
-        }}
-        onToggle={() => {
-          if (isUsersModalOpen) setSidebarView('following');
-          setIsUsersModalOpen(!isUsersModalOpen);
-        }}
-      />
-
       <MyCardModal
         isOpen={isMyCardModalOpen}
         onClose={() => setIsMyCardModalOpen(false)}
@@ -340,15 +305,6 @@ export default function HomePage() {
       />
 
       <SharePersonaModal isOpen={isSharePersonaOpen} onClose={() => setIsSharePersonaOpen(false)} />
-
-      <UserMenuModal
-        isOpen={isUserMenuOpen}
-        onClose={() => setIsUserMenuOpen(false)}
-        user={{
-          name: userInfo?.nickname || '회원',
-          email: userInfo?.email || '이메일 정보 없음',
-        }}
-      />
     </div>
   );
 }
