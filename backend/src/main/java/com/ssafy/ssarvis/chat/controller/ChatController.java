@@ -1,6 +1,8 @@
 package com.ssafy.ssarvis.chat.controller;
 
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
+import com.ssafy.ssarvis.chat.domain.ChatSessionType;
 import com.ssafy.ssarvis.chat.dto.response.ChatMessageResponseDto;
 import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
 import com.ssafy.ssarvis.chat.service.ChatMessageService;
@@ -9,6 +11,9 @@ import com.ssafy.ssarvis.common.dto.BaseResponse;
 import com.ssafy.ssarvis.common.dto.ListResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,17 +31,21 @@ public class ChatController {
     private final ChatSessionService chatSessionService;
     private final ChatMessageService chatMessageService;
 
-    @GetMapping
+    @GetMapping("/sessions")
     public ResponseEntity<BaseResponse<ListResponseDto<ChatSessionResponseDto>>> getChatSessions(
-        @AuthenticationPrincipal CustomUserDetails customUserDetails
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @RequestParam String type,
+        @RequestParam(required = false) AssistantType assistantType,
+        @RequestParam(required = false) ChatSessionType chatSessionType,
+        @PageableDefault(size = 20, sort = "lastMessageAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Long userId = customUserDetails.getUserId();
-        ListResponseDto<ChatSessionResponseDto> chatSessionList = chatSessionService.findByUserId(userId);
+        ListResponseDto<ChatSessionResponseDto> chatSessionList = chatSessionService.getUserSessionsList(userId, type, assistantType, chatSessionType, pageable);
 
         return ResponseEntity.ok(BaseResponse.success("채팅 내역 리스트 조회 성공", chatSessionList));
     }
 
-    @GetMapping("/{sessionId}/messages")
+    @GetMapping("sessions/{sessionId}/messages")
     public ResponseEntity<BaseResponse<ListResponseDto<ChatMessageResponseDto>>> getChatMessages(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,
         @PathVariable String sessionId,

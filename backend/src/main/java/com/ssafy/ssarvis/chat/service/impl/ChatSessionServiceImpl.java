@@ -1,7 +1,9 @@
 package com.ssafy.ssarvis.chat.service.impl;
 
+import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.chat.document.ChatSessionDocument;
 import com.ssafy.ssarvis.chat.domain.ChatSessionStatus;
+import com.ssafy.ssarvis.chat.domain.ChatSessionType;
 import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
 import com.ssafy.ssarvis.chat.dto.request.ChatSessionCreateRequestDto;
 import com.ssafy.ssarvis.chat.dto.response.ChatSessionResponseDto;
@@ -22,6 +24,12 @@ import com.ssafy.ssarvis.follow.repository.FollowRepository;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,6 +39,8 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     private final ChatSessionRepository chatSessionRepository;
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
+
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public ChatSessionResponseDto getOrCreateSession(ChatSessionCreateRequestDto chatSessionCreateRequestDto) {
@@ -45,16 +55,37 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 .orElseGet(() -> createNewSession(chatSessionCreateRequestDto));
         }
 
+        boolean isMyPersonalAssistant =
+                chatSessionCreateRequestDto.chatSessionType() == ChatSessionType.USER_AI && // 유저가 AI에게 말을 거는 것이며
+                chatSessionCreateRequestDto.assistantType() != AssistantType.PERSONA; // 페르소나가 아닐 때 (즉, DAILY/STUDY/COUNSEL)
+
+        if (isMyPersonalAssistant) {
+            // 기존 내 개인비서(DAILY, STUDY, COUNSEL 등) 전용 SECRET 방을 찾아서 종료시킴
+            chatSessionRepository.findByUserIdAndAssistantTypeAndMemoryPolicyAndChatSessionStatus(
+                chatSessionCreateRequestDto.userId(),
+                chatSessionCreateRequestDto.assistantType(),
+                MemoryPolicy.SECRET,
+                ChatSessionStatus.ACTIVE
+            ).ifPresent(oldSecretSession -> {
+                oldSecretSession.end();
+                chatSessionRepository.save(oldSecretSession);
+            });
+        }
+
         return createNewSession(chatSessionCreateRequestDto);
     }
 
     @Override
     public ChatSessionResponseDto createNewSession(ChatSessionCreateRequestDto chatSessionCreateRequestDto) {
         LocalDateTime now = LocalDateTime.now();
-
+        User targetUser = userRepository.findById(chatSessionCreateRequestDto.targetUserId()).orElseThrow(
+            () -> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND)
+        );
         ChatSessionDocument chatSessionDocument = ChatSessionDocument.create(
             chatSessionCreateRequestDto.userId(),
-            chatSessionCreateRequestDto.targetUserId(),
+            targetUser.getId(),
+            targetUser.getCustomId(),
+            targetUser.getProfileImageUrl(),
             chatSessionCreateRequestDto.assistantId(),
             chatSessionCreateRequestDto.assistantType(),
             chatSessionCreateRequestDto.chatSessionType(),
@@ -76,6 +107,18 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     public ListResponseDto<ChatSessionResponseDto> findByUserId(Long userId) {
         return ListResponseDto.from(
             chatSessionRepository.findByUserIdOrTargetUserIdOrderByLastMessageAtDesc(userId, userId)
+                .stream()
+                .map(ChatSessionResponseDto::from)
+                .toList()
+        );
+    }
+
+    @Override
+    public ListResponseDto<ChatSessionResponseDto> getUserSessionsList(Long userId, String type,
+        AssistantType assistantType, ChatSessionType chatSessionType, Pageable pageable) {
+        return ListResponseDto.from(
+            chatSessionRepository
+                .findDynamicSessionsByType(userId, type, assistantType, chatSessionType, pageable)
                 .stream()
                 .map(ChatSessionResponseDto::from)
                 .toList()
@@ -156,6 +199,21 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 );
             })
             .toList();
+    }
+
+    @Async
+    @Override
+    public void updateChatSessionTargetUsers(Long targetUserId, String newTargetUserProfileImageUrl) {
+        Query query = new Query(Criteria.where("targetUserId").is(targetUserId));
+
+        Update update = new Update();
+        if (newTargetUserProfileImageUrl != null) {
+            update.set("target_user_profile_image_url", newTargetUserProfileImageUrl);
+        }
+
+        if (!update.getUpdateObject().isEmpty()) {
+            mongoTemplate.updateMulti(query, update, ChatSessionDocument.class);
+        }
     }
 
 
