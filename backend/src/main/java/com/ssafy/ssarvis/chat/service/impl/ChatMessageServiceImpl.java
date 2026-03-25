@@ -1,7 +1,5 @@
 package com.ssafy.ssarvis.chat.service.impl;
 
-import static com.ssafy.ssarvis.common.exception.ErrorCode.UNAUTHORIZED;
-
 import com.ssafy.ssarvis.chat.document.ChatMessageDocument;
 import com.ssafy.ssarvis.chat.document.ChatSessionDocument;
 import com.ssafy.ssarvis.chat.domain.AudioMeta;
@@ -54,7 +52,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         // 유저 메시지 저장
         ChatMessageDocument savedDocument = chatMessageRepository.save(chatMessageDocument);
         // 대화 개수 증가 + 세션 연장
-        chatSessionService.increaseMessageCount(chatSessionDocument.getId());
+        chatSessionService.maintainSession(chatSessionDocument.getId(), chatUserMessageCreateRequestDto.text());
 
         return ChatMessageResponseDto.from(savedDocument);
     }
@@ -76,7 +74,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         // AI 메시지 저장
         ChatMessageDocument savedDocument = chatMessageRepository.save(chatMessageDocument);
         // 대화 개수 증가 + 세션 연장
-        chatSessionService.increaseMessageCount(chatSessionDocument.getId());
+        chatSessionService.maintainSession(chatSessionDocument.getId(), text);
 
         return ChatMessageResponseDto.from(savedDocument);
     }
@@ -119,9 +117,8 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         ChatSessionDocument sessionDocument = chatSessionRepository.findById(sessionId).orElseThrow(
             () -> new CustomException("존재하지 않는 채팅 세션입니다.", ErrorCode.CHAT_SESSION_NOT_FOUND));
 
-//        if (!sessionDocument.getUserId().equals(userId)) {
-//
-//        }
+        validateSessionOwner(sessionDocument, userId);
+
         // Cursor Pagination 분기 처리
         if (!StringUtils.hasText(lastOffsetId)) {
             // 첫 조회
@@ -149,9 +146,12 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             .orElseThrow(() -> new CustomException("채팅 메세지를 찾을 수 없습니다. messageId=" + messageId, ErrorCode.CHAT_MESSAGE_NOT_FOUND));
     }
 
-    private void validateSessionOwner(ChatSessionDocument chatSessionDocument, Long userId) {
-        if (!chatSessionDocument.getUserId().equals(userId)) {
-            throw new CustomException("요청인이 다릅니다.", UNAUTHORIZED);
+    private void validateSessionOwner(ChatSessionDocument chatSessionDocument, Long requestUserId) {
+        boolean isSender = chatSessionDocument.getUserId().equals(requestUserId);
+        boolean isAvatarOwner = chatSessionDocument.getTargetUserId().equals(requestUserId);
+
+        if (!isSender && !isAvatarOwner) {
+            throw new CustomException("접근 권한이 없습니다. 대화 당사자나 아바타 소유주만 열람할 수 있습니다.", ErrorCode.UNAUTHORIZED);
         }
     }
 }

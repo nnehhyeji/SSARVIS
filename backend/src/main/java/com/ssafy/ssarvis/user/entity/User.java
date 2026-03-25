@@ -38,6 +38,9 @@ public class User extends BaseTime {
     private String nickname;
 
     @NotNull
+    private String customId;
+
+    @NotNull
     @Builder.Default
     private String description = "안녕하세요";
 
@@ -62,7 +65,6 @@ public class User extends BaseTime {
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
-    @NotNull
     @Column(name = "costume")
     @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
@@ -82,11 +84,12 @@ public class User extends BaseTime {
     @Builder.Default
     private Long voiceLockTimeout = 1800L;
 
-    public static User create(String email, String password, String nickname) {
+    public static User create(String email, String password, String nickname, String customId) {
         return User.builder()
             .email(email)
             .password(password)
             .nickname(nickname)
+            .customId(customId)
             .build();
     }
 
@@ -94,7 +97,7 @@ public class User extends BaseTime {
         this.profileImageUrl = profileImageUrl;
     }
 
-    public void update(String password, String nickname, String description, Costume costume, String voicePassword) {
+    public void update(String password, String nickname, String description, Costume costume, String voicePassword, String customId) {
         if (password != null) this.password = password;
         if (nickname != null) this.nickname = nickname;
         if (description != null) this.description = description;
@@ -103,6 +106,7 @@ public class User extends BaseTime {
             this.isVoiceLockActive = true;
             this.voicePassword = voicePassword;
         }
+        if(customId != null) this.customId = customId;
     }
 
     public void deleteUser() {

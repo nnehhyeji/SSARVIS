@@ -16,6 +16,7 @@ public record UserUpdateRequestDto(
     @Size(max = 255, message = "한줄소개는 255자 이하로 입력해야 합니다.")
     String description,
     Costume costume,
-    String voicePassword
+    String voicePassword,
+    String customId
 ) {
 }

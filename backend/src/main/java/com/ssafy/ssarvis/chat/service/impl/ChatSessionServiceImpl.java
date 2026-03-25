@@ -75,7 +75,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     @Override
     public ListResponseDto<ChatSessionResponseDto> findByUserId(Long userId) {
         return ListResponseDto.from(
-            chatSessionRepository.findByUserIdOrderByLastMessageAtDesc(userId)
+            chatSessionRepository.findByUserIdOrTargetUserIdOrderByLastMessageAtDesc(userId, userId)
                 .stream()
                 .map(ChatSessionResponseDto::from)
                 .toList()
@@ -99,11 +99,11 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     }
 
     @Override
-    public void increaseMessageCount(String sessionId) {
+    public void maintainSession(String sessionId, String text) {
         ChatSessionDocument session = getSession(sessionId);
         LocalDateTime now = LocalDateTime.now();
 
-        session.increaseMessageCount(now, calculateExpiredAt(session.getMemoryPolicy(), now));
+        session.updateSessionState(now, calculateExpiredAt(session.getMemoryPolicy(), now), text);
         chatSessionRepository.save(session);
     }
 

@@ -28,6 +28,9 @@ public class S3Uploader {
     @Value("${spring.cloud.aws.region.static}")
     private String region;
 
+    @Value("${spring.app.s3.cloudfront-domain}")
+    private String cloudFrontDomain;
+
     public String upload(MultipartFile file, String directory) {
         String fileName = directory + "/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
 
@@ -42,9 +45,10 @@ public class S3Uploader {
             s3Client.putObject(putObjectRequest,
                 RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            String s3Url = "https://" + bucket + ".s3." + region + ".amazonaws.com/" + fileName;
-            log.info("S3 업로드 성공 - url: {}", s3Url);
-            return s3Url;
+            // 2. S3 직접 주소 대신 CloudFront URL 반환
+            String cloudFrontUrl = buildCloudFrontUrl(fileName);
+            log.info("S3 업로드 성공 (CloudFront 적용) - url: {}", cloudFrontUrl);
+            return cloudFrontUrl;
 
         } catch (IOException e) {
             log.error("S3 업로드 실패 - fileName: {}", fileName, e);
@@ -52,6 +56,7 @@ public class S3Uploader {
         }
     }
 
+    // uploadFile 메서드도 동일하게 수정
     public String uploadFile(File file, String directory, String contentType) {
         String fileName = directory + "/" + UUID.randomUUID() + "_" + file.getName();
 
@@ -63,14 +68,11 @@ public class S3Uploader {
                 .contentLength(file.length())
                 .build();
 
-            s3Client.putObject(
-                putObjectRequest,
-                RequestBody.fromInputStream(fis, file.length())
-            );
+            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(fis, file.length()));
 
-            String s3Url = buildS3Url(fileName);
-            log.info("S3 파일 업로드 성공 - url: {}", s3Url);
-            return s3Url;
+            String cloudFrontUrl = buildCloudFrontUrl(fileName);
+            log.info("S3 파일 업로드 성공 (CloudFront 적용) - url: {}", cloudFrontUrl);
+            return cloudFrontUrl;
 
         } catch (IOException e) {
             log.error("S3 파일 업로드 실패 - fileName: {}", fileName, e);
@@ -78,17 +80,34 @@ public class S3Uploader {
         }
     }
 
-    public void delete(String s3Url) {
-        String key = s3Url.substring(s3Url.indexOf(".amazonaws.com/") + ".amazonaws.com/".length());
+    // 3. 삭제 로직 수정: URL에서 도메인 부분을 제거하고 'Key'만 추출하도록 변경
+    public void delete(String url) {
+        if (url == null || url.isEmpty()) return;
+
+        // CloudFront 주소든 S3 주소든 마지막 '/' 이후가 아닌, 도메인 이후의 경로를 가져와야 함
+        String key = extractKey(url);
+
         s3Client.deleteObject(DeleteObjectRequest.builder()
             .bucket(bucket)
             .key(key)
             .build());
-        log.info("S3 삭제 성공 - key: {}", key);
+        log.info("S3 객체 삭제 성공 - key: {}", key);
     }
 
-    private String buildS3Url(String key) {
-        return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + key;
+    // 4. 헬퍼 메서드 추가
+    private String buildCloudFrontUrl(String key) {
+        return cloudFrontDomain + "/" + key;
     }
 
+    private String extractKey(String url) {
+        // CloudFront 도메인을 포함하고 있다면 해당 부분 제거
+        if (url.contains(cloudFrontDomain)) {
+            return url.replace(cloudFrontDomain + "/", "");
+        }
+        // 혹시 남아있을 구형 S3 URL 처리
+        if (url.contains(".amazonaws.com/")) {
+            return url.substring(url.indexOf(".amazonaws.com/") + ".amazonaws.com/".length());
+        }
+        return url;
+    }
 }

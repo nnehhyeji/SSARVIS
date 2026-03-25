@@ -17,6 +17,7 @@ class ChatRole(StrEnum):
 class ChatSessionType(StrEnum):
     USER_AI = "USER_AI"
     AVATAR_AI = "AVATAR_AI"
+    AI_AI = "AI_AI"
 
 
 class ChatMode(StrEnum):

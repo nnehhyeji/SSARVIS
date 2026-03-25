@@ -19,7 +19,7 @@ public interface ChatSessionRepository extends MongoRepository<ChatSessionDocume
     );
 
 
-    List<ChatSessionDocument> findByUserIdOrderByLastMessageAtDesc(Long userId);
+    List<ChatSessionDocument> findByUserIdOrTargetUserIdOrderByLastMessageAtDesc(Long userId, Long targetUserId);
 
     List<ChatSessionDocument> findByUserIdAndAssistantTypeOrderByLastMessageAtDesc(
         Long userId,

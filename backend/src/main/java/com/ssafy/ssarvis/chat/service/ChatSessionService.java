@@ -21,7 +21,7 @@ public interface ChatSessionService {
 
     void touchSession(String sessionId);
 
-    void increaseMessageCount(String sessionId);
+    void maintainSession(String sessionId, String text);
 
     void timeoutSession(String sessionId);
 

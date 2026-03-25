@@ -8,11 +8,13 @@ from app.domains.chat.schema import (
     ChatContext,
     ChatHistoryItem,
     ChatRequest,
+    ChatSessionType,
     MemoryPolicy,
     SimilarChatItem,
 )
 from app.infra.openai import OpenAIClient
 from app.prompts import (
+    AI_AI_DISCUSSION_PROMPT,
     PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
     RESPONSE_GUIDELINE_PROMPT,
     SIMILAR_CONVERSATIONS_PREFIX,
@@ -48,9 +50,11 @@ class ChatContextBuilder:
     def build_messages(
         self,
         context: ChatContext,
+        chat_session_type: ChatSessionType | None = None,
         similar_conversations_prefix: str | None = None,
         response_guideline_prompt: str | None = None,
         public_conversation_guideline_prompt: str | None = None,
+        ai_ai_discussion_prompt: str | None = None,
     ) -> list[dict[str, str]]:
         messages: list[dict[str, str]] = [
             {"role": "system", "content": context.system_prompt}
@@ -70,6 +74,12 @@ class ChatContextBuilder:
             messages.append(
                 {"role": "system", "content": public_conversation_guideline_prompt}
             )
+
+        if (
+            chat_session_type == ChatSessionType.AI_AI
+            and ai_ai_discussion_prompt
+        ):
+            messages.append({"role": "system", "content": ai_ai_discussion_prompt})
 
         if response_guideline_prompt:
             messages.append({"role": "system", "content": response_guideline_prompt})
@@ -128,6 +138,7 @@ class ChatService:
         similar_conversations_prefix: str = SIMILAR_CONVERSATIONS_PREFIX,
         response_guideline_prompt: str = RESPONSE_GUIDELINE_PROMPT,
         public_conversation_guideline_prompt: str = PUBLIC_CONVERSATION_GUIDELINE_PROMPT,
+        ai_ai_discussion_prompt: str = AI_AI_DISCUSSION_PROMPT,
     ) -> None:
         self.chat_repository = chat_repository
         self.openai_client = openai_client
@@ -135,6 +146,7 @@ class ChatService:
         self.similar_conversations_prefix = similar_conversations_prefix
         self.response_guideline_prompt = response_guideline_prompt
         self.public_conversation_guideline_prompt = public_conversation_guideline_prompt
+        self.ai_ai_discussion_prompt = ai_ai_discussion_prompt
 
     async def prepare_chat(self, request: ChatRequest) -> ChatPreparation:
         query_vector = await self.openai_client.embed(
@@ -158,6 +170,7 @@ class ChatService:
         )
         messages = self.context_builder.build_messages(
             context=context,
+            chat_session_type=request.chatSessionType,
             similar_conversations_prefix=self.similar_conversations_prefix,
             response_guideline_prompt=self.response_guideline_prompt,
             public_conversation_guideline_prompt=(
@@ -165,6 +178,7 @@ class ChatService:
                 if not request.isFollowing
                 else None
             ),
+            ai_ai_discussion_prompt=self.ai_ai_discussion_prompt,
         )
         return ChatPreparation(
             context=context,
