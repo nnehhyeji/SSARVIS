@@ -654,8 +654,8 @@ export default function Sidebar({
                                 <p className="font-black text-[17px] text-gray-800 leading-tight truncate">
                                   {f.name}
                                 </p>
-                                <p className="text-[11px] text-gray-400 font-bold tracking-tight mt-0.5">
-                                  상태메시지가 표시됩니다.
+                                <p className="text-[11px] text-gray-400 font-bold tracking-tight mt-0.5 truncate">
+                                  {f.description || '??? ????? ??????.'}
                                 </p>
                               </div>
                               <X

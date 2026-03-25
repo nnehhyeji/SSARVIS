@@ -183,7 +183,8 @@ export default function FollowSidebar({
                   const lowerQuery = searchQuery.toLowerCase();
                   return (
                     f.name.toLowerCase().includes(lowerQuery) ||
-                    f.email.toLowerCase().includes(lowerQuery)
+                    f.email.toLowerCase().includes(lowerQuery) ||
+                    (f.description ?? '').toLowerCase().includes(lowerQuery)
                   );
                 })
                 .map((f) => (
@@ -201,7 +202,9 @@ export default function FollowSidebar({
                         <span className="text-gray-800 font-bold text-sm leading-tight">
                           {f.name}
                         </span>
-                        <span className="text-gray-500 text-[10px] leading-tight">{f.email}</span>
+                            <span className="text-gray-500 text-[10px] leading-tight">
+                              {f.description || f.email}
+                            </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
