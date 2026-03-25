@@ -9,11 +9,13 @@ import com.ssafy.ssarvis.user.dto.request.UserUpdateRequestDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
 import com.ssafy.ssarvis.user.entity.User;
+import com.ssafy.ssarvis.user.event.UserProfileImageUpdateEvent;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.user.service.UserService;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -37,6 +39,8 @@ public class UserServiceImpl implements UserService {
 
     private final JavaMailSender mailSender; // 메일 발송용
     private final StringRedisTemplate redisTemplate; // Redis 활용
+
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     @Override
@@ -96,13 +100,24 @@ public class UserServiceImpl implements UserService {
         // 3. DB에 업데이트 및 반환
         user.updateProfileImage(cloudFrontUrl);
 
+        applicationEventPublisher.publishEvent(
+            new UserProfileImageUpdateEvent(user.getId(), user.getProfileImageUrl())
+        );
+
         return cloudFrontUrl;
     }
 
     @Override
     public void sendVerificationEmail(String email) {
         if (isAlreadyExistsEmail(email)) {
-            throw new CustomException("이미 존재하는 이메일입니다.", ErrorCode.EMAIL_ALREADY_EXISTS);
+
+            User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND));
+            if (user.getWithdrawStatus()) {
+                throw new CustomException("탈퇴한 사용자입니다. 관리자에게 문의해주세요.", ErrorCode.USER_WITHDRAW);
+            }else{
+                throw new CustomException("이미 존재하는 이메일입니다.", ErrorCode.EMAIL_ALREADY_EXISTS);
+            }
         }
 
         String code = String.format("%06d", new Random().nextInt(1000000));
