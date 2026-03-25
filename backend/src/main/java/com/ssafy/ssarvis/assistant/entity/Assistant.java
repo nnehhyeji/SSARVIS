@@ -43,7 +43,7 @@ public class Assistant {
     @NotNull
     @JoinColumn(name = "voice_id")
     @ManyToOne(fetch = FetchType.LAZY)
-    private Voice voice;
+    private Voice   voice;
 
     @NotNull
     @JoinColumn(name = "user_id")
