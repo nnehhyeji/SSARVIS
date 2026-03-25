@@ -57,6 +57,7 @@ export default function HomePage() {
     acceptRequest,
     rejectRequest,
     handleSearch,
+    requestFollow,
   } = useFollow();
 
   const { alarms, readAlarm, readAllAlarms, removeAllAlarms, removeAlarm } = useNotification();
@@ -183,6 +184,7 @@ export default function HomePage() {
         onDelete={deleteFollow}
         searchResults={searchResults}
         isSearchLoading={isSearchLoading}
+        requestFollow={requestFollow}
         viewCount={myViewCount}
       />
 
