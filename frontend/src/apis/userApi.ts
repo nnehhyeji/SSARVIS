@@ -48,13 +48,21 @@ export interface SignupRequest {
 }
 
 export interface UserResponse {
-  id?: number;
-  userId: number;
+  id: number;
   email: string;
   nickname: string;
+  customId: string;
   description: string;
-  costume: number;
+  isVoiceLockActive: boolean;
+  isAcceptPrompt: boolean;
   viewCount: number;
+  voiceLockTimeout: number;
+}
+
+export interface UpdateUserRequest {
+  password?: string;
+  nickname?: string;
+  description?: string;
 }
 
 // --- API Functions ---
@@ -113,12 +121,16 @@ const userApi = {
   // 8. 유저 정보 조회
   getUserProfile: async () => {
     const response = await axiosInstance.get<CommonResponse<UserResponse>>('/users');
-    const profile = response.data.data;
-    return {
-      ...profile,
-      userId: profile.userId ?? profile.id ?? 0,
-      viewCount: profile.viewCount ?? 0,
-    };
+    return response.data.data;
+  },
+
+  // 9. 유저 정보 수정
+  updateUserProfile: async (data: UpdateUserRequest) => {
+    const response = await axiosInstance.patch<CommonResponse<{ userId: number }>>(
+      '/users', 
+      data
+    );
+    return response.data;
   },
 };
 
