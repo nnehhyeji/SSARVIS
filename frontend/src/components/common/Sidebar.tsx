@@ -45,6 +45,7 @@ interface SidebarProps {
   follows: Follow[];
   followRequests: FollowRequest[];
   onSearch: (nickname: string) => void;
+  onRequest: (id: number, name: string) => void;
   onVisit: (id: number) => void;
   onAccept: (id: number, name: string) => void;
   onReject: (id: number) => void;
@@ -68,10 +69,14 @@ export default function Sidebar({
   onRemoveAlarm,
   follows,
   followRequests,
+  onSearch,
+  onRequest,
   onVisit,
   onAccept,
   onReject,
   onDelete,
+  searchResults,
+  isSearchLoading,
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,6 +86,7 @@ export default function Sidebar({
   >(null);
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
+  const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState([
     { id: 'seoyoung', name: '임서영' },
     { id: 'nnah', name: '냥혜' },
@@ -418,12 +424,89 @@ export default function Sidebar({
                     <input
                       type="text"
                       placeholder="Search"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        const nextQuery = e.target.value;
+                        setSearchQuery(nextQuery);
+                        onSearch(nextQuery);
+                      }}
                       className="w-full bg-[#e5e0dc] rounded-xl py-3 pl-12 pr-10 text-lg font-medium text-gray-800 placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all"
                     />
-                    <button className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-300 rounded-full p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        onSearch('');
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-300 rounded-full p-0.5"
+                    >
                       <X className="w-4 h-4 text-white" />
                     </button>
                   </div>
+                  {searchQuery.trim() && (
+                    <div className="flex-1 overflow-y-auto">
+                      <div className="mb-6 flex items-center justify-between">
+                        <h4 className="text-lg font-black text-gray-800">Search Results</h4>
+                      </div>
+                      <div className="space-y-4">
+                        {isSearchLoading ? (
+                          <div className="flex items-center justify-center py-20">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500" />
+                          </div>
+                        ) : (
+                          searchResults.map((user) => (
+                            <div
+                              key={user.id}
+                              className="flex items-center gap-4 rounded-2xl border border-white/50 bg-white/40 px-4 py-3 shadow-sm"
+                            >
+                              <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
+                                <img
+                                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
+                                  alt={user.name}
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-bold text-gray-800">{user.name}</p>
+                                <p className="truncate text-sm text-gray-500">{user.email}</p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => onVisit(user.id)}
+                                  className="rounded-lg bg-white/70 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-white"
+                                >
+                                  Visit
+                                </button>
+                                {user.followStatus === 'REQUESTED' ? (
+                                  <span className="rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600">
+                                    Requested
+                                  </span>
+                                ) : user.followStatus === 'FOLLOWING' || user.isFollowing ? (
+                                  <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                                    Following
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => onRequest(user.id, user.name)}
+                                    className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-rose-600"
+                                  >
+                                    Add
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                        {!isSearchLoading && searchResults.length === 0 && (
+                          <div className="flex items-center justify-center py-20">
+                            <p className="text-sm font-bold text-gray-400">No matching users.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {!searchQuery.trim() && (
                   <div>
                     <div className="flex items-center justify-between mb-6">
                       <h4 className="text-lg font-black text-gray-800">최근 검색 항목</h4>
@@ -459,6 +542,7 @@ export default function Sidebar({
                       )}
                     </div>
                   </div>
+                  )}
                 </div>
               )}
 

@@ -53,6 +53,7 @@ export default function HomePage() {
     followRequests,
     searchResults,
     isSearchLoading,
+    requestFollow,
     deleteFollow,
     acceptRequest,
     rejectRequest,
@@ -177,6 +178,7 @@ export default function HomePage() {
         follows={follows}
         followRequests={followRequests}
         onSearch={handleSearch}
+        onRequest={requestFollow}
         onVisit={handleVisit}
         onAccept={acceptRequest}
         onReject={rejectRequest}
