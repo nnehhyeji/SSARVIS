@@ -24,7 +24,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @CompoundIndexes({
     @CompoundIndex(
         name = "user_chat_mode_memory_policy_chat_session_status_idx",
-        def = "{'user_id': 1, 'assistant_type': 1, 'memory_policy': 1, 'chat_session_status': 1}"
+        def = "{'user_id': 1, 'assistant_type': 1, 'memory_policy': 1, 'chat_session_status': 1, 'expired_at': 1}"
     ),
     @CompoundIndex(
         name = "user_mode_last_message_idx",
@@ -47,6 +47,7 @@ public class ChatSessionDocument {
     @Field("target_user_custom_id")
     private String targetUserCustomId;
 
+    @Field("target_user_profile_image_url")
     private String targetUserProfileImageUrl;
 
     @Field("assistant_id")
@@ -58,8 +59,10 @@ public class ChatSessionDocument {
     private AssistantType assistantType;
 
     // USER_AI, AVATAR_AI, AI_AI
+    @Field("chat_session_type")
     private ChatSessionType chatSessionType;
 
+    @Field("title")
     private String title;
 
     // ACTIVE, ENDED

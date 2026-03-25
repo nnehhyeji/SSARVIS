@@ -55,6 +55,23 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 .orElseGet(() -> createNewSession(chatSessionCreateRequestDto));
         }
 
+        boolean isMyPersonalAssistant =
+                chatSessionCreateRequestDto.chatSessionType() == ChatSessionType.USER_AI && // 유저가 AI에게 말을 거는 것이며
+                chatSessionCreateRequestDto.assistantType() != AssistantType.PERSONA; // 페르소나가 아닐 때 (즉, DAILY/STUDY/COUNSEL)
+
+        if (isMyPersonalAssistant) {
+            // 기존 내 개인비서(DAILY, STUDY, COUNSEL 등) 전용 SECRET 방을 찾아서 종료시킴
+            chatSessionRepository.findByUserIdAndAssistantTypeAndMemoryPolicyAndChatSessionStatus(
+                chatSessionCreateRequestDto.userId(),
+                chatSessionCreateRequestDto.assistantType(),
+                MemoryPolicy.SECRET,
+                ChatSessionStatus.ACTIVE
+            ).ifPresent(oldSecretSession -> {
+                oldSecretSession.end();
+                chatSessionRepository.save(oldSecretSession);
+            });
+        }
+
         return createNewSession(chatSessionCreateRequestDto);
     }
 

@@ -28,4 +28,5 @@ public interface ChatSessionRepository extends MongoRepository<ChatSessionDocume
 
     List<ChatSessionDocument> findByTargetUserIdAndUserIdIn(Long targetUserId, List<Long> friendUserIds);
 
+
 }

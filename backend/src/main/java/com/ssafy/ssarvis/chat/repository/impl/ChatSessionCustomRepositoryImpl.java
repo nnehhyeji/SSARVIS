@@ -6,6 +6,7 @@ import com.ssafy.ssarvis.chat.domain.ChatSessionStatus;
 import com.ssafy.ssarvis.chat.domain.ChatSessionType;
 import com.ssafy.ssarvis.chat.domain.MemoryPolicy;
 import com.ssafy.ssarvis.chat.repository.ChatSessionCustomRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,7 @@ public class ChatSessionCustomRepositoryImpl implements ChatSessionCustomReposit
     public List<ChatSessionDocument> findDynamicSessionsByType(Long reqUserId, String type,
         AssistantType assistantType, ChatSessionType chatSessionType, Pageable pageable) {
 
+        LocalDateTime now = LocalDateTime.now();
         Query query = new Query();
         Criteria criteria = new Criteria();
 
@@ -36,7 +38,8 @@ public class ChatSessionCustomRepositoryImpl implements ChatSessionCustomReposit
                     Criteria.where("memory_policy").is(MemoryPolicy.GENERAL),
                     new Criteria().andOperator(
                         Criteria.where("memory_policy").is(MemoryPolicy.SECRET),
-                        Criteria.where("chat_session_status").is(ChatSessionStatus.ACTIVE)
+                        Criteria.where("chat_session_status").is(ChatSessionStatus.ACTIVE),
+                        Criteria.where("expired_at").gt(now)
                     )
                 )
             );
@@ -72,7 +75,7 @@ public class ChatSessionCustomRepositoryImpl implements ChatSessionCustomReposit
             }
 
         } else if ("VISIT".equals(type)) {
-            // 내 방문 (내가 타인의 DAILY AI와 대화한 경우 - 발신, 신규 탭!)
+            // 내 방문 (내가 타인의 DAILY AI와 대화한 경우 - 발신)
             // 발화자가 나이고, 타겟은 타인이어야 함
             criteria.andOperator(
                 Criteria.where("user_id").is(reqUserId),
