@@ -24,6 +24,7 @@ export type Follow = {
   followId?: number;
   name: string;
   email: string;
+  description?: string;
   color: string;
   profileExp: string;
   faceType?: number;

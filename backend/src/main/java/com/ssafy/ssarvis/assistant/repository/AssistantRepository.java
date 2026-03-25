@@ -21,4 +21,5 @@ public interface AssistantRepository extends JpaRepository<Assistant, Long> {
 
     Optional<Assistant> findByUserIdAndAssistantType(Long userId, AssistantType assistantType);
 
+
 }

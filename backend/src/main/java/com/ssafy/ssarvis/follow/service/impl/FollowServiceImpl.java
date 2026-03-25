@@ -12,6 +12,7 @@ import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
 import com.ssafy.ssarvis.follow.dto.response.FollowAiResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
+import com.ssafy.ssarvis.follow.dto.response.FollowerListResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.UserSearchResponseDto;
 import com.ssafy.ssarvis.follow.entity.Follow;
 import com.ssafy.ssarvis.follow.entity.FollowRequest;
@@ -200,6 +201,21 @@ public class FollowServiceImpl implements FollowService {
         }
 
         return FollowAiResponseDto.of(assistant, isAccessible);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FollowerListResponseDto> getFollowerList(Long userId) {
+        List<Follow> followers = followRepository.findAllByFollowingIdWithFollower(userId);
+
+        return followers.stream()
+            .map(follow -> new FollowerListResponseDto(
+                follow.getFollower().getId(),
+                follow.getFollower().getNickname(),
+                follow.getFollower().getCustomId(),
+                follow.getFollower().getProfileImageUrl(),
+                follow.getFollower().getDescription()
+            )).toList();
     }
 
     private FollowStatus resolveFollowStatus(Long myId, Long targetId) {

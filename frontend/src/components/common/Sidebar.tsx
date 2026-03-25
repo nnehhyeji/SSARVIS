@@ -47,6 +47,7 @@ interface SidebarProps {
   follows: Follow[];
   followRequests: FollowRequest[];
   onSearch: (nickname: string) => void;
+  onRequest: (id: number, name: string) => void;
   onVisit: (id: number) => void;
   onAccept: (id: number, name: string) => void;
   onReject: (id: number) => void;
@@ -71,6 +72,8 @@ export default function Sidebar({
   onRemoveAlarm,
   follows,
   followRequests,
+  onSearch,
+  onRequest,
   onVisit,
   onAccept,
   onReject,
@@ -246,7 +249,7 @@ export default function Sidebar({
       id: 'settings',
       icon: Settings,
       label: '설정',
-      path: PATHS.SETTINGS,
+      path: PATHS.SETTINGS_PARAM.replace(':tab', 'account'),
       color: 'text-stone-400',
     },
     { id: 'logout', icon: LogOut, label: '로그아웃', action: onLogout, color: 'text-stone-400' },
@@ -513,6 +516,70 @@ export default function Sidebar({
                       <X className="w-4 h-4 text-white" />
                     </button>
                   </div>
+                  {searchQuery.trim() && (
+                    <div className="flex-1 overflow-y-auto">
+                      <div className="mb-6 flex items-center justify-between">
+                        <h4 className="text-lg font-black text-gray-800">Search Results</h4>
+                      </div>
+                      <div className="space-y-4">
+                        {isSearchLoading ? (
+                          <div className="flex items-center justify-center py-20">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500" />
+                          </div>
+                        ) : (
+                          searchResults.map((user) => (
+                            <div
+                              key={user.id}
+                              className="flex items-center gap-4 rounded-2xl border border-white/50 bg-white/40 px-4 py-3 shadow-sm"
+                            >
+                              <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
+                                <img
+                                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
+                                  alt={user.name}
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-bold text-gray-800">{user.name}</p>
+                                <p className="truncate text-sm text-gray-500">{user.email}</p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => onVisit(user.id)}
+                                  className="rounded-lg bg-white/70 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-white"
+                                >
+                                  Visit
+                                </button>
+                                {user.followStatus === 'REQUESTED' ? (
+                                  <span className="rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600">
+                                    Requested
+                                  </span>
+                                ) : user.followStatus === 'FOLLOWING' || user.isFollowing ? (
+                                  <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                                    Following
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => onRequest(user.id, user.name)}
+                                    className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-rose-600"
+                                  >
+                                    Add
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                        {!isSearchLoading && searchResults.length === 0 && (
+                          <div className="flex items-center justify-center py-20">
+                            <p className="text-sm font-bold text-gray-400">No matching users.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {!searchQuery.trim() && (
                   <div>
                     <div className="flex items-center justify-between mb-6">
                       <h4 className="text-lg font-black text-gray-800">검색 결과</h4>
@@ -579,6 +646,7 @@ export default function Sidebar({
                       )}
                     </div>
                   </div>
+                  )}
                 </div>
               )}
 
@@ -659,17 +727,6 @@ export default function Sidebar({
 
               {activeTertiary === 'friends' && (
                 <div className="flex flex-col h-full bg-[#eee5df]">
-                  {/* Header */}
-                  <div className="flex justify-between items-center px-8 mb-6 mt-4">
-                    <h2 className="text-2xl font-black text-gray-600">팔로우 목록</h2>
-                    <button
-                      onClick={() => setActiveTertiary(null)}
-                      className="p-2 hover:bg-black/5 rounded-full transition-colors"
-                    >
-                      <X className="w-6 h-6 text-gray-400" />
-                    </button>
-                  </div>
-
                   {friendView === 'main' ? (
                     <>
                       {/* Requests Link */}
@@ -701,7 +758,7 @@ export default function Sidebar({
 
                       {/* Lists */}
                       <div className="flex-1 overflow-y-auto w-full px-4 pt-4 space-y-1">
-                        {friendTab === 'following' ? (
+                        {follows.length > 0 ? (
                           follows.map((f) => (
                             <div
                               key={f.id}
@@ -718,17 +775,19 @@ export default function Sidebar({
                                 <p className="font-black text-[17px] text-gray-800 leading-tight truncate">
                                   {f.name}
                                 </p>
-                                <p className="text-[11px] text-gray-400 font-bold tracking-tight mt-0.5">
-                                  상태메시지가 표시됩니다.
+                                <p className="text-[11px] text-gray-400 font-bold tracking-tight mt-0.5 truncate">
+                                  {f.description || '상태 메시지가 없습니다.'}
                                 </p>
                               </div>
-                              <X
-                                className="w-5 h-5 text-gray-300 opacity-0 group-hover/friend:opacity-100 hover:text-rose-500 transition-all shrink-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDelete(f);
-                                }}
-                              />
+                              {f.followId ? (
+                                <X
+                                  className="w-5 h-5 text-gray-300 opacity-0 group-hover/friend:opacity-100 hover:text-rose-500 transition-all shrink-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(f);
+                                  }}
+                                />
+                              ) : null}
                             </div>
                           ))
                         ) : (
