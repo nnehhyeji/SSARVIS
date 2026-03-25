@@ -2,10 +2,7 @@ package com.ssafy.ssarvis.voice.service;
 
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.voice.dto.request.EvaluationPromptRequestDto;
-import com.ssafy.ssarvis.voice.dto.response.EvaluationPromptResponseDto;
-import com.ssafy.ssarvis.voice.dto.response.PromptResponseDto;
-import com.ssafy.ssarvis.voice.dto.response.VoiceInfoResponseDto;
-import com.ssafy.ssarvis.voice.dto.response.VoiceUploadResponseDto;
+import com.ssafy.ssarvis.voice.dto.response.*;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface VoiceService {
@@ -17,4 +14,7 @@ public interface VoiceService {
     EvaluationPromptResponseDto generateSystemPromptEvaluation(CustomUserDetails customUserDetails, Long targetUserId, EvaluationPromptRequestDto evaluationPromptRequestDto);
 
     VoiceInfoResponseDto getVoiceInfo(Long userId);
+
+    EvaluationListResponseDto getEvaluationList(Long userId);
+
 }

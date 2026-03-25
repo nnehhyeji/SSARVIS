@@ -14,4 +14,7 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
     long countByUserAndPromptType(User user, PromptType promptType);
 
     List<Evaluation> findTop5ByUserAndPromptTypeOrderByIdDesc(User user, PromptType promptType);
+
+    List<Evaluation> findByUserAndPromptTypeOrderByCreatedAtAsc(User user, PromptType promptType);
+
 }

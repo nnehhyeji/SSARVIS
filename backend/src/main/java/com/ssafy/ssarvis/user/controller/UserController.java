@@ -69,7 +69,7 @@ public class UserController {
     @PostMapping("/email/verify")
     public ResponseEntity<BaseResponse<Void>> verifyCode(
         @RequestBody UserVerifyRequestDto userVerifyRequestDto
-        ) {
+    ) {
         boolean isVerified = userService.verifyEmailCode(userVerifyRequestDto.email(), userVerifyRequestDto.code());
         if (isVerified) {
             return ResponseEntity.ok(BaseResponse.success("이메일 인증 성공"));

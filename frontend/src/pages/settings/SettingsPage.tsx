@@ -20,6 +20,7 @@ import CharacterScene from '../../components/features/character/CharacterScene';
 import { useAICharacter } from '../../hooks/useAICharacter';
 import { useUserStore } from '../../store/useUserStore';
 import userApi from '../../apis/userApi';
+import type { CommonResponse, UpdateUserRequest, UserResponse } from '../../apis/userApi';
 import authApi from '../../apis/authApi';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
 import VoiceLockRegistrationModal from '../../components/settings/VoiceLockRegistrationModal';
@@ -34,7 +35,7 @@ export default function SettingsPage() {
   const { tab = 'account' } = useParams<{ tab: string }>();
   const navigate = useNavigate();
   const { login, logout } = useUserStore();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserResponse | null>(null);
 
   // Edit states
   const [isEditingNickname, setIsEditingNickname] = useState(false);
@@ -68,7 +69,7 @@ export default function SettingsPage() {
       setProfile(data);
       setNewNickname(data.nickname);
       setNewDescription(data.description || '');
-      
+
       // Store 정보도 최신화
       login({
         id: data.id,
@@ -89,8 +90,8 @@ export default function SettingsPage() {
   const handleUpdateProfile = async (type: 'nickname' | 'description' | 'password') => {
     try {
       setIsSaving(true);
-      const updateData: any = {};
-      
+      const updateData: UpdateUserRequest = {};
+
       if (type === 'nickname') {
         if (newNickname.length < 2) {
           alert('닉네임은 2자 이상이어야 합니다.');
@@ -113,18 +114,21 @@ export default function SettingsPage() {
 
       await userApi.updateUserProfile(updateData);
       alert('변경 사항이 저장되었습니다.');
-      
+
       // 상태 초기화
       setIsEditingNickname(false);
       setIsEditingDescription(false);
       setIsEditingPassword(false);
       setNewPassword('');
       setConfirmPassword('');
-      
+
       // 프로필 다시 불러오기
       loadProfile();
-    } catch (error: any) {
-      alert(error.response?.data?.message || '수정 중 오류가 발생했습니다.');
+    } catch (error: unknown) {
+      const message = axios.isAxiosError<CommonResponse>(error)
+        ? error.response?.data?.message
+        : undefined;
+      alert(message || '?? ? ??? ??????.');
     } finally {
       setIsSaving(false);
     }
@@ -178,7 +182,7 @@ export default function SettingsPage() {
         logout();
         navigate(PATHS.LOGIN);
       } catch (error: unknown) {
-        if (axios.isAxiosError(error)) {
+        if (axios.isAxiosError<CommonResponse>(error)) {
           alert(error.response?.data?.message || '탈퇴 처리 중 오류가 발생했습니다.');
         } else {
           alert('탈퇴 처리 중 알 수 없는 오류가 발생했습니다.');
@@ -213,7 +217,9 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">ID</p>
+            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">
+              ID
+            </p>
             <p className="text-sm font-black text-gray-500">{profile?.customId}</p>
           </div>
         </div>
@@ -335,7 +341,7 @@ export default function SettingsPage() {
                 </button>
               )}
             </div>
-            
+
             <AnimatePresence>
               {isEditingPassword && (
                 <motion.div
