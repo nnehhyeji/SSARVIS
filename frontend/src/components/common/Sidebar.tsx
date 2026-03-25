@@ -174,7 +174,7 @@ export default function Sidebar({
       id: 'settings',
       icon: Settings,
       label: '설정',
-      path: PATHS.SETTINGS,
+      path: PATHS.SETTINGS_PARAM.replace(':tab', 'account'),
       color: 'text-stone-400',
     },
     { id: 'logout', icon: LogOut, label: '로그아웃', action: onLogout, color: 'text-stone-400' },
