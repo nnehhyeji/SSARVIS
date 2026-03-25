@@ -637,7 +637,7 @@ export default function Sidebar({
 
                       {/* Lists */}
                       <div className="flex-1 overflow-y-auto w-full px-4 pt-4 space-y-1">
-                        {friendTab === 'following' ? (
+                        {follows.length > 0 ? (
                           follows.map((f) => (
                             <div
                               key={f.id}
@@ -655,16 +655,18 @@ export default function Sidebar({
                                   {f.name}
                                 </p>
                                 <p className="text-[11px] text-gray-400 font-bold tracking-tight mt-0.5 truncate">
-                                  {f.description || '??? ????? ??????.'}
+                                  {f.description || '상태 메시지가 없습니다.'}
                                 </p>
                               </div>
-                              <X
-                                className="w-5 h-5 text-gray-300 opacity-0 group-hover/friend:opacity-100 hover:text-rose-500 transition-all shrink-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDelete(f);
-                                }}
-                              />
+                              {f.followId ? (
+                                <X
+                                  className="w-5 h-5 text-gray-300 opacity-0 group-hover/friend:opacity-100 hover:text-rose-500 transition-all shrink-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(f);
+                                  }}
+                                />
+                              ) : null}
                             </div>
                           ))
                         ) : (
