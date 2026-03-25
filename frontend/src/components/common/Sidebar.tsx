@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -57,6 +57,15 @@ interface SidebarProps {
   viewCount?: number;
 }
 
+type RecentSearchItem = {
+  id: number;
+  name: string;
+  subtitle: string;
+};
+
+const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
+const RECENT_SEARCH_LIMIT = 5;
+
 export default function Sidebar({
   onLogout,
   onMyCardClick,
@@ -87,11 +96,17 @@ export default function Sidebar({
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
   const [searchQuery, setSearchQuery] = useState('');
-  const [recentSearches, setRecentSearches] = useState([
-    { id: 'seoyoung', name: '임서영' },
-    { id: 'nnah', name: '냥혜' },
-    { id: 'karina', name: 'ae카리나' },
-  ]);
+  const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(RECENT_SEARCHES_KEY);
+      if (!saved) return [];
+
+      const parsed = JSON.parse(saved) as RecentSearchItem[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Chat Archive States
   const [chatTab, setChatTab] = useState<'archive' | 'guestbook'>('archive');
@@ -179,6 +194,47 @@ export default function Sidebar({
     },
     { id: 'logout', icon: LogOut, label: '로그아웃', action: onLogout, color: 'text-stone-400' },
   ];
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches));
+    } catch {
+      // Ignore localStorage errors and keep in-memory recent searches.
+    }
+  }, [recentSearches]);
+
+  const persistRecentSearches = (items: RecentSearchItem[]) => {
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(items));
+    } catch {
+      // Ignore localStorage errors and keep in-memory recent searches.
+    }
+  };
+
+  const addRecentSearch = (user: RecentSearchItem) => {
+    setRecentSearches((prev) => {
+      const next = [user, ...prev.filter((item) => item.id !== user.id)].slice(
+        0,
+        RECENT_SEARCH_LIMIT,
+      );
+      persistRecentSearches(next);
+      return next;
+    });
+  };
+
+  const removeRecentSearch = (id: number) => {
+    setRecentSearches((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      persistRecentSearches(next);
+      return next;
+    });
+  };
+
+  const handleRecentSearchClick = (item: RecentSearchItem) => {
+    setSearchQuery(item.name);
+    onSearch(item.name);
+  };
+
   const handleItemClick = (item: MenuItem) => {
     if (item.path) {
       setActiveTertiary(null);
@@ -472,7 +528,14 @@ export default function Sidebar({
                               <div className="flex shrink-0 items-center gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => onVisit(user.id)}
+                                  onClick={() => {
+                                    addRecentSearch({
+                                      id: user.id,
+                                      name: user.name,
+                                      subtitle: user.email,
+                                    });
+                                    onVisit(user.id);
+                                  }}
                                   className="rounded-lg bg-white/70 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-white"
                                 >
                                   Visit
@@ -488,7 +551,14 @@ export default function Sidebar({
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => onRequest(user.id, user.name)}
+                                    onClick={() => {
+                                      addRecentSearch({
+                                        id: user.id,
+                                        name: user.name,
+                                        subtitle: user.email,
+                                      });
+                                      onRequest(user.id, user.name);
+                                    }}
                                     className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-rose-600"
                                   >
                                     Add
@@ -511,26 +581,37 @@ export default function Sidebar({
                     <div className="flex items-center justify-between mb-6">
                       <h4 className="text-lg font-black text-gray-800">최근 검색 항목</h4>
                       <button
-                        onClick={() => setRecentSearches([])}
+                        onClick={() => {
+                          setRecentSearches([]);
+                          persistRecentSearches([]);
+                        }}
                         className="text-sm font-black text-rose-500 hover:text-rose-600"
                       >
                         모두 지우기
                       </button>
                     </div>
                     <div className="space-y-4">
-                      {recentSearches.map((s, idx) => (
-                        <div key={idx} className="flex items-center gap-4 group/searchItem">
+                      {recentSearches.map((s) => (
+                        <div key={s.id} className="flex items-center gap-4 group/searchItem">
                           <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
                             <img
                               src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`}
-                              alt={s.id}
+                              alt={s.name}
                             />
                           </div>
-                          <div className="flex-1">
-                            <p className="font-bold text-gray-800">{s.id}</p>
-                            <p className="text-sm text-gray-500">{s.name}</p>
-                          </div>
-                          <button className="p-1 hover:bg-gray-100 rounded-full transition-all">
+                          <button
+                            type="button"
+                            onClick={() => handleRecentSearchClick(s)}
+                            className="flex-1 text-left"
+                          >
+                            <p className="font-bold text-gray-800">{s.name}</p>
+                            <p className="text-sm text-gray-500">{s.subtitle}</p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeRecentSearch(s.id)}
+                            className="p-1 hover:bg-gray-100 rounded-full transition-all"
+                          >
                             <X className="w-5 h-5 text-gray-300" />
                           </button>
                         </div>
