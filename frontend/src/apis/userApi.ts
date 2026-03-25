@@ -126,10 +126,7 @@ const userApi = {
 
   // 9. 유저 정보 수정
   updateUserProfile: async (data: UpdateUserRequest) => {
-    const response = await axiosInstance.patch<CommonResponse<{ userId: number }>>(
-      '/users', 
-      data
-    );
+    const response = await axiosInstance.patch<CommonResponse<{ userId: number }>>('/users', data);
     return response.data;
   },
 };
