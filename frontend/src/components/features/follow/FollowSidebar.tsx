@@ -178,12 +178,12 @@ export default function FollowSidebar({
             <div className="flex flex-col gap-2">
               {/* 1. 현재 탭 (팔로잉/팔로워) 검색 결과 (클라이언트 사이드 필터링) */}
               {follows
-                .filter((f) => (sidebarView === 'following' ? f.isFollowing : f.isFollower))
                 .filter((f) => {
                   const lowerQuery = searchQuery.toLowerCase();
                   return (
                     f.name.toLowerCase().includes(lowerQuery) ||
-                    f.email.toLowerCase().includes(lowerQuery)
+                    f.email.toLowerCase().includes(lowerQuery) ||
+                    (f.description ?? '').toLowerCase().includes(lowerQuery)
                   );
                 })
                 .map((f) => (
@@ -201,7 +201,9 @@ export default function FollowSidebar({
                         <span className="text-gray-800 font-bold text-sm leading-tight">
                           {f.name}
                         </span>
-                        <span className="text-gray-500 text-[10px] leading-tight">{f.email}</span>
+                            <span className="text-gray-500 text-[10px] leading-tight">
+                              {f.description || f.email}
+                            </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -223,7 +225,7 @@ export default function FollowSidebar({
                         </button>
                       )}
 
-                      <div className="relative">
+                      {f.followId ? <div className="relative">
                         <button
                           type="button"
                           onClick={() =>
@@ -247,7 +249,7 @@ export default function FollowSidebar({
                             </button>
                           </div>
                         )}
-                      </div>
+                      </div> : null}
                     </div>
                   </div>
                 ))}

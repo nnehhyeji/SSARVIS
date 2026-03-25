@@ -261,13 +261,20 @@ public class VoiceServiceImpl implements VoiceService {
         voiceRepository.save(voice);
 
         for (AssistantType assistantType : AssistantType.values()) {
-            Assistant assistant = Assistant.builder()
-                .assistantType(assistantType)
-                .name(user.getNickname() + "_" + assistantType.name())
-                .voice(voice)
-                .user(user)
-                .build();
-            assistantRepository.save(assistant);
+            String assistantName = user.getNickname() + "_" + assistantType.name();
+
+            assistantRepository.findByUserIdAndAssistantType(userId, assistantType)
+                .ifPresentOrElse(
+                    existing -> existing.update(assistantName, voice),  // 있으면 업데이트
+                    () -> assistantRepository.save(                      // 없으면 새로 저장
+                        Assistant.builder()
+                            .assistantType(assistantType)
+                            .name(assistantName)
+                            .voice(voice)
+                            .user(user)
+                            .build()
+                    )
+                );
         }
 
         log.info("Voice & Assistant Model 저장 완료: {} (ID: {})", user.getNickname(), modelId);

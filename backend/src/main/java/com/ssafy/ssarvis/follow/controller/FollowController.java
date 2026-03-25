@@ -10,6 +10,7 @@ import com.ssafy.ssarvis.follow.dto.request.FollowRejectDto;
 import com.ssafy.ssarvis.follow.dto.request.FollowRequestDto;
 import com.ssafy.ssarvis.follow.dto.response.FollowAiResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.FollowRequestListResponseDto;
+import com.ssafy.ssarvis.follow.dto.response.FollowerListResponseDto;
 import com.ssafy.ssarvis.follow.dto.response.UserSearchResponseDto;
 import com.ssafy.ssarvis.follow.service.FollowService;
 import jakarta.validation.Valid;
@@ -121,6 +122,15 @@ public class FollowController {
         Long userId = customUserDetails.getUserId();
         List<TopChatterResponseDto> result = chatSessionService.getTopChattingFriends(userId);
         return ResponseEntity.ok(BaseResponse.success("대화 많은 친구 순위 조회 성공", result));
+    }
+
+    @GetMapping("/followers")
+    public ResponseEntity<BaseResponse<List<FollowerListResponseDto>>> getFollowerList(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        Long userId = customUserDetails.getUserId();
+        List<FollowerListResponseDto> followerList = followService.getFollowerList(userId);
+        return ResponseEntity.ok(BaseResponse.success("팔로워 리스트 조회 성공", followerList));
     }
 
 }
