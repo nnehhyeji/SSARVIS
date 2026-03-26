@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Home,
   User,
@@ -98,9 +98,38 @@ export default function Sidebar({
   const { sessionId } = useParams<{ sessionId?: string }>();
   const selectedChatId = sessionId || null;
   
+  const location = useLocation();
   const [activeTertiary, setActiveTertiary] = useState<
     'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null
-  >(() => (selectedChatId ? 'chat' : null));
+  >(null);
+
+  // Sync activeTertiary with URL path
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.startsWith('/chat') || path.startsWith('/chat-archive')) {
+      setActiveTertiary('chat');
+    } else if (path === PATHS.ASSISTANT) {
+      setActiveTertiary('assistant');
+    } else if (path === PATHS.NAMNA) {
+      setActiveTertiary('persona');
+    } else if (selectedChatId) {
+      setActiveTertiary('chat');
+    } else {
+      // For paths that don't correspond to tertiary panels, but some panels might be open manually
+      // We don't necessarily want to close manually opened panels on all navigations,
+      // but for 'friends', 'notifications', 'search' we might want to keep current state.
+      // However, the rule is "navigating to these pages opens/keeps panels open".
+      if (!['/friends', '/notifications', '/search'].includes(path)) {
+         if (activeTertiary !== 'friends' && activeTertiary !== 'notifications' && activeTertiary !== 'search') {
+           // If we are on Home, close panels unless it's friends etc.
+           if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
+             setActiveTertiary(null);
+           }
+         }
+      }
+    }
+  }, [location.pathname, selectedChatId]);
+
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,7 +148,7 @@ export default function Sidebar({
   const [chatTab, setChatTab] = useState<'archive' | 'guestbook'>('archive');
   const [chatCategory, setChatCategory] = useState<'assistant' | 'persona' | 'friend'>('assistant');
   const [chatView, setChatView] = useState<'categories' | 'list'>('categories');
-  const [assistantFilters, setAssistantFilters] = useState<string[]>(['daily']);
+  const [assistantFilters, setAssistantFilters] = useState<string[]>([]);
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -155,6 +184,7 @@ export default function Sidebar({
 
   const displaySessions = chatSessions.filter((session) => {
     if (chatTab === 'archive' && chatCategory === 'assistant') {
+      if (assistantFilters.length === 0) return true;
       const typeMap: Record<string, string> = {
         daily: 'DAILY',
         study: 'STUDY',
@@ -186,6 +216,7 @@ export default function Sidebar({
       id: 'ai_assistant',
       icon: Bot,
       label: 'Ai 비서',
+      path: PATHS.ASSISTANT,
       hasTertiary: true,
       tertiaryId: 'assistant',
       color: 'text-rose-500',
@@ -194,6 +225,7 @@ export default function Sidebar({
       id: 'eye',
       icon: Eye,
       label: '남이 보는 나',
+      path: PATHS.NAMNA,
       hasTertiary: true,
       tertiaryId: 'persona',
       color: 'text-rose-500',
@@ -210,6 +242,7 @@ export default function Sidebar({
       id: 'chat',
       icon: MessageSquare,
       label: '대화 보관함',
+      path: PATHS.CHAT,
       hasTertiary: true,
       tertiaryId: 'chat',
       color: 'text-rose-500',
@@ -276,10 +309,33 @@ export default function Sidebar({
     onSearch(item.name);
   };
 
+  const handleNotificationClick = (alarm: Alarm) => {
+    onAlarmClick(alarm);
+    
+    // Redirect logic based on notification type
+    if (alarm.type === 'FOLLOW_REQUEST') {
+      setActiveTertiary('friends');
+      setFriendView('requests');
+    } else if (alarm.type === 'FOLLOW_ACCEPT') {
+       // Navigate to the person who accepted the request
+       const senderId = (alarm.payload as any)?.senderId || (alarm.payload as any)?.senderUserId;
+       if (senderId) {
+         navigate(PATHS.USER_HOME(senderId));
+         setActiveTertiary(null);
+       }
+    }
+  };
+
   const handleItemClick = (item: MenuItem) => {
     if (item.path) {
-      setActiveTertiary(null);
-      navigate(item.path);
+      // If we're already on this path, manually toggle the tertiary panel
+      if (location.pathname === item.path && item.tertiaryId) {
+        const isClosing = activeTertiary === item.tertiaryId;
+        setActiveTertiary(isClosing ? null : item.tertiaryId);
+      } else {
+        // If navigating to a new path, let the useEffect handle opening
+        navigate(item.path);
+      }
     } else if (item.action) {
       setActiveTertiary(null);
       item.action();
@@ -290,7 +346,7 @@ export default function Sidebar({
 
       if (item.tertiaryId === 'chat') {
         setChatView('categories');
-        if (selectedChatId) navigate(PATHS.HOME);
+        if (selectedChatId) navigate(PATHS.CHAT);
       }
       if (item.tertiaryId === 'friends') {
         setFriendView('main');
@@ -305,26 +361,42 @@ export default function Sidebar({
   return (
     <div className="fixed left-0 top-0 h-full z-[100] flex pointer-events-none w-full">
       <AnimatePresence>
-        {/* 모든 패널은 이제 고정형(Fixed)으로 동작하며, 배경 클릭으로 닫히지 않습니다. */}
+        {activeTertiary &&
+          !(activeTertiary === 'chat' && location.pathname.startsWith(PATHS.CHAT)) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setActiveTertiary(null);
+
+                const isAssistantPage = location.pathname.startsWith(PATHS.ASSISTANT);
+                const isNamnaPage = location.pathname.startsWith(PATHS.NAMNA);
+                if (isAssistantPage || isNamnaPage) {
+                  navigate(PATHS.HOME);
+                }
+              }}
+              className="fixed inset-0 bg-transparent pointer-events-auto z-[115]"
+            />
+          )}
       </AnimatePresence>
 
       <motion.aside
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
-        initial={{ width: 80 }}
         animate={{
-          width: isExpanded ? 240 : 100,
+          width: isExpanded ? 240 : 80,
           opacity:
             !isExpanded && (activeTertiary === 'notifications' || activeTertiary === 'search')
               ? 0
               : 1,
         }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="h-full bg-[#eee5df] border-r border-gray-200 pointer-events-auto flex flex-col items-center py-8 shadow-xl z-[130]"
+        className="h-full bg-[#eee5df] border-r border-gray-200 pointer-events-auto flex flex-col items-center py-6 z-[130]"
       >
-        <div className="mb-8 flex flex-col items-center gap-2">
-          <div className="w-12 h-12 bg-white flex items-center justify-center rounded-lg shadow-sm">
-            <span className="font-bold text-gray-800 text-sm">로고</span>
+        <div className="mb-6 flex flex-col items-center gap-2">
+          <div className="w-10 h-10 bg-white flex items-center justify-center rounded-lg shadow-sm">
+            <span className="font-bold text-gray-800 text-[10px]">로고</span>
           </div>
         </div>
 
@@ -337,13 +409,13 @@ export default function Sidebar({
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 className="overflow-hidden"
               >
-                <div
-                  onClick={() => setActiveTertiary('search')}
-                  className="w-full bg-[#e5e0dc] rounded-xl flex items-center gap-3 py-3 px-4 cursor-pointer hover:bg-[#dcd2ca] transition-colors"
-                >
-                  <Search className="w-5 h-5 text-white/80 shrink-0" />
-                  <span className="text-gray-400 font-bold whitespace-nowrap">Search</span>
-                </div>
+                  <div
+                    onClick={() => setActiveTertiary('search')}
+                    className="w-full bg-[#e5e0dc] rounded-xl flex items-center gap-2 py-2 px-3 cursor-pointer hover:bg-[#dcd2ca] transition-colors"
+                  >
+                    <Search className="w-4 h-4 text-white/80 shrink-0" />
+                    <span className="text-gray-400 font-bold whitespace-nowrap text-sm">Search</span>
+                  </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -354,10 +426,10 @@ export default function Sidebar({
               <div key={item.id} className="relative group/item">
                 <button
                   onClick={() => handleItemClick(item)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-lg transition-all duration-200 hover:bg-black/5`}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 hover:bg-black/5`}
                 >
-                  <div className={`shrink-0 w-10 h-10 flex items-center justify-center relative`}>
-                    <Icon className={`w-8 h-8 ${item.color || 'text-rose-500'}`} />
+                  <div className={`shrink-0 w-8 h-8 flex items-center justify-center relative`}>
+                    <Icon className={`w-6.5 h-6.5 ${item.color || 'text-rose-500'}`} />
                     {item.badge !== undefined && item.badge > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[12px] flex items-center justify-center rounded-full font-bold">
                         {item.badge}
@@ -370,7 +442,7 @@ export default function Sidebar({
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
-                        className="text-[18px] font-medium text-gray-700 whitespace-nowrap"
+                        className="text-[16px] font-medium text-gray-700 whitespace-nowrap"
                       >
                         {item.label}
                       </motion.span>
@@ -389,10 +461,10 @@ export default function Sidebar({
               <button
                 key={item.id}
                 onClick={() => handleItemClick(item)}
-                className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-black/5 transition-all duration-300"
+                className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 transition-all duration-300"
               >
                 <div className="shrink-0 w-8 h-8 flex items-center justify-center">
-                  <Icon className={`w-8 h-8 ${item.color}`} />
+                  <Icon className={`w-6 h-6 ${item.color}`} />
                 </div>
                 <AnimatePresence>
                   {isExpanded && (
@@ -419,37 +491,25 @@ export default function Sidebar({
             animate={{
               x: 0,
               opacity: 1,
-              left: activeTertiary === 'notifications' || activeTertiary === 'search' ? 0 : 100,
+              left: activeTertiary === 'notifications' || activeTertiary === 'search' ? 0 : 80,
             }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className={`fixed top-0 h-full w-[400px] bg-[#eee5df] border-r border-gray-200 pointer-events-auto shadow-2xl overflow-hidden flex flex-col ${activeTertiary === 'notifications' || activeTertiary === 'search' ? 'z-[140]' : 'z-[120]'}`}
+            className={`fixed top-0 h-full w-[320px] bg-white border-r border-gray-200 pointer-events-auto overflow-hidden flex flex-col ${activeTertiary === 'notifications' || activeTertiary === 'search' ? 'z-[140]' : 'z-[120]'}`}
           >
-            <div className="p-8 pb-4 flex items-flex-start justify-between">
+            <div className="p-6 pb-2 flex items-flex-start justify-between">
               <div className="flex flex-col gap-1">
-                {activeTertiary === 'chat' && chatView === 'list' && (
-                  <button
-                    onClick={() => {
-                      setChatView('categories');
-                      if (selectedChatId) navigate(PATHS.HOME);
-                    }}
-                    className="flex items-center gap-1 text-rose-500 text-xs font-black mb-1 hover:underline group"
-                  >
-                    <ChevronRight className="w-3 h-3 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
-                    이전으로
-                  </button>
-                )}
-                <h2 className="text-4xl font-black text-gray-800">
+                <h2 className="text-3xl font-black text-gray-800">
                   {activeTertiary === 'friends'
                     ? '팔로우 목록'
                     : activeTertiary === 'chat'
                       ? '대화 보관함'
-                      : activeTertiary === 'search'
-                        ? '검색'
-                        : activeTertiary === 'assistant'
-                          ? 'Ai 비서'
-                          : activeTertiary === 'persona'
-                            ? '남이 보는 나'
+                      : activeTertiary === 'assistant'
+                        ? 'Ai 비서'
+                        : activeTertiary === 'persona'
+                          ? '남이 보는 나'
+                          : activeTertiary === 'search'
+                            ? '검색'
                             : '알림'}
                 </h2>
               </div>
@@ -477,7 +537,10 @@ export default function Sidebar({
                   removeRecentSearch={removeRecentSearch}
                   persistRecentSearches={persistRecentSearches}
                   handleRecentSearchClick={handleRecentSearchClick}
-                  onVisit={onVisit}
+                  onVisit={(id) => {
+                    onVisit(id);
+                    setActiveTertiary(null);
+                  }}
                   onRequest={onRequest}
                   setRecentSearches={setRecentSearches}
                   onAccept={onAccept}
@@ -486,7 +549,7 @@ export default function Sidebar({
               {activeTertiary === 'notifications' && (
                 <NotificationsPanel
                   alarms={alarms}
-                  onAlarmClick={onAlarmClick}
+                  onAlarmClick={handleNotificationClick}
                   onReadAllAlarms={onReadAllAlarms}
                   onDeleteAllAlarms={onDeleteAllAlarms}
                   onRemoveAlarm={onRemoveAlarm}
@@ -501,7 +564,10 @@ export default function Sidebar({
                   friendTab={friendTab}
                   setFriendTab={setFriendTab}
                   follows={follows}
-                  onVisit={onVisit}
+                  onVisit={(id) => {
+                    onVisit(id);
+                    setActiveTertiary(null);
+                  }}
                   onDelete={onDelete}
                   onAccept={onAccept}
                   onReject={onReject}
@@ -525,7 +591,7 @@ export default function Sidebar({
                     if (id) {
                       navigate(PATHS.CHAT_ARCHIVE(id));
                     } else {
-                      navigate(PATHS.HOME);
+                      navigate(PATHS.CHAT);
                     }
                   }}
                 />
@@ -533,13 +599,21 @@ export default function Sidebar({
               {activeTertiary === 'assistant' && (
                 <AssistantPanel
                   currentMode={currentMode}
-                  onModeChange={onModeChange}
-                  setActiveTertiary={setActiveTertiary}
+                  onModeChange={(m) => {
+                    onModeChange(m);
+                    setActiveTertiary(null);
+                  }}
                 />
               )}
               {activeTertiary === 'persona' && (
-                <PersonaPanel onModeChange={onModeChange} setActiveTertiary={setActiveTertiary} />
+                <PersonaPanel
+                  onModeChange={(m) => {
+                    onModeChange(m);
+                    setActiveTertiary(null);
+                  }}
+                />
               )}
+
             </div>
           </motion.div>
         )}
@@ -550,7 +624,7 @@ export default function Sidebar({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={`fixed top-0 bottom-0 right-0 ${activeTertiary ? 'left-[500px]' : 'left-[100px]'} bg-white pointer-events-auto shadow-2xl overflow-hidden flex flex-col z-[110] transition-all duration-200`}
+            className={`fixed top-0 bottom-0 right-0 ${activeTertiary ? 'left-[400px]' : 'left-[80px]'} bg-white pointer-events-auto border-l border-gray-200 overflow-hidden flex flex-col z-[110] transition-all duration-200`}
           >
             {/* Top Header / Back Button */}
             <div className="h-20 shrink-0 px-8 flex items-center justify-between border-b border-gray-50 z-20">

@@ -45,7 +45,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
     <div className="px-8 space-y-8 flex flex-col h-full">
       <div className="relative">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-          <Search className="w-5 h-5 text-white/80" />
+          <Search className="w-5 h-5 text-gray-400" />
         </div>
         <input
           type="text"
@@ -55,7 +55,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
             setSearchQuery(e.target.value);
             onSearch(e.target.value);
           }}
-          className="w-full bg-[#e5e0dc] rounded-xl py-3 pl-12 pr-10 text-lg font-medium text-gray-800 placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all shadow-inner"
+          className="w-full bg-gray-100 rounded-xl py-3 pl-12 pr-10 text-lg font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all shadow-inner"
         />
         <button
           className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-300 rounded-full p-0.5 hover:bg-gray-400 transition-colors"
@@ -82,7 +82,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
               searchResults.map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center gap-4 rounded-2xl border border-white/50 bg-white/40 px-4 py-3 shadow-sm"
+                  className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 shadow-sm"
                 >
                   <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
                     <img
