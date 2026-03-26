@@ -17,7 +17,9 @@ import ChatWindow from '../../components/features/chat/ChatWindow';
 import MyCardModal from '../../components/features/follow/MyCardModal';
 import SharePersonaModal from '../../components/features/follow/SharePersonaModal';
 import ModePanel from '../../components/features/assistant/ModePanel';
+import AiTopicModal from '../../components/features/assistant/AiTopicModal';
 import PersonaModal from '../../components/features/follow/PersonaModal';
+import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 
 // Constants & Types
 import { PATHS } from '../../routes/paths';
@@ -70,6 +72,7 @@ export default function UserMainPage() {
     stopRecordingAndSendSTT,
   } = useChat();
   const guestChat = useGuestChat({ enabled: !isLoggedIn && !isMyHome, targetUserId: targetId });
+  const aiToAiChat = useAIToAIChat();
 
   const activeChat = !isLoggedIn && !isMyHome
     ? guestChat
@@ -105,6 +108,7 @@ export default function UserMainPage() {
   const [isSharePersonaOpen, setIsSharePersonaOpen] = useState(false);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(!isMicOn);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [isDualAiTopicModalOpen, setIsDualAiTopicModalOpen] = useState(false);
   const [roomViewCount, setRoomViewCount] = useState(0);
 
   // --- Lifecycle: Room Initialization ---
@@ -152,6 +156,10 @@ export default function UserMainPage() {
   }, [chatMessages]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
+  const myAiSpeech = isDualAiMode ? aiToAiChat.myLatestText || myTriggerText : myTriggerText;
+  const visitorAiSpeech = isDualAiMode ? aiToAiChat.targetLatestText || triggerText : triggerText;
+  const myAiIsSpeaking = isDualAiMode ? aiToAiChat.activeSpeaker === 'mine' : isMyAiSpeaking;
+  const visitorAiIsSpeaking = isDualAiMode ? aiToAiChat.activeSpeaker === 'target' : finalIsSpeaking;
   const ownerName = isMyHome ? (userInfo?.nickname || '나') : (visitedFollowName || '친구');
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
 
@@ -182,6 +190,56 @@ export default function UserMainPage() {
   useEffect(() => {
     setIsChatHistoryOpen(!isMicOn);
   }, [isMicOn]);
+
+  useEffect(() => {
+    if (!isDualAiMode || aiToAiChat.isBattling) return;
+
+    setIsDualAiMode(false);
+  }, [aiToAiChat.isBattling, isDualAiMode, setIsDualAiMode]);
+
+  const openDualAiTopicModal = useCallback(() => {
+    if (isMyHome || !targetId) return;
+
+    if (!isLoggedIn) {
+      setIsDualAiMode(true);
+      setIsInteractionModalOpen(false);
+      return;
+    }
+
+    setIsInteractionModalOpen(false);
+    setIsDualAiTopicModalOpen(true);
+  }, [isLoggedIn, isMyHome, setIsDualAiMode, setIsInteractionModalOpen, targetId]);
+
+  const stopDualAiConversation = useCallback(() => {
+    aiToAiChat.stopBattle();
+    setIsDualAiMode(false);
+    setIsDualAiTopicModalOpen(false);
+    setMyTriggerText('');
+    setTriggerText('');
+  }, [aiToAiChat, setIsDualAiMode, setMyTriggerText, setTriggerText]);
+
+  const handleDualAiTopicSubmit = useCallback(
+    async (topic: string) => {
+      if (!userInfo?.id || !targetId) return;
+
+      const started = await aiToAiChat.startBattle({
+        topic,
+        myUserId: userInfo.id,
+        targetUserId: targetId,
+        myAssistantType: 'DAILY',
+        targetAssistantType: 'DAILY',
+      });
+
+      if (!started) return;
+
+      setIsDualAiMode(true);
+      setIsDualAiTopicModalOpen(false);
+      setMyTriggerText('');
+      setTriggerText('');
+      setIsChatHistoryOpen(true);
+    },
+    [aiToAiChat, setIsDualAiMode, setMyTriggerText, setTriggerText, targetId, userInfo?.id],
+  );
 
   // 방 로딩 체크 (방문 모드일 때만 적용)
   if (!isMyHome && isLoggedIn && (!isVisitorMode || !visitedFollowName)) {
@@ -222,12 +280,9 @@ export default function UserMainPage() {
           <button
             onClick={() => {
               if (isDualAiMode) {
-                setIsDualAiMode(false);
+                stopDualAiConversation();
               } else {
-                setIsDualAiMode(true);
-                setIsInteractionModalOpen(false);
-                setMyTriggerText('나: 우와, 네 방 정말 멋지다!');
-                setTimeout(() => setTriggerText(`${ownerName}: 고마워! 놀러와줘서 기뻐.`), 3000);
+                openDualAiTopicModal();
               }
             }}
             className={`p-4 rounded-2xl backdrop-blur-md shadow-xl border transition-all duration-300 flex flex-col items-center gap-1 group/btn ${isDualAiMode ? 'bg-indigo-500/80 border-indigo-400/50 text-white' : 'bg-white/80 border-white/40 text-indigo-500 hover:bg-amber-50'}`}
@@ -309,11 +364,11 @@ export default function UserMainPage() {
                   mouthOpenRadius={myMouthOpenRadius}
                   mode={currentMode}
                   isLockMode={false}
-                  isSpeaking={isMyAiSpeaking}
+                  isSpeaking={myAiIsSpeaking}
                   isMicOn={isMicOn}
                   label="나의 AI"
                 />
-                <SpeechBubble text={myTriggerText} />
+                <SpeechBubble text={myAiSpeech} />
               </div>
             )}
 
@@ -354,13 +409,12 @@ export default function UserMainPage() {
                     mouthOpenRadius={mouthOpenRadius}
                     mode={currentMode}
                     isLockMode={activeChat.isLockMode}
-                    isSpeaking={finalIsSpeaking}
+                    isSpeaking={visitorAiIsSpeaking}
                     isMicOn={isMicOn}
                     label={isMyHome ? '나의 AI' : `${ownerName}님의 AI`}
                   />
-                  {isMicOn && (isDualAiMode ? triggerText : lastAiMessage) && (
-                    <SpeechBubble text={isDualAiMode ? triggerText : lastAiMessage} />
-                  )}
+                  {isDualAiMode && visitorAiSpeech && <SpeechBubble text={visitorAiSpeech} />}
+                  {!isDualAiMode && isMicOn && lastAiMessage && <SpeechBubble text={lastAiMessage} />}
                 </>
               )}
             </div>
@@ -378,10 +432,17 @@ export default function UserMainPage() {
           <>
             <ChatWindow
               isVisible={isChatHistoryOpen}
-              messages={activeChat.chatMessages}
-              input={activeChat.chatInput}
-              onInputChange={activeChat.setChatInput}
+              messages={isDualAiMode ? aiToAiChat.battleMessages : activeChat.chatMessages}
+              input={isDualAiMode ? '' : activeChat.chatInput}
+              onInputChange={(value) => {
+                if (!isDualAiMode) {
+                  activeChat.setChatInput(value);
+                }
+              }}
               onSend={() => {
+                if (isDualAiMode) {
+                  return;
+                }
                 const assistantType = isMyHome
                   ? currentMode === 'counseling'
                     ? 'COUNSEL'
@@ -396,6 +457,8 @@ export default function UserMainPage() {
                 activeChat.sendMessage(activeChat.chatInput, null, assistantType, memoryPolicy, category, targetId);
               }}
               onClose={() => setIsChatHistoryOpen(false)}
+              inputPlaceholder={isDualAiMode ? '둘이대화 진행 중에는 직접 입력할 수 없습니다.' : '메시지를 입력하세요...'}
+              isInputDisabled={isDualAiMode}
             />
             <button
               onClick={() => setIsChatHistoryOpen(!isChatHistoryOpen)}
@@ -434,18 +497,18 @@ export default function UserMainPage() {
             onToggleInteraction={() => setIsInteractionModalOpen(!isInteractionModalOpen)}
             onModeChange={(m) => setCurrentMode(m)}
             onChangeFace={changeFace}
-            onStartDualAi={() => {
-              setIsDualAiMode(true);
-              setIsInteractionModalOpen(false);
-              setMyTriggerText('나: 우와, 네 방 정말 멋지다!');
-              setTimeout(() => setTriggerText(`${ownerName}: 고마워! 놀러와줘서 기뻐.`), 3000);
-            }}
-            onStopDualAi={() => setIsDualAiMode(false)}
+            onStartDualAi={openDualAiTopicModal}
+            onStopDualAi={stopDualAiConversation}
           />
           <PersonaModal
             isOpen={isPersonaModalOpen}
             onClose={() => setIsPersonaModalOpen(false)}
             followName={ownerName}
+          />
+          <AiTopicModal
+            isOpen={isDualAiTopicModalOpen}
+            onClose={() => setIsDualAiTopicModalOpen(false)}
+            onSubmit={handleDualAiTopicSubmit}
           />
         </>
       )}
