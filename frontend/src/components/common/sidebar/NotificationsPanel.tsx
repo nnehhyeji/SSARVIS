@@ -48,7 +48,10 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
             />
             <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-gray-100 shadow-sm bg-gray-50">
               <img
-                src={(alarm.payload as { senderProfileImage?: string })?.senderProfileImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=Alarm${alarm.id}`}
+                src={
+                  (alarm.payload as { senderProfileImage?: string })?.senderProfileImage ||
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=Alarm${alarm.id}`
+                }
                 alt="profile"
                 className="w-full h-full object-cover"
               />
@@ -68,7 +71,9 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                         const payload = alarm.payload as Record<string, number | string>;
                         onAccept(
                           payload.followRequestId as number,
-                          (payload.senderCustomId as string) || (payload.senderName as string) || '사용자',
+                          (payload.senderCustomId as string) ||
+                            (payload.senderName as string) ||
+                            '사용자',
                         );
                         onRemoveAlarm(alarm.id);
                       }}

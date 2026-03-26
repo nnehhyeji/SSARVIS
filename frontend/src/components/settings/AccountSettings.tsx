@@ -145,13 +145,18 @@ export default function AccountSettings({
         <div className="flex items-center gap-8">
           <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-100">
             <img
-              src={profile?.userProfileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.nickname || 'user'}`}
+              src={
+                profile?.userProfileImageUrl ||
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.nickname || 'user'}`
+              }
               alt="Profile"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <h2 className="text-4xl font-black text-gray-900 tracking-tight">{profile?.nickname}</h2>
+            <h2 className="text-4xl font-black text-gray-900 tracking-tight">
+              {profile?.nickname}
+            </h2>
             <p className="text-gray-400 font-bold text-lg">ID: @{profile?.customId || 'unknown'}</p>
             <p className="text-gray-400 font-bold text-lg">EMAIL: {profile?.email}</p>
           </div>
@@ -170,7 +175,9 @@ export default function AccountSettings({
       <div className="flex flex-col gap-12">
         {/* 닉네임 */}
         <div className="flex items-start justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">닉네임</div>
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">
+            닉네임
+          </div>
           <div className="flex-1 flex justify-between items-center pl-10">
             {isEditingNickname ? (
               <div className="flex flex-col gap-2 w-full max-w-md">
@@ -182,22 +189,41 @@ export default function AccountSettings({
                   autoFocus
                 />
                 <div className="flex gap-2">
-                  <button onClick={() => handleUpdateProfile('nickname')} className="text-sm text-rose-500 font-black">저장</button>
-                  <button onClick={() => setIsEditingNickname(false)} className="text-sm text-gray-400 font-black pl-2">취소</button>
+                  <button
+                    onClick={() => handleUpdateProfile('nickname')}
+                    className="text-sm text-rose-500 font-black"
+                  >
+                    저장
+                  </button>
+                  <button
+                    onClick={() => setIsEditingNickname(false)}
+                    className="text-sm text-gray-400 font-black pl-2"
+                  >
+                    취소
+                  </button>
                 </div>
               </div>
             ) : (
-              <span className="text-[18px] font-black text-gray-900 leading-tight">{profile?.nickname}</span>
+              <span className="text-[18px] font-black text-gray-900 leading-tight">
+                {profile?.nickname}
+              </span>
             )}
             {!isEditingNickname && (
-              <button onClick={() => setIsEditingNickname(true)} className="text-rose-500 font-black hover:underline underline-offset-4 text-sm">편집</button>
+              <button
+                onClick={() => setIsEditingNickname(true)}
+                className="text-rose-500 font-black hover:underline underline-offset-4 text-sm"
+              >
+                편집
+              </button>
             )}
           </div>
         </div>
 
         {/* 소개 */}
         <div className="flex items-start justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">소개</div>
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">
+            소개
+          </div>
           <div className="flex-1 flex flex-col gap-4 pl-10">
             {isEditingDescription ? (
               <div className="flex flex-col gap-4 w-full">
@@ -246,7 +272,9 @@ export default function AccountSettings({
 
         {/* 비밀번호 변경 */}
         <div className="flex items-start justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">비밀번호 변경</div>
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">
+            비밀번호 변경
+          </div>
           <div className="flex-1 flex flex-col gap-4 pl-10">
             {isEditingPassword ? (
               <div className="flex flex-col gap-4 w-full max-w-md">
@@ -265,14 +293,29 @@ export default function AccountSettings({
                   className="bg-gray-50 rounded-xl px-4 py-3 outline-none border-2 border-rose-100 focus:border-rose-500 font-bold"
                 />
                 <div className="flex gap-2">
-                  <button onClick={() => handleUpdateProfile('password')} className="text-sm text-rose-500 font-black">저장</button>
-                  <button onClick={() => setIsEditingPassword(false)} className="text-sm text-gray-400 font-black pl-2">취소</button>
+                  <button
+                    onClick={() => handleUpdateProfile('password')}
+                    className="text-sm text-rose-500 font-black"
+                  >
+                    저장
+                  </button>
+                  <button
+                    onClick={() => setIsEditingPassword(false)}
+                    className="text-sm text-gray-400 font-black pl-2"
+                  >
+                    취소
+                  </button>
                 </div>
               </div>
             ) : (
               <div className="flex justify-between items-center w-full">
                 <div className="w-4 h-4" /> {/* Spacer */}
-                <button onClick={() => setIsEditingPassword(true)} className="text-sm text-rose-500 font-black hover:underline underline-offset-4">편집</button>
+                <button
+                  onClick={() => setIsEditingPassword(true)}
+                  className="text-sm text-rose-500 font-black hover:underline underline-offset-4"
+                >
+                  편집
+                </button>
               </div>
             )}
           </div>
@@ -280,11 +323,15 @@ export default function AccountSettings({
 
         {/* 계정 공개 범위 */}
         <div className="flex items-center justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">계정 공개 범위</div>
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+            계정 공개 범위
+          </div>
           <div className="flex-1 pl-10 flex items-center justify-between">
             <div className="flex flex-col gap-2">
               <span className="text-[18px] font-black text-gray-900 leading-none">공개 계정</span>
-              <p className="text-sm font-bold text-gray-400">검색 아이디를 통해 타인이 나를 찾을 수 있습니다.</p>
+              <p className="text-sm font-bold text-gray-400">
+                검색 아이디를 통해 타인이 나를 찾을 수 있습니다.
+              </p>
             </div>
             <button
               onClick={handleToggleProfile}
@@ -309,11 +356,15 @@ export default function AccountSettings({
 
         {/* 남이 보는 나 */}
         <div className="flex items-center justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">남이 보는 나</div>
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">
+            남이 보는 나
+          </div>
           <div className="flex-1 pl-10 flex items-center justify-between">
             <div className="flex flex-col gap-2">
               <span className="text-[18px] font-black text-gray-900 leading-none">문답 수집</span>
-              <p className="text-sm font-bold text-gray-400">타인의 질문을 받아 응답을 수집하고 AI를 고도화합니다.</p>
+              <p className="text-sm font-bold text-gray-400">
+                타인의 질문을 받아 응답을 수집하고 AI를 고도화합니다.
+              </p>
             </div>
             <button
               onClick={handleTogglePersonaCollection}
@@ -338,11 +389,15 @@ export default function AccountSettings({
 
         {/* 음성 잠금 */}
         <div className="flex items-center justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">음성 잠금</div>
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">
+            음성 잠금
+          </div>
           <div className="flex-1 pl-10 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <span className="text-[18px] font-black text-gray-900 leading-tight">사용중</span>
-              <span className="text-sm font-bold text-gray-400">{isVoiceLockRegistered ? formatTime(profile?.voiceLockTimeout) : '미설정'}</span>
+              <span className="text-sm font-bold text-gray-400">
+                {isVoiceLockRegistered ? formatTime(profile?.voiceLockTimeout) : '미설정'}
+              </span>
             </div>
             <button
               onClick={() => navigate(PATHS.SETTINGS_PARAM.replace(':tab', 'voice'))}

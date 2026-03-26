@@ -14,16 +14,23 @@ import ChatWindow from '../../components/features/chat/ChatWindow';
 
 export default function AssistantPage() {
   const { userInfo, currentMode } = useUserStore();
-  
+
   // interaction hooks (same as home)
-  const { 
-    isMicOn, mouthOpenRadius, faceType, toggleMic,
-    isSpeaking, setIsSpeaking, triggerText
-  } = useAICharacter();
+  const { isMicOn, mouthOpenRadius, faceType, toggleMic, isSpeaking, setIsSpeaking, triggerText } =
+    useAICharacter();
 
   const {
-    chatInput, chatMessages, isLockMode, sttText, isAiSpeaking, isAwaitingResponse,
-    setChatInput, toggleLock, sendMessage, startRecording, stopRecordingAndSendSTT,
+    chatInput,
+    chatMessages,
+    isLockMode,
+    sttText,
+    isAiSpeaking,
+    isAwaitingResponse,
+    setChatInput,
+    toggleLock,
+    sendMessage,
+    startRecording,
+    stopRecordingAndSendSTT,
   } = useChat();
 
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(!isMicOn);
@@ -35,7 +42,12 @@ export default function AssistantPage() {
 
   // AI 발화 말풍선용 데이터 추출
   const lastAiMessage = useMemo(() => {
-    return chatMessages.slice().reverse().find((m) => m.sender === 'ai')?.text || '';
+    return (
+      chatMessages
+        .slice()
+        .reverse()
+        .find((m) => m.sender === 'ai')?.text || ''
+    );
   }, [chatMessages]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
@@ -52,8 +64,9 @@ export default function AssistantPage() {
   }, [triggerText, handleStartSpeaking, handleEndSpeaking]);
 
   return (
-    <div className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}>
-      
+    <div
+      className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}
+    >
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-rose-100/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-100/20 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4 pointer-events-none" />
@@ -73,7 +86,12 @@ export default function AssistantPage() {
               onClick={() => {
                 toggleMic();
                 if (!isMicOn) {
-                  const assistantType = currentMode === 'counseling' ? 'COUNSEL' : currentMode === 'normal' ? 'DAILY' : currentMode.toUpperCase();
+                  const assistantType =
+                    currentMode === 'counseling'
+                      ? 'COUNSEL'
+                      : currentMode === 'normal'
+                        ? 'DAILY'
+                        : currentMode.toUpperCase();
                   startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
                 } else {
                   stopRecordingAndSendSTT();
@@ -82,7 +100,11 @@ export default function AssistantPage() {
               className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
             >
               <div className="flex items-center justify-center">
-                {isMicOn ? <Mic className="w-8 h-8 text-green-400 fill-green-400/20" /> : <MicOff className="w-8 h-8 text-red-400" />}
+                {isMicOn ? (
+                  <Mic className="w-8 h-8 text-green-400 fill-green-400/20" />
+                ) : (
+                  <MicOff className="w-8 h-8 text-red-400" />
+                )}
               </div>
             </button>
           </div>
@@ -93,12 +115,18 @@ export default function AssistantPage() {
               className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isLockMode ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
             >
               <div className="flex items-center justify-center">
-                {isLockMode ? <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" /> : <Unlock className="w-8 h-8 text-gray-300" />}
+                {isLockMode ? (
+                  <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" />
+                ) : (
+                  <Unlock className="w-8 h-8 text-gray-300" />
+                )}
               </div>
             </button>
           </div>
 
-          <div className={`relative z-10 w-[450px] h-[450px] flex flex-col items-center justify-center`}>
+          <div
+            className={`relative z-10 w-[450px] h-[450px] flex flex-col items-center justify-center`}
+          >
             <CharacterScene
               faceType={faceType}
               mouthOpenRadius={mouthOpenRadius}
@@ -108,9 +136,11 @@ export default function AssistantPage() {
               isMicOn={isMicOn}
               label={userInfo?.nickname || '나의 AI'}
             />
-            {(isMicOn ? triggerText : lastAiMessage) && <SpeechBubble text={isMicOn ? triggerText : lastAiMessage} />}
+            {(isMicOn ? triggerText : lastAiMessage) && (
+              <SpeechBubble text={isMicOn ? triggerText : lastAiMessage} />
+            )}
           </div>
-          
+
           {/* STT Text */}
           {isMicOn && (isAwaitingResponse || sttText) && (
             <div className="absolute bottom-[-180px] left-1/2 -translate-x-1/2 px-8 py-4 bg-black/40 backdrop-blur-xl text-white font-black text-lg rounded-3xl shadow-2xl border border-white/20 z-50 min-w-[280px] text-center max-w-[80vw] whitespace-pre-wrap">
@@ -125,8 +155,19 @@ export default function AssistantPage() {
           input={chatInput}
           onInputChange={setChatInput}
           onSend={() => {
-            const assistantType = currentMode === 'counseling' ? 'COUNSEL' : currentMode === 'normal' ? 'DAILY' : currentMode.toUpperCase();
-            sendMessage(chatInput, null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
+            const assistantType =
+              currentMode === 'counseling'
+                ? 'COUNSEL'
+                : currentMode === 'normal'
+                  ? 'DAILY'
+                  : currentMode.toUpperCase();
+            sendMessage(
+              chatInput,
+              null,
+              assistantType,
+              isLockMode ? 'SECRET' : 'GENERAL',
+              'USER_AI',
+            );
           }}
           onClose={() => setIsChatHistoryOpen(false)}
         />

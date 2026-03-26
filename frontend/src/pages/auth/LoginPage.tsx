@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { User, Lock, LogIn, Check } from 'lucide-react';
+import { ChevronLeft, Check } from 'lucide-react';
 import { useUserStore } from '../../store/useUserStore';
 import authApi from '../../apis/authApi';
 import userApi from '../../apis/userApi';
@@ -22,7 +22,6 @@ export default function LoginPage() {
   const performAutoLogin = useCallback(async () => {
     try {
       setIsLoading(true);
-      // 토큰이 유효한지 프로필 조회를 통해 확인
       const profile = await userApi.getUserProfile();
       login({
         id: profile.id,
@@ -31,19 +30,15 @@ export default function LoginPage() {
         customId: profile.customId,
       });
 
-      // 5. 음성 잠금 상태 동기화
       void useVoiceLockStore.getState().fetchVoiceLockStatus();
-
       navigate(PATHS.HOME);
     } catch (error) {
       console.error('Auto login failed', error);
-      // 토큰 만료 등의 경우 세션 정리
       localStorage.removeItem('token');
       setIsLoading(false);
     }
   }, [login, navigate]);
 
-  // 초기화: 아이디 기억하기 & 자동 로그인 체크
   useEffect(() => {
     const savedId = localStorage.getItem('rememberedId');
     const autoLoginEnabled = localStorage.getItem('autoLogin') === 'true';
@@ -64,27 +59,19 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       setIsLoading(true);
-      // 1. 로그인 요청
       const loginResponse = await authApi.login({ email, password });
-
-      // 2. 토큰 및 설정 저장
       const { accessToken } = loginResponse.data;
       localStorage.setItem('token', accessToken);
 
-      // 아이디 기억하기 처리
       if (isRememberId) {
         localStorage.setItem('rememberedId', email);
       } else {
         localStorage.removeItem('rememberedId');
       }
 
-      // 자동 로그인 처리
       localStorage.setItem('autoLogin', String(isAutoLogin));
-
-      // 3. 유저 정보 조회
       const profile = await userApi.getUserProfile();
 
-      // 4. Store 업데이트
       login({
         id: profile.id,
         email: profile.email,
@@ -92,9 +79,7 @@ export default function LoginPage() {
         customId: profile.customId,
       });
 
-      // 5. 음성 잠금 상태 동기화
       await useVoiceLockStore.getState().fetchVoiceLockStatus();
-
       navigate(PATHS.HOME);
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
@@ -109,154 +94,151 @@ export default function LoginPage() {
 
   if (isLoading && isAutoLogin) {
     return (
-      <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4 bg-white">
-        <div className="z-10 text-center">
+      <div className="w-full h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full mx-auto"
+            className="w-12 h-12 border-4 border-[#D5A09D] border-t-transparent rounded-full mx-auto"
           />
-          <p className="mt-4 text-gray-800 font-bold text-lg drop-shadow-md">자동 로그인 중...</p>
+          <p className="mt-4 text-gray-600 font-medium">자동 로그인 중...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4 bg-white">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-md z-10"
+    <div className="min-h-screen bg-[#F0F2F5] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-6xl bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row min-h-[640px]"
       >
-        <div className="bg-white/40 backdrop-blur-xl border border-white/40 rounded-[2.5rem] shadow-2xl p-10 flex flex-col items-center">
-          {/* Logo Section */}
-          <div className="mb-10 text-center">
-            <motion.div
-              animate={{
-                scale: [1, 1.05, 1],
-                rotate: [0, 2, -2, 0],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-              className="w-20 h-20 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-3xl flex items-center justify-center mb-4 shadow-lg mx-auto"
-            >
-              <LogIn className="w-10 h-10 text-white" />
-            </motion.div>
-            <h1 className="text-4xl font-black bg-gradient-to-r from-gray-800 to-gray-500 bg-clip-text text-transparent tracking-tight">
-              SSARVIS
-            </h1>
-            <p className="text-gray-500 mt-2 font-medium">나만의 똑똑한 AI 목소리 친구</p>
+        {/* Left Side Panel */}
+        <div className="w-full md:w-[45%] bg-gradient-to-br from-[#F7E0DE] via-[#E6C0BC] to-[#D5A09D] p-12 flex flex-col justify-center relative order-2 md:order-1">
+          <div>
+            <div className="flex items-center gap-3 mb-20">
+              <div className="w-12 h-12 bg-[#11141D] rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-base tracking-tighter">sv</span>
+              </div>
+              <span className="text-[#11141D] font-black text-3xl tracking-tight">SSARVIS</span>
+            </div>
+            
+            <div className="space-y-6">
+              <span className="text-[#11141D]/50 text-sm font-black tracking-[0.2em] block uppercase">YOUR AI ARCHIVE</span>
+              <h1 className="text-[#11141D] text-5xl font-extrabold leading-[1.2] break-keep">
+                나를 닮은<br />
+                나만의 AI가<br />
+                시작되는 곳
+              </h1>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side Form */}
+        <div className="w-full md:w-[55%] p-12 md:p-16 flex flex-col relative order-1 md:order-2">
+          <button 
+            onClick={() => navigate(PATHS.HOME)}
+            className="absolute top-8 left-8 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <ChevronLeft size={24} />
+          </button>
+
+          <div className="mb-10 mt-4">
+            <h2 className="text-[#11141D] text-3xl font-bold mb-2">Welcome back</h2>
+            <p className="text-gray-400 text-sm">정보를 입력하여 로그인을 진행해주세요.</p>
           </div>
 
-          {/* Login Form */}
-          <form onSubmit={handleLogin} className="w-full space-y-4">
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <User className="w-5 h-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
-              </div>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2 text-left">
+              <label className="text-[#11141D] text-sm font-bold ml-1">Email</label>
               <input
-                type="text"
-                placeholder="아이디"
+                type="email"
+                placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-white/50 border border-white/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all placeholder:text-gray-400 font-medium"
+                className="w-full px-4 py-4 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300"
                 required
               />
             </div>
 
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                <Lock className="w-5 h-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
-              </div>
+            <div className="space-y-2 text-left">
+              <label className="text-[#11141D] text-sm font-bold ml-1">Password</label>
               <input
                 type="password"
-                placeholder="비밀번호"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-white/50 border border-white/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all placeholder:text-gray-400 font-medium"
+                className="w-full px-4 py-4 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300"
                 required
               />
             </div>
 
-            {/* Remember ID & Auto Login Checkboxes */}
-            <div className="flex items-center justify-between px-2 py-1">
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={isRememberId}
-                      onChange={(e) => setIsRememberId(e.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <div className="w-5 h-5 bg-white/50 border-2 border-white/60 rounded-md peer-checked:bg-purple-500 peer-checked:border-purple-500 transition-all flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
-                    </div>
+            {/* Remember ID & Auto Login */}
+            <div className="flex items-center gap-6 px-1">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={isRememberId}
+                    onChange={(e) => setIsRememberId(e.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <div className="w-5 h-5 border-2 border-gray-200 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
                   </div>
-                  <span className="text-xs font-bold text-gray-500 group-hover:text-gray-700 transition-colors">
-                    아이디 기억
-                  </span>
-                </label>
+                </div>
+                <span className="text-xs font-bold text-gray-400 group-hover:text-gray-600 transition-colors">아이디 기억</span>
+              </label>
 
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={isAutoLogin}
-                      onChange={(e) => setIsAutoLogin(e.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <div className="w-5 h-5 bg-white/50 border-2 border-white/60 rounded-md peer-checked:bg-purple-500 peer-checked:border-purple-500 transition-all flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
-                    </div>
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={isAutoLogin}
+                    onChange={(e) => setIsAutoLogin(e.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <div className="w-5 h-5 border-2 border-gray-200 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
                   </div>
-                  <span className="text-xs font-bold text-gray-500 group-hover:text-gray-700 transition-colors">
-                    자동 로그인
-                  </span>
-                </label>
-              </div>
+                </div>
+                <span className="text-xs font-bold text-gray-400 group-hover:text-gray-600 transition-colors">자동 로그인</span>
+              </label>
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-xl hover:bg-gray-700 active:scale-[0.98] transition-all transform disabled:opacity-50"
+              className="w-full py-4 bg-[#11141D] text-white rounded-2xl font-bold hover:bg-[#1a1e2b] transition-all active:scale-[0.99] disabled:opacity-50 shadow-lg"
             >
-              로그인하기
+              Sign In
             </button>
           </form>
 
-          {/* Divider */}
           <div className="flex items-center w-full my-8">
-            <div className="flex-1 h-[1px] bg-gray-300/50 shadow-sm"></div>
-            <span className="px-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
-              OR
+            <div className="flex-1 h-[1px] bg-gray-100"></div>
+            <span className="px-4 text-[10px] font-bold text-gray-300 uppercase tracking-widest">
+              OR CONTINUE WITH
             </span>
-            <div className="flex-1 h-[1px] bg-gray-300/50 shadow-sm"></div>
+            <div className="flex-1 h-[1px] bg-gray-100"></div>
           </div>
 
-          {/* Social Login */}
           <button
             type="button"
-            className="w-full py-4 bg-[#FEE500] text-black rounded-2xl font-bold shadow-lg hover:bg-[#FDD835] active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-default"
+            className="w-full py-4 bg-[#FEE500] text-[#11141D] rounded-2xl font-bold hover:bg-[#fada0a] transition-all active:scale-[0.99] flex items-center justify-center gap-2 shadow-sm"
           >
-            <div className="w-6 h-6 bg-yellow-900 rounded-md flex items-center justify-center text-[10px] text-white font-black">
-              K
-            </div>
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 3c-4.97 0-9 3.037-9 6.784 0 2.455 1.705 4.607 4.29 5.86l-.88 3.256c-.05.184.058.376.24.428.055.016.113.018.17.006l3.83-2.541c.43.06.877.091 1.35.091 4.97 0 9-3.037 9-6.784S16.97 3 12 3z" />
+            </svg>
             카카오톡으로 시작하기
           </button>
 
-          {/* Signup Link */}
-          <div className="mt-8 text-center">
-            <p className="text-gray-500 text-xs font-medium mb-2">SSARVIS가 처음이신가요?</p>
+          <div className="mt-10 text-center">
+            <span className="text-gray-400 text-sm">계정이 없으신가요? </span>
             <button
               onClick={() => navigate(PATHS.SIGNUP)}
-              className="text-purple-600 text-sm font-bold hover:underline decoration-2 underline-offset-4"
+              className="text-[#D5A09D] text-sm font-bold hover:underline underline-offset-4"
             >
               간편 회원가입하기
             </button>
