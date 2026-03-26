@@ -22,6 +22,14 @@ export interface FollowListResponse {
   description: string;
 }
 
+export interface FollowerListResponse {
+  followerId: number;
+  nickname: string;
+  customId: string;
+  followerProfileImgUrl: string;
+  description: string;
+}
+
 export interface FollowRequestListResponse {
   followRequestId: number;
   senderId: number;
@@ -65,6 +73,12 @@ const followApi = {
   // 5. 내 친구 리스트 출력
   getFollowList: async () => {
     const response = await axiosInstance.get<CommonResponse<FollowListResponse[]>>('/follows');
+    return response.data;
+  },
+
+  getFollowerList: async () => {
+    const response =
+      await axiosInstance.get<CommonResponse<FollowerListResponse[]>>('/follows/followers');
     return response.data;
   },
 

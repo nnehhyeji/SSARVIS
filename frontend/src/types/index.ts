@@ -5,6 +5,7 @@ export type Alarm = {
   isRead: boolean;
   time: string;
   type: 'follow' | 'system';
+  payload?: Record<string, unknown>;
 };
 
 // AI 동작 모드 타입
@@ -23,6 +24,7 @@ export type Follow = {
   followId?: number;
   name: string;
   email: string;
+  description?: string;
   color: string;
   profileExp: string;
   faceType?: number;

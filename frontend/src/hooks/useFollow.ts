@@ -1,9 +1,34 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+﻿import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Follow, FollowRequest } from '../types';
 import { VISITOR_PALETTES } from '../constants/theme';
 import type { BgColors } from '../constants/theme';
 import followApi from '../apis/followApi';
 import { useUserStore } from '../store/useUserStore';
+
+function mergeFollowRelations(followingData: Follow[], followerData: Follow[]): Follow[] {
+  const merged = new Map<number, Follow>();
+
+  for (const follow of followingData) {
+    merged.set(follow.id, follow);
+  }
+
+  for (const follower of followerData) {
+    const existing = merged.get(follower.id);
+
+    if (existing) {
+      merged.set(follower.id, {
+        ...existing,
+        isFollower: true,
+        description: existing.description || follower.description,
+      });
+      continue;
+    }
+
+    merged.set(follower.id, follower);
+  }
+
+  return Array.from(merged.values());
+}
 
 export function useFollow() {
   const { isLoggedIn } = useUserStore();
@@ -25,23 +50,39 @@ export function useFollow() {
 
   const fetchFollows = useCallback(async () => {
     try {
-      const res = await followApi.getFollowList();
-      if (res.data) {
-        const mappedFollows: Follow[] = res.data.map((f) => ({
-          id: f.userId,
-          followId: f.followId,
-          name: f.nickname || '이름없음',
-          email: f.description || '',
-          color: 'bg-indigo-100',
-          profileExp: '^-^',
-          view_count: 0,
-          isFollowing: true,
-          isFollower: true,
-        }));
-        setFollows(mappedFollows);
-      }
+      const [followingRes, followerRes] = await Promise.all([
+        followApi.getFollowList(),
+        followApi.getFollowerList(),
+      ]);
+
+      const mappedFollowing: Follow[] = (followingRes.data || []).map((f) => ({
+        id: f.userId,
+        followId: f.followId,
+        name: f.nickname || '이름 없음',
+        email: '',
+        description: f.description || '',
+        color: 'bg-indigo-100',
+        profileExp: '^-^',
+        view_count: 0,
+        isFollowing: true,
+        isFollower: true,
+      }));
+
+      const mappedFollowers: Follow[] = (followerRes.data || []).map((f) => ({
+        id: f.followerId,
+        name: f.nickname || '이름 없음',
+        email: '',
+        description: f.description || '',
+        color: 'bg-blue-100',
+        profileExp: '^o^',
+        view_count: 0,
+        isFollowing: true,
+        isFollower: true,
+      }));
+
+      setFollows(mergeFollowRelations(mappedFollowing, mappedFollowers));
     } catch (error) {
-      console.error('친구 리스트 조회 실패:', error);
+      console.error('팔로우 목록 조회 실패:', error);
     }
   }, []);
 
@@ -51,7 +92,7 @@ export function useFollow() {
       if (res.data) {
         const mappedRequests: FollowRequest[] = res.data.map((req) => ({
           id: req.followRequestId,
-          name: req.senderNickname || '이름없음',
+          name: req.senderNickname || '이름 없음',
           email: req.senderEmail || '',
           color: 'bg-blue-100',
           profileExp: '^o^',
@@ -59,7 +100,7 @@ export function useFollow() {
         setFollowRequests(mappedRequests);
       }
     } catch (error) {
-      console.error('팔로우 요청 리스트 조회 실패:', error);
+      console.error('팔로우 요청 목록 조회 실패:', error);
     }
   }, []);
 
@@ -68,7 +109,7 @@ export function useFollow() {
     let isMounted = true;
 
     const loadInitialData = async () => {
-      // API 호출이 중복되거나 컴포넌트 언마운트 후 상태 업데이트 방지, 그리고 비로그인 상태 제외
+      // API 호출 중복과 언마운트 후 상태 업데이트를 막고, 비로그인 상태는 제외한다.
       if (!isMounted || !isLoggedIn) return;
       await Promise.all([fetchFollows(), fetchFollowRequests()]);
     };
@@ -104,7 +145,7 @@ export function useFollow() {
         alert(`${user.name}님의 방으로 방문합니다. (${visibility} 모드)`);
       }
 
-      return `${user.name} : 우리집에 왜 왔니 ?`;
+      return `${user.name}: 브리지에 다녀왔어요.`;
     },
     [follows],
   );
@@ -117,7 +158,7 @@ export function useFollow() {
     setVisitedUserId(null);
     setVisitorBg({});
     setVisitorVisibility('public');
-    return '서영님 눈물닦고 할일하세요';
+    return '메인 화면으로 돌아왔어요.';
   }, []);
 
   const requestFollow = useCallback(async (receiverId: number, name: string) => {
@@ -130,10 +171,10 @@ export function useFollow() {
             : user,
         ),
       );
-      alert(`${name}님에게 친구 신청을 보냈습니다.`);
+      alert(`${name}님에게 친구 요청을 보냈습니다.`);
     } catch (error) {
-      console.error('친구 신청 실패:', error);
-      alert('친구 신청에 실패했습니다.');
+      console.error('친구 요청 실패:', error);
+      alert('친구 요청에 실패했습니다.');
     }
   }, []);
 
@@ -142,13 +183,14 @@ export function useFollow() {
       try {
         if (follow.followId) {
           await followApi.deleteFollow(follow.followId);
+          alert(`${follow.name}님과의 관계를 해제했습니다.`);
+          fetchFollows();
+          return;
         }
-        alert(`${follow.name}님을 팔로우 취소했습니다.`);
-        // 피드백 반영: 서버 데이터와 동기화
-        fetchFollows();
+        alert('아직 해제할 수 없는 관계입니다.');
       } catch (error) {
-        console.error('친구 삭제 실패:', error);
-        alert('친구 삭제에 실패했습니다.');
+        console.error('친구 해제 실패:', error);
+        alert('친구 해제에 실패했습니다.');
       }
     },
     [fetchFollows],
@@ -159,11 +201,11 @@ export function useFollow() {
       try {
         await followApi.acceptFollow({ followRequestId: id });
         setFollowRequests((prev) => prev.filter((req) => req.id !== id));
-        alert(`${name}님의 팔로우 요청을 수락했습니다.`);
+        alert(`${name}님의 친구 요청을 수락했습니다.`);
         fetchFollows();
       } catch (error) {
-        console.error('친구 수락 실패:', error);
-        alert('친구 수락에 실패했습니다.');
+        console.error('친구 요청 수락 실패:', error);
+        alert('친구 요청 수락에 실패했습니다.');
       }
     },
     [fetchFollows],
@@ -173,10 +215,10 @@ export function useFollow() {
     try {
       await followApi.rejectFollow({ followRequestId: id });
       setFollowRequests((prev) => prev.filter((req) => req.id !== id));
-      alert('팔로우 요청을 거절했습니다.');
+      alert('친구 요청을 거절했습니다.');
     } catch (error) {
-      console.error('친구 거절 실패:', error);
-      alert('친구 거절에 실패했습니다.');
+      console.error('친구 요청 거절 실패:', error);
+      alert('친구 요청 거절에 실패했습니다.');
     }
   }, []);
 
@@ -193,8 +235,8 @@ export function useFollow() {
       setIsSearchLoading(true);
       searchTimeoutRef.current = setTimeout(async () => {
         try {
-          // 닉네임, 이메일 검색을 병렬(Promise.all)로 진행하여 응답 속도 최적화
-          // (차후 백엔드에서 통합 검색 API를 제공해주기 전까지 클라이언트 측 임시 최적화)
+          // 닉네임과 이메일 검색을 병렬로 호출해 응답 시간을 줄인다.
+          // 백엔드 통합 검색 API가 생기기 전까지의 프론트 임시 최적화다.
           const [nicknameRes, emailRes] = await Promise.all([
             followApi.searchUsers({ nickname: query }).catch(() => ({ data: [] as never[] })),
             followApi.searchUsers({ email: query }).catch(() => ({ data: [] as never[] })),
@@ -202,20 +244,23 @@ export function useFollow() {
 
           const combinedData = [...(nicknameRes.data || []), ...(emailRes.data || [])];
 
-          // 중복 아이디(userId) 제거 로직
+          // userId 기준으로 중복 검색 결과를 제거한다.
           const uniqueUsers = Array.from(new Map(combinedData.map((u) => [u.userId, u])).values());
 
           if (uniqueUsers.length > 0) {
             const mappedUsers: Follow[] = uniqueUsers.map((u) => ({
               id: u.userId,
-              followId: undefined, // 검색 결과에는 followId가 없을 수 있음
+              followId: undefined, // 寃??寃곌낵?먮뒗 followId媛 ?놁쓣 ???덉쓬
               name: u.nickname,
               email: u.email,
+              description: '',
               color: 'bg-gray-200',
               profileExp: 'o_o',
               view_count: 0,
               followStatus: u.followStatus,
-              isFollowing: u.followStatus === 'FOLLOWING' || follows.some((f) => f.id === u.userId),
+              isFollowing:
+                u.followStatus === 'FOLLOWING' ||
+                follows.some((f) => f.id === u.userId && f.isFollowing),
               isFollower: false,
             }));
             setSearchResults(mappedUsers);
@@ -223,7 +268,7 @@ export function useFollow() {
             setSearchResults([]);
           }
         } catch (error) {
-          console.error('유저 검색 실패:', error);
+          console.error('사용자 검색 실패:', error);
           setSearchResults([]);
         } finally {
           setIsSearchLoading(false);
@@ -235,7 +280,7 @@ export function useFollow() {
 
   return {
     follows,
-    allUsers: follows, // CardPage.tsx 호환성을 위해 추가
+    allUsers: follows, // CardPage.tsx ?명솚?깆쓣 ?꾪빐 異붽?
     followRequests,
     searchResults,
     isSearchLoading,
