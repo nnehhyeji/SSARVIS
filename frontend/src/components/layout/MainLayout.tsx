@@ -13,7 +13,7 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { userInfo, logout: logoutStore, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
-  
+
   // Sidebar state & hooks
   const [viewCount, setViewCount] = useState(0);
 
@@ -46,7 +46,9 @@ const MainLayout: React.FC = () => {
       }
     };
     void loadProfile();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [isLoggedIn]);
 
   // Handle "/" redirect
@@ -77,13 +79,19 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  const handleAlarmClick = useCallback((alarm: Alarm) => {
-    readAlarm(alarm.id);
-  }, [readAlarm]);
+  const handleAlarmClick = useCallback(
+    (alarm: Alarm) => {
+      readAlarm(alarm.id);
+    },
+    [readAlarm],
+  );
 
-  const handleVisit = useCallback((id: number) => {
-    navigate(PATHS.USER_HOME(id));
-  }, [navigate]);
+  const handleVisit = useCallback(
+    (id: number) => {
+      navigate(PATHS.USER_HOME(id));
+    },
+    [navigate],
+  );
 
   return (
     <div className="flex w-full h-screen bg-[#FDFCFB] overflow-hidden">
@@ -111,7 +119,7 @@ const MainLayout: React.FC = () => {
         requestFollow={requestFollow}
         viewCount={viewCount}
       />
-      
+
       <main className="flex-1 relative overflow-hidden">
         <Outlet />
       </main>

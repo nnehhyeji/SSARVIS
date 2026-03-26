@@ -3,13 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Mail,
-  Lock,
-  User,
-  UserPlus,
-  ArrowLeft,
-  CheckCircle2,
-  AlertCircle,
+  ChevronLeft,
   Check,
 } from 'lucide-react';
 import { PATHS } from '../../routes/paths';
@@ -56,11 +50,6 @@ export default function SignupPage() {
     };
   }, [isTimerActive, timeLeft]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,9 +71,7 @@ export default function SignupPage() {
       setIsSubmitting(true);
       const response = await userApi.signup({ email, password, nickname, customId });
 
-      // 회원가입 직후 자동 로그인 수행
       const loginResponse = await authApi.login({ email, password });
-
       const { accessToken, timeout } = loginResponse.data;
       localStorage.setItem('token', accessToken);
 
@@ -113,8 +100,6 @@ export default function SignupPage() {
     }
   };
 
-  const [waveDurations] = useState<number[]>(() => [...Array(5)].map(() => 1 + Math.random()));
-
   const sendEmailCode = async () => {
     if (!email || !email.includes('@')) {
       alert('올바른 이메일 형식을 입력해 주세요.');
@@ -124,7 +109,7 @@ export default function SignupPage() {
       setEmailStatus('sending');
       await userApi.sendVerificationCode({ email });
       setEmailStatus('sent');
-      setTimeLeft(180); // 3분 설정
+      setTimeLeft(180);
       setIsTimerActive(true);
       alert('인증 코드가 발송되었습니다.');
     } catch (error: unknown) {
@@ -183,134 +168,111 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4 bg-white">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+    <div className="min-h-screen bg-[#F0F2F5] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-lg z-10"
+        className="w-full max-w-6xl bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row min-h-[720px]"
       >
-        <div className="bg-white/40 backdrop-blur-xl border border-white/40 rounded-[2.5rem] shadow-2xl p-10 flex flex-col items-center max-h-[90vh] overflow-y-auto">
-          {/* Header Section */}
-          <div className="w-full flex items-center justify-between mb-8">
-            <button
-              onClick={() => navigate(PATHS.LOGIN)}
-              className="p-3 bg-white/50 rounded-2xl hover:bg-white/80 transition-all text-gray-600 shadow-sm"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div className="text-right flex items-center gap-3">
-              <div className="flex -space-x-2">
-                {[...Array(5)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    animate={{
-                      height: [4, 12, 6, 16, 4],
-                    }}
-                    transition={{
-                      duration: waveDurations[i],
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                      delay: i * 0.1,
-                    }}
-                    className="w-1 bg-purple-500 rounded-full"
-                  />
-                ))}
+        {/* Left Side Panel */}
+        <div className="w-full md:w-[45%] bg-gradient-to-br from-[#F7E0DE] via-[#E6C0BC] to-[#D5A09D] p-12 flex flex-col justify-center relative order-2 md:order-1">
+          <div>
+            <div className="flex items-center gap-3 mb-20">
+              <div className="w-12 h-12 bg-[#11141D] rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-base tracking-tighter">sv</span>
               </div>
-              <div>
-                <h2 className="text-2xl font-black bg-gradient-to-r from-gray-800 to-gray-500 bg-clip-text text-transparent">
-                  회원가입
-                </h2>
-                <p className="text-gray-500 text-sm font-medium">새로운 목소리를 만나보세요</p>
-              </div>
-              <UserPlus className="w-8 h-8 text-purple-600 ml-2" />
+              <span className="text-[#11141D] font-black text-3xl tracking-tight">SSARVIS</span>
+            </div>
+            
+            <div className="space-y-6">
+              <span className="text-[#11141D]/50 text-sm font-black tracking-[0.2em] block uppercase">YOUR AI ARCHIVE</span>
+              <h1 className="text-[#11141D] text-5xl font-extrabold leading-[1.2] break-keep">
+                나를 닮은<br />
+                나만의 AI가<br />
+                시작되는 곳
+              </h1>
             </div>
           </div>
+        </div>
 
-          {/* Signup Form */}
-          <form onSubmit={handleSignup} className="w-full space-y-4">
-            {/* CustomId (ID) Field */}
-            <div className="space-y-1">
-              <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">
-                아이디
-              </label>
+        {/* Right Side Form */}
+        <div className="w-full md:w-[55%] p-8 md:p-12 flex flex-col relative order-1 md:order-2 self-center">
+          <button 
+            onClick={() => navigate(PATHS.HOME)}
+            className="absolute top-6 left-8 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <ChevronLeft size={24} />
+          </button>
+
+          <div className="mb-6 mt-4">
+            <h2 className="text-[#11141D] text-3xl font-bold mb-1.5 leading-tight">Get Started</h2>
+            <p className="text-gray-400 text-sm">당신을 닮은 AI를 만들어보세요.</p>
+          </div>
+
+          <form onSubmit={handleSignup} className="space-y-3">
+            {/* ID Field */}
+            <div className="space-y-1 text-left">
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">ID</label>
               <div className="flex gap-2">
-                <div className="relative group flex-1">
-                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                    <User className="w-5 h-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="로그인에 사용할 아이디"
-                    value={customId}
-                    onChange={(e) => {
-                      setCustomId(e.target.value);
-                      setCustomIdStatus('none');
-                    }}
-                    className="w-full pl-12 pr-4 py-3 bg-white/50 border border-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all font-medium"
-                    required
-                  />
-                </div>
+                <input
+                  type="text"
+                  placeholder="아이디"
+                  value={customId}
+                  onChange={(e) => {
+                    setCustomId(e.target.value);
+                    setCustomIdStatus('none');
+                  }}
+                  className="flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm"
+                  required
+                />
                 <button
                   type="button"
                   onClick={checkCustomIdDuplicate}
                   disabled={customIdStatus === 'checking'}
-                  className="px-4 py-3 bg-gray-800 text-white rounded-xl font-bold shadow-lg hover:bg-gray-700 active:scale-[0.95] transition-all whitespace-nowrap disabled:opacity-50 text-sm"
+                  className="px-5 py-3 bg-white border border-gray-200 text-[#11141D] rounded-2xl font-bold text-[11px] hover:bg-gray-50 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
                 >
                   {customIdStatus === 'checking' ? '확인 중' : '중복확인'}
                 </button>
               </div>
               {customIdStatus === 'available' && (
-                <p className="text-[10px] text-green-600 font-bold ml-2 flex items-center gap-1">
+                <p className="text-[9px] text-green-600 font-bold ml-1 flex items-center gap-1">
                   <Check className="w-3 h-3" /> 사용 가능한 아이디입니다.
-                </p>
-              )}
-              {customIdStatus === 'duplicate' && (
-                <p className="text-[10px] text-red-500 font-bold ml-2 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" /> 이미 사용 중인 아이디입니다.
                 </p>
               )}
             </div>
 
-            {/* Email Field with Verification */}
-            <div className="space-y-1">
-              <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">
-                이메일
-              </label>
+            {/* Email Field */}
+            <div className="space-y-1 text-left">
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Email</label>
               <div className="flex gap-2">
-                <div className="relative group flex-1">
-                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                    <Mail className="w-5 h-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
-                  </div>
-                  <input
-                    type="email"
-                    placeholder="example@ssarvis.com"
-                    value={email}
-                    disabled={emailStatus === 'verified'}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setEmailStatus('none');
-                    }}
-                    className="w-full pl-12 pr-4 py-3 bg-white/50 border border-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all font-medium disabled:opacity-50"
-                    required
-                  />
-                </div>
+                <input
+                  type="email"
+                  placeholder="이메일"
+                  value={email}
+                  disabled={emailStatus === 'verified'}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailStatus('none');
+                  }}
+                  className="flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 disabled:opacity-50 text-sm"
+                  required
+                />
                 <button
                   type="button"
                   onClick={sendEmailCode}
                   disabled={emailStatus === 'sending' || emailStatus === 'verified'}
-                  className="px-4 py-3 bg-gray-800 text-white rounded-xl font-bold shadow-lg hover:bg-gray-700 active:scale-[0.95] transition-all whitespace-nowrap disabled:opacity-50 text-sm"
+                  className="px-5 py-3 bg-white border border-gray-200 text-[#11141D] rounded-2xl font-bold text-[11px] hover:bg-gray-50 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
                 >
-                  {emailStatus === 'sending'
-                    ? '발송 중'
-                    : emailStatus === 'verified'
-                      ? '인증됨'
-                      : '인증요청'}
+                  {emailStatus === 'sending' ? '발송 중' : emailStatus === 'verified' ? '인증됨' : '인증요청'}
                 </button>
               </div>
 
               {(emailStatus === 'sent' || emailStatus === 'verified') && (
-                <div className="space-y-2 mt-2">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-2 mt-2"
+                >
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -318,119 +280,85 @@ export default function SignupPage() {
                       value={verificationCode}
                       disabled={emailStatus === 'verified'}
                       onChange={(e) => setVerificationCode(e.target.value)}
-                      className="flex-1 px-4 py-3 bg-white/50 border border-white/60 rounded-xl focus:outline-none transition-all font-medium disabled:opacity-50"
+                      className="flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 transition-all text-sm disabled:opacity-50"
                     />
                     <button
                       type="button"
                       onClick={verifyEmailCode}
                       disabled={isVerifying || emailStatus === 'verified'}
-                      className="px-4 py-3 bg-purple-600 text-white rounded-xl font-bold shadow-lg hover:bg-purple-700 active:scale-[0.95] transition-all text-sm disabled:opacity-50"
+                      className="px-5 py-3 bg-[#11141D] text-white rounded-2xl font-bold text-[11px] hover:bg-[#1a1e2b] transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
                     >
                       {isVerifying ? '확인 중' : '확인'}
                     </button>
                   </div>
                   {emailStatus === 'sent' && (
-                    <div className="flex items-center justify-between px-2">
-                      <p
-                        className={`text-[10px] font-bold ${timeLeft < 30 ? 'text-red-500' : 'text-purple-600'}`}
-                      >
-                        {timeLeft > 0
-                          ? `남은 시간 ${formatTime(timeLeft)}`
-                          : '인증 시간이 만료되었습니다.'}
-                      </p>
-                      {timeLeft === 0 && (
-                        <button
-                          type="button"
-                          onClick={sendEmailCode}
-                          className="text-[10px] text-gray-500 font-bold hover:text-purple-600 underline"
-                        >
-                          코드 재발송
-                        </button>
-                      )}
-                    </div>
+                    <p className={`text-[9px] font-bold ml-1 ${timeLeft < 30 ? 'text-red-500' : 'text-[#D5A09D]'}`}>
+                      {timeLeft > 0 ? `남은 시간 ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : '인증 만료'}
+                    </p>
                   )}
-                </div>
+                </motion.div>
               )}
             </div>
 
             {/* Password Field */}
-            <div className="space-y-1">
-              <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">
-                비밀번호
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                  <Lock className="w-5 h-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
-                </div>
-                <input
-                  type="password"
-                  placeholder="8~20자, 영문, 숫자 포함"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full pl-12 pr-4 py-3 bg-white/50 border border-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all font-medium ${
-                    password && !isPasswordValid ? 'border-red-400' : ''
-                  }`}
-                  required
-                />
-              </div>
-              {password && (
-                <p
-                  className={`text-[10px] font-medium ml-2 ${isPasswordValid ? 'text-green-600' : 'text-red-500'}`}
-                >
-                  {isPasswordValid
-                    ? '사용 가능한 비밀번호입니다.'
-                    : '* 영문, 숫자를 포함하여 8~20자로 입력해주세요.'}
-                </p>
-              )}
+            <div className="space-y-1 text-left">
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Password</label>
+              <input
+                type="password"
+                placeholder="비밀번호 입력 (8~20자)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${
+                  password && !isPasswordValid ? 'border-red-200' : ''
+                }`}
+                required
+              />
             </div>
 
             {/* Nickname Field */}
-            <div className="space-y-1">
-              <label className="text-xs font-black text-gray-500 uppercase tracking-widest ml-1">
-                닉네임
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                  <User className="w-5 h-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="활동할 닉네임"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white/50 border border-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400 transition-all font-medium"
-                  required
-                />
-              </div>
+            <div className="space-y-1 text-left">
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Nickname</label>
+              <input
+                type="text"
+                placeholder="활동할 닉네임"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm"
+                required
+              />
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-2xl hover:scale-[1.01] active:scale-[0.98] transition-all text-lg mt-4 flex items-center justify-center gap-3 disabled:opacity-50"
+              className="w-full py-4 bg-[#11141D] text-white rounded-2xl font-bold hover:bg-[#1a1e2b] transition-all active:scale-[0.99] disabled:opacity-50 shadow-lg mt-2 text-base"
             >
-              {isSubmitting ? (
-                '처리 중...'
-              ) : (
-                <>
-                  <CheckCircle2 className="w-5 h-5" />
-                  가입하고 시작하기
-                </>
-              )}
+              {isSubmitting ? '처리 중...' : '가입하고 시작하기'}
             </button>
           </form>
 
-          {/* Kakao Info Box */}
-          <div className="mt-6 p-3 bg-yellow-400/10 border border-yellow-400/20 rounded-xl w-full flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#FEE500] rounded-lg flex items-center justify-center font-black text-[10px] text-yellow-900 border border-yellow-400/30">
-              TALK
-            </div>
-            <div>
-              <p className="text-xs font-bold text-gray-700">카카오톡 간편 통합 가입</p>
-              <p className="text-[10px] text-gray-500">
-                이미 가입된 이메일이라면 자동으로 통합됩니다.
-              </p>
-            </div>
+          <div className="flex items-center w-full my-4">
+            <div className="flex-1 h-[1px] bg-gray-100"></div>
+          </div>
+
+          <button
+            type="button"
+            className="w-full py-3.5 bg-[#FEE500] text-[#11141D] rounded-2xl font-bold hover:bg-[#fada0a] transition-all active:scale-[0.99] flex items-center justify-center gap-2 shadow-sm text-sm"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 3c-4.97 0-9 3.037-9 6.784 0 2.455 1.705 4.607 4.29 5.86l-.88 3.256c-.05.184.058.376.24.428.055.016.113.018.17.006l3.83-2.541c.43.06.877.091 1.35.091 4.97 0 9-3.037 9-6.784S16.97 3 12 3z" />
+            </svg>
+            카카오 간편 통합 가입
+          </button>
+
+          <div className="mt-6 text-center">
+            <span className="text-gray-400 text-xs">이미 계정이 있나요? </span>
+            <button
+              onClick={() => navigate(PATHS.LOGIN)}
+              className="text-[#D5A09D] text-xs font-bold hover:underline underline-offset-4"
+            >
+              로그인
+            </button>
           </div>
         </div>
       </motion.div>

@@ -198,10 +198,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean toggleProfile(Long userId) {
+    @Transactional
+    public boolean updateProfileVisibility(Long userId, boolean isPublic) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
-        user.toggleProfile();
+        user.updateProfileVisibility(isPublic);
         return user.getIsPublic();
     }
 

@@ -46,13 +46,13 @@ const PersonaPanel: React.FC<PersonaPanelProps> = ({ onModeChange }) => {
               }}
               className="text-left group transition-all"
             >
-              <h3 className={`text-2xl font-black transition-colors ${isActive ? 'text-rose-500' : 'text-gray-500 group-hover:text-gray-800'}`}>
+              <h3
+                className={`text-2xl font-black transition-colors ${isActive ? 'text-rose-500' : 'text-gray-500 group-hover:text-gray-800'}`}
+              >
                 {m.label}
               </h3>
               <p className="text-sm font-bold text-gray-400 mt-2 leading-relaxed">{m.desc}</p>
-              {isActive && (
-                <div className="mt-4 h-1.5 w-16 bg-rose-500 rounded-full shadow-sm" />
-              )}
+              {isActive && <div className="mt-4 h-1.5 w-16 bg-rose-500 rounded-full shadow-sm" />}
             </button>
           );
         })}

@@ -96,7 +96,7 @@ export default function Sidebar({
   const [isExpanded, setIsExpanded] = useState(false);
   const { sessionId } = useParams<{ sessionId?: string }>();
   const selectedChatId = sessionId || null;
-  
+
   const location = useLocation();
   const [activeTertiary, setActiveTertiary] = useState<
     'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null
@@ -119,12 +119,16 @@ export default function Sidebar({
       // but for 'friends', 'notifications', 'search' we might want to keep current state.
       // However, the rule is "navigating to these pages opens/keeps panels open".
       if (!['/friends', '/notifications', '/search'].includes(path)) {
-         if (activeTertiary !== 'friends' && activeTertiary !== 'notifications' && activeTertiary !== 'search') {
-           // If we are on Home, close panels unless it's friends etc.
-           if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
-             setActiveTertiary(null);
-           }
-         }
+        if (
+          activeTertiary !== 'friends' &&
+          activeTertiary !== 'notifications' &&
+          activeTertiary !== 'search'
+        ) {
+          // If we are on Home, close panels unless it's friends etc.
+          if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
+            setActiveTertiary(null);
+          }
+        }
       }
     }
   }, [location.pathname, selectedChatId]);
@@ -310,18 +314,18 @@ export default function Sidebar({
 
   const handleNotificationClick = (alarm: Alarm) => {
     onAlarmClick(alarm);
-    
+
     // Redirect logic based on notification type
     if (alarm.type === 'FOLLOW_REQUEST') {
       setActiveTertiary('friends');
       setFriendView('requests');
     } else if (alarm.type === 'FOLLOW_ACCEPT') {
-       // Navigate to the person who accepted the request
-       const senderId = (alarm.payload as any)?.senderId || (alarm.payload as any)?.senderUserId;
-       if (senderId) {
-         navigate(PATHS.USER_HOME(senderId));
-         setActiveTertiary(null);
-       }
+      // Navigate to the person who accepted the request
+      const senderId = (alarm.payload as any)?.senderId || (alarm.payload as any)?.senderUserId;
+      if (senderId) {
+        navigate(PATHS.USER_HOME(senderId));
+        setActiveTertiary(null);
+      }
     }
   };
 
@@ -408,13 +412,13 @@ export default function Sidebar({
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 className="overflow-hidden"
               >
-                  <div
-                    onClick={() => setActiveTertiary('search')}
-                    className="w-full bg-[#e5e0dc] rounded-xl flex items-center gap-2 py-2 px-3 cursor-pointer hover:bg-[#dcd2ca] transition-colors"
-                  >
-                    <Search className="w-4 h-4 text-white/80 shrink-0" />
-                    <span className="text-gray-400 font-bold whitespace-nowrap text-sm">Search</span>
-                  </div>
+                <div
+                  onClick={() => setActiveTertiary('search')}
+                  className="w-full bg-[#e5e0dc] rounded-xl flex items-center gap-2 py-2 px-3 cursor-pointer hover:bg-[#dcd2ca] transition-colors"
+                >
+                  <Search className="w-4 h-4 text-white/80 shrink-0" />
+                  <span className="text-gray-400 font-bold whitespace-nowrap text-sm">Search</span>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -612,7 +616,6 @@ export default function Sidebar({
                   }}
                 />
               )}
-
             </div>
           </motion.div>
         )}
@@ -637,7 +640,10 @@ export default function Sidebar({
                 <span className="font-bold text-sm tracking-tight">닫기</span>
               </button>
               <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-lg">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=MainUser" alt="Main User" />
+                <img
+                  src="https://api.dicebear.com/7.x/avataaars/svg?seed=MainUser"
+                  alt="Main User"
+                />
               </div>
             </div>
 

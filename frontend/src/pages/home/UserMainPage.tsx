@@ -148,24 +148,11 @@ export default function UserMainPage() {
 
   // AI 발화 말풍선용 데이터 추출
   const lastAiMessage = useMemo(() => {
-<<<<<<< HEAD
-    return (
-      chatMessages
-        .slice()
-        .reverse()
-        .find((m) => m.sender === 'ai')?.text || ''
-    );
+    return chatMessages.slice().reverse().find((m) => m.sender === 'ai')?.text || '';
   }, [chatMessages]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
-  const ownerName = isMyHome ? userInfo?.nickname || '나' : visitedFollowName || '친구';
-=======
-    return activeChat.chatMessages.slice().reverse().find((m) => m.sender === 'ai')?.text || '';
-  }, [activeChat.chatMessages]);
-
-  const finalIsSpeaking = activeChat.isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? (userInfo?.nickname || '나') : (visitedFollowName || '친구');
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
 
   // --- Render Helpers ---
@@ -206,14 +193,8 @@ export default function UserMainPage() {
   }
 
   return (
-<<<<<<< HEAD
-    <div
-      className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}
-    >
-=======
-    <div className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${activeChat.isLockMode ? 'bg-black' : 'bg-white'}`}>
+    <div className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}>
       
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
       {/* 상단 룸 정보 (방문 시 노출) */}
       {!isMyHome && (
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
@@ -274,7 +255,6 @@ export default function UserMainPage() {
                 onClick={() => {
                   toggleMic();
                   if (!isMicOn) {
-<<<<<<< HEAD
                     const assistantType = isMyHome
                       ? currentMode === 'counseling'
                         ? 'COUNSEL'
@@ -285,10 +265,6 @@ export default function UserMainPage() {
                         ? 'PERSONA'
                         : 'DAILY';
                     const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
-=======
-                    const assistantType = isMyHome ? (currentMode === 'counseling' ? 'COUNSEL' : currentMode === 'normal' ? 'DAILY' : currentMode.toUpperCase()) : (isPersonaShared ? 'PERSONA' : 'DAILY');
-                    const memoryPolicy = isMyHome && activeChat.isLockMode ? 'SECRET' : 'GENERAL';
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
                     const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
                     activeChat.startRecording(null, assistantType, memoryPolicy, category, targetId);
                   } else {
@@ -315,15 +291,7 @@ export default function UserMainPage() {
                 className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${activeChat.isLockMode ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
               >
                 <div className="flex items-center justify-center">
-<<<<<<< HEAD
-                  {isLockMode ? (
-                    <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" />
-                  ) : (
-                    <Unlock className="w-8 h-8 text-gray-300" />
-                  )}
-=======
-                  {activeChat.isLockMode ? <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" /> : <Unlock className="w-8 h-8 text-gray-300" />}
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
+                  {isLockMode ? <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" /> : <Unlock className="w-8 h-8 text-gray-300" />}
                 </div>
               </button>
             </div>
@@ -414,7 +382,6 @@ export default function UserMainPage() {
               input={activeChat.chatInput}
               onInputChange={activeChat.setChatInput}
               onSend={() => {
-<<<<<<< HEAD
                 const assistantType = isMyHome
                   ? currentMode === 'counseling'
                     ? 'COUNSEL'
@@ -425,10 +392,6 @@ export default function UserMainPage() {
                     ? 'PERSONA'
                     : 'DAILY';
                 const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
-=======
-                const assistantType = isMyHome ? (currentMode === 'counseling' ? 'COUNSEL' : currentMode === 'normal' ? 'DAILY' : currentMode.toUpperCase()) : (isPersonaShared ? 'PERSONA' : 'DAILY');
-                const memoryPolicy = isMyHome && activeChat.isLockMode ? 'SECRET' : 'GENERAL';
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
                 const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
                 activeChat.sendMessage(activeChat.chatInput, null, assistantType, memoryPolicy, category, targetId);
               }}

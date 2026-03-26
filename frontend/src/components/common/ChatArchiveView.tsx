@@ -109,7 +109,7 @@ export default function ChatArchiveView({ selectedChatId }: ChatArchiveViewProps
     audioRef.current = audio;
 
     const onTimeUpdate = () => {
-      // we only need audioDuration for seek in AudioPlayerBar, 
+      // we only need audioDuration for seek in AudioPlayerBar,
       // visual progress is calculated inside AudioPlayerBar's draw loop.
     };
     const onLoadedMeta = () => setAudioDuration(audio.duration);

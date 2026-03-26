@@ -148,32 +148,35 @@ export function useAIToAIChat() {
     }
   }, []);
 
-  const sendTurn = useCallback((side: Side, text: string) => {
-    const socket = socketsRef.current[side];
-    const config = configRef.current[side];
+  const sendTurn = useCallback(
+    (side: Side, text: string) => {
+      const socket = socketsRef.current[side];
+      const config = configRef.current[side];
 
-    if (!socket || socket.readyState !== WebSocket.OPEN || !config) {
-      setErrorMessage('AI 연결이 준비되지 않아 다음 턴을 전달하지 못했습니다.');
-      stopBattle();
-      return;
-    }
+      if (!socket || socket.readyState !== WebSocket.OPEN || !config) {
+        setErrorMessage('AI 연결이 준비되지 않아 다음 턴을 전달하지 못했습니다.');
+        stopBattle();
+        return;
+      }
 
-    sideAudioRef.current[side].lastText = '';
-    sideAudioRef.current[side].streamHandled = false;
-    sideAudioRef.current[side].requestId += 1;
-    socket.send(
-      JSON.stringify({
-        type: 'CHAT_START',
-        sessionId: sessionIdsRef.current[side],
-        assistantType: config.assistantType,
-        memoryPolicy: 'SECRET',
-        chatSessionType: 'AI_AI',
-        targetUserId: config.targetUserId,
-      }),
-    );
-    socket.send(JSON.stringify({ type: 'AUDIO_END' }));
-    socket.send(JSON.stringify({ type: 'TEXT', text }));
-  }, [stopBattle]);
+      sideAudioRef.current[side].lastText = '';
+      sideAudioRef.current[side].streamHandled = false;
+      sideAudioRef.current[side].requestId += 1;
+      socket.send(
+        JSON.stringify({
+          type: 'CHAT_START',
+          sessionId: sessionIdsRef.current[side],
+          assistantType: config.assistantType,
+          memoryPolicy: 'SECRET',
+          chatSessionType: 'AI_AI',
+          targetUserId: config.targetUserId,
+        }),
+      );
+      socket.send(JSON.stringify({ type: 'AUDIO_END' }));
+      socket.send(JSON.stringify({ type: 'TEXT', text }));
+    },
+    [stopBattle],
+  );
 
   const tryRelay = useCallback(() => {
     const pending = pendingRelayRef.current;
@@ -197,143 +200,152 @@ export function useAIToAIChat() {
     sendTurn(pending.to, pending.text);
   }, [sendTurn, stopBattle]);
 
-  const handleStreamFinished = useCallback((from: Side) => {
-    if (!isBattlingRef.current) return;
+  const handleStreamFinished = useCallback(
+    (from: Side) => {
+      if (!isBattlingRef.current) return;
 
-    const state = sideAudioRef.current[from];
-    if (state.streamHandled) {
-      return;
-    }
-    state.streamHandled = true;
-
-    const nextSide: Side = from === 'mine' ? 'target' : 'mine';
-    const relayText = state.lastText.trim();
-
-    if (!relayText) {
-      setErrorMessage('AI 응답 텍스트를 받지 못해 대화를 이어갈 수 없습니다.');
-      stopBattle();
-      return;
-    }
-
-    pendingRelayRef.current = { to: nextSide, text: relayText };
-    tryRelay();
-  }, [stopBattle, tryRelay]);
-
-  const setupAudioForSide = useCallback((side: Side) => {
-    const state = sideAudioRef.current[side];
-    resetAudioState(side, { preserveLastText: true });
-    state.streamEnded = false;
-    state.streamHandled = false;
-
-    const mediaSource = new MediaSource();
-    const audio = new Audio();
-    const objectUrl = URL.createObjectURL(mediaSource);
-    audio.src = objectUrl;
-
-    audio.onplay = () => {
-      state.isPlaying = true;
-      setActiveSpeaker(side);
-    };
-    audio.onended = () => {
-      state.isPlaying = false;
-      setActiveSpeaker(null);
-      if (state.streamEnded) {
-        handleStreamFinished(side);
-      }
-    };
-
-    mediaSource.addEventListener('sourceopen', () => {
-      try {
-        const sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
-        sourceBuffer.addEventListener('updateend', () => processAudioQueue(side));
-        state.sourceBuffer = sourceBuffer;
-        processAudioQueue(side);
-      } catch (error) {
-        console.warn('AI 대화 음성 SourceBuffer 초기화 실패:', error);
-      }
-    });
-
-    state.mediaSource = mediaSource;
-    state.audio = audio;
-    state.objectUrl = objectUrl;
-  }, [handleStreamFinished, processAudioQueue, resetAudioState]);
-
-  const attachSocketHandlers = useCallback((side: Side, socket: WebSocket) => {
-    socket.binaryType = 'arraybuffer';
-
-    socket.onmessage = (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        const state = sideAudioRef.current[side];
-        state.queue.push(event.data);
-        processAudioQueue(side);
+      const state = sideAudioRef.current[from];
+      if (state.streamHandled) {
         return;
       }
+      state.streamHandled = true;
 
-      if (typeof event.data !== 'string') return;
+      const nextSide: Side = from === 'mine' ? 'target' : 'mine';
+      const relayText = state.lastText.trim();
 
-      const message = JSON.parse(event.data);
-
-      if (message.sessionId) {
-        sessionIdsRef.current[side] = message.sessionId;
-      }
-
-      if (message.type === 'ACK') return;
-
-      if (message.type === 'ERROR' || message.type === 'error') {
-        setErrorMessage(message.message || message.detail || 'AI 대화 중 오류가 발생했습니다.');
+      if (!relayText) {
+        setErrorMessage('AI 응답 텍스트를 받지 못해 대화를 이어갈 수 없습니다.');
         stopBattle();
         return;
       }
 
-      if (message.type === 'text.end') {
-        const nextText = message.payload?.text || '';
-        sideAudioRef.current[side].lastText = nextText;
+      pendingRelayRef.current = { to: nextSide, text: relayText };
+      tryRelay();
+    },
+    [stopBattle, tryRelay],
+  );
 
-        if (side === 'mine') {
-          setMyLatestText(nextText);
-          setBattleMessages((prev) => [...prev, { sender: 'me', text: `나의 AI: ${nextText}` }]);
-        } else {
-          setTargetLatestText(nextText);
-          setBattleMessages((prev) => [...prev, { sender: 'ai', text: `${nextText}` }]);
-        }
-        return;
-      }
+  const setupAudioForSide = useCallback(
+    (side: Side) => {
+      const state = sideAudioRef.current[side];
+      resetAudioState(side, { preserveLastText: true });
+      state.streamEnded = false;
+      state.streamHandled = false;
 
-      if (message.type === 'voice.start') {
-        setupAudioForSide(side);
-        return;
-      }
+      const mediaSource = new MediaSource();
+      const audio = new Audio();
+      const objectUrl = URL.createObjectURL(mediaSource);
+      audio.src = objectUrl;
 
-      if (message.type === 'voice.delta') {
-        const audio = sideAudioRef.current[side].audio;
-        if (audio && audio.paused) {
-          audio.play().catch((error) => {
-            console.warn('AI 대화 오디오 자동재생 실패:', error);
-          });
-        }
-        return;
-      }
-
-      if (message.type === 'END_OF_STREAM') {
-        const state = sideAudioRef.current[side];
-        state.streamEnded = true;
-        processAudioQueue(side);
-
-        if (!state.isPlaying) {
+      audio.onplay = () => {
+        state.isPlaying = true;
+        setActiveSpeaker(side);
+      };
+      audio.onended = () => {
+        state.isPlaying = false;
+        setActiveSpeaker(null);
+        if (state.streamEnded) {
           handleStreamFinished(side);
         }
-      }
-    };
+      };
 
-    socket.onerror = () => {
-      setErrorMessage('AI 웹소켓 연결에 실패했습니다.');
-      stopBattle();
-    };
+      mediaSource.addEventListener('sourceopen', () => {
+        try {
+          const sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
+          sourceBuffer.addEventListener('updateend', () => processAudioQueue(side));
+          state.sourceBuffer = sourceBuffer;
+          processAudioQueue(side);
+        } catch (error) {
+          console.warn('AI 대화 음성 SourceBuffer 초기화 실패:', error);
+        }
+      });
 
-    socket.onclose = () => {
-      socketsRef.current[side] = null;
-    };
-  }, [handleStreamFinished, processAudioQueue, setupAudioForSide, stopBattle]);
+      state.mediaSource = mediaSource;
+      state.audio = audio;
+      state.objectUrl = objectUrl;
+    },
+    [handleStreamFinished, processAudioQueue, resetAudioState],
+  );
+
+  const attachSocketHandlers = useCallback(
+    (side: Side, socket: WebSocket) => {
+      socket.binaryType = 'arraybuffer';
+
+      socket.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          const state = sideAudioRef.current[side];
+          state.queue.push(event.data);
+          processAudioQueue(side);
+          return;
+        }
+
+        if (typeof event.data !== 'string') return;
+
+        const message = JSON.parse(event.data);
+
+        if (message.sessionId) {
+          sessionIdsRef.current[side] = message.sessionId;
+        }
+
+        if (message.type === 'ACK') return;
+
+        if (message.type === 'ERROR' || message.type === 'error') {
+          setErrorMessage(message.message || message.detail || 'AI 대화 중 오류가 발생했습니다.');
+          stopBattle();
+          return;
+        }
+
+        if (message.type === 'text.end') {
+          const nextText = message.payload?.text || '';
+          sideAudioRef.current[side].lastText = nextText;
+
+          if (side === 'mine') {
+            setMyLatestText(nextText);
+            setBattleMessages((prev) => [...prev, { sender: 'me', text: `나의 AI: ${nextText}` }]);
+          } else {
+            setTargetLatestText(nextText);
+            setBattleMessages((prev) => [...prev, { sender: 'ai', text: `${nextText}` }]);
+          }
+          return;
+        }
+
+        if (message.type === 'voice.start') {
+          setupAudioForSide(side);
+          return;
+        }
+
+        if (message.type === 'voice.delta') {
+          const audio = sideAudioRef.current[side].audio;
+          if (audio && audio.paused) {
+            audio.play().catch((error) => {
+              console.warn('AI 대화 오디오 자동재생 실패:', error);
+            });
+          }
+          return;
+        }
+
+        if (message.type === 'END_OF_STREAM') {
+          const state = sideAudioRef.current[side];
+          state.streamEnded = true;
+          processAudioQueue(side);
+
+          if (!state.isPlaying) {
+            handleStreamFinished(side);
+          }
+        }
+      };
+
+      socket.onerror = () => {
+        setErrorMessage('AI 웹소켓 연결에 실패했습니다.');
+        stopBattle();
+      };
+
+      socket.onclose = () => {
+        socketsRef.current[side] = null;
+      };
+    },
+    [handleStreamFinished, processAudioQueue, setupAudioForSide, stopBattle],
+  );
 
   const connectSocket = useCallback(
     (side: Side) =>

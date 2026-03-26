@@ -26,8 +26,16 @@ export default function NamnaPage() {
   } = useAICharacter();
 
   const {
-    chatInput, chatMessages, isLockMode, sttText, isAiSpeaking, isAwaitingResponse,
-    setChatInput, sendMessage, startRecording, stopRecordingAndSendSTT,
+    chatInput,
+    chatMessages,
+    isLockMode,
+    sttText,
+    isAiSpeaking,
+    isAwaitingResponse,
+    setChatInput,
+    sendMessage,
+    startRecording,
+    stopRecordingAndSendSTT,
   } = useChat();
 
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(!isMicOn);
@@ -50,7 +58,12 @@ export default function NamnaPage() {
   }, [isMicOn]);
 
   const lastAiMessage = useMemo(() => {
-    return chatMessages.slice().reverse().find((m) => m.sender === 'ai')?.text || '';
+    return (
+      chatMessages
+        .slice()
+        .reverse()
+        .find((m) => m.sender === 'ai')?.text || ''
+    );
   }, [chatMessages]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
@@ -87,8 +100,9 @@ export default function NamnaPage() {
   }, [myTriggerText, handleStartMyAiSpeaking, handleEndMyAiSpeaking]);
 
   return (
-    <div className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-[#1a1a1a]' : 'bg-[#fdfcfb]'}`}>
-      
+    <div
+      className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-[#1a1a1a]' : 'bg-[#fdfcfb]'}`}
+    >
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-rose-200/20 rounded-full blur-[140px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-200/20 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/4 pointer-events-none" />
@@ -115,7 +129,11 @@ export default function NamnaPage() {
               }}
               className={`p-5 rounded-full backdrop-blur-md shadow-2xl border transition-all duration-300 ${isMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
             >
-              {isMicOn ? <Mic className="w-10 h-10 text-green-400 fill-green-400/20" /> : <MicOff className="w-10 h-10 text-red-400" />}
+              {isMicOn ? (
+                <Mic className="w-10 h-10 text-green-400 fill-green-400/20" />
+              ) : (
+                <MicOff className="w-10 h-10 text-red-400" />
+              )}
             </button>
           </div>
 
@@ -146,7 +164,7 @@ export default function NamnaPage() {
               {(isMicOn ? triggerText : lastAiMessage) && <SpeechBubble text={isMicOn ? triggerText : lastAiMessage} />}
             </div>
           </div>
-          
+
           {/* STT Text */}
           {isMicOn && (isAwaitingResponse || sttText) && (
             <div className="absolute bottom-[-160px] left-1/2 -translate-x-1/2 px-10 py-5 bg-black/50 backdrop-blur-2xl text-white font-black text-xl rounded-[2.5rem] shadow-2xl border border-white/10 z-50 min-w-[320px] text-center max-w-[80vw] whitespace-pre-wrap">
