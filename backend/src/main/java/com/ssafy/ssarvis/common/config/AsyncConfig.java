@@ -17,9 +17,8 @@ public class AsyncConfig {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(5);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("slack-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardPolicy()); // 큐 가득 차면 그냥 버림 (서비스 영향 없도록)
+        executor.setQueueCapacity(50);
+        executor.setThreadNamePrefix("SlackAsync-");
         executor.initialize();
         return executor;
     }
