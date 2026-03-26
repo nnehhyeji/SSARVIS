@@ -156,26 +156,24 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<UserSearchResponseDto> searchUser(Long userId, String nickname, String email) {
+    public List<UserSearchResponseDto> searchUser(Long userId, String keyword) {
 
-        if (nickname == null && email == null) {
-            throw new CustomException("닉네임 또는 이메일을 입력해주세요.", ErrorCode.BAD_REQUEST);
+        if (keyword == null || keyword.isBlank()) {
+            throw new CustomException("검색어를 입력해주세요.", ErrorCode.BAD_REQUEST);
         }
 
-        List<User> users = (nickname != null)
-            ? userRepository.findByNicknameContaining(nickname)
-            : userRepository.findByEmailContaining(email);
-
-        return users.stream()
+        return userRepository.findByNicknameOrCustomIdContaining(keyword)
+            .stream()
             .filter(user -> !user.getId().equals(userId))
             .map(user -> new UserSearchResponseDto(
                 user.getId(),
+                user.getCustomId(),
                 user.getNickname(),
                 user.getEmail(),
+                user.getProfileImageUrl(),
                 resolveFollowStatus(userId, user.getId())
             ))
-            .toList();  // 없으면 빈 리스트 반환
-
+            .toList();
     }
 
     @Override
