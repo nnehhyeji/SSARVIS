@@ -3,8 +3,10 @@ spring:
     name: ssarvis
 
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+#    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:p6spy:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
 
@@ -46,12 +48,14 @@ spring:
         show_sql: false
         format_sql: false
         highlight_sql: false
+        jdbc:
+          time_zone: Asia/Seoul   # 추가
     open-in-view: false
 
   app:
     slow-query:
-      threshold-ms: 1000
-      csv-output-dir: ./logs/slow-queries
+      threshold-ms: 10
+#      csv-output-dir: ./logs/slow-queries
     slack:
       webhook-url: ${SLACK_WEBHOOK_URL}
       enabled: true

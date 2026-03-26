@@ -7,7 +7,7 @@ public record NotificationPayload(
 
     Long senderId,
     String senderEmail,
-    String senderNickname,
+    String senderCustomId,
     String senderProfileImage,
     String message,
     String createdAt
