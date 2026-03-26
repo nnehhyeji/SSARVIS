@@ -196,6 +196,13 @@ def _run_chat_until_close(payload: dict) -> list[dict]:
         websocket.close()
 
 
+def _open_keepalive_chat():
+    return create_connection(
+        "ws://127.0.0.1:18000/api/v1/chat?keepAlive=true",
+        timeout=120,
+    )
+
+
 def _create_voice(http_client, audio_bytes: bytes, audio_text: str) -> str:
     response = http_client.post(
         "/api/v1/voice",
@@ -592,6 +599,81 @@ def test_chat_websocket_accumulates_multiple_records_in_same_session(
     assert {payload["text"] for payload in same_session_payloads} == {
         "첫 번째 메시지야.",
         "같은 세션의 두 번째 메시지야.",
+    }
+
+    deleted = http_client.request(
+        "DELETE",
+        "/api/v1/voice",
+        json={"voiceId": voice_id},
+    )
+    assert deleted.status_code == 200
+
+
+def test_chat_websocket_keepalive_handles_multiple_turns_on_same_connection(
+    http_client,
+    qdrant_client: QdrantClient,
+    sample_voice_audio_bytes: bytes,
+    sample_voice_text: str,
+) -> None:
+    voice_id = _create_voice(http_client, sample_voice_audio_bytes, sample_voice_text)
+
+    websocket = _open_keepalive_chat()
+    try:
+        first_payload = _chat_payload(
+            session_id="session-keepalive-1",
+            user_id=101,
+            chat_session_type="USER_AI",
+            chat_mode="DAILY",
+            memory_policy="GENERAL",
+            is_following=False,
+            text="같은 연결의 첫 번째 메시지야.",
+            voice_id=voice_id,
+        )
+        second_payload = _chat_payload(
+            session_id="session-keepalive-1",
+            user_id=101,
+            chat_session_type="USER_AI",
+            chat_mode="DAILY",
+            memory_policy="GENERAL",
+            is_following=False,
+            text="같은 연결의 두 번째 메시지야.",
+            voice_id=voice_id,
+        )
+
+        websocket.send(json.dumps(first_payload, ensure_ascii=False))
+        first_chat = _recv_chat_frames(websocket)
+
+        websocket.send(json.dumps(second_payload, ensure_ascii=False))
+        second_chat = _recv_chat_frames(websocket)
+    finally:
+        websocket.close()
+
+    assert first_chat[0]["type"] == "text.start"
+    assert first_chat[1]["type"] == "text.end"
+    assert second_chat[0]["type"] == "text.start"
+    assert second_chat[1]["type"] == "text.end"
+    assert first_chat[1]["payload"]["text"].strip()
+    assert second_chat[1]["payload"]["text"].strip()
+    assert all(event["sessionId"] == "session-keepalive-1" for event in first_chat)
+    assert all(event["sessionId"] == "session-keepalive-1" for event in second_chat)
+
+    records, _ = qdrant_client.scroll(
+        collection_name="integration_chats",
+        with_payload=True,
+        with_vectors=False,
+        limit=10,
+    )
+    payloads = [record.payload for record in records]
+    same_session_payloads = [
+        payload
+        for payload in payloads
+        if payload["session_id"] == "session-keepalive-1"
+    ]
+
+    assert len(same_session_payloads) == 2
+    assert {payload["text"] for payload in same_session_payloads} == {
+        "같은 연결의 첫 번째 메시지야.",
+        "같은 연결의 두 번째 메시지야.",
     }
 
     deleted = http_client.request(
