@@ -5,105 +5,126 @@ import com.ssafy.ssarvis.common.dto.SlowQueryInfo;
 import com.ssafy.ssarvis.common.service.QueryExecutionPlanService;
 import com.ssafy.ssarvis.common.service.SlackNotificationService;
 import com.ssafy.ssarvis.common.service.SlowQueryCsvService;
-import org.springframework.core.env.Environment;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.MDC;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.time.format.DateTimeFormatter;
 
 @Component
 public class SlowQueryP6SpyLogger implements MessageFormattingStrategy {
 
-    private static final long DUPLICATE_SUPPRESS_MS = 5 * 60 * 1000L;
+    private static final DateTimeFormatter DTF =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
-    private static final Map<Integer, Long> RECENT_ALERT_CACHE =
-        Collections.synchronizedMap(new LinkedHashMap<>() {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Integer, Long> eldest) {
-                return size() > 500;
-            }
-        });
+    // ── 정적 필드: P6Spy는 리플렉션으로 직접 인스턴스화하므로
+    //    Spring 빈 주입이 불가 → ApplicationContext를 통해 late-binding
+    private static ApplicationContext ctx;
+    private static long thresholdMs = 50L;
 
-
-    @Override
-    public String formatMessage(int connectionId, String now, long elapsed,
-                                String category, String prepared, String sql, String url) {
-
-        if (!isTarget(elapsed, sql)) return "";
-
-        try {
-            int sqlHash = normalizeSql(sql).hashCode();
-            if (isDuplicate(sqlHash)) return sql;
-            markAlerted(sqlHash);
-
-            String domain = Optional.ofNullable(QueryContextFilter.CURRENT_DOMAIN.get()).orElse("unknown");
-            String uri = Optional.ofNullable(QueryContextFilter.CURRENT_URI.get()).orElse("N/A");
-
-            String executionPlan = ApplicationContextHolder
-                .getBean(QueryExecutionPlanService.class)
-                .getExecutionPlan(sql);
-
-            SlowQueryInfo info = SlowQueryInfo.builder()
-                .timestamp(LocalDateTime.now().toString())
-                .domain(domain)
-                .requestUri(uri)
-                .sql(sql)
-                .executionTimeMs(elapsed)
-                .executionPlan(executionPlan)
-                .parameters(prepared)
-                .build();
-
-            ApplicationContextHolder.getBean(SlowQueryCsvService.class).save(info);
-            ApplicationContextHolder.getBean(SlackNotificationService.class).sendAsync(info);
-
-        } catch (IllegalStateException e) {
-            // Spring 초기화 전 P6Spy가 먼저 실행되는 경우 (정상적으로 무시)
-            System.err.println("[P6Spy] Spring 초기화 전 실행 - 스킵: " + e.getMessage());
-        } catch (Exception e) {
-            System.err.println("[P6Spy] 처리 실패: " + e.getMessage());
-        }
-
-        return sql;
+    /** SpringApplicationContext에서 주입 (SlowQueryP6SpyConfig에서 호출) */
+    public static void init(ApplicationContext applicationContext, long threshold) {
+        ctx = applicationContext;
+        thresholdMs = threshold;
     }
 
+    // ── P6Spy MessageFormattingStrategy 구현 ──────────────────────────────
+    @Override
+    public String formatMessage(int connectionId, String now, long elapsed,
+                                String category, String prepared, String sql,
+                                String url) {
+        // DDL / 빈 쿼리는 무시
+        if (sql == null || sql.isBlank()) return "";
 
-    private boolean isTarget(long elapsed, String sql) {
-        if (sql == null || sql.isBlank()) return false;
-        if (!sql.trim().toUpperCase().startsWith("SELECT")) return false;
+        // 슬로우 쿼리 기준 초과 & SELECT 계열만 EXPLAIN 대상
+        if (elapsed >= thresholdMs) {
+            handleSlowQuery(sql, prepared, elapsed);
+        }
 
-        long threshold = getThreshold();
-        return elapsed >= threshold;
+        // 일반 로그 출력 (필요 없으면 return "" 로 변경)
+        return String.format("[%dms] %s", elapsed, sql.replaceAll("\\s+", " ").trim());
+    }
+
+    // ── 내부 처리 ─────────────────────────────────────────────────────────
+    private void handleSlowQuery(String sql, String prepared, long elapsed) {
+        if (ctx == null) {
+            System.err.println("[SlowQueryLogger] Error: ApplicationContext(ctx) is NULL!");
+            return;
+        }
+        try {
+            String requestUri = resolveRequestUri();   // HTTP 요청 URI (MDC 우선)
+            String domain = resolveDomain(requestUri); // URI 첫 세그먼트를 도메인으로 사용
+
+            QueryExecutionPlanService planService =
+                ctx.getBean(QueryExecutionPlanService.class);
+            SlackNotificationService slackService =
+                ctx.getBean(SlackNotificationService.class);
+            SlowQueryCsvService csvService =
+                ctx.getBean(SlowQueryCsvService.class);
+
+            // SELECT 계열만 EXPLAIN 실행 (INSERT/UPDATE/DELETE는 스킵)
+            String plan = sql.trim().toUpperCase().startsWith("SELECT")
+                ? planService.getExecutionPlan(sql)
+                : "EXPLAIN 미지원 쿼리 유형";
+
+            SlowQueryInfo info = SlowQueryInfo.builder()
+                .timestamp(LocalDateTime.now().format(DTF))
+                .domain(domain)
+                .requestUri(requestUri)
+                .sql(sql)
+                .executionTimeMs(elapsed)
+                .executionPlan(plan)
+                .parameters(prepared)   // 바인딩 파라미터 포함 원본 SQL
+                .build();
+
+            slackService.sendAsync(info);   // 비동기 Slack 전송
+            csvService.save(info);          // 동기 CSV 저장
+
+        } catch (Exception e) {
+            System.err.println("[SlowQueryLogger] 처리 실패: " + e.getMessage());
+        }
     }
 
     /**
-     * 파라미터 값 제거 후 정규화 (중복 판단용)
+     * HTTP 요청 URI 조회.
+     * 우선순위: MDC("requestUri") → RequestContextHolder → "UNKNOWN"
      */
-    private String normalizeSql(String sql) {
-        return sql.replaceAll("'[^']*'", "?")   // 문자열 파라미터 제거
-            .replaceAll("\\d+", "?")       // 숫자 파라미터 제거
-            .replaceAll("\\s+", " ")        // 공백 정규화
-            .trim().toLowerCase();
-    }
+    private String resolveRequestUri() {
+        // 1) MDC (RequestLoggingFilter에서 미리 심어둔 경우)
+        String fromMdc = MDC.get("requestUri");
+        if (fromMdc != null && !fromMdc.isBlank()) return fromMdc;
 
-    private boolean isDuplicate(int sqlHash) {
-        Long lastAlerted = RECENT_ALERT_CACHE.get(sqlHash);
-        if (lastAlerted == null) return false;
-        return System.currentTimeMillis() - lastAlerted < DUPLICATE_SUPPRESS_MS;
-    }
-
-    private void markAlerted(int sqlHash) {
-        RECENT_ALERT_CACHE.put(sqlHash, System.currentTimeMillis());
-    }
-
-    private long getThreshold() {
+        // 2) RequestContextHolder (HTTP 요청 스레드에서 직접 접근)
         try {
-            return ApplicationContextHolder.getBean(Environment.class)
-                .getProperty("app.slow-query.threshold-ms", Long.class, 1000L);
-        } catch (Exception e) {
-            return 1000L;
+            ServletRequestAttributes attrs =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                HttpServletRequest req = attrs.getRequest();
+                String uri = req.getRequestURI();
+                String query = req.getQueryString();
+                return query != null ? uri + "?" + query : uri;
+            }
+        } catch (Exception ignored) { }
+
+        return "UNKNOWN";
+    }
+
+    /**
+     * "/api/orders/1" → "orders"
+     * "/UNKNOWN"      → "unknown"
+     */
+    private String resolveDomain(String requestUri) {
+        if (requestUri == null || requestUri.equals("UNKNOWN")) return "unknown";
+        String[] parts = requestUri.split("/");
+        // /api/{domain}/... 구조 가정 → parts[2]
+        // /orders/...        구조 가정 → parts[1]
+        for (String part : parts) {
+            if (!part.isBlank() && !part.equalsIgnoreCase("api")) return part;
         }
+        return "unknown";
     }
 }
