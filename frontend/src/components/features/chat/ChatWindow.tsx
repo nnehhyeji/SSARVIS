@@ -41,7 +41,7 @@ export default function ChatWindow({
 
   return (
     <motion.div
-      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[65%] bg-white/60 backdrop-blur-2xl rounded-t-[40px] shadow-2xl border border-white/40 flex flex-col z-30"
+      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[50%] bg-white/60 backdrop-blur-2xl rounded-t-[40px] shadow-2xl border border-white/40 flex flex-col z-30"
       initial={{ y: '100%' }}
       animate={{ y: isVisible ? '0%' : '100%' }}
       transition={{ type: 'spring', stiffness: 200, damping: 25 }}

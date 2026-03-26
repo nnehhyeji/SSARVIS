@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Home,
   User,
@@ -98,9 +98,38 @@ export default function Sidebar({
   const { sessionId } = useParams<{ sessionId?: string }>();
   const selectedChatId = sessionId || null;
   
+  const location = useLocation();
   const [activeTertiary, setActiveTertiary] = useState<
     'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null
-  >(() => (selectedChatId ? 'chat' : null));
+  >(null);
+
+  // Sync activeTertiary with URL path
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.startsWith('/chat') || path.startsWith('/chat-archive')) {
+      setActiveTertiary('chat');
+    } else if (path === PATHS.ASSISTANT) {
+      setActiveTertiary('assistant');
+    } else if (path === PATHS.NAMNA) {
+      setActiveTertiary('persona');
+    } else if (selectedChatId) {
+      setActiveTertiary('chat');
+    } else {
+      // For paths that don't correspond to tertiary panels, but some panels might be open manually
+      // We don't necessarily want to close manually opened panels on all navigations,
+      // but for 'friends', 'notifications', 'search' we might want to keep current state.
+      // However, the rule is "navigating to these pages opens/keeps panels open".
+      if (!['/friends', '/notifications', '/search'].includes(path)) {
+         if (activeTertiary !== 'friends' && activeTertiary !== 'notifications' && activeTertiary !== 'search') {
+           // If we are on Home, close panels unless it's friends etc.
+           if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
+             setActiveTertiary(null);
+           }
+         }
+      }
+    }
+  }, [location.pathname, selectedChatId]);
+
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,7 +148,7 @@ export default function Sidebar({
   const [chatTab, setChatTab] = useState<'archive' | 'guestbook'>('archive');
   const [chatCategory, setChatCategory] = useState<'assistant' | 'persona' | 'friend'>('assistant');
   const [chatView, setChatView] = useState<'categories' | 'list'>('categories');
-  const [assistantFilters, setAssistantFilters] = useState<string[]>(['daily']);
+  const [assistantFilters, setAssistantFilters] = useState<string[]>([]);
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -155,6 +184,7 @@ export default function Sidebar({
 
   const displaySessions = chatSessions.filter((session) => {
     if (chatTab === 'archive' && chatCategory === 'assistant') {
+      if (assistantFilters.length === 0) return true;
       const typeMap: Record<string, string> = {
         daily: 'DAILY',
         study: 'STUDY',
@@ -186,6 +216,7 @@ export default function Sidebar({
       id: 'ai_assistant',
       icon: Bot,
       label: 'Ai 비서',
+      path: PATHS.ASSISTANT,
       hasTertiary: true,
       tertiaryId: 'assistant',
       color: 'text-rose-500',
@@ -194,6 +225,7 @@ export default function Sidebar({
       id: 'eye',
       icon: Eye,
       label: '남이 보는 나',
+      path: PATHS.NAMNA,
       hasTertiary: true,
       tertiaryId: 'persona',
       color: 'text-rose-500',
@@ -210,6 +242,7 @@ export default function Sidebar({
       id: 'chat',
       icon: MessageSquare,
       label: '대화 보관함',
+      path: PATHS.CHAT,
       hasTertiary: true,
       tertiaryId: 'chat',
       color: 'text-rose-500',
@@ -276,10 +309,33 @@ export default function Sidebar({
     onSearch(item.name);
   };
 
+  const handleNotificationClick = (alarm: Alarm) => {
+    onAlarmClick(alarm);
+    
+    // Redirect logic based on notification type
+    if (alarm.type === 'FOLLOW_REQUEST') {
+      setActiveTertiary('friends');
+      setFriendView('requests');
+    } else if (alarm.type === 'FOLLOW_ACCEPT') {
+       // Navigate to the person who accepted the request
+       const senderId = (alarm.payload as any)?.senderId || (alarm.payload as any)?.senderUserId;
+       if (senderId) {
+         navigate(PATHS.USER_HOME(senderId));
+         setActiveTertiary(null);
+       }
+    }
+  };
+
   const handleItemClick = (item: MenuItem) => {
     if (item.path) {
-      setActiveTertiary(null);
-      navigate(item.path);
+      // If we're already on this path, manually toggle the tertiary panel
+      if (location.pathname === item.path && item.tertiaryId) {
+        const isClosing = activeTertiary === item.tertiaryId;
+        setActiveTertiary(isClosing ? null : item.tertiaryId);
+      } else {
+        // If navigating to a new path, let the useEffect handle opening
+        navigate(item.path);
+      }
     } else if (item.action) {
       setActiveTertiary(null);
       item.action();
@@ -290,7 +346,7 @@ export default function Sidebar({
 
       if (item.tertiaryId === 'chat') {
         setChatView('categories');
-        if (selectedChatId) navigate(PATHS.HOME);
+        if (selectedChatId) navigate(PATHS.CHAT);
       }
       if (item.tertiaryId === 'friends') {
         setFriendView('main');
@@ -444,12 +500,12 @@ export default function Sidebar({
                     ? '팔로우 목록'
                     : activeTertiary === 'chat'
                       ? '대화 보관함'
-                      : activeTertiary === 'search'
-                        ? '검색'
-                        : activeTertiary === 'assistant'
-                          ? 'Ai 비서'
-                          : activeTertiary === 'persona'
-                            ? '남이 보는 나'
+                      : activeTertiary === 'assistant'
+                        ? 'Ai 비서'
+                        : activeTertiary === 'persona'
+                          ? '남이 보는 나'
+                          : activeTertiary === 'search'
+                            ? '검색'
                             : '알림'}
                 </h2>
               </div>
@@ -486,7 +542,7 @@ export default function Sidebar({
               {activeTertiary === 'notifications' && (
                 <NotificationsPanel
                   alarms={alarms}
-                  onAlarmClick={onAlarmClick}
+                  onAlarmClick={handleNotificationClick}
                   onReadAllAlarms={onReadAllAlarms}
                   onDeleteAllAlarms={onDeleteAllAlarms}
                   onRemoveAlarm={onRemoveAlarm}
@@ -525,7 +581,7 @@ export default function Sidebar({
                     if (id) {
                       navigate(PATHS.CHAT_ARCHIVE(id));
                     } else {
-                      navigate(PATHS.HOME);
+                      navigate(PATHS.CHAT);
                     }
                   }}
                 />
@@ -534,12 +590,14 @@ export default function Sidebar({
                 <AssistantPanel
                   currentMode={currentMode}
                   onModeChange={onModeChange}
-                  setActiveTertiary={setActiveTertiary}
                 />
               )}
               {activeTertiary === 'persona' && (
-                <PersonaPanel onModeChange={onModeChange} setActiveTertiary={setActiveTertiary} />
+                <PersonaPanel
+                  onModeChange={onModeChange}
+                />
               )}
+
             </div>
           </motion.div>
         )}

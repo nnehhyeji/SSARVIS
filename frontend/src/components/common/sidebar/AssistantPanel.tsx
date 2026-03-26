@@ -4,15 +4,11 @@ import type { Mode } from '../../../types';
 interface AssistantPanelProps {
   currentMode: Mode;
   onModeChange: (mode: Mode) => void;
-  setActiveTertiary: (
-    val: 'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null,
-  ) => void;
 }
 
 const AssistantPanel: React.FC<AssistantPanelProps> = ({
   currentMode,
   onModeChange,
-  setActiveTertiary,
 }) => {
   return (
     <div className="flex-1 flex flex-col pt-2 bg-[#eee5df]">
@@ -38,7 +34,6 @@ const AssistantPanel: React.FC<AssistantPanelProps> = ({
             key={m.mode}
             onClick={() => {
               onModeChange(m.mode);
-              setActiveTertiary(null);
             }}
             className={`text-left group transition-all`}
           >
