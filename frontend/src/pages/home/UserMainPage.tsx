@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { MessageCircle, Mic, MicOff, Lock, Unlock, Sparkles } from 'lucide-react';
+import { MessageCircle, Mic, MicOff, Lock, Unlock, Sparkles, MessageSquare } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -148,24 +148,11 @@ export default function UserMainPage() {
 
   // AI 발화 말풍선용 데이터 추출
   const lastAiMessage = useMemo(() => {
-<<<<<<< HEAD
-    return (
-      chatMessages
-        .slice()
-        .reverse()
-        .find((m) => m.sender === 'ai')?.text || ''
-    );
+    return chatMessages.slice().reverse().find((m) => m.sender === 'ai')?.text || '';
   }, [chatMessages]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
-  const ownerName = isMyHome ? userInfo?.nickname || '나' : visitedFollowName || '친구';
-=======
-    return activeChat.chatMessages.slice().reverse().find((m) => m.sender === 'ai')?.text || '';
-  }, [activeChat.chatMessages]);
-
-  const finalIsSpeaking = activeChat.isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? (userInfo?.nickname || '나') : (visitedFollowName || '친구');
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
 
   // --- Render Helpers ---
@@ -206,14 +193,8 @@ export default function UserMainPage() {
   }
 
   return (
-<<<<<<< HEAD
-    <div
-      className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}
-    >
-=======
-    <div className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${activeChat.isLockMode ? 'bg-black' : 'bg-white'}`}>
+    <div className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}>
       
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
       {/* 상단 룸 정보 (방문 시 노출) */}
       {!isMyHome && (
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
@@ -224,15 +205,38 @@ export default function UserMainPage() {
         </div>
       )}
 
-      {/* 우상단 페르소나 문답 아이콘 (방문 시) */}
+      {/* 우상단 액션 버튼 그룹 (방문 시) */}
       {!isMyHome && (
-        <button
-          onClick={() => navigate(PATHS.PERSONA(targetId!))}
-          className="absolute top-8 right-8 p-4 bg-gradient-to-br from-pink-400/80 to-rose-300/80 hover:scale-105 rounded-2xl shadow-xl text-white flex flex-col items-center gap-1 z-50 transition-all border border-white/20 group"
-        >
-          <Sparkles className="w-6 h-6 group-hover:animate-pulse" />
-          <span className="text-[10px] font-black leading-none">문답작성</span>
-        </button>
+        <div className="absolute top-8 right-8 flex flex-col gap-4 z-50 items-end">
+          {/* 1. 문답 작성 버튼 */}
+          <button
+            onClick={() => navigate(PATHS.PERSONA(targetId!))}
+            className="p-4 bg-gradient-to-br from-pink-400/80 to-rose-300/80 hover:scale-105 active:scale-95 rounded-2xl shadow-xl text-white flex flex-col items-center gap-1 transition-all border border-white/20 group"
+            title="문답 작성"
+          >
+            <Sparkles className="w-6 h-6 group-hover:animate-pulse" />
+            <span className="text-[10px] font-black leading-none">문답작성</span>
+          </button>
+
+          {/* 2. 듀얼 AI 대화 시작/종료 */}
+          <button
+            onClick={() => {
+              if (isDualAiMode) {
+                setIsDualAiMode(false);
+              } else {
+                setIsDualAiMode(true);
+                setIsInteractionModalOpen(false);
+                setMyTriggerText('나: 우와, 네 방 정말 멋지다!');
+                setTimeout(() => setTriggerText(`${ownerName}: 고마워! 놀러와줘서 기뻐.`), 3000);
+              }
+            }}
+            className={`p-4 rounded-2xl backdrop-blur-md shadow-xl border transition-all duration-300 flex flex-col items-center gap-1 group/btn ${isDualAiMode ? 'bg-indigo-500/80 border-indigo-400/50 text-white' : 'bg-white/80 border-white/40 text-indigo-500 hover:bg-amber-50'}`}
+            title="AI 끼리 대화"
+          >
+            <MessageSquare className="w-6 h-6" />
+            <span className="text-[10px] font-black leading-none">{isDualAiMode ? '그만하기' : '둘이대화'}</span>
+          </button>
+        </div>
       )}
 
       <main className="flex-1 flex items-center justify-center relative w-full h-full z-10">
@@ -251,7 +255,6 @@ export default function UserMainPage() {
                 onClick={() => {
                   toggleMic();
                   if (!isMicOn) {
-<<<<<<< HEAD
                     const assistantType = isMyHome
                       ? currentMode === 'counseling'
                         ? 'COUNSEL'
@@ -262,10 +265,6 @@ export default function UserMainPage() {
                         ? 'PERSONA'
                         : 'DAILY';
                     const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
-=======
-                    const assistantType = isMyHome ? (currentMode === 'counseling' ? 'COUNSEL' : currentMode === 'normal' ? 'DAILY' : currentMode.toUpperCase()) : (isPersonaShared ? 'PERSONA' : 'DAILY');
-                    const memoryPolicy = isMyHome && activeChat.isLockMode ? 'SECRET' : 'GENERAL';
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
                     const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
                     activeChat.startRecording(null, assistantType, memoryPolicy, category, targetId);
                   } else {
@@ -292,15 +291,7 @@ export default function UserMainPage() {
                 className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${activeChat.isLockMode ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
               >
                 <div className="flex items-center justify-center">
-<<<<<<< HEAD
-                  {isLockMode ? (
-                    <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" />
-                  ) : (
-                    <Unlock className="w-8 h-8 text-gray-300" />
-                  )}
-=======
-                  {activeChat.isLockMode ? <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" /> : <Unlock className="w-8 h-8 text-gray-300" />}
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
+                  {isLockMode ? <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" /> : <Unlock className="w-8 h-8 text-gray-300" />}
                 </div>
               </button>
             </div>
@@ -391,7 +382,6 @@ export default function UserMainPage() {
               input={activeChat.chatInput}
               onInputChange={activeChat.setChatInput}
               onSend={() => {
-<<<<<<< HEAD
                 const assistantType = isMyHome
                   ? currentMode === 'counseling'
                     ? 'COUNSEL'
@@ -402,10 +392,6 @@ export default function UserMainPage() {
                     ? 'PERSONA'
                     : 'DAILY';
                 const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
-=======
-                const assistantType = isMyHome ? (currentMode === 'counseling' ? 'COUNSEL' : currentMode === 'normal' ? 'DAILY' : currentMode.toUpperCase()) : (isPersonaShared ? 'PERSONA' : 'DAILY');
-                const memoryPolicy = isMyHome && activeChat.isLockMode ? 'SECRET' : 'GENERAL';
->>>>>>> c1afea15cda050f12c6074d0dc2e2a4c1256e55e
                 const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
                 activeChat.sendMessage(activeChat.chatInput, null, assistantType, memoryPolicy, category, targetId);
               }}

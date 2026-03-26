@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageCircle, Mic, MicOff, Lock, Unlock, Eye } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { MessageCircle, Mic, MicOff, Eye } from 'lucide-react';
 
 // Hooks
 import { useAICharacter } from '../../hooks/useAICharacter';
@@ -11,13 +12,18 @@ import { useUserStore } from '../../store/useUserStore';
 import SpeechBubble from '../../components/common/SpeechBubble';
 import CharacterScene from '../../components/features/character/CharacterScene';
 import ChatWindow from '../../components/features/chat/ChatWindow';
+import AiTopicModal from '../../components/features/assistant/AiTopicModal';
 
 export default function NamnaPage() {
   const { userInfo } = useUserStore();
-
+  const [searchParams] = useSearchParams();
+  
   // interaction hooks
-  const { isMicOn, mouthOpenRadius, faceType, toggleMic, isSpeaking, setIsSpeaking, triggerText } =
-    useAICharacter();
+  const { 
+    isMicOn, mouthOpenRadius, faceType, toggleMic,
+    isSpeaking, setIsSpeaking, triggerText, setTriggerText,
+    isMyAiSpeaking, setIsMyAiSpeaking, myMouthOpenRadius, myTriggerText, setMyTriggerText
+  } = useAICharacter();
 
   const {
     chatInput,
@@ -27,13 +33,24 @@ export default function NamnaPage() {
     isAiSpeaking,
     isAwaitingResponse,
     setChatInput,
-    toggleLock,
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
   } = useChat();
 
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(!isMicOn);
+  const [isDualAiMode, setIsDualAiMode] = useState(false);
+  const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
+
+  // URL 파라미터 감지 (With Mine 연동)
+  useEffect(() => {
+    if (searchParams.get('dual') === 'true') {
+      setIsDualAiMode(true);
+      setIsInteractionModalOpen(true);
+    } else {
+      setIsDualAiMode(false);
+    }
+  }, [searchParams]);
 
   // Sync: Default behavior when mic state changes
   useEffect(() => {
@@ -53,6 +70,18 @@ export default function NamnaPage() {
 
   const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
   const handleEndSpeaking = useCallback(() => setIsSpeaking(false), [setIsSpeaking]);
+  const handleStartMyAiSpeaking = useCallback(() => setIsMyAiSpeaking(true), [setIsMyAiSpeaking]);
+  const handleEndMyAiSpeaking = useCallback(() => setIsMyAiSpeaking(false), [setIsMyAiSpeaking]);
+
+  const handleDualAiTopicSubmit = useCallback(async (topic: string) => {
+    setIsInteractionModalOpen(false);
+    setMyTriggerText(`나: 얘들아, "${topic}"에 대해 대화해봐!`);
+    
+    // 연동 안 된 상태 고려하여 수동으로 상대 AI의 대화 유도 (Mock)
+    setTimeout(() => {
+      setTriggerText(`나의 페르소나: 알겠어! "${topic}"에 대해서 이야기해보자.`);
+    }, 2000);
+  }, [setIsInteractionModalOpen, setMyTriggerText, setTriggerText]);
 
   useEffect(() => {
     if (triggerText) {
@@ -61,6 +90,14 @@ export default function NamnaPage() {
       return () => clearTimeout(t);
     }
   }, [triggerText, handleStartSpeaking, handleEndSpeaking]);
+
+  useEffect(() => {
+    if (myTriggerText) {
+      handleStartMyAiSpeaking();
+      const t = setTimeout(handleEndMyAiSpeaking, myTriggerText.length * 100 + 500);
+      return () => clearTimeout(t);
+    }
+  }, [myTriggerText, handleStartMyAiSpeaking, handleEndMyAiSpeaking]);
 
   return (
     <div
@@ -85,7 +122,6 @@ export default function NamnaPage() {
               onClick={() => {
                 toggleMic();
                 if (!isMicOn) {
-                  // Always PERSONA in this page
                   startRecording(null, 'PERSONA', isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
                 } else {
                   stopRecordingAndSendSTT();
@@ -101,35 +137,32 @@ export default function NamnaPage() {
             </button>
           </div>
 
-          <div className="absolute right-[-110px] top-1/2 -translate-y-1/2 z-40">
-            <button
-              onClick={toggleLock}
-              className={`p-5 rounded-full backdrop-blur-md shadow-2xl border transition-all duration-300 ${isLockMode ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
-            >
-              {isLockMode ? (
-                <Lock className="w-10 h-10 text-yellow-400 fill-yellow-400/20" />
-              ) : (
-                <Unlock className="w-10 h-10 text-gray-300" />
-              )}
-            </button>
-          </div>
-
-          <div
-            className={`relative z-10 w-[500px] h-[500px] flex flex-col items-center justify-center`}
-          >
-            {/* Persona Scene uses offset face type for variety */}
-            <CharacterScene
-              faceType={(faceType + 2) % 6}
-              mouthOpenRadius={mouthOpenRadius}
-              mode="persona"
-              isLockMode={isLockMode}
-              isSpeaking={finalIsSpeaking}
-              isMicOn={isMicOn}
-              label={userInfo?.nickname || '나의 페르소나'}
-            />
-            {(isMicOn ? triggerText : lastAiMessage) && (
-              <SpeechBubble text={isMicOn ? triggerText : lastAiMessage} />
+          <div className="flex items-center justify-center gap-20">
+            {/* 듀얼 모드일 시 내 비서 AI 노출 */}
+            {isDualAiMode && (
+              <div className="w-[350px] h-[350px] relative z-20 flex flex-col items-center justify-center animate-in slide-in-from-left-4 fade-in duration-700">
+                <div className="absolute top-[-40px] px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-200 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md">My AI</div>
+                <CharacterScene 
+                  faceType={faceType} mouthOpenRadius={myMouthOpenRadius} mode="normal" 
+                  isLockMode={false} isSpeaking={isMyAiSpeaking} isMicOn={isMicOn} label="나의 비서"
+                />
+                <SpeechBubble text={myTriggerText} />
+              </div>
             )}
+
+            <div className={`relative z-10 flex flex-col items-center justify-center transition-all duration-700 ease-in-out ${isDualAiMode ? 'w-[350px] h-[350px]' : 'w-[500px] h-[500px]'}`}>
+              {/* Persona Scene uses offset face type for variety */}
+              <CharacterScene
+                faceType={(faceType + 2) % 6}
+                mouthOpenRadius={mouthOpenRadius}
+                mode="persona"
+                isLockMode={isLockMode}
+                isSpeaking={finalIsSpeaking}
+                isMicOn={isMicOn}
+                label={userInfo?.nickname || '나의 페르소나'}
+              />
+              {(isMicOn ? triggerText : lastAiMessage) && <SpeechBubble text={isMicOn ? triggerText : lastAiMessage} />}
+            </div>
           </div>
 
           {/* STT Text */}
@@ -156,6 +189,11 @@ export default function NamnaPage() {
         >
           <MessageCircle className={`w-8 h-8 ${isLockMode ? 'text-white' : 'text-gray-800'}`} />
         </button>
+        <AiTopicModal 
+          isOpen={isInteractionModalOpen} 
+          onClose={() => setIsInteractionModalOpen(false)} 
+          onSubmit={handleDualAiTopicSubmit} 
+        />
       </main>
 
       <div className="absolute bottom-12 left-10 opacity-[0.03] select-none pointer-events-none">

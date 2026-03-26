@@ -6,7 +6,7 @@ import { useFollow } from '../../hooks/useFollow';
 import { useNotification } from '../../hooks/useNotification';
 import { PATHS } from '../../routes/paths';
 import authApi from '../../apis/authApi';
-import type { Mode, Alarm } from '../../types';
+import type { Alarm } from '../../types';
 import userApi from '../../apis/userApi';
 
 const MainLayout: React.FC = () => {
@@ -57,6 +57,16 @@ const MainLayout: React.FC = () => {
       navigate(`/${userInfo.id}`, { replace: true });
     }
   }, [location.pathname, userInfo?.id, navigate]);
+
+  // Sync Mode with URL path (Reset when leaving assistant/namna)
+  useEffect(() => {
+    const path = location.pathname;
+    if (path !== PATHS.ASSISTANT && path !== PATHS.NAMNA) {
+      if (currentMode !== 'normal') {
+        setCurrentMode('normal');
+      }
+    }
+  }, [location.pathname, currentMode, setCurrentMode]);
 
   const handleLogout = async () => {
     if (window.confirm('로그아웃 하시겠습니까?')) {
