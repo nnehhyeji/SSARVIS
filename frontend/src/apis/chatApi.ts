@@ -21,12 +21,14 @@ export interface ChatMessageData {
   userId: number;
   assistantId: number;
   assistantType: string;
-  speakerType: 'USER' | 'AI' | 'AVATAR';
+  speakerType: 'USER' | 'ASSISTANT' | 'AVATAR';
   speakerId: number;
   text: string;
   chatMessageStatus: string;
-  audio: string | null;
+  audio: { audioUrl: string; contentType: string; fileName: string; fileSize: number } | null;
   createdAt: string;
+  profileImgUrl?: string;
+  senderProfileImgUrl?: string;
 }
 
 export interface PageData<T> {
