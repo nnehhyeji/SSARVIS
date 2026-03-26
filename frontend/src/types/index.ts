@@ -4,7 +4,7 @@ export type Alarm = {
   message: string;
   isRead: boolean;
   time: string;
-  type: 'follow' | 'system';
+  type: string;
   payload?: Record<string, unknown>;
 };
 

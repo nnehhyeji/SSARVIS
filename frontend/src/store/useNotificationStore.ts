@@ -24,7 +24,7 @@ const mapNotificationToAlarm = (dto: NotificationDTO): Alarm => ({
   message: dto.message,
   isRead: dto.isRead,
   time: timeAgo(dto.createdAt),
-  type: dto.eventName?.includes('FOLLOW') ? 'follow' : 'system',
+  type: dto.eventName || 'system',
   payload: dto.payload || {},
 });
 
@@ -38,7 +38,7 @@ const mapRealtimeNotificationToAlarm = (
   message: dto.message,
   isRead: false,
   time: timeAgo(dto.createdAt),
-  type: eventName.includes('FOLLOW') ? 'follow' : 'system',
+  type: eventName,
   payload: {
     senderId: dto.senderId,
     senderEmail: dto.senderEmail,
@@ -131,7 +131,7 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
 
     const handleCustomEvent =
       (eventName: string) =>
-      (event: MessageEvent<string>): void => {
+      (event: any): void => {
         if (!event.data) return;
 
         try {
@@ -143,7 +143,7 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
         }
       };
 
-    eventSource.addEventListener('connect', (event: MessageEvent<string>) => {
+    eventSource.addEventListener('connect', (event: any) => {
       if (!event.data) return;
 
       try {
@@ -158,7 +158,7 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
     eventSource.addEventListener('FOLLOW_ACCEPT', handleCustomEvent('FOLLOW_ACCEPT'));
     eventSource.addEventListener('NOTIFICATION', handleCustomEvent('NOTIFICATION'));
 
-    eventSource.onerror = (error: Event) => {
+    eventSource.onerror = (error: any) => {
       set({ isSseConnected: false });
       console.error('SSE 연결 에러 (연결 유실 혹은 토큰 만료 등):', error);
     };
