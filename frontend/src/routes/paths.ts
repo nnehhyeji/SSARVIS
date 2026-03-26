@@ -15,4 +15,6 @@ export const PATHS = {
   SETTINGS_PARAM: '/settings/:tab',
   PERSONA: (userId: string | number) => `/persona/${userId}`,
   PERSONA_PARAM: '/persona/:userId',
+  CHAT_ARCHIVE: (sessionId: string) => `/chat-archive/${sessionId}`,
+  CHAT_ARCHIVE_PARAM: '/chat-archive/:sessionId',
 } as const;

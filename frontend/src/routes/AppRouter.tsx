@@ -63,4 +63,12 @@ export const router = createBrowserRouter([
     path: PATHS.PERSONA_PARAM,
     element: <PersonaSurveyPage />,
   },
+  {
+    path: PATHS.CHAT_ARCHIVE_PARAM,
+    element: (
+      <ProtectedRoute>
+        <HomePage />
+      </ProtectedRoute>
+    ),
+  },
 ]);
