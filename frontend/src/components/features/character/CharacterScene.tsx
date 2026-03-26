@@ -52,7 +52,7 @@ export default function CharacterScene({
 
       {/* 라벨 표시 (나의 AI 등) */}
       {label && (
-        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white/40 backdrop-blur-md px-4 py-1 rounded-full border border-white/50 text-xs font-bold text-gray-700 whitespace-nowrap">
+        <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-white/40 backdrop-blur-md px-4 py-1 rounded-full border border-white/50 text-xs font-bold text-gray-700 whitespace-nowrap">
           {label}
         </div>
       )}
