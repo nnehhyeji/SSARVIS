@@ -134,6 +134,8 @@ public class FollowServiceImpl implements FollowService {
                 follow.getId(),
                 follow.getFollowing().getId(),
                 follow.getFollowing().getNickname(),
+                follow.getFollowing().getCustomId(),
+                follow.getFollowing().getProfileImageUrl(),
                 follow.getFollowing().getDescription()
             )).toList();
     }
@@ -210,6 +212,7 @@ public class FollowServiceImpl implements FollowService {
 
         return followers.stream()
             .map(follow -> new FollowerListResponseDto(
+                follow.getId(),
                 follow.getFollower().getId(),
                 follow.getFollower().getNickname(),
                 follow.getFollower().getCustomId(),
