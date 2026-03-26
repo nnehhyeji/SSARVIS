@@ -60,40 +60,48 @@ export default function AudioPlayerBar({
       ctx.clearRect(0, 0, cssW, cssH);
 
       if (isPlayingRef.current) {
-        // ─── 재생 중: 하단 고정 막대 (얇고 개수 많음) ───
+        // ─── 재생 중: 훨씬 더 얇고 극적인 높이 변화 (Reference Image 스타일) ───
         const audio = audioRef.current;
         const duration = audio?.duration || 1;
         const currentTime = audio?.currentTime || 0;
         const progress = isFinite(duration) && duration > 0 ? currentTime / duration : 0;
 
-        const barCount = 60; // 많은 수 → 얇은 막대
-        const gap = 3;
-        const barW = (cssW - gap * (barCount - 1)) / barCount;
-        const radius = Math.min(barW / 2, 2);
-
+        const barW = 1.5; // 막대 두께 최소화
+        const gap = 4.5; // 간격을 넓혀서 더 세련된 느낌
+        const barCount = Math.floor(cssW / (barW + gap));
+        
         for (let i = 0; i < barCount; i++) {
-          const t = Date.now() / 400;
-          const slowWave = Math.sin(t + i * 0.2) * 0.28;
-          const midWave = Math.sin(t * 1.7 - i * 0.6) * 0.18;
-          const fastWave = Math.sin(t * 3.1 + i * 0.9) * 0.09;
-          const complexity = Math.max(0.05, 0.28 + slowWave + midWave + fastWave);
-          const barH = Math.max(3, complexity * cssH);
-
+          const t = Date.now() / 600;
+          const slowWave = Math.sin(t + i * 0.15) * 0.45;
+          const midWave = Math.sin(t * 2.5 - i * 0.5) * 0.3;
+          const fastWave = Math.sin(t * 5 + i * 1.2) * 0.15;
+          const noise = (Math.random() - 0.5) * 0.05; 
+          
+          const complexity = Math.max(0.1, 0.45 + slowWave + midWave + fastWave + noise);
+          
+          // 하단 고정형이므로 캔버스 높이를 더 꽉 채우도록 비율 조정
+          const barH = Math.max(2, complexity * cssH * 0.95);
           const x = i * (barW + gap);
           const y = cssH - barH; // 하단 고정
 
-          const isAhead = i / (barCount - 1) <= progress + 0.01;
-          ctx.fillStyle = isAhead ? '#f43f5e' : '#d1d5db';
-          ctx.beginPath();
-          ctx.roundRect(x, y, barW, barH, radius);
-          ctx.fill();
+          const isAhead = i / (barCount - 1) <= progress;
+          ctx.fillStyle = isAhead ? '#f43f5e' : '#e5e7eb';
+          
+          ctx.fillRect(x, y, barW, barH);
         }
       } else {
-        // ─── 정지 중: 끊김 없는 매끄러운 일직선 ───
-        ctx.fillStyle = '#d1d5db';
-        ctx.beginPath();
-        ctx.roundRect(0, (cssH - 2) / 2, cssW, 2, 1);
-        ctx.fill();
+        // ─── 정지 중: 매우 얇은 정적인 패턴 ───
+        const barW = 1.5;
+        const gap = 4.5;
+        const barCount = Math.floor(cssW / (barW + gap));
+        
+        ctx.fillStyle = '#e5e7eb';
+        for (let i = 0; i < barCount; i++) {
+          const x = i * (barW + gap);
+          const barH = 4 + Math.sin(i * 0.8) * 3; 
+          const y = cssH - barH; // 하단 고정
+          ctx.fillRect(x, y, barW, barH);
+        }
       }
 
       ctx.restore();
