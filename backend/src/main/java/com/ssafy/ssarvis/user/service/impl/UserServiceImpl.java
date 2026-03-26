@@ -155,7 +155,10 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
 
-        String encryptedPassword = passwordEncoder.encode(userUpdateRequestDto.password());
+        String encryptedPassword = user.getPassword();
+        if (userUpdateRequestDto.password() != null && !userUpdateRequestDto.password().isBlank()) {
+            encryptedPassword = passwordEncoder.encode(userUpdateRequestDto.password());
+        }
 
         user.update(
             trimToNull(encryptedPassword),

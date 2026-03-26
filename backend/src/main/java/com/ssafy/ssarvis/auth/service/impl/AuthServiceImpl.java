@@ -1,5 +1,6 @@
 package com.ssafy.ssarvis.auth.service.impl;
 
+import com.ssafy.ssarvis.auth.dto.OAuthDto;
 import com.ssafy.ssarvis.auth.dto.TokenDto;
 import com.ssafy.ssarvis.auth.dto.request.LoginRequestDto;
 import com.ssafy.ssarvis.auth.dto.request.SetVoiceLockRequestDto;
@@ -162,6 +163,23 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
         user.deleteUserVoicePassword();
+    }
+
+    @Override
+    public OAuthDto loginOrSignUpWithOauth2(String provider, String authorizationCode) {
+        // authorization code로 Oauth provider의 accessToken 발급
+
+        // Oauth provider의 accessToken으로 사용자 정보 조회
+
+        // userEmail로 조회
+            // 존재 O -> 로그인
+
+            // 존재 X -> 회원가입 페이지로 돌려보낼건데, redis에 socialUser 데이터 담아두고, uuid랑 맵핑해서 응답해줌
+            // OAUthDto에 isNewer = true, registerUUID
+
+        // 사용자 정보로 서버 토큰 발급 후 응답
+
+        return null;
     }
 
     private Long extractUserId(Authentication authentication) {

@@ -1,5 +1,6 @@
 package com.ssafy.ssarvis.auth.service;
 
+import com.ssafy.ssarvis.auth.dto.OAuthDto;
 import com.ssafy.ssarvis.auth.dto.request.LoginRequestDto;
 import com.ssafy.ssarvis.auth.dto.TokenDto;
 import com.ssafy.ssarvis.auth.dto.request.SetVoiceLockRequestDto;
@@ -23,4 +24,5 @@ public interface AuthService {
 
     void deleteVoicePassword(Long userId);
 
+    OAuthDto loginOrSignUpWithOauth2(String provider, String authorizationCode);
 }
