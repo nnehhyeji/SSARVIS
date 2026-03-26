@@ -17,6 +17,9 @@ interface ChatWindowProps {
   onInputChange: (val: string) => void;
   onSend: () => void;
   onClose?: () => void;
+  heightClassName?: string;
+  inputPlaceholder?: string;
+  isInputDisabled?: boolean;
 }
 
 export default function ChatWindow({
@@ -26,6 +29,9 @@ export default function ChatWindow({
   onInputChange,
   onSend,
   onClose,
+  heightClassName = 'h-[65%]',
+  inputPlaceholder = '메시지를 입력하세요...',
+  isInputDisabled = false,
 }: ChatWindowProps) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +47,7 @@ export default function ChatWindow({
 
   return (
     <motion.div
-      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-[50%] bg-white/60 backdrop-blur-2xl rounded-t-[40px] shadow-2xl border border-white/40 flex flex-col z-30"
+      className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl ${heightClassName || 'h-[50%]'} bg-white/60 backdrop-blur-2xl rounded-t-[40px] shadow-2xl border border-white/40 flex flex-col z-30`}
       initial={{ y: '100%' }}
       animate={{ y: isVisible ? '0%' : '100%' }}
       transition={{ type: 'spring', stiffness: 200, damping: 25 }}
@@ -103,16 +109,18 @@ export default function ChatWindow({
         <div className="relative flex items-center gap-3 bg-white/80 rounded-2xl p-2 px-4 shadow-inner border border-white/50">
           <input
             type="text"
-            placeholder="메시지를 입력하세요..."
+            placeholder={inputPlaceholder}
             className="flex-1 bg-transparent border-none outline-none py-2 text-gray-800 placeholder-gray-400 text-sm"
             value={input}
+            disabled={isInputDisabled}
             onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSend()}
           />
           <button
             onClick={onSend}
+            disabled={isInputDisabled}
             className={`p-2 rounded-xl transition ${
-              input.trim() ? 'bg-pink-400 text-white shadow-md' : 'text-gray-400'
+              input.trim() && !isInputDisabled ? 'bg-pink-400 text-white shadow-md' : 'text-gray-400'
             }`}
           >
             <Send className="w-5 h-5" />

@@ -4,6 +4,7 @@ from app.config.base import SETTINGS_CONFIG
 
 
 class OpenAIConfig(BaseSettings):
+    openai_base_url: str = ""
     openai_api_key: str = ""
     llm_model: str = "gpt-5.4-mini"
     llm_timeout_seconds: float = 30.0
