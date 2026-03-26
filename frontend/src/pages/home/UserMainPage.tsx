@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { MessageCircle, Mic, MicOff, Lock, Unlock, Sparkles } from 'lucide-react';
+import { MessageCircle, Mic, MicOff, Lock, Unlock, Sparkles, MessageSquare } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -161,15 +161,38 @@ export default function UserMainPage() {
         </div>
       )}
 
-      {/* 우상단 페르소나 문답 아이콘 (방문 시) */}
+      {/* 우상단 액션 버튼 그룹 (방문 시) */}
       {!isMyHome && (
-        <button
-          onClick={() => navigate(PATHS.PERSONA(targetId!))}
-          className="absolute top-8 right-8 p-4 bg-gradient-to-br from-pink-400/80 to-rose-300/80 hover:scale-105 rounded-2xl shadow-xl text-white flex flex-col items-center gap-1 z-50 transition-all border border-white/20 group"
-        >
-          <Sparkles className="w-6 h-6 group-hover:animate-pulse" />
-          <span className="text-[10px] font-black leading-none">문답작성</span>
-        </button>
+        <div className="absolute top-8 right-8 flex flex-col gap-4 z-50 items-end">
+          {/* 1. 문답 작성 버튼 */}
+          <button
+            onClick={() => navigate(PATHS.PERSONA(targetId!))}
+            className="p-4 bg-gradient-to-br from-pink-400/80 to-rose-300/80 hover:scale-105 active:scale-95 rounded-2xl shadow-xl text-white flex flex-col items-center gap-1 transition-all border border-white/20 group"
+            title="문답 작성"
+          >
+            <Sparkles className="w-6 h-6 group-hover:animate-pulse" />
+            <span className="text-[10px] font-black leading-none">문답작성</span>
+          </button>
+
+          {/* 2. 듀얼 AI 대화 시작/종료 */}
+          <button
+            onClick={() => {
+              if (isDualAiMode) {
+                setIsDualAiMode(false);
+              } else {
+                setIsDualAiMode(true);
+                setIsInteractionModalOpen(false);
+                setMyTriggerText('나: 우와, 네 방 정말 멋지다!');
+                setTimeout(() => setTriggerText(`${ownerName}: 고마워! 놀러와줘서 기뻐.`), 3000);
+              }
+            }}
+            className={`p-4 rounded-2xl backdrop-blur-md shadow-xl border transition-all duration-300 flex flex-col items-center gap-1 group/btn ${isDualAiMode ? 'bg-indigo-500/80 border-indigo-400/50 text-white' : 'bg-white/80 border-white/40 text-indigo-500 hover:bg-amber-50'}`}
+            title="AI 끼리 대화"
+          >
+            <MessageSquare className="w-6 h-6" />
+            <span className="text-[10px] font-black leading-none">{isDualAiMode ? '그만하기' : '둘이대화'}</span>
+          </button>
+        </div>
       )}
 
       <main className="flex-1 flex items-center justify-center relative w-full h-full z-10">

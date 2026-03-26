@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '../../store/useUserStore';
 import userApi from '../../apis/userApi';
+import followApi from '../../apis/followApi';
 import { PATHS } from '../../routes/paths';
 import { Share2 } from 'lucide-react';
 
@@ -9,17 +10,26 @@ const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { userInfo } = useUserStore();
   const [profile, setProfile] = React.useState<any>(null);
+  const [followingCount, setFollowingCount] = React.useState(0);
+  const [followerCount, setFollowerCount] = React.useState(0);
 
   React.useEffect(() => {
-    const loadProfile = async () => {
+    const loadProfileData = async () => {
       try {
-        const data = await userApi.getUserProfile();
-        setProfile(data);
+        const [profileData, followList, followerList] = await Promise.all([
+          userApi.getUserProfile(),
+          followApi.getFollowList(),
+          followApi.getFollowerList()
+        ]);
+        
+        setProfile(profileData);
+        setFollowingCount(followList.data?.length || 0);
+        setFollowerCount(followerList.data?.length || 0);
       } catch (err) {
-        console.error('Failed to load profile:', err);
+        console.error('Failed to load profile data:', err);
       }
     };
-    loadProfile();
+    loadProfileData();
   }, []);
 
   const handleEditClick = () => {
@@ -27,7 +37,19 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleShareClick = () => {
-    alert('명함 공유 기능이 준비 중입니다!');
+    const myId = userInfo?.id;
+    if (!myId) return;
+
+    const shareUrl = `${window.location.origin}/${myId}`;
+    
+    // 클립보드 복사
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => {
+        alert('내 명함 링크가 클립보드에 복사되었습니다! 🪪');
+      })
+      .catch((err) => {
+        console.error('Failed to copy link:', err);
+      });
   };
 
   return (
@@ -54,10 +76,26 @@ const ProfilePage: React.FC = () => {
               <h1 className="text-6xl font-black text-gray-900 tracking-tighter drop-shadow-sm">
                 {userInfo?.nickname || 'nneh'}
               </h1>
-              <p className="text-xl font-bold text-gray-700/60 tracking-tight">
-                @{userInfo?.customId || 'unknown_id'}
-              </p>
-              <p className="text-gray-500/80 font-bold text-lg mt-1">{userInfo?.email}</p>
+              
+              {/* 팔로워/팔로잉 카운트 영역 */}
+              <div className="flex items-center gap-6 my-2">
+                <div className="flex items-center gap-2 group/stat cursor-default">
+                  <span className="text-2xl font-black text-gray-900">{followerCount}</span>
+                  <span className="text-lg font-bold text-gray-500/60">팔로워</span>
+                </div>
+                <div className="flex-none w-1 h-1 rounded-full bg-gray-300" />
+                <div className="flex items-center gap-2 group/stat cursor-default">
+                  <span className="text-2xl font-black text-gray-900">{followingCount}</span>
+                  <span className="text-lg font-bold text-gray-500/60">팔로잉</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-0.5">
+                <p className="text-xl font-bold text-gray-700/60 tracking-tight">
+                  @{userInfo?.customId || 'unknown_id'}
+                </p>
+                <p className="text-gray-500/80 font-bold text-lg">{userInfo?.email}</p>
+              </div>
             </div>
 
             {/* 오른쪽: 액션 버튼들 */}

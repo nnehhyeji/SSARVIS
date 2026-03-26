@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle, Mic, MicOff, Lock, Unlock, Zap } from 'lucide-react';
 
@@ -23,15 +23,46 @@ export default function AssistantPage() {
 
   const {
     chatInput, chatMessages, isLockMode, sttText, isAiSpeaking, isAwaitingResponse,
-    setChatInput, toggleLock, sendMessage, startRecording, stopRecordingAndSendSTT,
+    setChatInput, setChatMessages, toggleLock, sendMessage, startRecording, stopRecordingAndSendSTT, cancelTurn,
   } = useChat();
 
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(!isMicOn);
+
+  // 모드별 대화 내역을 저장할 상태
+  const [modeHistories, setModeHistories] = useState<Record<string, any[]>>({
+    normal: [{ sender: 'ai', text: '안녕하세요! 일반 모드입니다. 무엇을 도와드릴까요?' }],
+    study: [{ sender: 'ai', text: '학습 모드입니다. 어떤 것을 공부할까요?' }],
+    counseling: [{ sender: 'ai', text: '상담 모드입니다. 고민이 있으신가요?' }],
+    persona: [{ sender: 'ai', text: '페르소나 모드입니다. 대화를 시작해봐요!' }]
+  });
+  const prevModeRef = useRef(currentMode);
 
   // Sync: Default behavior when mic state changes
   useEffect(() => {
     setIsChatHistoryOpen(!isMicOn);
   }, [isMicOn]);
+
+  // 모드 변경 시: 현재 모드 내용 저장 -> 바뀔 모드 내용 불러오기 (세션 유지)
+  useEffect(() => {
+    const prevMode = prevModeRef.current;
+    if (prevMode !== currentMode) {
+      // 0. 진행 중인 동작(재생 등) 중지
+      cancelTurn();
+      
+      // 1. 현재 대화 내역을 이전 모드 저장소에 보관
+      setModeHistories(prev => ({
+        ...prev,
+        [prevMode]: chatMessages
+      }));
+      
+      // 2. 새로운 모드에 저장되어 있던 히스토리를 불러와서 대화창에 세팅
+      const history = modeHistories[currentMode] || [];
+      setChatMessages(history);
+      
+      // 3. 현재 모드 업데이트
+      prevModeRef.current = currentMode;
+    }
+  }, [currentMode, chatMessages, setChatMessages, modeHistories]);
 
   // AI 발화 말풍선용 데이터 추출
   const lastAiMessage = useMemo(() => {
