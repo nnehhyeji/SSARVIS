@@ -90,11 +90,10 @@ public class FollowController {
     @GetMapping("/search")
     public ResponseEntity<BaseResponse<List<UserSearchResponseDto>>> searchUser(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,
-        @RequestParam(required = false) String nickname,
-        @RequestParam(required = false) String email
+        @RequestParam String keyword
     ) {
         Long userId = customUserDetails.getUserId();
-        List<UserSearchResponseDto> result = followService.searchUser(userId, nickname, email);
+        List<UserSearchResponseDto> result = followService.searchUser(userId, keyword);
         return ResponseEntity.ok(BaseResponse.success("유저 검색 성공", result));
     }
 

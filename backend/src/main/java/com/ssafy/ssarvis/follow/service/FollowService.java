@@ -25,7 +25,7 @@ public interface FollowService {
 
     List<FollowRequestListResponseDto> getFollowRequestList(Long userId);
 
-    List<UserSearchResponseDto> searchUser(Long userId, String nickname, String email);
+    List<UserSearchResponseDto> searchUser(Long userId, String keyword);
 
     FollowAiResponseDto getFollowDailyAi(Long loginUserId, Long followId);
 
