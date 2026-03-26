@@ -3,6 +3,7 @@ package com.ssafy.ssarvis.chat.interceptor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.ssarvis.chat.dto.IncomingTurnContext;
 import com.ssafy.ssarvis.chat.dto.request.ClientChatMessageDto;
+import com.ssafy.ssarvis.chat.service.AiRequestRelayService;
 import com.ssafy.ssarvis.chat.service.ChatStreamingService;
 import com.ssafy.ssarvis.common.constant.Constants;
 import java.io.BufferedOutputStream;
@@ -29,6 +30,7 @@ import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 public class AudioStreamingHandler extends AbstractWebSocketHandler {
 
     // 세션별 임시 파일과 스트림 관리
+    private final AiRequestRelayService aiRequestRelayService;
     private final IncomingTurnContextRegistry contextRegistry;
     private final ObjectMapper objectMapper;
     private final ChatStreamingService chatStreamingService;
@@ -78,6 +80,7 @@ public class AudioStreamingHandler extends AbstractWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         log.info("웹소켓 연결 종료. wsSessionId={}, status={}", session.getId(), status);
+        aiRequestRelayService.closeFastApiSession(session.getId());
         cleanUp(session.getId());
     }
 
