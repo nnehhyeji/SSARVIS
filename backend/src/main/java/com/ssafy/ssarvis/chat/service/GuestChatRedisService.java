@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -30,7 +31,7 @@ public class GuestChatRedisService {
 
         try {
             Map<String, String> message = new HashMap<>();
-            message.put("role", role); // "USER" or "ASSISTANT"
+            message.put("role", normalizeRole(role));
             message.put("content", content);
 
             String jsonMessage = objectMapper.writeValueAsString(message);
@@ -48,10 +49,24 @@ public class GuestChatRedisService {
 
         return rawList.stream().map(json -> {
             try {
-                return objectMapper.readValue(json, new TypeReference<Map<String, String>>(){});
+                Map<String, String> message = objectMapper.readValue(
+                    json,
+                    new TypeReference<Map<String, String>>(){}
+                );
+                if (message.containsKey("role")) {
+                    message.put("role", normalizeRole(message.get("role")));
+                }
+                return message;
             } catch (Exception e) {
                 return null;
             }
         }).filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
+    private String normalizeRole(String role) {
+        if (role == null) {
+            return "";
+        }
+        return role.trim().toLowerCase(Locale.ROOT);
     }
 }

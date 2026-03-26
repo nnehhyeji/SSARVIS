@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 // Hooks
 import { useAICharacter } from '../../hooks/useAICharacter';
 import { useChat } from '../../hooks/useChat';
+import { useGuestChat } from '../../hooks/useGuestChat';
 import { useFollow } from '../../hooks/useFollow';
 import { useUserStore } from '../../store/useUserStore';
 
@@ -48,6 +49,23 @@ export default function UserMainPage() {
     chatInput, chatMessages, isLockMode, sttText, isAiSpeaking, isAwaitingResponse,
     setChatInput, toggleLock, sendMessage, startRecording, stopRecordingAndSendSTT,
   } = useChat();
+  const guestChat = useGuestChat({ enabled: !isLoggedIn && !isMyHome, targetUserId: targetId });
+
+  const activeChat = !isLoggedIn && !isMyHome
+    ? guestChat
+    : {
+        chatInput,
+        chatMessages,
+        isLockMode,
+        sttText,
+        isAiSpeaking,
+        isAwaitingResponse,
+        setChatInput,
+        toggleLock,
+        sendMessage,
+        startRecording,
+        stopRecordingAndSendSTT,
+      };
 
   const {
     follows, isVisitorMode, visitedFollowName, isDualAiMode, isInteractionModalOpen,
@@ -102,10 +120,10 @@ export default function UserMainPage() {
 
   // AI 발화 말풍선용 데이터 추출
   const lastAiMessage = useMemo(() => {
-    return chatMessages.slice().reverse().find((m) => m.sender === 'ai')?.text || '';
-  }, [chatMessages]);
+    return activeChat.chatMessages.slice().reverse().find((m) => m.sender === 'ai')?.text || '';
+  }, [activeChat.chatMessages]);
 
-  const finalIsSpeaking = isAiSpeaking || isSpeaking;
+  const finalIsSpeaking = activeChat.isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? (userInfo?.nickname || '나') : (visitedFollowName || '친구');
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
 
@@ -147,7 +165,7 @@ export default function UserMainPage() {
   }
 
   return (
-    <div className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}>
+    <div className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${activeChat.isLockMode ? 'bg-black' : 'bg-white'}`}>
       
       {/* 상단 룸 정보 (방문 시 노출) */}
       {!isMyHome && (
@@ -189,11 +207,11 @@ export default function UserMainPage() {
                   toggleMic();
                   if (!isMicOn) {
                     const assistantType = isMyHome ? (currentMode === 'counseling' ? 'COUNSEL' : currentMode === 'normal' ? 'DAILY' : currentMode.toUpperCase()) : (isPersonaShared ? 'PERSONA' : 'DAILY');
-                    const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
+                    const memoryPolicy = isMyHome && activeChat.isLockMode ? 'SECRET' : 'GENERAL';
                     const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
-                    startRecording(null, assistantType, memoryPolicy, category, targetId);
+                    activeChat.startRecording(null, assistantType, memoryPolicy, category, targetId);
                   } else {
-                    stopRecordingAndSendSTT();
+                    activeChat.stopRecordingAndSendSTT();
                   }
                 }}
                 className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
@@ -208,11 +226,11 @@ export default function UserMainPage() {
           {isMyHome && (
             <div className="absolute right-[-140px] top-1/2 -translate-y-1/2 z-40">
               <button
-                onClick={toggleLock}
-                className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isLockMode ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
+                onClick={activeChat.toggleLock}
+                className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${activeChat.isLockMode ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
               >
                 <div className="flex items-center justify-center">
-                  {isLockMode ? <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" /> : <Unlock className="w-8 h-8 text-gray-300" />}
+                  {activeChat.isLockMode ? <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" /> : <Unlock className="w-8 h-8 text-gray-300" />}
                 </div>
               </button>
             </div>
@@ -250,7 +268,7 @@ export default function UserMainPage() {
                     faceType={isMyHome ? faceType : (faceType + 2) % 6}
                     mouthOpenRadius={mouthOpenRadius}
                     mode={currentMode}
-                    isLockMode={isLockMode}
+                    isLockMode={activeChat.isLockMode}
                     isSpeaking={finalIsSpeaking}
                     isMicOn={isMicOn}
                     label={isMyHome ? '나의 AI' : `${ownerName}님의 AI`}
@@ -261,9 +279,9 @@ export default function UserMainPage() {
             </div>
             
             {/* STT 실시간 말풍선 */}
-            {isMicOn && (isAwaitingResponse || sttText) && (
+            {isMicOn && (activeChat.isAwaitingResponse || activeChat.sttText) && (
               <div className="absolute bottom-[-220px] left-1/2 -translate-x-1/2 px-8 py-4 bg-black/40 backdrop-blur-xl text-white font-black text-lg rounded-3xl shadow-2xl border border-white/20 z-50 min-w-[280px] text-center max-w-[80vw] whitespace-pre-wrap">
-                🎙️ {sttText}
+                🎙️ {activeChat.sttText}
               </div>
             )}
           </div>
@@ -273,14 +291,14 @@ export default function UserMainPage() {
           <>
             <ChatWindow
               isVisible={isChatHistoryOpen}
-              messages={chatMessages}
-              input={chatInput}
-              onInputChange={setChatInput}
+              messages={activeChat.chatMessages}
+              input={activeChat.chatInput}
+              onInputChange={activeChat.setChatInput}
               onSend={() => {
                 const assistantType = isMyHome ? (currentMode === 'counseling' ? 'COUNSEL' : currentMode === 'normal' ? 'DAILY' : currentMode.toUpperCase()) : (isPersonaShared ? 'PERSONA' : 'DAILY');
-                const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
+                const memoryPolicy = isMyHome && activeChat.isLockMode ? 'SECRET' : 'GENERAL';
                 const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
-                sendMessage(chatInput, null, assistantType, memoryPolicy, category, targetId);
+                activeChat.sendMessage(activeChat.chatInput, null, assistantType, memoryPolicy, category, targetId);
               }}
               onClose={() => setIsChatHistoryOpen(false)}
             />

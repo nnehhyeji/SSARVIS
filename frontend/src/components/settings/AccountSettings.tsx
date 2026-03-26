@@ -90,10 +90,11 @@ export default function AccountSettings({
   const handleToggleProfile = async () => {
     if (isSaving) return;
     const prevProfile = profile;
-    setProfile((prev) => (prev ? { ...prev, isProfilePublic: !prev.isProfilePublic } : prev));
+    const nextIsPublic = !profile?.isProfilePublic;
+    setProfile((prev) => (prev ? { ...prev, isProfilePublic: nextIsPublic } : prev));
     try {
       setIsSaving(true);
-      await userApi.toggleProfileVisibility();
+      await userApi.toggleProfileVisibility(nextIsPublic);
     } catch (error) {
       console.error('Failed to toggle profile visibility:', error);
       setProfile(prevProfile);

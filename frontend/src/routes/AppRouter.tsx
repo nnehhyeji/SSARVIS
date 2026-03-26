@@ -26,7 +26,11 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <UserMainPage />,
+        element: (
+          <ProtectedRoute>
+            <UserMainPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.USER_HOME_PARAM,
