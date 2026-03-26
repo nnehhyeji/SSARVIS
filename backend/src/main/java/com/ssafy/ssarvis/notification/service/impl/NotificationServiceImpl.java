@@ -43,15 +43,16 @@ public class NotificationServiceImpl implements NotificationService {
         Notification notification = Notification.builder()
             .receiver(receiver)
             .notificationType(type)
-            .message(sender.getNickname() + "님이 친구 신청을 보냈습니다.")
+            .message(sender.getCustomId() + "님이 친구 신청을 보냈습니다.")
             .build();
 
         notificationRepository.save(notification);
 
         NotificationPayload notificationPayload = NotificationPayload.builder()
             .senderId(sender.getId())
-            .senderNickname(sender.getNickname())
+            .senderCustomId(sender.getCustomId())
             .message(notification.getMessage())
+            .senderProfileImage(sender.getProfileImageUrl())
             .createdAt(notification.getCreatedAt().toString())
             .build();
 
@@ -79,14 +80,15 @@ public class NotificationServiceImpl implements NotificationService {
         Notification notification = Notification.builder()
             .receiver(sender)   // 원래 신청자(sender)가 수신자
             .notificationType(type)
-            .message(receiver.getNickname() + "님이 친구 신청을 수락했습니다.")
+            .message(receiver.getCustomId() + "님이 친구 신청을 수락했습니다.")
             .build();
         notificationRepository.save(notification);
 
         NotificationPayload notificationPayload = NotificationPayload.builder()
             .senderId(receiver.getId())
-            .senderNickname(receiver.getNickname())
+            .senderCustomId(receiver.getCustomId())
             .message(notification.getMessage())
+            .senderProfileImage(receiver.getProfileImageUrl())
             .createdAt(notification.getCreatedAt().toString())
             .build();
 

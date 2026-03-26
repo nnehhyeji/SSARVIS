@@ -6,6 +6,7 @@ import LoginPage from '../pages/auth/LoginPage';
 import SettingsPage from '../pages/settings/SettingsPage';
 import SignupPage from '../pages/auth/SignupPage';
 import TutorialPage from '../pages/auth/TutorialPage';
+import ProfilePage from '../pages/profile/ProfilePage';
 import PersonaSurveyPage from '../pages/persona/PersonaSurveyPage';
 import ProtectedRoute from '../components/common/ProtectedRoute';
 import { PATHS } from './paths';
@@ -20,6 +21,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <HomePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: PATHS.PROFILE,
+    element: (
+      <ProtectedRoute>
+        <ProfilePage />
       </ProtectedRoute>
     ),
   },
@@ -62,5 +71,13 @@ export const router = createBrowserRouter([
   {
     path: PATHS.PERSONA_PARAM,
     element: <PersonaSurveyPage />,
+  },
+  {
+    path: PATHS.CHAT_ARCHIVE_PARAM,
+    element: (
+      <ProtectedRoute>
+        <HomePage />
+      </ProtectedRoute>
+    ),
   },
 ]);
