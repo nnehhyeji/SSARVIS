@@ -10,15 +10,18 @@ import java.time.LocalDateTime;
 public record ChatSessionResponseDto(
     String id,
     Long userId,
+    Long targetUserId,
+    String targetUserCustomId,
+    String targetUserProfileImageUrl,
     Long assistantId,
     AssistantType assistantType,
     ChatSessionType chatSessionType,
     String title,
     ChatSessionStatus chatSessionStatus,
+    MemoryPolicy memoryPolicy,
     Integer messageCount,
     LocalDateTime startedAt,
     LocalDateTime lastMessageAt,
-    MemoryPolicy memoryPolicy,
     LocalDateTime expiredAt
 ) {
 
@@ -26,15 +29,18 @@ public record ChatSessionResponseDto(
         return new ChatSessionResponseDto(
             chatSessionDocument.getId(),
             chatSessionDocument.getUserId(),
+            chatSessionDocument.getTargetUserId(),
+            chatSessionDocument.getTargetUserCustomId(),
+            chatSessionDocument.getTargetUserProfileImageUrl(),
             chatSessionDocument.getAssistantId(),
             chatSessionDocument.getAssistantType(),
             chatSessionDocument.getChatSessionType(),
             chatSessionDocument.getTitle(),
             chatSessionDocument.getChatSessionStatus(),
+            chatSessionDocument.getMemoryPolicy(),
             chatSessionDocument.getMessageCount(),
             chatSessionDocument.getStartedAt(),
             chatSessionDocument.getLastMessageAt(),
-            chatSessionDocument.getMemoryPolicy(),
             chatSessionDocument.getExpiredAt()
         );
     }
