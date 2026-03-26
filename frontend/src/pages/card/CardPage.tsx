@@ -47,7 +47,6 @@ export default function CardPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col bg-white">
-
       {/* 헤더 시뮬레이션 (디자인 일관성) */}
       <header className="relative z-50 flex justify-between items-center px-10 py-6 w-full">
         <div className="text-4xl font-black tracking-tighter text-pink-400 drop-shadow-sm flex items-center gap-2">

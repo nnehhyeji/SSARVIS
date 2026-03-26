@@ -109,8 +109,6 @@ export default function HomePage() {
     [readAlarm],
   );
 
-
-
   const handleVisit = useCallback(
     (id: number) => {
       navigate(PATHS.VISIT(id));
@@ -132,7 +130,9 @@ export default function HomePage() {
   };
 
   return (
-    <div className={`relative w-full h-screen overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}>
+    <div
+      className={`relative w-full h-screen overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}
+    >
       <Sidebar
         userInfo={userInfo}
         onLogout={handleLogout}

@@ -140,7 +140,6 @@ export function useFollow() {
       const visibility = user.isFollowing ? 'private' : 'public';
       setVisitorVisibility(visibility);
 
-
       if (!isReturn) {
         alert(`${user.name}님의 방으로 방문합니다. (${visibility} 모드)`);
       }

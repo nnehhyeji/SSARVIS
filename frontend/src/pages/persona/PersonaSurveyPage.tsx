@@ -75,7 +75,6 @@ export default function PersonaSurveyPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-white">
-
       <AnimatePresence mode="wait">
         {isGenerating ? (
           <motion.div

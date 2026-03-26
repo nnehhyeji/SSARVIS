@@ -184,7 +184,6 @@ export default function SignupPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4 bg-white">
-
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}

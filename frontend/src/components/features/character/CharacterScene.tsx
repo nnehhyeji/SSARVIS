@@ -74,12 +74,12 @@ export default function CharacterScene({
             {/* 조명이 닿는 바닥 포인트 (더 선명하게 반사되도록 세팅) */}
             <mesh position={[0, -1.45, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
               <circleGeometry args={[2, 64]} />
-              <meshStandardMaterial 
-                color="#ffffff" 
-                emissive="#ffffff" 
-                emissiveIntensity={0.3} 
-                opacity={0.18} 
-                transparent 
+              <meshStandardMaterial
+                color="#ffffff"
+                emissive="#ffffff"
+                emissiveIntensity={0.3}
+                opacity={0.18}
+                transparent
                 roughness={0.1}
                 metalness={0.2}
               />

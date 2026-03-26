@@ -121,7 +121,6 @@ export default function LoginPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4 bg-white">
-
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

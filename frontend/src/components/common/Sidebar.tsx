@@ -672,7 +672,10 @@ export default function Sidebar({
                             <div key={s.id} className="flex items-center gap-4 group/searchItem">
                               <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
                                 <img
-                                  src={s.profileImgUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`}
+                                  src={
+                                    s.profileImgUrl ||
+                                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`
+                                  }
                                   alt={s.name}
                                   className="w-full h-full object-cover"
                                 />
@@ -744,7 +747,9 @@ export default function Sidebar({
                           <p className="text-[11px] text-gray-400 font-bold mt-1 tracking-tight uppercase italic">
                             {alarm.time}
                           </p>
-                          {alarm.type === 'follow' && alarm.payload && !!(alarm.payload as { followRequestId?: number }).followRequestId && (
+                          {alarm.type === 'follow' &&
+                            alarm.payload &&
+                            !!(alarm.payload as { followRequestId?: number }).followRequestId && (
                               <div className="flex gap-2 mt-2">
                                 <button
                                   onClick={(e) => {
@@ -828,7 +833,10 @@ export default function Sidebar({
                             >
                               <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-gray-100 to-gray-200 border border-white shadow-sm overflow-hidden shrink-0">
                                 <img
-                                  src={f.profileImgUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${f.name}`}
+                                  src={
+                                    f.profileImgUrl ||
+                                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${f.name}`
+                                  }
                                   alt={f.name}
                                   className="w-full h-full object-cover"
                                 />
