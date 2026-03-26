@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -87,7 +87,6 @@ export default function Sidebar({
   onAccept,
   onReject,
   onDelete,
-  onSearch,
   searchResults,
   isSearchLoading,
   requestFollow,
@@ -570,7 +569,7 @@ export default function Sidebar({
                     <button
                       className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-300 rounded-full p-0.5 hover:bg-gray-400 transition-colors"
                       onClick={() => {
-                        setSearchTerm('');
+                        setSearchQuery('');
                         onSearch('');
                       }}
                     >
@@ -669,79 +668,32 @@ export default function Sidebar({
                       </button>
                     </div>
                     <div className="space-y-4">
-                      {recentSearches.map((s) => (
-                        <div key={s.id} className="flex items-center gap-4 group/searchItem">
-                          <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
-                            <img
-                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`}
-                              alt={s.name}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRecentSearchClick(s)}
-                            className="flex-1 text-left"
-                          >
-                            <p className="font-bold text-gray-800">{s.name}</p>
-                            <p className="text-sm text-gray-500">{s.subtitle}</p>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeRecentSearch(s.id)}
-                            className="p-1 hover:bg-gray-100 rounded-full transition-all"
-                          >
-                            <X className="w-5 h-5 text-gray-300" />
-                          </button>
-1e73a5319f96131efa00b210585b72344c812cfb
-                        </div>
-                      ) : searchResults.length > 0 ? (
-                        searchResults.map((user) => (
-                          <div
-                            key={user.id}
-                            className="flex items-center gap-4 group/searchItem p-2 rounded-2xl hover:bg-black/5 transition-all"
-                          >
-                            <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5 shrink-0">
+                      {recentSearches.length > 0 ? (
+                        recentSearches.map((s) => (
+                          <div key={s.id} className="flex items-center gap-4 group/searchItem">
+                            <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
                               <img
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
-                                alt={user.name}
+                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`}
+                                alt={s.name}
                               />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-gray-800 truncate">{user.name}</p>
-                              <p className="text-sm text-gray-500 truncate">{user.email}</p>
-                            </div>
-                            <div>
-                              {user.followStatus === 'NONE' ? (
-                                <button
-                                  onClick={() => requestFollow(user.id, user.name)}
-                                  className="px-3 py-1.5 bg-rose-500 text-white text-[11px] font-black rounded-xl hover:bg-rose-600 transition-colors shadow-sm whitespace-nowrap"
-                                >
-                                  추가
-                                </button>
-                              ) : user.followStatus === 'REQUESTED' ? (
-                                <button
-                                  disabled
-                                  className="px-3 py-1.5 bg-gray-200 text-gray-500 text-[11px] font-black rounded-xl cursor-not-allowed whitespace-nowrap"
-                                >
-                                  요청됨
-                                </button>
-                              ) : (
-                                <button
-                                  disabled
-                                  className="px-3 py-1.5 bg-rose-50/50 text-rose-500 text-[11px] font-black rounded-xl cursor-not-allowed whitespace-nowrap"
-                                >
-                                  친구
-                                </button>
-                              )}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRecentSearchClick(s)}
+                              className="flex-1 text-left"
+                            >
+                              <p className="font-bold text-gray-800">{s.name}</p>
+                              <p className="text-sm text-gray-500">{s.subtitle}</p>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeRecentSearch(s.id)}
+                              className="p-1 hover:bg-gray-100 rounded-full transition-all"
+                            >
+                              <X className="w-5 h-5 text-gray-300" />
+                            </button>
                           </div>
                         ))
-                      ) : searchQuery.trim() !== '' ? (
-                        <div className="flex-1 flex items-center justify-center py-20">
-                          <p className="text-gray-400 font-bold text-sm">
-                            해당 사용자를 찾을 수 없습니다.
-                          </p>
-                        </div>
                       ) : (
                         <div className="flex-1 flex items-center justify-center py-20">
                           <p className="text-gray-400 font-bold text-sm">
@@ -792,14 +744,14 @@ export default function Sidebar({
                           <p className="text-[11px] text-gray-400 font-bold mt-1 tracking-tight uppercase italic">
                             {alarm.time}
                           </p>
-                          {alarm.type === 'follow' && alarm.payload?.followRequestId && (
+                          {alarm.type === 'follow' && (alarm.payload as any)?.followRequestId && (
                             <div className="flex gap-2 mt-2">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onAccept(
-                                    alarm.payload?.followRequestId,
-                                    alarm.payload?.senderName || '사용자',
+                                    (alarm.payload as any).followRequestId,
+                                    (alarm.payload as any)?.senderName || '사용자',
                                   );
                                   onRemoveAlarm(alarm.id);
                                 }}

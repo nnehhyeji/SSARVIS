@@ -59,7 +59,6 @@ export default function HomePage() {
     acceptRequest,
     rejectRequest,
     handleSearch,
-    requestFollow,
   } = useFollow();
 
   const { alarms, readAlarm, readAllAlarms, removeAllAlarms, removeAlarm } = useNotification();
