@@ -2,7 +2,6 @@ import axios from 'axios';
 import { getApiHttpBaseUrl } from '../config/api';
 import { PATHS } from '../routes/paths';
 import { useUserStore } from '../store/useUserStore';
-import { useVoiceLockStore } from '../store/useVoiceLockStore';
 
 const axiosInstance = axios.create({
   baseURL: getApiHttpBaseUrl(),
@@ -42,11 +41,6 @@ const reissueAccessToken = async (): Promise<string | null> => {
         }
 
         localStorage.setItem('token', newAccessToken);
-
-        const timeout = response.data?.data?.timeout;
-        if (timeout) {
-          useVoiceLockStore.getState().setTimeoutDuration(timeout);
-        }
 
         return newAccessToken;
       })
