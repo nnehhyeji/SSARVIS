@@ -124,7 +124,8 @@ export function useSpeechTopicInput(): TopicInputState {
     setErrorMessage('');
 
     const SpeechRecognitionApi =
-      (window as unknown as { SpeechRecognition?: new () => SpeechRecognition }).SpeechRecognition ||
+      (window as unknown as { SpeechRecognition?: new () => SpeechRecognition })
+        .SpeechRecognition ||
       (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognition })
         .webkitSpeechRecognition;
 

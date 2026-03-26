@@ -69,16 +69,16 @@ export default function AudioPlayerBar({
         const barW = 1.5; // 막대 두께 최소화
         const gap = 4.5; // 간격을 넓혀서 더 세련된 느낌
         const barCount = Math.floor(cssW / (barW + gap));
-        
+
         for (let i = 0; i < barCount; i++) {
           const t = Date.now() / 600;
           const slowWave = Math.sin(t + i * 0.15) * 0.45;
           const midWave = Math.sin(t * 2.5 - i * 0.5) * 0.3;
           const fastWave = Math.sin(t * 5 + i * 1.2) * 0.15;
-          const noise = (Math.random() - 0.5) * 0.05; 
-          
+          const noise = (Math.random() - 0.5) * 0.05;
+
           const complexity = Math.max(0.1, 0.45 + slowWave + midWave + fastWave + noise);
-          
+
           // 하단 고정형이므로 캔버스 높이를 더 꽉 채우도록 비율 조정
           const barH = Math.max(2, complexity * cssH * 0.95);
           const x = i * (barW + gap);
@@ -86,7 +86,7 @@ export default function AudioPlayerBar({
 
           const isAhead = i / (barCount - 1) <= progress;
           ctx.fillStyle = isAhead ? '#f43f5e' : '#e5e7eb';
-          
+
           ctx.fillRect(x, y, barW, barH);
         }
       } else {
@@ -94,11 +94,11 @@ export default function AudioPlayerBar({
         const barW = 1.5;
         const gap = 4.5;
         const barCount = Math.floor(cssW / (barW + gap));
-        
+
         ctx.fillStyle = '#e5e7eb';
         for (let i = 0; i < barCount; i++) {
           const x = i * (barW + gap);
-          const barH = 4 + Math.sin(i * 0.8) * 3; 
+          const barH = 4 + Math.sin(i * 0.8) * 3;
           const y = cssH - barH; // 하단 고정
           ctx.fillRect(x, y, barW, barH);
         }

@@ -65,7 +65,9 @@ export default function AiTopicModal({
                 <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-400">
                   AI TO AI
                 </p>
-                <h2 className="text-2xl font-black text-gray-900 mt-1">주제를 음성으로 던져주세요</h2>
+                <h2 className="text-2xl font-black text-gray-900 mt-1">
+                  주제를 음성으로 던져주세요
+                </h2>
                 <p className="text-sm text-gray-500 mt-1">
                   말한 내용은 자동으로 텍스트로 바뀌고, 시작 전에 직접 수정할 수 있습니다.
                 </p>
@@ -99,7 +101,9 @@ export default function AiTopicModal({
                       <Mic className="w-9 h-9" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-gray-900">예시: 너희 둘 다 봄에 어디 가고 싶은지 얘기해봐</h3>
+                      <h3 className="text-lg font-black text-gray-900">
+                        예시: 너희 둘 다 봄에 어디 가고 싶은지 얘기해봐
+                      </h3>
                       <p className="text-sm font-medium text-gray-500 mt-2">
                         마이크를 눌러 주제를 말하거나 바로 아래 입력창에서 적어도 됩니다.
                       </p>
@@ -119,7 +123,14 @@ export default function AiTopicModal({
                   <div className="flex flex-col items-center gap-4">
                     <div className="relative w-24 h-24">
                       <svg className="w-full h-full -rotate-90" viewBox="0 0 96 96">
-                        <circle cx="48" cy="48" r="42" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="8" />
+                        <circle
+                          cx="48"
+                          cy="48"
+                          r="42"
+                          fill="none"
+                          stroke="rgba(0,0,0,0.08)"
+                          strokeWidth="8"
+                        />
                         <circle
                           cx="48"
                           cy="48"
@@ -133,7 +144,9 @@ export default function AiTopicModal({
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-black text-gray-900">{20 - recordingTime}</span>
+                        <span className="text-2xl font-black text-gray-900">
+                          {20 - recordingTime}
+                        </span>
                         <span className="text-[10px] font-bold text-gray-400">초</span>
                       </div>
                     </div>
@@ -145,7 +158,9 @@ export default function AiTopicModal({
                           <span className="text-gray-400">{interimTranscript}</span>
                         </>
                       ) : (
-                        <span className="text-gray-300">주제를 말씀하시면 여기에 실시간으로 표시됩니다.</span>
+                        <span className="text-gray-300">
+                          주제를 말씀하시면 여기에 실시간으로 표시됩니다.
+                        </span>
                       )}
                     </div>
 

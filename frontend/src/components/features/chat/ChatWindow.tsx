@@ -120,7 +120,9 @@ export default function ChatWindow({
             onClick={onSend}
             disabled={isInputDisabled}
             className={`p-2 rounded-xl transition ${
-              input.trim() && !isInputDisabled ? 'bg-pink-400 text-white shadow-md' : 'text-gray-400'
+              input.trim() && !isInputDisabled
+                ? 'bg-pink-400 text-white shadow-md'
+                : 'text-gray-400'
             }`}
           >
             <Send className="w-5 h-5" />

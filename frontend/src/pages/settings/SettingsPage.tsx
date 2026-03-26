@@ -94,7 +94,9 @@ export default function SettingsPage() {
                 )}
                 {tab === 'ai' && (
                   <div className="py-20 text-center">
-                    <p className="text-2xl font-black text-gray-300 italic">공백 (AI 설정 준비 중)</p>
+                    <p className="text-2xl font-black text-gray-300 italic">
+                      공백 (AI 설정 준비 중)
+                    </p>
                   </div>
                 )}
                 {tab === 'voice' && (

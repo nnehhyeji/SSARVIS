@@ -20,6 +20,9 @@ export const PATHS = {
   ASSISTANT: '/assistant',
   NAMNA: '/namna', // 남이 보는 나 (Persona)
   CHAT: '/chat', // 대화 보관함 리스트
+  GUEST_EXPERIENCE: '/guest', // 유명인 체험하기
+  GUEST_COMPLETE: (modelId: string) => `/guest/complete/${modelId}`,
+  GUEST_COMPLETE_PARAM: '/guest/complete/:modelId',
   CHAT_ARCHIVE: (sessionId: string) => `/chat-archive/${sessionId}`,
   CHAT_ARCHIVE_PARAM: '/chat-archive/:sessionId',
 

@@ -35,12 +35,14 @@ const ProfilePage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-10 py-12">
         {/* 프로필 헤더 섹션 (배너 + 프로필 이미지 + 정보) */}
         <div className="relative w-full rounded-[40px] overflow-hidden shadow-2xl shadow-gray-200/50 bg-[#E0D7D0] min-h-[500px] flex flex-col justify-end p-12 group">
-          
           {/* 정중앙 프로필 이미지 */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
             <div className="w-56 h-56 rounded-full overflow-hidden border-[10px] border-white shadow-2xl bg-white/50 backdrop-blur-sm transition-transform duration-500 group-hover:scale-105">
               <img
-                src={profile?.userProfileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userInfo?.nickname || 'user'}`}
+                src={
+                  profile?.userProfileImageUrl ||
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${userInfo?.nickname || 'user'}`
+                }
                 alt="Profile"
                 className="w-full h-full object-cover"
               />

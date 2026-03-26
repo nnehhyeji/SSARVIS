@@ -6,10 +6,7 @@ interface AssistantPanelProps {
   onModeChange: (mode: Mode) => void;
 }
 
-const AssistantPanel: React.FC<AssistantPanelProps> = ({
-  currentMode,
-  onModeChange,
-}) => {
+const AssistantPanel: React.FC<AssistantPanelProps> = ({ currentMode, onModeChange }) => {
   return (
     <div className="flex-1 flex flex-col pt-2 bg-white">
       <div className="flex flex-col gap-8 px-8 pt-6">
