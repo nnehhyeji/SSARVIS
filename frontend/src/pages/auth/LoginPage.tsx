@@ -136,46 +136,46 @@ export default function LoginPage() {
         </div>
 
         {/* Right Side Form */}
-        <div className="w-full md:w-[55%] p-12 md:p-16 flex flex-col relative order-1 md:order-2">
+        <div className="w-full md:w-[55%] p-8 md:p-12 flex flex-col relative order-1 md:order-2 self-center">
           <button 
             onClick={() => navigate(PATHS.HOME)}
-            className="absolute top-8 left-8 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute top-6 left-8 text-gray-400 hover:text-gray-600 transition-colors"
           >
             <ChevronLeft size={24} />
           </button>
 
-          <div className="mb-10 mt-4">
-            <h2 className="text-[#11141D] text-3xl font-bold mb-2">Welcome back</h2>
-            <p className="text-gray-400 text-sm">정보를 입력하여 로그인을 진행해주세요.</p>
+          <div className="mb-6 m-4">
+            <h2 className="text-[#11141D] text-3xl font-bold mb-1.5 leading-tight">Welcome back</h2>
+            <p className="text-gray-400 text-sm font-medium">정보를 입력하여 로그인을 진행해주세요.</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2 text-left">
-              <label className="text-[#11141D] text-sm font-bold ml-1">Email</label>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1.5 text-left">
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Email</label>
               <input
                 type="email"
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-4 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300"
+                className="w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm font-medium"
                 required
               />
             </div>
 
-            <div className="space-y-2 text-left">
-              <label className="text-[#11141D] text-sm font-bold ml-1">Password</label>
+            <div className="space-y-1.5 text-left">
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Password</label>
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-4 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300"
+                className="w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm font-medium"
                 required
               />
             </div>
 
             {/* Remember ID & Auto Login */}
-            <div className="flex items-center gap-6 px-1">
+            <div className="flex items-center gap-6 px-1 py-1">
               <label className="flex items-center gap-2 cursor-pointer group">
                 <div className="relative">
                   <input
@@ -184,11 +184,11 @@ export default function LoginPage() {
                     onChange={(e) => setIsRememberId(e.target.checked)}
                     className="peer sr-only"
                   />
-                  <div className="w-5 h-5 border-2 border-gray-200 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-gray-100 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
                     <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
                   </div>
                 </div>
-                <span className="text-xs font-bold text-gray-400 group-hover:text-gray-600 transition-colors">아이디 기억</span>
+                <span className="text-xs font-bold text-gray-300 group-hover:text-gray-500 transition-colors">아이디 기억</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer group">
@@ -199,48 +199,44 @@ export default function LoginPage() {
                     onChange={(e) => setIsAutoLogin(e.target.checked)}
                     className="peer sr-only"
                   />
-                  <div className="w-5 h-5 border-2 border-gray-200 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-gray-100 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
                     <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
                   </div>
                 </div>
-                <span className="text-xs font-bold text-gray-400 group-hover:text-gray-600 transition-colors">자동 로그인</span>
+                <span className="text-xs font-bold text-gray-300 group-hover:text-gray-500 transition-colors">자동 로그인</span>
               </label>
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 bg-[#11141D] text-white rounded-2xl font-bold hover:bg-[#1a1e2b] transition-all active:scale-[0.99] disabled:opacity-50 shadow-lg"
+              className="w-full py-4 bg-[#11141D] text-white rounded-2xl font-bold hover:bg-[#1a1e2b] transition-all active:scale-[0.99] disabled:opacity-50 shadow-lg text-base"
             >
-              Sign In
+              로그인
             </button>
           </form>
 
-          <div className="flex items-center w-full my-8">
-            <div className="flex-1 h-[1px] bg-gray-100"></div>
-            <span className="px-4 text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-              OR CONTINUE WITH
-            </span>
+          <div className="flex items-center w-full my-6">
             <div className="flex-1 h-[1px] bg-gray-100"></div>
           </div>
 
           <button
             type="button"
-            className="w-full py-4 bg-[#FEE500] text-[#11141D] rounded-2xl font-bold hover:bg-[#fada0a] transition-all active:scale-[0.99] flex items-center justify-center gap-2 shadow-sm"
+            className="w-full py-3.5 bg-[#FEE500] text-[#11141D] rounded-2xl font-bold hover:bg-[#fada0a] transition-all active:scale-[0.99] flex items-center justify-center gap-2 shadow-sm text-sm"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 3c-4.97 0-9 3.037-9 6.784 0 2.455 1.705 4.607 4.29 5.86l-.88 3.256c-.05.184.058.376.24.428.055.016.113.018.17.006l3.83-2.541c.43.06.877.091 1.35.091 4.97 0 9-3.037 9-6.784S16.97 3 12 3z" />
             </svg>
-            카카오톡으로 시작하기
+            카카오 간편 로그인
           </button>
 
-          <div className="mt-10 text-center">
-            <span className="text-gray-400 text-sm">계정이 없으신가요? </span>
+          <div className="mt-8 text-center">
+            <span className="text-gray-400 text-xs">계정이 없으신가요? </span>
             <button
               onClick={() => navigate(PATHS.SIGNUP)}
-              className="text-[#D5A09D] text-sm font-bold hover:underline underline-offset-4"
+              className="text-[#D5A09D] text-xs font-bold hover:underline underline-offset-4"
             >
-              간편 회원가입하기
+              회원가입
             </button>
           </div>
         </div>

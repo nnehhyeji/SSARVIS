@@ -25,8 +25,8 @@ import { PATHS } from './paths';
  */
 export const router = createBrowserRouter([
   {
-    path: PATHS.HOME,
-    element: <LandingPage />, // 루트 진입 시 랜딩 페이지 표시
+    path: '/',
+    element: <LandingPage />, // 루트 도메인 접속 시 체험/로그인 선택 랜딩 페이지
   },
   {
     path: PATHS.GUEST_EXPERIENCE,
@@ -37,20 +37,15 @@ export const router = createBrowserRouter([
     element: <GuestCompletePage />,
   },
   {
-    path: '/',
-    element: <MainLayout />,
+    element: <MainLayout />, // 사이드바가 필요한 내부 홈/기능 페이지들
     children: [
       {
-        index: true,
+        path: PATHS.USER_HOME_PARAM,
         element: (
           <ProtectedRoute>
             <UserMainPage />
           </ProtectedRoute>
         ),
-      },
-      {
-        path: PATHS.USER_HOME_PARAM,
-        element: <UserMainPage />,
       },
       {
         path: PATHS.ASSISTANT,

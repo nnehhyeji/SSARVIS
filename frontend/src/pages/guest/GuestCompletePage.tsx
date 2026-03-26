@@ -54,7 +54,9 @@ const GuestCompletePage: React.FC = () => {
   const { modelId } = useParams<{ modelId: string }>();
   const navigate = useNavigate();
 
-  const currentModelIndex = GUEST_MODELS.findIndex((m) => m.id === modelId);
+  // URL 인코딩된 한글 파라미터 대응
+  const decodedModelId = modelId ? decodeURIComponent(modelId) : '';
+  const currentModelIndex = GUEST_MODELS.findIndex((m) => m.id === decodedModelId);
   const currentModel = currentModelIndex !== -1 ? GUEST_MODELS[currentModelIndex] : GUEST_MODELS[0];
   
   const nextModel = GUEST_MODELS[(currentModelIndex + 1) % GUEST_MODELS.length];
