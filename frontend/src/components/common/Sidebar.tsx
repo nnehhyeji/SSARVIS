@@ -361,7 +361,24 @@ export default function Sidebar({
   return (
     <div className="fixed left-0 top-0 h-full z-[100] flex pointer-events-none w-full">
       <AnimatePresence>
-        {/* 모든 패널은 이제 고정형(Fixed)으로 동작하며, 배경 클릭으로 닫히지 않습니다. */}
+        {activeTertiary &&
+          !(activeTertiary === 'chat' && location.pathname.startsWith(PATHS.CHAT)) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setActiveTertiary(null);
+
+                const isAssistantPage = location.pathname.startsWith(PATHS.ASSISTANT);
+                const isNamnaPage = location.pathname.startsWith(PATHS.NAMNA);
+                if (isAssistantPage || isNamnaPage) {
+                  navigate(PATHS.HOME);
+                }
+              }}
+              className="fixed inset-0 bg-transparent pointer-events-auto z-[115]"
+            />
+          )}
       </AnimatePresence>
 
       <motion.aside
@@ -482,18 +499,6 @@ export default function Sidebar({
           >
             <div className="p-6 pb-2 flex items-flex-start justify-between">
               <div className="flex flex-col gap-1">
-                {activeTertiary === 'chat' && chatView === 'list' && (
-                  <button
-                    onClick={() => {
-                      setChatView('categories');
-                      if (selectedChatId) navigate(PATHS.HOME);
-                    }}
-                    className="flex items-center gap-1 text-rose-500 text-xs font-black mb-1 hover:underline group"
-                  >
-                    <ChevronRight className="w-3 h-3 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
-                    이전으로
-                  </button>
-                )}
                 <h2 className="text-3xl font-black text-gray-800">
                   {activeTertiary === 'friends'
                     ? '팔로우 목록'
@@ -532,7 +537,10 @@ export default function Sidebar({
                   removeRecentSearch={removeRecentSearch}
                   persistRecentSearches={persistRecentSearches}
                   handleRecentSearchClick={handleRecentSearchClick}
-                  onVisit={onVisit}
+                  onVisit={(id) => {
+                    onVisit(id);
+                    setActiveTertiary(null);
+                  }}
                   onRequest={onRequest}
                   setRecentSearches={setRecentSearches}
                   onAccept={onAccept}
@@ -556,7 +564,10 @@ export default function Sidebar({
                   friendTab={friendTab}
                   setFriendTab={setFriendTab}
                   follows={follows}
-                  onVisit={onVisit}
+                  onVisit={(id) => {
+                    onVisit(id);
+                    setActiveTertiary(null);
+                  }}
                   onDelete={onDelete}
                   onAccept={onAccept}
                   onReject={onReject}
@@ -588,12 +599,18 @@ export default function Sidebar({
               {activeTertiary === 'assistant' && (
                 <AssistantPanel
                   currentMode={currentMode}
-                  onModeChange={onModeChange}
+                  onModeChange={(m) => {
+                    onModeChange(m);
+                    setActiveTertiary(null);
+                  }}
                 />
               )}
               {activeTertiary === 'persona' && (
                 <PersonaPanel
-                  onModeChange={onModeChange}
+                  onModeChange={(m) => {
+                    onModeChange(m);
+                    setActiveTertiary(null);
+                  }}
                 />
               )}
 
