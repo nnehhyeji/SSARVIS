@@ -18,7 +18,7 @@ type CustomWindow = Window & {
 };
 
 const VoiceLockOverlay: React.FC = () => {
-  const { isLocked, setIsLocked, lockPhrase } = useVoiceLockStore();
+  const { isLocked, setIsLocked } = useVoiceLockStore();
   const { faceType, mouthOpenRadius } = useAICharacter();
 
   const [isListening, setIsListening] = useState(false);
@@ -43,6 +43,13 @@ const VoiceLockOverlay: React.FC = () => {
       try {
         const response = await authApi.verifyVoiceLock({ voicePassword: phrase });
         if (response.data.checked) {
+          // 세션 연장 시도 (잠금 풀자마자 튕기는 현상 방지)
+          try {
+            await authApi.reissue();
+          } catch (e) {
+            console.error('Session reissue failed during unlock:', e);
+            // 만약 여기서 실패하면 이미 인터셉터에서 쫓겨났을 것이므로 패스
+          }
           setIsLocked(false);
           setUseTextInput(false);
         } else {
@@ -207,7 +214,7 @@ const VoiceLockOverlay: React.FC = () => {
         // Already stopped or failed to stop
       }
     };
-  }, [isLocked, lockPhrase, setIsLocked, useTextInput, handleVerify]);
+  }, [isLocked, setIsLocked, useTextInput, handleVerify]);
 
   const handleTextUnlock = (e: React.FormEvent) => {
     e.preventDefault();
