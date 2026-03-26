@@ -10,7 +10,6 @@ import {
   Bell,
   Settings,
   LogOut,
-  ChevronRight,
   Search,
   X,
   ChevronLeft,

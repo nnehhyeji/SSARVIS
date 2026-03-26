@@ -30,6 +30,10 @@ export default function LoginPage() {
         nickname: profile.nickname,
         customId: profile.customId,
       });
+
+      // 5. 음성 잠금 상태 동기화
+      void useVoiceLockStore.getState().fetchVoiceLockStatus();
+
       navigate(PATHS.HOME);
     } catch (error) {
       console.error('Auto login failed', error);
@@ -64,7 +68,7 @@ export default function LoginPage() {
       const loginResponse = await authApi.login({ email, password });
 
       // 2. 토큰 및 설정 저장
-      const { accessToken, timeout } = loginResponse.data;
+      const { accessToken } = loginResponse.data;
       localStorage.setItem('token', accessToken);
 
       // 아이디 기억하기 처리
@@ -77,10 +81,6 @@ export default function LoginPage() {
       // 자동 로그인 처리
       localStorage.setItem('autoLogin', String(isAutoLogin));
 
-      if (timeout) {
-        useVoiceLockStore.getState().setTimeoutDuration(timeout);
-      }
-
       // 3. 유저 정보 조회
       const profile = await userApi.getUserProfile();
 
@@ -91,6 +91,9 @@ export default function LoginPage() {
         nickname: profile.nickname,
         customId: profile.customId,
       });
+
+      // 5. 음성 잠금 상태 동기화
+      await useVoiceLockStore.getState().fetchVoiceLockStatus();
 
       navigate(PATHS.HOME);
     } catch (error: unknown) {
