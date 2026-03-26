@@ -10,7 +10,6 @@ import { useFollow } from '../../hooks/useFollow';
 import { useUserStore } from '../../store/useUserStore';
 
 // Components
-import AnimatedBackground from '../../components/AnimatedBackground';
 import Header from '../../components/common/Header';
 import SpeechBubble from '../../components/common/SpeechBubble';
 import CharacterScene from '../../components/features/character/CharacterScene';
@@ -23,7 +22,6 @@ import UserMenuModal from '../../components/features/user/UserMenuModal';
 // Constants & Types
 import { PATHS } from '../../routes/paths';
 import type { Mode } from '../../types';
-import { BG_COLORS } from '../../constants/theme';
 
 export default function VisitPage() {
   const { userId } = useParams();
@@ -72,7 +70,6 @@ export default function VisitPage() {
     visitedUserId,
     isDualAiMode,
     isInteractionModalOpen,
-    visitorBg,
     visitorVisibility,
     setIsDualAiMode,
     setIsInteractionModalOpen,
@@ -130,14 +127,6 @@ export default function VisitPage() {
     return user?.view_count ?? 0;
   }, [targetId, follows]);
 
-  // 방문 페이지에서도 페르소나 모드 시 전용 배경 표시
-  // 비회원일 경우 기본 랜덤 배경을 임시로 설정
-  const backgroundProps = useMemo(() => {
-    if (!isLoggedIn) return BG_COLORS.persona; // 비회원용 디폴트 배경
-    if (currentMode === 'persona') return BG_COLORS.persona;
-    return visitorBg;
-  }, [isLoggedIn, visitorBg, currentMode]);
-
   // 듀얼모드 로컬 텍스트 시뮬레이션용 자동 립싱크
   useEffect(() => {
     if (myTriggerText) {
@@ -179,9 +168,7 @@ export default function VisitPage() {
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
-      <AnimatedBackground {...backgroundProps} />
-
+    <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between bg-white">
       {isLoggedIn ? (
         <Header
           alarms={[]}
@@ -198,13 +185,13 @@ export default function VisitPage() {
         />
       ) : (
         <header className="relative z-50 flex justify-between items-center px-6 py-4 w-full">
-          <div className="flex items-center gap-3 text-3xl font-extrabold tracking-wider text-white drop-shadow-md">
+          <div className="flex items-center gap-3 text-3xl font-extrabold tracking-wider text-gray-800">
             SSARVIS
           </div>
-          <div className="flex gap-3 text-white">
+          <div className="flex gap-3">
             <button
               onClick={() => navigate(PATHS.LOGIN)}
-              className="px-5 py-2 text-sm font-bold bg-white/20 hover:bg-white/40 border border-white/40 rounded-full backdrop-blur-md shadow-md transition-all"
+              className="px-5 py-2 text-sm font-bold bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-full shadow-sm transition-all text-gray-800"
             >
               로그인
             </button>
@@ -285,7 +272,7 @@ export default function VisitPage() {
               className={`relative z-10 flex flex-col items-center justify-center transition-all duration-700 ease-in-out ${isDualAiMode ? 'w-[300px] h-[300px]' : 'w-[350px] h-[350px]'}`}
             >
               {showEmptyPersonaMessage ? (
-                <div className="flex flex-col items-center justify-center bg-white/20 backdrop-blur-xl border border-white/40 shadow-2xl rounded-[3rem] p-8 text-center gap-5 absolute z-50 w-full h-full">
+                <div className="flex flex-col items-center justify-center bg-white border border-gray-100 shadow-2xl rounded-[3rem] p-8 text-center gap-5 absolute z-50 w-full h-full">
                   <div className="p-4 bg-yellow-100/90 rounded-full shadow-inner mb-2">
                     <Sparkles className="w-10 h-10 text-yellow-500" />
                   </div>
@@ -307,7 +294,7 @@ export default function VisitPage() {
               ) : (
                 <>
                   <div
-                    className={`absolute top-[-40px] px-3 py-1 rounded-full border text-[10px] font-bold tracking-wider uppercase backdrop-blur-md transition-all duration-500 ${visitorVisibility === 'private' ? 'bg-pink-500/20 border-pink-500/40 text-pink-200' : 'bg-gray-500/20 border-gray-500/40 text-gray-300'}`}
+                    className={`absolute top-[-40px] px-3 py-1 rounded-full border text-[10px] font-bold tracking-wider uppercase backdrop-blur-md transition-all duration-500 ${visitorVisibility === 'private' ? 'bg-pink-100 border-pink-200 text-pink-600' : 'bg-gray-100 border-gray-200 text-gray-600'}`}
                   >
                     {visitorVisibility} Access
                   </div>
@@ -361,9 +348,9 @@ export default function VisitPage() {
 
             <button
               onClick={() => setIsChatHistoryOpen(!isChatHistoryOpen)}
-              className={`absolute bottom-8 right-8 p-4 rounded-2xl backdrop-blur-xl border shadow-2xl transition-all duration-300 z-40 group ${isChatHistoryOpen ? 'opacity-0' : 'bg-white/20 hover:scale-110'}`}
+              className={`absolute bottom-8 right-8 p-4 rounded-2xl backdrop-blur-xl border shadow-2xl transition-all duration-300 z-40 group ${isChatHistoryOpen ? 'opacity-0' : 'bg-white hover:scale-110 shadow-lg border-gray-100'}`}
             >
-              <MessageCircle className="w-8 h-8 text-white" />
+              <MessageCircle className="w-8 h-8 text-gray-800" />
             </button>
           </>
         )}

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { User, Lock, LogIn, Check } from 'lucide-react';
-import AnimatedBackground from '../../components/AnimatedBackground';
 import { useUserStore } from '../../store/useUserStore';
 import authApi from '../../apis/authApi';
 import userApi from '../../apis/userApi';
@@ -107,24 +106,21 @@ export default function LoginPage() {
 
   if (isLoading && isAutoLogin) {
     return (
-      <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4">
-        <AnimatedBackground />
+      <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4 bg-white">
         <div className="z-10 text-center">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full mx-auto"
           />
-          <p className="mt-4 text-white font-bold text-lg drop-shadow-md">자동 로그인 중...</p>
+          <p className="mt-4 text-gray-800 font-bold text-lg drop-shadow-md">자동 로그인 중...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4">
-      <AnimatedBackground />
-
+    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4 bg-white">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
