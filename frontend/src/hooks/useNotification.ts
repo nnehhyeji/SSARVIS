@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import notificationApi from '../apis/notificationApi';
 import { getApiHttpBaseUrl } from '../config/api';
-import type { NotificationDTO } from '../apis/notificationApi';
+import type { NotificationDTO, RealtimeNotificationDTO } from '../apis/notificationApi';
 import type { Alarm } from '../types';
 
 // 시간 표시 포맷 함수 ("방금 전", "N분 전" 등)
@@ -28,6 +28,25 @@ const mapNotificationToAlarm = (dto: NotificationDTO): Alarm => ({
   time: timeAgo(dto.createdAt),
   type: dto.eventName?.includes('FOLLOW') ? 'follow' : 'system',
   payload: dto.payload || {},
+});
+
+const createRealtimeAlarmId = () => Date.now() + Math.floor(Math.random() * 1000);
+
+const mapRealtimeNotificationToAlarm = (
+  dto: RealtimeNotificationDTO,
+  eventName: string,
+): Alarm => ({
+  id: createRealtimeAlarmId(),
+  message: dto.message,
+  isRead: false,
+  time: timeAgo(dto.createdAt),
+  type: eventName.includes('FOLLOW') ? 'follow' : 'system',
+  payload: {
+    senderId: dto.senderId,
+    senderEmail: dto.senderEmail,
+    senderCustomId: dto.senderCustomId,
+    senderProfileImage: dto.senderProfileImage,
+  },
 });
 
 export function useNotification() {
@@ -124,14 +143,18 @@ export function useNotification() {
         console.log('SSE 연결 성공');
       };
 
+      const appendRealtimeAlarm = (alarm: Alarm) => {
+        setAlarms((prev) => [alarm, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      };
+
       // 일반 메시지 이벤트
       eventSource.onmessage = (event) => {
         if (event.data && !event.data.includes('EventStream Created')) {
           try {
             const newNoti: NotificationDTO = JSON.parse(event.data);
-            if (!newNoti.notificationId) return; // 알림 데이터가 아닌 경우 (예: 단순 연결 메시지) 무시
-            setAlarms((prev) => [mapNotificationToAlarm(newNoti), ...prev]);
-            setUnreadCount((prev) => prev + 1);
+            if (!newNoti.notificationId) return; // 일반 메시지는 조회 DTO 형식일 때만 반영
+            appendRealtimeAlarm(mapNotificationToAlarm(newNoti));
           } catch (e) {
             console.error('SSE 수신 데이터 파싱 오류:', e);
           }
@@ -140,13 +163,11 @@ export function useNotification() {
 
       // 백엔드에서 특정 이벤트명으로 보낼 경우 대비
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const handleCustomEvent = (event: any) => {
+      const handleCustomEvent = (eventName: string) => (event: any) => {
         if (event.data) {
           try {
-            const newNoti: NotificationDTO = JSON.parse(event.data);
-            if (!newNoti.notificationId) return; // 안전 장치
-            setAlarms((prev) => [mapNotificationToAlarm(newNoti), ...prev]);
-            setUnreadCount((prev) => prev + 1);
+            const newNoti: RealtimeNotificationDTO = JSON.parse(event.data);
+            appendRealtimeAlarm(mapRealtimeNotificationToAlarm(newNoti, eventName));
           } catch (e) {
             console.error('SSE 커스텀 이벤트 파싱 오류:', e);
           }
@@ -166,9 +187,9 @@ export function useNotification() {
         }
       });
 
-      eventSource.addEventListener('FOLLOW_REQUEST', handleCustomEvent);
-      eventSource.addEventListener('FOLLOW_ACCEPT', handleCustomEvent);
-      eventSource.addEventListener('NOTIFICATION', handleCustomEvent);
+      eventSource.addEventListener('FOLLOW_REQUEST', handleCustomEvent('FOLLOW_REQUEST'));
+      eventSource.addEventListener('FOLLOW_ACCEPT', handleCustomEvent('FOLLOW_ACCEPT'));
+      eventSource.addEventListener('NOTIFICATION', handleCustomEvent('NOTIFICATION'));
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       eventSource.onerror = (error: any) => {

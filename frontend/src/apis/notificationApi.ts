@@ -9,6 +9,15 @@ export interface NotificationDTO {
   createdAt: string;
 }
 
+export interface RealtimeNotificationDTO {
+  senderId: number;
+  senderEmail: string;
+  senderCustomId: string;
+  senderProfileImage: string;
+  message: string;
+  createdAt: string;
+}
+
 export interface NotificationCountDTO {
   count: number;
 }

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 
 // Hooks
 import { useAICharacter } from '../../hooks/useAICharacter';
+import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 import { useChat } from '../../hooks/useChat';
 import { useFollow } from '../../hooks/useFollow';
 import { useUserStore } from '../../store/useUserStore';
@@ -13,6 +14,7 @@ import { useUserStore } from '../../store/useUserStore';
 import Header from '../../components/common/Header';
 import SpeechBubble from '../../components/common/SpeechBubble';
 import CharacterScene from '../../components/features/character/CharacterScene';
+import AiTopicModal from '../../components/features/assistant/AiTopicModal';
 import ChatWindow from '../../components/features/chat/ChatWindow';
 import FollowSidebar from '../../components/features/follow/FollowSidebar';
 import ModePanel from '../../components/features/assistant/ModePanel';
@@ -59,6 +61,23 @@ export default function VisitPage() {
     startRecording,
     stopRecordingAndSendSTT,
   } = useChat();
+  const {
+    isBattling,
+    isPaused,
+    turnCount,
+    myLatestText,
+    targetLatestText,
+    activeSpeaker,
+    statusMessage,
+    topic: aiTopic,
+    errorMessage: aiBattleError,
+    battleMessages,
+    maxTurn,
+    startBattle,
+    pauseBattle,
+    resumeBattle,
+    stopBattle,
+  } = useAIToAIChat();
 
   const {
     follows,
@@ -96,13 +115,19 @@ export default function VisitPage() {
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
+  const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(true);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [isAiTopicModalOpen, setIsAiTopicModalOpen] = useState(false);
+  const [isAiTopicSubmitting, setIsAiTopicSubmitting] = useState(false);
   const [currentMode, setCurrentMode] = useState<Mode>(isPersonaShared ? 'persona' : 'normal');
   const [sidebarView, setSidebarView] = useState<'followers' | 'following' | 'requests'>(
     'following',
   );
   const visitAssistantType = isPersonaShared ? 'PERSONA' : 'DAILY';
+  const myAssistantType = currentMode === 'persona' ? 'PERSONA' : 'DAILY';
+  const isConversationMicOn = isMicOn && !isDualAiMode;
+  const isCharacterAudioActive = isConversationMicOn || isDualAiMode;
+  const isChatWindowVisible = isChatHistoryOpen && !isConversationMicOn;
 
   // --- API / Logic ---
   useEffect(() => {
@@ -117,10 +142,27 @@ export default function VisitPage() {
     }
   }, [targetId, visitFollow, isLoggedIn, setTriggerText]);
 
+  useEffect(() => {
+    if (!isDualAiMode) return;
+    setMyTriggerText(myLatestText);
+  }, [isDualAiMode, myLatestText, setMyTriggerText]);
+
+  useEffect(() => {
+    if (!isDualAiMode) return;
+    setTriggerText(targetLatestText);
+  }, [isDualAiMode, setTriggerText, targetLatestText]);
+
+  useEffect(() => {
+    if (!isDualAiMode) return;
+    setIsMyAiSpeaking(activeSpeaker === 'mine');
+    setIsSpeaking(activeSpeaker === 'target');
+  }, [activeSpeaker, isDualAiMode, setIsMyAiSpeaking, setIsSpeaking]);
+
   const handleBackToHome = useCallback(() => {
+    stopBattle();
     leaveFollow();
     navigate(PATHS.HOME);
-  }, [leaveFollow, navigate]);
+  }, [leaveFollow, navigate, stopBattle]);
 
   const viewCount = useMemo(() => {
     const user = follows.find((f) => f.id === targetId);
@@ -157,6 +199,10 @@ export default function VisitPage() {
         .find((m) => m.sender === 'ai')?.text || ''
     );
   }, [chatMessages]);
+  const displayedChatMessages = useMemo(
+    () => (isDualAiMode ? battleMessages : chatMessages),
+    [battleMessages, chatMessages, isDualAiMode],
+  );
 
   // 비로그인 사용자는 isVisitorMode가 false여도 렌더링되게 우회
   if (isLoggedIn && (!isVisitorMode || !visitedFollowName)) {
@@ -219,27 +265,27 @@ export default function VisitPage() {
         <motion.div
           className="relative flex flex-col items-center justify-center"
           animate={{
-            y: isMicOn ? 0 : -220,
-            scale: isMicOn ? 1 : 0.75,
+            y: isDualAiMode ? -110 : isCharacterAudioActive ? 0 : -220,
+            scale: isCharacterAudioActive ? 1 : 0.75,
           }}
           transition={{ type: 'spring', stiffness: 200, damping: 25 }}
         >
           {/* 마이크 버튼 (방문 페이지에서는 잠금 모드 제외, 빈 문답 화면일 땐 숨김) */}
-          {!showEmptyPersonaMessage && (
+          {!showEmptyPersonaMessage && !isDualAiMode && (
             <div className="absolute left-[-140px] top-1/2 -translate-y-1/2 z-40">
               <button
                 onClick={() => {
                   toggleMic();
-                  if (!isMicOn) {
+                  if (!isConversationMicOn) {
                     startRecording(null, visitAssistantType, 'GENERAL', 'AVATAR_AI', targetId);
                   } else {
                     stopRecordingAndSendSTT();
                   }
                 }}
-                className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
+                className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${isConversationMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
               >
                 <div className="flex items-center justify-center">
-                  {isMicOn ? (
+                  {isConversationMicOn ? (
                     <Mic className="w-8 h-8 text-green-400 fill-green-400/20" />
                   ) : (
                     <MicOff className="w-8 h-8 text-red-400" />
@@ -261,7 +307,7 @@ export default function VisitPage() {
                   mode={currentMode}
                   isLockMode={false}
                   isSpeaking={isMyAiSpeaking}
-                  isMicOn={isMicOn}
+                  isMicOn={isCharacterAudioActive}
                   label="나의 AI"
                 />
                 <SpeechBubble text={myTriggerText} />
@@ -304,10 +350,10 @@ export default function VisitPage() {
                     mode={currentMode}
                     isLockMode={false}
                     isSpeaking={finalIsSpeaking}
-                    isMicOn={isMicOn}
+                    isMicOn={isCharacterAudioActive}
                     label={`${displayFollowName}님의 AI`}
                   />
-                  {isMicOn && (isDualAiMode ? triggerText : lastAiMessage) && (
+                  {((isConversationMicOn && lastAiMessage) || (isDualAiMode && triggerText)) && (
                     <SpeechBubble text={isDualAiMode ? triggerText : lastAiMessage} />
                   )}
                 </>
@@ -315,11 +361,12 @@ export default function VisitPage() {
             </div>
 
             {/* STT 실시간 말풍선 (화면 아래쪽) / 듀얼 모드일 시 조금 더 넓게 */}
-            {isMicOn && sttText && (
+            {isConversationMicOn && sttText && (
               <div className="absolute bottom-[-220px] left-1/2 -translate-x-1/2 px-8 py-4 bg-black/40 backdrop-blur-xl text-white font-black text-lg rounded-3xl shadow-2xl border border-white/20 z-50 min-w-[280px] text-center max-w-[80vw] whitespace-pre-wrap">
                 🎙️ {sttText}
               </div>
             )}
+
           </div>
         </motion.div>
 
@@ -327,11 +374,19 @@ export default function VisitPage() {
         {!showEmptyPersonaMessage && (
           <>
             <ChatWindow
-              isVisible={!isMicOn || isChatHistoryOpen}
-              messages={chatMessages}
+              isVisible={isChatWindowVisible}
+              messages={displayedChatMessages}
               input={chatInput}
               onInputChange={setChatInput}
+              inputPlaceholder={
+                isDualAiMode ? 'AI끼리 대화 중입니다. 아래 상태 버튼으로 제어하세요.' : '메시지를 입력하세요...'
+              }
+              isInputDisabled={isDualAiMode}
+              heightClassName={isDualAiMode ? 'h-[48%]' : 'h-[65%]'}
               onSend={() => {
+                if (isDualAiMode) {
+                  return;
+                }
                 const memoryPolicy = 'GENERAL'; // Visit 페이지에서는 시크릿 모드를 사용하지 않음
 
                 sendMessage(
@@ -346,9 +401,60 @@ export default function VisitPage() {
               onClose={() => setIsChatHistoryOpen(false)}
             />
 
+            {isDualAiMode && (
+              <div className="absolute bottom-[calc(48%-18px)] left-1/2 -translate-x-1/2 w-full max-w-4xl px-8 z-40 pointer-events-none">
+                <div className="mx-auto rounded-2xl bg-white/80 backdrop-blur-xl border border-white/70 shadow-lg px-5 py-4 flex items-center justify-between gap-4 pointer-events-auto">
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-[0.26em] text-rose-400 font-black">
+                      AI TO AI
+                    </p>
+                    <p className="text-sm font-black text-gray-800 mt-1 truncate">
+                      {aiTopic || '주제 준비 중...'}
+                    </p>
+                    <p className="text-xs font-semibold text-gray-500 mt-1">{statusMessage}</p>
+                    {aiBattleError && (
+                      <p className="text-xs font-bold text-rose-500 mt-1">{aiBattleError}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="text-right">
+                      <p className="text-[11px] font-bold text-gray-400">진행 턴</p>
+                      <p className="text-xl font-black text-gray-800">
+                        {turnCount}/{maxTurn}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isPaused) {
+                          resumeBattle();
+                        } else {
+                          pauseBattle();
+                        }
+                      }}
+                      className="px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-800 text-sm font-bold hover:bg-gray-50 transition-colors"
+                    >
+                      {isPaused ? '대화 재개' : '일시정지'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        stopBattle();
+                        setIsDualAiMode(false);
+                        setIsInteractionModalOpen(false);
+                      }}
+                      className="px-4 py-2 rounded-full bg-gray-900 text-white text-sm font-bold hover:bg-gray-800 transition-colors"
+                    >
+                      대화 중지
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => setIsChatHistoryOpen(!isChatHistoryOpen)}
-              className={`absolute bottom-8 right-8 p-4 rounded-2xl backdrop-blur-xl border shadow-2xl transition-all duration-300 z-40 group ${isChatHistoryOpen ? 'opacity-0' : 'bg-white hover:scale-110 shadow-lg border-gray-100'}`}
+              className={`absolute bottom-8 right-8 p-4 rounded-2xl backdrop-blur-xl border shadow-2xl transition-all duration-300 z-40 group ${isChatWindowVisible ? 'opacity-0 pointer-events-none' : 'bg-white hover:scale-110 shadow-lg border-gray-100'}`}
             >
               <MessageCircle className="w-8 h-8 text-gray-800" />
             </button>
@@ -367,15 +473,13 @@ export default function VisitPage() {
             onModeChange={(m) => setCurrentMode(m)}
             onChangeFace={changeFace}
             onStartDualAi={() => {
-              setIsDualAiMode(true);
               setIsInteractionModalOpen(false);
-              setMyTriggerText('나 : 우와, 네 방 정말 멋지다!');
-              setTimeout(
-                () => setTriggerText(`${visitedFollowName} : 고마워! 놀러와줘서 기뻐.`),
-                3000,
-              );
+              setIsAiTopicModalOpen(true);
             }}
-            onStopDualAi={() => setIsDualAiMode(false)}
+            onStopDualAi={() => {
+              stopBattle();
+              setIsDualAiMode(false);
+            }}
           />
 
           <FollowSidebar
@@ -419,6 +523,30 @@ export default function VisitPage() {
             user={{
               name: userInfo?.nickname || '회원',
               email: userInfo?.email || '이메일 정보 없음',
+            }}
+          />
+
+          <AiTopicModal
+            isOpen={isAiTopicModalOpen}
+            onClose={() => setIsAiTopicModalOpen(false)}
+            isSubmitting={isAiTopicSubmitting}
+            onSubmit={async (topic) => {
+              if (!userInfo?.id || !visitedUserId) return;
+
+              setIsAiTopicSubmitting(true);
+              const started = await startBattle({
+                topic,
+                myUserId: userInfo.id,
+                targetUserId: visitedUserId,
+                myAssistantType,
+                targetAssistantType: visitAssistantType,
+              });
+              setIsAiTopicSubmitting(false);
+
+              if (started) {
+                setIsDualAiMode(true);
+                setIsAiTopicModalOpen(false);
+              }
             }}
           />
         </>
