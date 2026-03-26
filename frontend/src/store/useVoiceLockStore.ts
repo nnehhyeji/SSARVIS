@@ -20,16 +20,21 @@ interface VoiceLockState {
   // API Actions
   fetchVoiceLockStatus: () => Promise<void>;
   clearVoiceLock: () => Promise<void>;
+  resetVoiceLockState: () => void;
 }
+
+const DEFAULT_LOCK_PHRASE = '싸비스';
+const DEFAULT_TIMEOUT_DURATION = 300;
+const VOICE_LOCK_STORAGE_KEY = 'voice-lock-storage-v4';
 
 export const useVoiceLockStore = create<VoiceLockState>()(
   persist(
     (set, get) => ({
       isVoiceLockRegistered: false,
       isVoiceLockEnabled: false,
-      lockPhrase: '싸비스', // Default phrase
+      lockPhrase: DEFAULT_LOCK_PHRASE,
       isLocked: false,
-      timeoutDuration: 300, // 기본값 300초 (5분)
+      timeoutDuration: DEFAULT_TIMEOUT_DURATION, // 기본값 300초 (5분)
       lastActivity: Date.now(),
 
       setIsVoiceLockRegistered: (registered) => set({ isVoiceLockRegistered: registered }),
@@ -68,16 +73,28 @@ export const useVoiceLockStore = create<VoiceLockState>()(
           set({
             isVoiceLockRegistered: false,
             isVoiceLockEnabled: false,
-            lockPhrase: '싸비스',
+            lockPhrase: DEFAULT_LOCK_PHRASE,
           });
         } catch (error) {
           console.error('Failed to delete voice lock:', error);
           throw error;
         }
       },
+
+      resetVoiceLockState: () => {
+        set({
+          isVoiceLockRegistered: false,
+          isVoiceLockEnabled: false,
+          lockPhrase: DEFAULT_LOCK_PHRASE,
+          isLocked: false,
+          timeoutDuration: DEFAULT_TIMEOUT_DURATION,
+          lastActivity: Date.now(),
+        });
+        localStorage.removeItem(VOICE_LOCK_STORAGE_KEY);
+      },
     }),
     {
-      name: 'voice-lock-storage-v4',
+      name: VOICE_LOCK_STORAGE_KEY,
     },
   ),
 );
