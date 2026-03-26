@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Home,
   User,
@@ -11,8 +11,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  Mic,
-  MoreHorizontal,
+  Search,
   X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +19,16 @@ import { PATHS } from '../../routes/paths';
 import type { Alarm, Mode, Follow, FollowRequest } from '../../types';
 import { getChatSessions, getChatMessages } from '../../apis/chatApi';
 import type { ChatSession, ChatMessageData } from '../../apis/chatApi';
+
+// Sub-panels
+import SearchPanel from './sidebar/SearchPanel';
+import type { RecentSearchItem } from './sidebar/SearchPanel';
+import NotificationsPanel from './sidebar/NotificationsPanel';
+import FriendsPanel from './sidebar/FriendsPanel';
+import ChatPanel from './sidebar/ChatPanel';
+import AssistantPanel from './sidebar/AssistantPanel';
+import PersonaPanel from './sidebar/PersonaPanel';
+import ChatHistoryView from './sidebar/ChatHistoryView';
 
 interface SidebarProps {
   // User Info & Basic Actions
@@ -59,13 +68,6 @@ interface SidebarProps {
   viewCount?: number;
 }
 
-type RecentSearchItem = {
-  id: number;
-  name: string;
-  subtitle: string;
-  profileImgUrl?: string;
-};
-
 const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
 const RECENT_SEARCH_LIMIT = 5;
 
@@ -91,10 +93,9 @@ export default function Sidebar({
   isSearchLoading,
 }: SidebarProps) {
   const navigate = useNavigate();
-  const location = useLocation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTertiary, setActiveTertiary] = useState<
-    'friends' | 'chat' | 'notifications' | 'search' | null
+    'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null
   >(null);
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
@@ -103,7 +104,6 @@ export default function Sidebar({
     try {
       const saved = localStorage.getItem(RECENT_SEARCHES_KEY);
       if (!saved) return [];
-
       const parsed = JSON.parse(saved) as RecentSearchItem[];
       return Array.isArray(parsed) ? parsed : [];
     } catch {
@@ -115,7 +115,7 @@ export default function Sidebar({
   const [chatTab, setChatTab] = useState<'archive' | 'guestbook'>('archive');
   const [chatCategory, setChatCategory] = useState<'assistant' | 'persona' | 'friend'>('assistant');
   const [chatView, setChatView] = useState<'categories' | 'list'>('categories');
-  const [assistantFilters, setAssistantFilters] = useState<string[]>(['daily', 'study', 'counsel']);
+  const [assistantFilters, setAssistantFilters] = useState<string[]>(['daily']);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -130,7 +130,6 @@ export default function Sidebar({
       try {
         setIsChatLoading(true);
         let type = 'SECRETARY';
-
         if (chatTab === 'guestbook') {
           type = 'GUESTBOOK';
         } else {
@@ -138,18 +137,14 @@ export default function Sidebar({
           else if (chatCategory === 'persona') type = 'PERSONA';
           else if (chatCategory === 'friend') type = 'VISIT';
         }
-
         const data = await getChatSessions({ type });
-        if (isMounted) {
-          setChatSessions(data.contents || []);
-        }
+        if (isMounted) setChatSessions(data.contents || []);
       } catch (err) {
         console.error('채팅 세션 조회 실패:', err);
       } finally {
         if (isMounted) setIsChatLoading(false);
       }
     };
-
     void loadSessions();
     return () => {
       isMounted = false;
@@ -162,18 +157,14 @@ export default function Sidebar({
       if (isMounted) setChatMessagesData([]);
       return;
     }
-
     const loadMessages = async () => {
       try {
         const data = await getChatMessages(selectedChatId);
-        if (isMounted) {
-          setChatMessagesData(data.contents || []);
-        }
+        if (isMounted) setChatMessagesData(data.contents || []);
       } catch (err) {
         console.error('채팅 메시지 조회 실패:', err);
       }
     };
-
     void loadMessages();
     return () => {
       isMounted = false;
@@ -198,7 +189,7 @@ export default function Sidebar({
     label?: string;
     path?: string;
     hasTertiary?: boolean;
-    tertiaryId?: 'friends' | 'chat' | 'notifications' | 'search';
+    tertiaryId?: 'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona';
     color?: string;
     action?: () => void;
     hasSub?: boolean;
@@ -213,18 +204,16 @@ export default function Sidebar({
       id: 'ai_assistant',
       icon: Bot,
       label: 'Ai 비서',
-      hasSub: true,
-      subItems: [
-        { label: '일반 모드', mode: 'normal' as Mode },
-        { label: '학습 모드', mode: 'study' as Mode },
-        { label: '상담 모드', mode: 'counseling' as Mode },
-      ],
+      hasTertiary: true,
+      tertiaryId: 'assistant',
+      color: 'text-rose-500',
     },
     {
       id: 'eye',
       icon: Eye,
       label: '남이 보는 나',
-      action: () => onModeChange('persona'),
+      hasTertiary: true,
+      tertiaryId: 'persona',
       color: 'text-rose-500',
     },
     {
@@ -269,7 +258,7 @@ export default function Sidebar({
     try {
       localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches));
     } catch {
-      // Ignore localStorage errors and keep in-memory recent searches.
+      /* ignore storage errors */
     }
   }, [recentSearches]);
 
@@ -277,7 +266,7 @@ export default function Sidebar({
     try {
       localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(items));
     } catch {
-      // Ignore localStorage errors and keep in-memory recent searches.
+      /* ignore storage errors */
     }
   };
 
@@ -315,10 +304,11 @@ export default function Sidebar({
     } else if (item.hasTertiary) {
       const isClosing = activeTertiary === item.tertiaryId;
       setActiveTertiary(isClosing ? null : item.tertiaryId || null);
+      setIsExpanded(false);
+
       if (item.tertiaryId === 'chat') {
         setChatView('categories');
         setSelectedChatId(null);
-        setIsExpanded(false); // Force collapse sidebar on chat click
       }
       if (item.tertiaryId === 'friends') {
         setFriendView('main');
@@ -330,49 +320,31 @@ export default function Sidebar({
 
   return (
     <div className="fixed left-0 top-0 h-full z-[100] flex pointer-events-none w-full">
-      {/* Background Overlay for closing panels */}
       <AnimatePresence>
-        {(activeTertiary === 'notifications' ||
-          activeTertiary === 'search' ||
-          activeTertiary === 'friends') && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setActiveTertiary(null)}
-            className="fixed inset-0 pointer-events-auto bg-black/5 z-[115]"
-          />
-        )}
+        {/* 모든 패널은 이제 고정형(Fixed)으로 동작하며, 배경 클릭으로 닫히지 않습니다. */}
       </AnimatePresence>
 
-      {/* 1st & 2nd Level Sidebar */}
       <motion.aside
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
         initial={{ width: 80 }}
         animate={{
-          width: isExpanded ? 240 : 80,
+          width: isExpanded ? 240 : 100,
           opacity:
-            !isExpanded &&
-            (activeTertiary === 'notifications' ||
-              activeTertiary === 'search' ||
-              activeTertiary === 'friends')
+            !isExpanded && (activeTertiary === 'notifications' || activeTertiary === 'search')
               ? 0
               : 1,
         }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
         className="h-full bg-[#eee5df] border-r border-gray-200 pointer-events-auto flex flex-col items-center py-8 shadow-xl z-[130]"
       >
-        {/* Logo Section */}
         <div className="mb-8 flex flex-col items-center gap-2">
           <div className="w-12 h-12 bg-white flex items-center justify-center rounded-lg shadow-sm">
             <span className="font-bold text-gray-800 text-sm">로고</span>
           </div>
         </div>
 
-        {/* Navigation Items */}
         <nav className="flex-1 w-full px-3 flex flex-col gap-2">
-          {/* Top Search Bar on Hover */}
           <AnimatePresence>
             {isExpanded && (
               <motion.div
@@ -385,7 +357,7 @@ export default function Sidebar({
                   onClick={() => setActiveTertiary('search')}
                   className="w-full bg-[#e5e0dc] rounded-xl flex items-center gap-3 py-3 px-4 cursor-pointer hover:bg-[#dcd2ca] transition-colors"
                 >
-                  <Mic className="w-5 h-5 text-white/80 shrink-0" />
+                  <Search className="w-5 h-5 text-white/80 shrink-0" />
                   <span className="text-gray-400 font-bold whitespace-nowrap">Search</span>
                 </div>
               </motion.div>
@@ -394,23 +366,16 @@ export default function Sidebar({
 
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              location.pathname === item.path ||
-              (item.hasTertiary && activeTertiary === item.tertiaryId);
-
             return (
               <div key={item.id} className="relative group/item">
                 <button
                   onClick={() => handleItemClick(item)}
-                  className={`
-                    w-full flex items-center gap-4 p-3 rounded-lg transition-all duration-200
-                    ${isActive ? 'bg-[#dcd2ca] shadow-sm' : 'hover:bg-black/5'}
-                  `}
+                  className={`w-full flex items-center gap-4 p-4 rounded-lg transition-all duration-200 hover:bg-black/5`}
                 >
-                  <div className={`shrink-0 w-8 h-8 flex items-center justify-center relative`}>
-                    <Icon className={`w-6 h-6 ${item.color || 'text-rose-500'}`} />
+                  <div className={`shrink-0 w-10 h-10 flex items-center justify-center relative`}>
+                    <Icon className={`w-8 h-8 ${item.color || 'text-rose-500'}`} />
                     {item.badge !== undefined && item.badge > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[10px] flex items-center justify-center rounded-full font-bold">
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[12px] flex items-center justify-center rounded-full font-bold">
                         {item.badge}
                       </span>
                     )}
@@ -421,42 +386,18 @@ export default function Sidebar({
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
-                        className="font-bold text-gray-700 whitespace-nowrap"
+                        className="text-[18px] font-medium text-gray-700 whitespace-nowrap"
                       >
                         {item.label}
                       </motion.span>
                     )}
                   </AnimatePresence>
-                  {isExpanded && item.hasSub && (
-                    <ChevronRight className="ml-auto w-4 h-4 text-gray-400" />
-                  )}
                 </button>
-
-                {/* Sub Menu for AI Assistant (2nd Level inside 2nd Level) */}
-                {item.hasSub && isExpanded && (
-                  <div className="hidden group-hover/item:flex absolute left-full top-0 ml-2 p-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 flex-col gap-1 min-w-[120px] z-[110]">
-                    {/* Bridge for maintaining hover */}
-                    <div className="absolute -left-4 top-0 w-4 h-[120%] -translate-y-[10%]" />
-                    {item.subItems?.map((sub) => (
-                      <button
-                        key={sub.mode}
-                        onClick={() => {
-                          onModeChange(sub.mode);
-                          setActiveTertiary(null);
-                        }}
-                        className={`px-4 py-2 rounded-xl text-sm font-bold text-left transition-colors ${currentMode === sub.mode ? 'bg-rose-50 text-rose-500' : 'text-gray-600 hover:bg-gray-100'}`}
-                      >
-                        {sub.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             );
           })}
         </nav>
 
-        {/* Bottom Section */}
         <div className="w-full px-3 mt-auto flex flex-col gap-2 pt-6 border-t border-gray-300/50">
           {bottomItems.map((item) => {
             const Icon = item.icon;
@@ -464,10 +405,10 @@ export default function Sidebar({
               <button
                 key={item.id}
                 onClick={() => handleItemClick(item)}
-                className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 transition-all duration-300"
+                className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-black/5 transition-all duration-300"
               >
                 <div className="shrink-0 w-8 h-8 flex items-center justify-center">
-                  <Icon className={`w-6 h-6 ${item.color}`} />
+                  <Icon className={`w-8 h-8 ${item.color}`} />
                 </div>
                 <AnimatePresence>
                   {isExpanded && (
@@ -475,7 +416,7 @@ export default function Sidebar({
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -10 }}
-                      className="font-bold text-gray-500 whitespace-nowrap"
+                      className="font-semibold text-gray-500 whitespace-nowrap"
                     >
                       {item.label}
                     </motion.span>
@@ -487,7 +428,6 @@ export default function Sidebar({
         </div>
       </motion.aside>
 
-      {/* 3rd Level Sidebar Panels */}
       <AnimatePresence>
         {activeTertiary && (
           <motion.div
@@ -495,18 +435,12 @@ export default function Sidebar({
             animate={{
               x: 0,
               opacity: 1,
-              left:
-                activeTertiary === 'notifications' ||
-                activeTertiary === 'search' ||
-                activeTertiary === 'friends'
-                  ? 0
-                  : 80,
+              left: activeTertiary === 'notifications' || activeTertiary === 'search' ? 0 : 100,
             }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className={`fixed top-0 h-full w-[360px] bg-[#eee5df] border-r border-gray-200 pointer-events-auto shadow-2xl overflow-hidden flex flex-col ${activeTertiary === 'notifications' || activeTertiary === 'search' || activeTertiary === 'friends' ? 'z-[140]' : 'z-[120]'}`}
+            className={`fixed top-0 h-full w-[400px] bg-[#eee5df] border-r border-gray-200 pointer-events-auto shadow-2xl overflow-hidden flex flex-col ${activeTertiary === 'notifications' || activeTertiary === 'search' ? 'z-[140]' : 'z-[120]'}`}
           >
-            {/* Tertiary Header */}
             <div className="p-8 pb-4 flex items-flex-start justify-between">
               <div className="flex flex-col gap-1">
                 {activeTertiary === 'chat' && chatView === 'list' && (
@@ -528,7 +462,11 @@ export default function Sidebar({
                       ? '대화 보관함'
                       : activeTertiary === 'search'
                         ? '검색'
-                        : '알림'}
+                        : activeTertiary === 'assistant'
+                          ? 'Ai 비서'
+                          : activeTertiary === 'persona'
+                            ? '남이 보는 나'
+                            : '알림'}
                 </h2>
               </div>
               <button
@@ -539,692 +477,89 @@ export default function Sidebar({
               </button>
             </div>
 
-            {/* Tertiary Content */}
             <div className="flex-1 flex flex-col pt-4">
               {activeTertiary === 'search' && (
-                <div className="px-8 space-y-8 flex flex-col h-full">
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                      <Mic className="w-5 h-5 text-white/80" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Search"
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        onSearch(e.target.value);
-                      }}
-                      className="w-full bg-[#e5e0dc] rounded-xl py-3 pl-12 pr-10 text-lg font-medium text-gray-800 placeholder-white/80 focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition-all shadow-inner"
-                    />
-                    <button
-                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-gray-300 rounded-full p-0.5 hover:bg-gray-400 transition-colors"
-                      onClick={() => {
-                        setSearchQuery('');
-                        onSearch('');
-                      }}
-                    >
-                      <X className="w-4 h-4 text-white" />
-                    </button>
-                  </div>
-                  {searchQuery.trim() && (
-                    <div className="flex-1 overflow-y-auto">
-                      <div className="mb-6 flex items-center justify-between">
-                        <h4 className="text-lg font-black text-gray-800">Search Results</h4>
-                      </div>
-                      <div className="space-y-4">
-                        {isSearchLoading ? (
-                          <div className="flex items-center justify-center py-20">
-                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500" />
-                          </div>
-                        ) : (
-                          searchResults.map((user) => (
-                            <div
-                              key={user.id}
-                              className="flex items-center gap-4 rounded-2xl border border-white/50 bg-white/40 px-4 py-3 shadow-sm"
-                            >
-                              <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
-                                <img
-                                  src={
-                                    user.profileImgUrl ||
-                                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`
-                                  }
-                                  alt={user.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate font-bold text-gray-800">{user.name}</p>
-                                <p className="truncate text-sm text-gray-500">
-                                  @{user.customId || 'user'}
-                                </p>
-                              </div>
-                              <div className="flex shrink-0 items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    addRecentSearch({
-                                      id: user.id,
-                                      name: user.name,
-                                      subtitle: user.customId || 'user',
-                                      profileImgUrl: user.profileImgUrl,
-                                    });
-                                    onVisit(user.id);
-                                  }}
-                                  className="rounded-lg bg-white/70 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-white"
-                                >
-                                  Visit
-                                </button>
-                                {user.followStatus === 'REQUESTED' ? (
-                                  <span className="rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600">
-                                    Requested
-                                  </span>
-                                ) : user.followStatus === 'FOLLOWING' || user.isFollowing ? (
-                                  <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                                    Following
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      addRecentSearch({
-                                        id: user.id,
-                                        name: user.name,
-                                        subtitle: user.customId || 'user',
-                                        profileImgUrl: user.profileImgUrl,
-                                      });
-                                      onRequest(user.id, user.name);
-                                    }}
-                                    className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-rose-600"
-                                  >
-                                    Add
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                        {!isSearchLoading && searchResults.length === 0 && (
-                          <div className="flex items-center justify-center py-20">
-                            <p className="text-sm font-bold text-gray-400">No matching users.</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {!searchQuery.trim() && (
-                    <div>
-                      <div className="flex items-center justify-between mb-6">
-                        <h4 className="text-lg font-black text-gray-800">최근 검색 항목</h4>
-                        <button
-                          onClick={() => {
-                            setRecentSearches([]);
-                            persistRecentSearches([]);
-                          }}
-                          className="text-sm font-black text-rose-500 hover:text-rose-600"
-                        >
-                          모두 지우기
-                        </button>
-                      </div>
-                      <div className="space-y-4">
-                        {recentSearches.length > 0 ? (
-                          recentSearches.map((s) => (
-                            <div key={s.id} className="flex items-center gap-4 group/searchItem">
-                              <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
-                                <img
-                                  src={
-                                    s.profileImgUrl ||
-                                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`
-                                  }
-                                  alt={s.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleRecentSearchClick(s)}
-                                className="flex-1 text-left"
-                              >
-                                <p className="font-bold text-gray-800">{s.name}</p>
-                                <p className="text-sm text-gray-500">@{s.subtitle}</p>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => removeRecentSearch(s.id)}
-                                className="p-1 hover:bg-gray-100 rounded-full transition-all"
-                              >
-                                <X className="w-5 h-5 text-gray-300" />
-                              </button>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="flex-1 flex items-center justify-center py-20">
-                            <p className="text-gray-400 font-bold text-sm">
-                              닉네임 또는 커스텀아이디로 검색해보세요.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <SearchPanel
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  onSearch={onSearch}
+                  isSearchLoading={isSearchLoading}
+                  searchResults={searchResults}
+                  recentSearches={recentSearches}
+                  addRecentSearch={addRecentSearch}
+                  removeRecentSearch={removeRecentSearch}
+                  persistRecentSearches={persistRecentSearches}
+                  handleRecentSearchClick={handleRecentSearchClick}
+                  onVisit={onVisit}
+                  onRequest={onRequest}
+                  setRecentSearches={setRecentSearches}
+                  onAccept={onAccept}
+                />
               )}
-
               {activeTertiary === 'notifications' && (
-                <div className="flex flex-col h-full">
-                  <div className="flex justify-end items-center px-8 mb-8 gap-4 text-sm font-bold text-gray-500">
-                    <button
-                      onClick={onReadAllAlarms}
-                      className="hover:text-rose-500 transition-colors"
-                    >
-                      모두 읽음
-                    </button>
-                    <span className="text-gray-300">|</span>
-                    <button
-                      onClick={onDeleteAllAlarms}
-                      className="text-rose-500 hover:text-rose-600 transition-colors"
-                    >
-                      모두 지우기
-                    </button>
-                  </div>
-                  <div className="px-4 space-y-2 overflow-y-auto pb-8">
-                    {alarms.map((alarm) => (
-                      <div
-                        key={alarm.id}
-                        onClick={() => onAlarmClick(alarm)}
-                        className="flex items-center gap-4 py-3 px-4 group/alarm transition-all hover:bg-black/5 rounded-2xl cursor-pointer"
-                      >
-                        <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-gray-100 shadow-sm">
-                          <img
-                            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Alarm${alarm.id}`}
-                            alt="profile"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-800 leading-snug">
-                            {alarm.message}
-                          </p>
-                          <p className="text-[11px] text-gray-400 font-bold mt-1 tracking-tight uppercase italic">
-                            {alarm.time}
-                          </p>
-                          {alarm.type === 'follow' &&
-                            alarm.payload &&
-                            !!(alarm.payload as { followRequestId?: number }).followRequestId && (
-                              <div className="flex gap-2 mt-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const payload = alarm.payload as Record<
-                                      string,
-                                      number | string
-                                    >;
-                                    onAccept(
-                                      payload.followRequestId as number,
-                                      (payload.senderName as string) || '사용자',
-                                    );
-                                    onRemoveAlarm(alarm.id);
-                                  }}
-                                  className="px-3 py-1.5 bg-rose-500 text-white text-[11px] font-black rounded-xl hover:bg-rose-600 transition-colors shadow-sm"
-                                >
-                                  수락
-                                </button>
-                              </div>
-                            )}
-                        </div>
-                        <button
-                          onClick={() => onRemoveAlarm(alarm.id)}
-                          className="opacity-0 group-hover/alarm:opacity-100 p-1 hover:bg-gray-100 rounded-full transition-all"
-                        >
-                          <X className="w-4 h-4 text-gray-400" />
-                        </button>
-                      </div>
-                    ))}
-                    {alarms.length === 0 && (
-                      <div className="flex flex-col items-center justify-center py-20 opacity-20 text-gray-400">
-                        <Bell className="w-12 h-12 mb-2" />
-                        <p className="font-bold lowercase italic tracking-tight">
-                          no notifications
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <NotificationsPanel
+                  alarms={alarms}
+                  onAlarmClick={onAlarmClick}
+                  onReadAllAlarms={onReadAllAlarms}
+                  onDeleteAllAlarms={onDeleteAllAlarms}
+                  onRemoveAlarm={onRemoveAlarm}
+                  onAccept={onAccept}
+                />
               )}
-
               {activeTertiary === 'friends' && (
-                <div className="flex flex-col h-full bg-[#eee5df]">
-                  {friendView === 'main' ? (
-                    <>
-                      {/* Requests Link */}
-                      <div
-                        className="flex items-center justify-between px-8 py-3 cursor-pointer group hover:bg-black/5 transition-colors"
-                        onClick={() => setFriendView('requests')}
-                      >
-                        <span className="text-lg font-black text-gray-600">
-                          새로운 팔로우 요청 {followRequests.length}건
-                        </span>
-                        <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-rose-500 group-hover:translate-x-1 transition-all" />
-                      </div>
-
-                      {/* Tabs */}
-                      <div className="flex border-b border-gray-300 w-full mt-4">
-                        <button
-                          onClick={() => setFriendTab('following')}
-                          className={`flex-1 py-4 text-sm font-black text-center transition-colors ${friendTab === 'following' ? 'border-b-2 border-rose-500 text-rose-500' : 'text-gray-400 hover:text-gray-500'}`}
-                        >
-                          팔로잉
-                        </button>
-                        <button
-                          onClick={() => setFriendTab('followers')}
-                          className={`flex-1 py-4 text-sm font-black text-center transition-colors ${friendTab === 'followers' ? 'border-b-2 border-rose-500 text-rose-500' : 'text-gray-400 hover:text-gray-500'}`}
-                        >
-                          팔로워
-                        </button>
-                      </div>
-
-                      {/* Lists */}
-                      <div className="flex-1 overflow-y-auto w-full px-4 pt-4 space-y-1">
-                        {follows.length > 0 ? (
-                          follows.map((f) => (
-                            <div
-                              key={f.id}
-                              className="flex items-center gap-4 p-4 hover:bg-white/40 rounded-[20px] transition-all cursor-pointer group/friend"
-                              onClick={() => onVisit(f.id)}
-                            >
-                              <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-gray-100 to-gray-200 border border-white shadow-sm overflow-hidden shrink-0">
-                                <img
-                                  src={
-                                    f.profileImgUrl ||
-                                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${f.name}`
-                                  }
-                                  alt={f.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-black text-[17px] text-gray-800 leading-tight truncate">
-                                  {f.name}
-                                </p>
-                                <p className="text-[11px] text-gray-400 font-bold tracking-tight mt-0.5 truncate">
-                                  {f.description || '상태 메시지가 없습니다.'}
-                                </p>
-                              </div>
-                              {f.followId ? (
-                                <X
-                                  className="w-5 h-5 text-gray-300 opacity-0 group-hover/friend:opacity-100 hover:text-rose-500 transition-all shrink-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDelete(f);
-                                  }}
-                                />
-                              ) : null}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-20 opacity-40 text-gray-500">
-                            <Users className="w-10 h-10 mb-2" />
-                            <span className="font-bold text-sm tracking-widest uppercase">
-                              팔로워가 없습니다
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex-1 overflow-y-auto px-4 flex flex-col">
-                      {/* Back Button within request view */}
-                      <div className="px-4 pb-4">
-                        <button
-                          onClick={() => setFriendView('main')}
-                          className="text-gray-500 text-sm font-bold hover:text-rose-500 transition-colors"
-                        >
-                          &lt; 뒤로 가기
-                        </button>
-                      </div>
-
-                      {followRequests.length > 0 ? (
-                        <div className="space-y-3">
-                          {followRequests.map((req) => (
-                            <div
-                              key={req.id}
-                              className="flex items-center gap-3 p-4 bg-white/60 rounded-2xl border border-white shadow-sm"
-                            >
-                              <div className="w-12 h-12 rounded-full overflow-hidden shrink-0">
-                                <img
-                                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${req.name}`}
-                                  alt={req.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-black text-gray-800 text-[15px] truncate">
-                                  {req.name}
-                                </p>
-                                <p className="text-[11px] text-gray-400 font-bold mt-0.5">
-                                  팔로우 요청
-                                </p>
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => onAccept(req.id, req.name)}
-                                  className="px-4 py-2 bg-rose-500 text-white text-[13px] font-black rounded-xl hover:bg-rose-600 transition-colors shadow-sm"
-                                >
-                                  수락
-                                </button>
-                                <button
-                                  onClick={() => onReject(req.id)}
-                                  className="px-4 py-2 bg-gray-200 text-gray-600 text-[13px] font-black rounded-xl hover:bg-gray-300 transition-colors"
-                                >
-                                  거절
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-20 opacity-40 text-gray-500">
-                          <span className="font-bold text-sm tracking-widest uppercase">
-                            새로운 요청이 없습니다
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <FriendsPanel
+                  friendView={friendView}
+                  setFriendView={setFriendView}
+                  followRequests={followRequests}
+                  friendTab={friendTab}
+                  setFriendTab={setFriendTab}
+                  follows={follows}
+                  onVisit={onVisit}
+                  onDelete={onDelete}
+                  onAccept={onAccept}
+                  onReject={onReject}
+                  onSearchOpen={() => setActiveTertiary('search')}
+                />
               )}
-
               {activeTertiary === 'chat' && (
-                <div className="flex flex-col h-full">
-                  {/* Tabs: 대화 vs 방명록 */}
-                  <div className="flex mb-2 border-b border-gray-300 w-full">
-                    <button
-                      onClick={() => setChatTab('archive')}
-                      className={`flex-1 py-3 text-lg font-black transition-colors text-center ${chatTab === 'archive' ? 'text-rose-500 border-b-2 border-rose-500' : 'text-gray-400 hover:text-gray-500'}`}
-                    >
-                      대화
-                    </button>
-                    <button
-                      onClick={() => setChatTab('guestbook')}
-                      className={`flex-1 py-3 text-lg font-black transition-colors text-center ${chatTab === 'guestbook' ? 'text-rose-500 border-b-2 border-rose-500' : 'text-gray-400 hover:text-gray-500'}`}
-                    >
-                      방명록
-                    </button>
-                  </div>
-
-                  {chatTab === 'archive' ? (
-                    <div className="flex-1 flex flex-col pt-2 overflow-hidden">
-                      {chatView === 'categories' ? (
-                        /* Category List - Aligned with first header line */
-                        <div className="flex flex-col gap-10 px-10 pt-10">
-                          <button
-                            onClick={() => {
-                              setChatCategory('assistant');
-                              setChatView('list');
-                            }}
-                            className="text-left text-2xl font-black text-gray-500 hover:text-rose-500 transition-all flex items-center justify-between group"
-                          >
-                            Ai 비서
-                            <ChevronRight className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setChatCategory('persona');
-                              setChatView('list');
-                            }}
-                            className="text-left text-2xl font-black text-gray-500 hover:text-rose-500 transition-all flex items-center justify-between group"
-                          >
-                            남이 보는 나
-                            <ChevronRight className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setChatCategory('friend');
-                              setChatView('list');
-                            }}
-                            className="text-left text-2xl font-black text-gray-500 hover:text-rose-500 transition-all flex items-center justify-between group"
-                          >
-                            친구
-                            <ChevronRight className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                          </button>
-                        </div>
-                      ) : (
-                        /* List View with IMAGE STYLE UI */
-                        <div className="flex-1 flex flex-col">
-                          {chatCategory === 'assistant' && (
-                            <div className="flex flex-wrap gap-2 px-8 py-4 border-b border-gray-200">
-                              {['daily', 'study', 'counsel'].map((mode) => (
-                                <button
-                                  key={mode}
-                                  onClick={() => {
-                                    setAssistantFilters((prev) =>
-                                      prev.includes(mode)
-                                        ? prev.filter((m) => m !== mode)
-                                        : [...prev, mode],
-                                    );
-                                  }}
-                                  className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${assistantFilters.includes(mode) ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                                >
-                                  {mode === 'daily'
-                                    ? '일상 모드'
-                                    : mode === 'study'
-                                      ? '학습 모드'
-                                      : '상담 모드'}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Chat List: SCROLLABLE, Transparent items, hover only bg color */}
-                          <div className="flex-1 overflow-y-auto pt-2">
-                            <h4 className="text-sm font-black text-gray-800 mb-4 px-10">메시지</h4>
-                            <div className="flex flex-col">
-                              {displaySessions.length === 0 && !isChatLoading && (
-                                <div className="py-10 text-center text-sm font-bold opacity-40 text-gray-500 uppercase">
-                                  대화 내역이 없습니다
-                                </div>
-                              )}
-                              {isChatLoading && (
-                                <div className="py-10 text-center text-sm font-bold text-rose-500 animate-pulse">
-                                  불러오는 중...
-                                </div>
-                              )}
-                              {!isChatLoading &&
-                                displaySessions.map((session) => {
-                                  const isActive = selectedChatId === session.id;
-                                  return (
-                                    <div
-                                      key={session.id}
-                                      onClick={() => setSelectedChatId(session.id)}
-                                      className={`
-                                      flex items-center gap-4 px-10 py-5 cursor-pointer transition-all border-l-4
-                                      ${isActive ? 'bg-black/5 border-rose-500 shadow-inner' : 'border-transparent hover:bg-black/5'}
-                                    `}
-                                    >
-                                      <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 bg-white border border-gray-100 shadow-sm">
-                                        <img
-                                          src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session.id}`}
-                                          alt="profile"
-                                        />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-center pr-2">
-                                          <p className="font-extrabold text-gray-900 text-[15px] truncate">
-                                            {session.title || '새로운 대화'}
-                                          </p>
-                                          <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-blue-600 shadow-sm" />
-                                            <button className="p-1 hover:bg-gray-200 rounded-full">
-                                              <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                                            </button>
-                                          </div>
-                                        </div>
-                                        <p className="text-sm text-gray-600 font-bold truncate mt-0.5">
-                                          메시지 {session.messageCount}개
-                                          <span className="text-gray-400 ml-1">
-                                            · {new Date(session.lastMessageAt).toLocaleDateString()}
-                                          </span>
-                                        </p>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    /* Guestbook Content */
-                    <div className="flex-1 px-4 overflow-y-auto space-y-3">
-                      <h4 className="text-sm font-black text-gray-400 mb-4 px-2 tracking-widest uppercase">
-                        방문자 기록
-                      </h4>
-                      {displaySessions.length === 0 && !isChatLoading && (
-                        <div className="py-10 text-center text-sm font-bold opacity-40 text-gray-500 uppercase">
-                          방문자 기록이 없습니다
-                        </div>
-                      )}
-                      {isChatLoading && (
-                        <div className="py-10 text-center text-sm font-bold text-rose-500 animate-pulse">
-                          불러오는 중...
-                        </div>
-                      )}
-                      {!isChatLoading &&
-                        displaySessions.map((session) => (
-                          <div
-                            key={session.id}
-                            className="flex items-center gap-4 p-4 bg-white/40 rounded-[24px] border border-white/50 hover:bg-white/60 transition-all cursor-pointer shadow-sm"
-                            onClick={() => setSelectedChatId(session.id)}
-                          >
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-green-100 to-teal-100 shadow-inner overflow-hidden">
-                              <img
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session.userId}`}
-                                alt="visitor"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-black text-gray-800 text-sm">
-                                {session.title || '알 수 없는 방문자'}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1 truncate">
-                                내 AI와 이야기를 나누었습니다.
-                              </p>
-                            </div>
-                            <span className="text-[10px] text-gray-400 font-bold">
-                              {new Date(session.startedAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
+                <ChatPanel
+                  chatTab={chatTab}
+                  setChatTab={setChatTab}
+                  chatView={chatView}
+                  setChatView={setChatView}
+                  chatCategory={chatCategory}
+                  setChatCategory={setChatCategory}
+                  assistantFilters={assistantFilters}
+                  setAssistantFilters={setAssistantFilters}
+                  displaySessions={displaySessions}
+                  isChatLoading={isChatLoading}
+                  selectedChatId={selectedChatId}
+                  setSelectedChatId={setSelectedChatId}
+                />
+              )}
+              {activeTertiary === 'assistant' && (
+                <AssistantPanel
+                  currentMode={currentMode}
+                  onModeChange={onModeChange}
+                  setActiveTertiary={setActiveTertiary}
+                />
+              )}
+              {activeTertiary === 'persona' && (
+                <PersonaPanel onModeChange={onModeChange} setActiveTertiary={setActiveTertiary} />
               )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Main Content Area (for Chat View) */}
       <AnimatePresence>
         {activeTertiary === 'chat' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute left-[440px] right-0 h-full bg-white pointer-events-auto shadow-2xl overflow-hidden flex flex-col z-[110]"
-          >
-            {/* Top Right Profile (Fixed like in image) */}
-            <div className="absolute top-8 right-8 z-10">
-              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-lg">
-                <img
-                  src="https://api.dicebear.com/7.x/avataaars/svg?seed=MainUser"
-                  alt="Main User"
-                />
-              </div>
-            </div>
-
-            {selectedChatId === null ? (
-              /* Empty State */
-              <div className="flex-1 flex flex-col items-center justify-center gap-6">
-                <div className="w-24 h-24 rounded-full border-2 border-gray-800 flex items-center justify-center -rotate-12">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-12 h-12 text-gray-800 fill-none stroke-current stroke-2"
-                  >
-                    <path
-                      d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-                <p className="text-xl font-bold text-gray-400">ai 와 대화를 나누어보세요 !</p>
-              </div>
-            ) : (
-              /* Chat History View */
-              <div className="flex-1 flex flex-col gap-20 overflow-y-auto w-full pt-10">
-                {chatMessagesData.length === 0 && !isChatLoading ? (
-                  <div className="py-20 text-center font-bold text-gray-400 uppercase tracking-widest text-sm opacity-50">
-                    메시지 내역이 없습니다.
-                  </div>
-                ) : isChatLoading && chatMessagesData.length === 0 ? (
-                  <div className="py-20 text-center font-bold text-rose-500 uppercase tracking-widest text-sm opacity-50 animate-pulse">
-                    메시지를 불러오는 중...
-                  </div>
-                ) : (
-                  chatMessagesData.map((msg, idx) => {
-                    const isAi = msg.speakerType === 'AVATAR' || msg.speakerType === 'AI';
-                    return isAi ? (
-                      <div
-                        key={msg.id || idx}
-                        className="flex gap-6 items-start self-start max-w-[85%]"
-                      >
-                        <div className="shrink-0 flex flex-col items-center gap-2">
-                          <div className="w-24 h-24 rounded-2xl bg-[#eee5df] shadow-lg border border-white/50 overflow-hidden">
-                            <img
-                              src={`https://api.dicebear.com/7.x/bottts/svg?seed=${msg.assistantId}`}
-                              alt="AI"
-                            />
-                          </div>
-                          <span className="text-sm font-black text-gray-500 mt-1">AI</span>
-                        </div>
-                        <div className="pt-2 flex flex-col gap-2">
-                          <h2 className="text-3xl font-black text-gray-900 leading-snug break-keep bg-black/5 p-6 rounded-[2.5rem] rounded-tl-sm border border-black/5 shadow-sm">
-                            {msg.text}
-                          </h2>
-                          <span className="text-xs font-bold text-gray-400 pl-2">
-                            {new Date(msg.createdAt).toLocaleTimeString()}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        key={msg.id || idx}
-                        className="flex gap-6 items-start self-end max-w-[85%] flex-row-reverse"
-                      >
-                        <div className="shrink-0 flex flex-col items-center gap-2">
-                          <div className="w-24 h-24 rounded-2xl bg-black shadow-2xl relative overflow-hidden">
-                            <img
-                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.userId}`}
-                              alt="User"
-                            />
-                          </div>
-                          <span className="text-sm font-black text-gray-800 mt-1">You</span>
-                        </div>
-                        <div className="pt-2 flex flex-col gap-2 text-right">
-                          <h2 className="text-3xl font-black text-white bg-rose-500 p-6 rounded-[2.5rem] rounded-tr-sm leading-snug break-keep shadow-lg">
-                            {msg.text}
-                          </h2>
-                          <span className="text-xs font-bold text-gray-400 pr-2">
-                            {new Date(msg.createdAt).toLocaleTimeString()}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <ChatHistoryView
+              selectedChatId={selectedChatId}
+              chatMessagesData={chatMessagesData}
+              isChatLoading={isChatLoading}
+            />
           </motion.div>
         )}
       </AnimatePresence>
