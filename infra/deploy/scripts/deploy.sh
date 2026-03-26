@@ -176,5 +176,9 @@ wait_for_container_health ai 24
 wait_for_container_health redis 24
 wait_for_container_health backend 24
 
+log "Seeding notification_types"
+"${DOCKER_CMD[@]}" exec mysql mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "INSERT IGNORE INTO notification_types (name) VALUES ('FOLLOW_REQUEST'), ('FOLLOW_ACCEPT');"
+
+
 trap - ERR
 log "Deployment completed successfully."

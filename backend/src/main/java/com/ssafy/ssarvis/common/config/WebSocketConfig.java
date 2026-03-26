@@ -1,8 +1,8 @@
 package com.ssafy.ssarvis.common.config;
 
-
 import com.ssafy.ssarvis.auth.interceptor.JwtAuthenticationWebSocketInterceptor;
 import com.ssafy.ssarvis.chat.interceptor.AudioStreamingHandler;
+import com.ssafy.ssarvis.chat.interceptor.GuestChatHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +18,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private final JwtAuthenticationWebSocketInterceptor jwtAuthenticationWebSocketInterceptor;
     private final AudioStreamingHandler audioStreamingHandler;
+    private final GuestChatHandler guestChatHandler;
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
@@ -26,9 +27,9 @@ public class WebSocketConfig implements WebSocketConfigurer {
             .addInterceptors(jwtAuthenticationWebSocketInterceptor)
             .setAllowedOriginPatterns("*"); // 로컬 개발용. 운영 시 프론트 도메인으로 제한
 
-//        // 2. 비회원용, 인증 처리 X
-//        registry.addHandler(fileBufferStreamingHandler, "/ws/guest/chat")
-//            .setAllowedOriginPatterns("*");
+        // 비회원용, 인증 처리 X
+        registry.addHandler(guestChatHandler, "/ws/guest/chat")
+            .setAllowedOrigins("*");
     }
 
     // 웹소켓 버퍼 사이즈 설정

@@ -17,10 +17,10 @@ import java.util.Map;
 @Service
 public class SlackNotificationService {
 
-    @Value("${app.slack.webhook-url:}")
+    @Value("${spring.app.slack.webhook-url:}")
     private String webhookUrl;
 
-    @Value("${app.slack.enabled:true}")
+    @Value("${spring.app.slack.enabled:true}")
     private boolean enabled;
 
     private final RestTemplate restTemplate;

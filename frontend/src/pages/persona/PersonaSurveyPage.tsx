@@ -3,8 +3,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Sparkles, MessageCircle, User as UserIcon } from 'lucide-react';
 
-import AnimatedBackground from '../../components/AnimatedBackground';
-import { BG_COLORS } from '../../constants/theme';
 import { PATHS } from '../../routes/paths';
 import { postGeneratePrompt } from '../../apis/aiApi';
 
@@ -76,16 +74,14 @@ export default function PersonaSurveyPage() {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex flex-col justify-center items-center">
-      <AnimatedBackground {...BG_COLORS.persona} />
-
+    <div className="relative w-full h-screen overflow-hidden flex flex-col justify-center items-center bg-white">
       <AnimatePresence mode="wait">
         {isGenerating ? (
           <motion.div
             key="generating"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-[90%] max-w-md bg-white/30 backdrop-blur-3xl rounded-[40px] border border-white/40 shadow-2xl p-10 flex flex-col items-center gap-6 text-center"
+            className="w-[90%] max-w-md bg-white rounded-[40px] border border-gray-100 shadow-2xl p-10 flex flex-col items-center gap-6 text-center"
           >
             <div className="w-24 h-24 bg-blue-400/20 backdrop-blur-md rounded-full flex items-center justify-center shadow-xl border-2 border-blue-300/50 animate-pulse">
               <Sparkles className="w-12 h-12 text-blue-500 animate-[spin_3s_linear_infinite]" />
@@ -112,7 +108,7 @@ export default function PersonaSurveyPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ duration: 0.5 }}
-            className="relative w-[90%] max-w-2xl bg-white/20 backdrop-blur-3xl rounded-[40px] border border-white/40 shadow-2xl p-6 sm:p-10 flex flex-col gap-8 max-h-[90vh] overflow-y-auto custom-scrollbar"
+            className="relative w-[90%] max-w-2xl bg-white rounded-[40px] border border-gray-100 shadow-2xl p-6 sm:p-10 flex flex-col gap-8 max-h-[90vh] overflow-y-auto custom-scrollbar"
           >
             {/* Header */}
             <div className="flex flex-col items-center gap-3 mb-2 text-center">

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 
-import AnimatedBackground from '../../components/AnimatedBackground';
 import { PATHS } from '../../routes/paths';
 
 // 분리된 데이터 및 컴포넌트 임포트
@@ -20,6 +19,7 @@ import QuestionStep from './QuestionStep';
 import VoiceStep from './VoiceStep';
 
 import { postGeneratePrompt, postRegisterVoice } from '../../apis/aiApi';
+import { useUserStore } from '../../store/useUserStore';
 
 // Window 전역 타입 확장
 declare global {
@@ -82,6 +82,7 @@ function StepIndicator({ current }: { current: TutorialStep }) {
 
 export default function TutorialPage() {
   const navigate = useNavigate();
+  const nickname = useUserStore((state) => state.userInfo?.nickname?.trim() ?? '');
 
   const [step, setStep] = useState<TutorialStep>('mbti');
 
@@ -306,6 +307,13 @@ export default function TutorialPage() {
       (item) => item.answer && item.answer.trim() !== '',
     );
 
+    if (nickname) {
+      qna.unshift({
+        question: '당신의 이름이 무엇인가요? 무슨 이름으로 불러드리면 좋을까요?',
+        answer: `${nickname}으로 불러줘`,
+      });
+    }
+
     // 질문 답변이 하나도 없는지 체크 (AI 서버 min_length=1 대응)
     if (qna.length === 0) {
       alert('최소 하나 이상의 질문에 답변해 주세요.');
@@ -355,9 +363,7 @@ export default function TutorialPage() {
   // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center p-4">
-      <AnimatedBackground />
-
+    <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center p-4 bg-white">
       <div className="w-full max-w-2xl z-10">
         {step !== 'loading' && <StepIndicator current={step} />}
 
