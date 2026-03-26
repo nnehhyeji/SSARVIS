@@ -51,7 +51,7 @@ const ChatHistoryView: React.FC<ChatHistoryViewProps> = ({
             </div>
           ) : (
             chatMessagesData.map((msg, idx) => {
-              const isAi = msg.speakerType === 'AVATAR' || msg.speakerType === 'AI';
+              const isAi = msg.speakerType === 'AVATAR' || msg.speakerType === 'ASSISTANT';
               return isAi ? (
                 <div key={msg.id || idx} className="flex gap-6 items-start self-start max-w-[85%]">
                   <div className="shrink-0 flex flex-col items-center gap-2">
