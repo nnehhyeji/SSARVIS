@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Home,
   User,
@@ -13,12 +13,13 @@ import {
   ChevronRight,
   Search,
   X,
+  ChevronLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PATHS } from '../../routes/paths';
 import type { Alarm, Mode, Follow, FollowRequest } from '../../types';
-import { getChatSessions, getChatMessages } from '../../apis/chatApi';
-import type { ChatSession, ChatMessageData } from '../../apis/chatApi';
+import { getChatSessions } from '../../apis/chatApi';
+import type { ChatSession } from '../../apis/chatApi';
 
 // Sub-panels
 import SearchPanel from './sidebar/SearchPanel';
@@ -28,7 +29,7 @@ import FriendsPanel from './sidebar/FriendsPanel';
 import ChatPanel from './sidebar/ChatPanel';
 import AssistantPanel from './sidebar/AssistantPanel';
 import PersonaPanel from './sidebar/PersonaPanel';
-import ChatHistoryView from './sidebar/ChatHistoryView';
+import ChatArchiveView from './ChatArchiveView';
 
 interface SidebarProps {
   // User Info & Basic Actions
@@ -94,9 +95,12 @@ export default function Sidebar({
 }: SidebarProps) {
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
+  const { sessionId } = useParams<{ sessionId?: string }>();
+  const selectedChatId = sessionId || null;
+  
   const [activeTertiary, setActiveTertiary] = useState<
     'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null
-  >(null);
+  >(() => (selectedChatId ? 'chat' : null));
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,10 +120,8 @@ export default function Sidebar({
   const [chatCategory, setChatCategory] = useState<'assistant' | 'persona' | 'friend'>('assistant');
   const [chatView, setChatView] = useState<'categories' | 'list'>('categories');
   const [assistantFilters, setAssistantFilters] = useState<string[]>(['daily']);
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [chatMessagesData, setChatMessagesData] = useState<ChatMessageData[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
   useEffect(() => {
@@ -150,26 +152,6 @@ export default function Sidebar({
       isMounted = false;
     };
   }, [activeTertiary, chatTab, chatCategory]);
-
-  useEffect(() => {
-    let isMounted = true;
-    if (!selectedChatId) {
-      if (isMounted) setChatMessagesData([]);
-      return;
-    }
-    const loadMessages = async () => {
-      try {
-        const data = await getChatMessages(selectedChatId);
-        if (isMounted) setChatMessagesData(data.contents || []);
-      } catch (err) {
-        console.error('채팅 메시지 조회 실패:', err);
-      }
-    };
-    void loadMessages();
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedChatId]);
 
   const displaySessions = chatSessions.filter((session) => {
     if (chatTab === 'archive' && chatCategory === 'assistant') {
@@ -308,13 +290,15 @@ export default function Sidebar({
 
       if (item.tertiaryId === 'chat') {
         setChatView('categories');
-        setSelectedChatId(null);
+        if (selectedChatId) navigate(PATHS.HOME);
       }
       if (item.tertiaryId === 'friends') {
         setFriendView('main');
         setFriendTab('following');
       }
-      if (item.tertiaryId !== 'chat') setSelectedChatId(null);
+      if (item.tertiaryId !== 'chat' && selectedChatId) {
+        navigate(PATHS.HOME);
+      }
     }
   };
 
@@ -447,7 +431,7 @@ export default function Sidebar({
                   <button
                     onClick={() => {
                       setChatView('categories');
-                      setSelectedChatId(null);
+                      if (selectedChatId) navigate(PATHS.HOME);
                     }}
                     className="flex items-center gap-1 text-rose-500 text-xs font-black mb-1 hover:underline group"
                   >
@@ -470,7 +454,10 @@ export default function Sidebar({
                 </h2>
               </div>
               <button
-                onClick={() => setActiveTertiary(null)}
+                onClick={() => {
+                  setActiveTertiary(null);
+                  if (selectedChatId) navigate(PATHS.HOME);
+                }}
                 className="p-2 hover:bg-black/5 rounded-full transition-colors mt-2"
               >
                 <X className="w-8 h-8 text-gray-800" />
@@ -534,7 +521,13 @@ export default function Sidebar({
                   displaySessions={displaySessions}
                   isChatLoading={isChatLoading}
                   selectedChatId={selectedChatId}
-                  setSelectedChatId={setSelectedChatId}
+                  setSelectedChatId={(id) => {
+                    if (id) {
+                      navigate(PATHS.CHAT_ARCHIVE(id));
+                    } else {
+                      navigate(PATHS.HOME);
+                    }
+                  }}
                 />
               )}
               {activeTertiary === 'assistant' && (
@@ -551,15 +544,33 @@ export default function Sidebar({
           </motion.div>
         )}
       </AnimatePresence>
-
       <AnimatePresence>
-        {activeTertiary === 'chat' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <ChatHistoryView
-              selectedChatId={selectedChatId}
-              chatMessagesData={chatMessagesData}
-              isChatLoading={isChatLoading}
-            />
+        {sessionId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className={`fixed top-0 bottom-0 right-0 ${activeTertiary ? 'left-[500px]' : 'left-[100px]'} bg-white pointer-events-auto shadow-2xl overflow-hidden flex flex-col z-[110] transition-all duration-200`}
+          >
+            {/* Top Header / Back Button */}
+            <div className="h-20 shrink-0 px-8 flex items-center justify-between border-b border-gray-50 z-20">
+              <button
+                onClick={() => navigate(PATHS.HOME)}
+                className="group flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-gray-50 transition">
+                  <ChevronLeft className="w-5 h-5" />
+                </div>
+                <span className="font-bold text-sm tracking-tight">닫기</span>
+              </button>
+              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-lg">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=MainUser" alt="Main User" />
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 bg-white flex flex-col">
+              <ChatArchiveView selectedChatId={sessionId} />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -16,4 +16,6 @@ export const PATHS = {
   PROFILE: '/profile',
   PERSONA: (userId: string | number) => `/persona/${userId}`,
   PERSONA_PARAM: '/persona/:userId',
+  CHAT_ARCHIVE: (sessionId: string) => `/chat-archive/${sessionId}`,
+  CHAT_ARCHIVE_PARAM: '/chat-archive/:sessionId',
 } as const;
