@@ -1,6 +1,7 @@
 import logging
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketState
 from pydantic import ValidationError
 
 from app.domains.chat.exceptions import ChatError
@@ -65,6 +66,7 @@ async def _send_error(
     *,
     code: str,
     errors: list[dict] | None = None,
+    close_ws: bool = True,
 ) -> None:
     event = ChatErrorEvent(
         detail=detail,
@@ -74,86 +76,73 @@ async def _send_error(
         },
     )
     await ws.send_text(event.model_dump_json())
-    await ws.close()
+    if close_ws:
+        await ws.close()
 
 
-@router.websocket("")
-async def chat(
+async def _handle_chat_request(
     ws: WebSocket,
-    chat_service: ChatService = Depends(get_chat_service),
-    voice_service: VoiceService = Depends(get_voice_service),
-) -> None:
-    await ws.accept()
-
+    raw: str,
+    chat_service: ChatService,
+    voice_service: VoiceService,
+    *,
+    keep_alive: bool,
+) -> bool:
     try:
-        raw = await ws.receive_text()
-        try:
-            request = ChatRequest.model_validate_json(raw)
-        except ValidationError as exc:
-            await _send_error(
-                ws,
-                "Invalid chat request",
-                code="invalid_request",
-                errors=exc.errors(),
-            )
-            return
-
-        await ws.send_text(
-            ChatEvent(
-                type="text.start",
-                sessionId=request.sessionId,
-                payload={},
-            ).model_dump_json()
+        request = ChatRequest.model_validate_json(raw)
+    except ValidationError as exc:
+        await _send_error(
+            ws,
+            "Invalid chat request",
+            code="invalid_request",
+            errors=exc.errors(),
+            close_ws=not keep_alive,
         )
+        return False
 
-        preparation = await chat_service.prepare_chat(request)
-        assistant_response = await chat_service.openai_client.generate(preparation.messages)
-        await chat_service.save_chat(request, assistant_response)
+    await ws.send_text(
+        ChatEvent(
+            type="text.start",
+            sessionId=request.sessionId,
+            payload={},
+        ).model_dump_json()
+    )
 
+    preparation = await chat_service.prepare_chat(request)
+    assistant_response = await chat_service.openai_client.generate(preparation.messages)
+    await chat_service.save_chat(request, assistant_response)
+
+    await ws.send_text(
+        ChatEvent(
+            type="text.end",
+            sessionId=request.sessionId,
+            sequence=0,
+            payload={"text": assistant_response},
+        ).model_dump_json()
+    )
+    await ws.send_text(
+        ChatEvent(
+            type="voice.start",
+            sessionId=request.sessionId,
+            payload={},
+        ).model_dump_json()
+    )
+
+    encoder = WebMAudioEncoder()
+    tts_text = chat_service.sanitize_tts_text(assistant_response)
+    pcm_buffer = bytearray()
+
+    async for pcm_chunk in voice_service.synthesize(tts_text, request.voiceId):
+        pcm_buffer.extend(pcm_chunk)
+
+    encoded_packets = await encoder.encode_chunks(bytes(pcm_buffer))
+    complete_audio = b"".join(encoded_packets)
+    sequence = 0
+
+    for packet in encoded_packets:
         await ws.send_text(
             ChatEvent(
-                type="text.end",
-                sessionId=request.sessionId,
-                sequence=0,
-                payload={"text": assistant_response},
-            ).model_dump_json()
-        )
-        await ws.send_text(
-            ChatEvent(
-                type="voice.start",
-                sessionId=request.sessionId,
-                payload={},
-            ).model_dump_json()
-        )
-
-        encoder = WebMAudioEncoder()
-        tts_text = chat_service.sanitize_tts_text(assistant_response)
-        pcm_buffer = bytearray()
-
-        async for pcm_chunk in voice_service.synthesize(tts_text, request.voiceId):
-            pcm_buffer.extend(pcm_chunk)
-
-        encoded_packets = await encoder.encode_chunks(bytes(pcm_buffer))
-        complete_audio = b"".join(encoded_packets)
-        sequence = 0
-
-        for packet in encoded_packets:
-            await ws.send_text(
-                ChatEvent(
-                    type="voice.delta",
-                    sessionId=request.sessionId,
-                    sequence=sequence,
-                    payload={
-                        "mimeType": "audio/webm",
-                    },
-                ).model_dump_json()
-            )
-            await ws.send_bytes(packet)
-            sequence += 1
-
-        await ws.send_text(
-            ChatEvent(
-                type="voice.end",
+                type="voice.delta",
                 sessionId=request.sessionId,
                 sequence=sequence,
                 payload={
@@ -161,9 +150,49 @@ async def chat(
                 },
             ).model_dump_json()
         )
-        if complete_audio:
-            await ws.send_bytes(complete_audio)
-        await ws.close()
+        await ws.send_bytes(packet)
+        sequence += 1
+
+    await ws.send_text(
+        ChatEvent(
+            type="voice.end",
+            sessionId=request.sessionId,
+            sequence=sequence,
+            payload={
+                "mimeType": "audio/webm",
+            },
+        ).model_dump_json()
+    )
+    if complete_audio:
+        await ws.send_bytes(complete_audio)
+
+    return True
+
+
+@router.websocket("")
+async def chat(
+    ws: WebSocket,
+    keep_alive: bool = Query(default=False, alias="keepAlive"),
+    chat_service: ChatService = Depends(get_chat_service),
+    voice_service: VoiceService = Depends(get_voice_service),
+) -> None:
+    await ws.accept()
+
+    try:
+        while True:
+            raw = await ws.receive_text()
+            handled = await _handle_chat_request(
+                ws,
+                raw,
+                chat_service,
+                voice_service,
+                keep_alive=keep_alive,
+            )
+            if not keep_alive or not handled:
+                break
+
+        if ws.client_state != WebSocketState.DISCONNECTED:
+            await ws.close()
     except WebSocketDisconnect:
         logger.info("Client disconnected")
     except WebMEncodingError as exc:
@@ -174,6 +203,7 @@ async def chat(
                 "Failed to encode voice response",
                 code="voice_encoding_failed",
                 errors=[{"message": str(exc)}],
+                close_ws=not keep_alive,
             )
         except Exception:
             pass
@@ -184,12 +214,18 @@ async def chat(
                 ws,
                 str(exc),
                 code="chat_error",
+                close_ws=not keep_alive,
             )
         except Exception:
             pass
     except Exception:
         logger.exception("Chat error")
         try:
-            await _send_error(ws, "Internal server error", code="internal_error")
+            await _send_error(
+                ws,
+                "Internal server error",
+                code="internal_error",
+                close_ws=not keep_alive,
+            )
         except Exception:
             pass
