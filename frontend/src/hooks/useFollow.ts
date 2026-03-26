@@ -1,7 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Follow, FollowRequest } from '../types';
-import { VISITOR_PALETTES } from '../constants/theme';
-import type { BgColors } from '../constants/theme';
 import followApi from '../apis/followApi';
 import { useUserStore } from '../store/useUserStore';
 
@@ -45,7 +43,6 @@ export function useFollow() {
   const [visitedUserId, setVisitedUserId] = useState<number | null>(null);
   const [isDualAiMode, setIsDualAiMode] = useState(false);
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
-  const [visitorBg, setVisitorBg] = useState<BgColors>({});
   const [visitorVisibility, setVisitorVisibility] = useState<'public' | 'private'>('public');
 
   const fetchFollows = useCallback(async () => {
@@ -143,8 +140,6 @@ export function useFollow() {
       const visibility = user.isFollowing ? 'private' : 'public';
       setVisitorVisibility(visibility);
 
-      const randomPalette = VISITOR_PALETTES[Math.floor(Math.random() * VISITOR_PALETTES.length)];
-      setVisitorBg(randomPalette);
 
       if (!isReturn) {
         alert(`${user.name}님의 방으로 방문합니다. (${visibility} 모드)`);
@@ -161,7 +156,6 @@ export function useFollow() {
     setIsInteractionModalOpen(false);
     setVisitedFollowName('');
     setVisitedUserId(null);
-    setVisitorBg({});
     setVisitorVisibility('public');
     return '메인 화면으로 돌아왔어요.';
   }, []);
@@ -287,7 +281,6 @@ export function useFollow() {
     visitedUserId,
     isDualAiMode,
     isInteractionModalOpen,
-    visitorBg,
     visitorVisibility,
     setFollows,
     setFollowRequests,

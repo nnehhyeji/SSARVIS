@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Check,
 } from 'lucide-react';
-import AnimatedBackground from '../../components/AnimatedBackground';
 import { PATHS } from '../../routes/paths';
 import userApi from '../../apis/userApi';
 import authApi from '../../apis/authApi';
@@ -184,8 +183,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4">
-      <AnimatedBackground />
+    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center p-4 bg-white">
 
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}

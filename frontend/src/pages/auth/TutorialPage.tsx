@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 
-import AnimatedBackground from '../../components/AnimatedBackground';
 import { PATHS } from '../../routes/paths';
 
 // 분리된 데이터 및 컴포넌트 임포트
@@ -355,9 +354,7 @@ export default function TutorialPage() {
   // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center p-4">
-      <AnimatedBackground />
-
+    <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center p-4 bg-white">
       <div className="w-full max-w-2xl z-10">
         {step !== 'loading' && <StepIndicator current={step} />}
 

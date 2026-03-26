@@ -4,7 +4,6 @@ import { Volume2, UserPlus, Check, ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 // Components
-import AnimatedBackground from '../../components/AnimatedBackground';
 import CharacterScene from '../../components/features/character/CharacterScene';
 import WaveformRing from '../../components/features/character/WaveformRing';
 
@@ -47,13 +46,7 @@ export default function CardPage() {
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex flex-col">
-      {/* 프리미엄 배경 그라데이션 */}
-      <AnimatedBackground
-        baseTop="#FFE4E6" // 연한 핑크
-        baseBottom="#F0FDF4" // 연한 그린
-        pink="#ECFCCB" // 연한 라임/그린 포인트
-      />
+    <div className="relative w-full h-screen overflow-hidden flex flex-col bg-white">
 
       {/* 헤더 시뮬레이션 (디자인 일관성) */}
       <header className="relative z-50 flex justify-between items-center px-10 py-6 w-full">
@@ -97,7 +90,7 @@ export default function CardPage() {
             <div className="flex items-baseline gap-4 mb-3">
               <h1 className="text-8xl font-black text-gray-800 tracking-tight">{userData.name}</h1>
               <span className="text-3xl text-gray-400 font-bold tracking-tight">
-                @{userData.email.split('@')[0]}
+                @{userData.customId || userData.email.split('@')[0]}
               </span>
             </div>
 
