@@ -10,6 +10,7 @@ public record UserResponseDto(
     String description,
     Boolean isVoiceLockActive,
     Boolean isAcceptPrompt,
+    Boolean isProfilePublic,
     Long voiceLockTimeout,
     String userProfileImageUrl
 ){
@@ -22,6 +23,7 @@ public record UserResponseDto(
             user.getDescription(),
             user.getIsVoiceLockActive(),
             user.getIsAcceptPrompt(),
+            user.getIsPublic(),
             user.getVoiceLockTimeout(),
             user.getProfileImageUrl()
         );
