@@ -31,6 +31,8 @@ export type Follow = {
   intro?: string;
   view_count: number;
   followStatus?: 'NONE' | 'REQUESTED' | 'FOLLOWING';
+  customId?: string;
+  profileImgUrl?: string;
   isFollowing: boolean; // 내가 그를 팔로우하는지 (내 입장에서 상대가 Private으로 보임)
   isFollower: boolean; // 그가 나를 팔로우하는지 (상대 입장에서 내가 Private으로 보임)
 };

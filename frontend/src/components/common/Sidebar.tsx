@@ -11,7 +11,6 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  Search,
   Mic,
   MoreHorizontal,
   X,
@@ -64,6 +63,7 @@ type RecentSearchItem = {
   id: number;
   name: string;
   subtitle: string;
+  profileImgUrl?: string;
 };
 
 const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
@@ -89,7 +89,6 @@ export default function Sidebar({
   onDelete,
   searchResults,
   isSearchLoading,
-  requestFollow,
 }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -209,14 +208,6 @@ export default function Sidebar({
 
   const menuItems: MenuItem[] = [
     { id: 'home', icon: Home, label: '홈', path: PATHS.HOME, color: 'text-rose-500' },
-    {
-      id: 'search',
-      icon: Search,
-      label: '검색',
-      hasTertiary: true,
-      tertiaryId: 'search',
-      color: 'text-rose-500',
-    },
     { id: 'myinfo', icon: User, label: '내 정보', action: onMyCardClick, color: 'text-rose-500' },
     {
       id: 'ai_assistant',
@@ -381,7 +372,7 @@ export default function Sidebar({
 
         {/* Navigation Items */}
         <nav className="flex-1 w-full px-3 flex flex-col gap-2">
-          {/* Fake Search Bar on Hover */}
+          {/* Top Search Bar on Hover */}
           <AnimatePresence>
             {isExpanded && (
               <motion.div
@@ -594,13 +585,19 @@ export default function Sidebar({
                             >
                               <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
                                 <img
-                                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
+                                  src={
+                                    user.profileImgUrl ||
+                                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`
+                                  }
                                   alt={user.name}
+                                  className="w-full h-full object-cover"
                                 />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate font-bold text-gray-800">{user.name}</p>
-                                <p className="truncate text-sm text-gray-500">{user.email}</p>
+                                <p className="truncate text-sm text-gray-500">
+                                  @{user.customId || 'user'}
+                                </p>
                               </div>
                               <div className="flex shrink-0 items-center gap-2">
                                 <button
@@ -609,7 +606,8 @@ export default function Sidebar({
                                     addRecentSearch({
                                       id: user.id,
                                       name: user.name,
-                                      subtitle: user.email,
+                                      subtitle: user.customId || 'user',
+                                      profileImgUrl: user.profileImgUrl,
                                     });
                                     onVisit(user.id);
                                   }}
@@ -632,7 +630,8 @@ export default function Sidebar({
                                       addRecentSearch({
                                         id: user.id,
                                         name: user.name,
-                                        subtitle: user.email,
+                                        subtitle: user.customId || 'user',
+                                        profileImgUrl: user.profileImgUrl,
                                       });
                                       onRequest(user.id, user.name);
                                     }}
@@ -654,55 +653,56 @@ export default function Sidebar({
                     </div>
                   )}
                   {!searchQuery.trim() && (
-                  <div>
-                    <div className="flex items-center justify-between mb-6">
-                      <h4 className="text-lg font-black text-gray-800">최근 검색 항목</h4>
-                      <button
-                        onClick={() => {
-                          setRecentSearches([]);
-                          persistRecentSearches([]);
-                        }}
-                        className="text-sm font-black text-rose-500 hover:text-rose-600"
-                      >
-                        모두 지우기
-                      </button>
-                    </div>
-                    <div className="space-y-4">
-                      {recentSearches.length > 0 ? (
-                        recentSearches.map((s) => (
-                          <div key={s.id} className="flex items-center gap-4 group/searchItem">
-                            <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
-                              <img
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`}
-                                alt={s.name}
-                              />
+                    <div>
+                      <div className="flex items-center justify-between mb-6">
+                        <h4 className="text-lg font-black text-gray-800">최근 검색 항목</h4>
+                        <button
+                          onClick={() => {
+                            setRecentSearches([]);
+                            persistRecentSearches([]);
+                          }}
+                          className="text-sm font-black text-rose-500 hover:text-rose-600"
+                        >
+                          모두 지우기
+                        </button>
+                      </div>
+                      <div className="space-y-4">
+                        {recentSearches.length > 0 ? (
+                          recentSearches.map((s) => (
+                            <div key={s.id} className="flex items-center gap-4 group/searchItem">
+                              <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
+                                <img
+                                  src={s.profileImgUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`}
+                                  alt={s.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRecentSearchClick(s)}
+                                className="flex-1 text-left"
+                              >
+                                <p className="font-bold text-gray-800">{s.name}</p>
+                                <p className="text-sm text-gray-500">@{s.subtitle}</p>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeRecentSearch(s.id)}
+                                className="p-1 hover:bg-gray-100 rounded-full transition-all"
+                              >
+                                <X className="w-5 h-5 text-gray-300" />
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRecentSearchClick(s)}
-                              className="flex-1 text-left"
-                            >
-                              <p className="font-bold text-gray-800">{s.name}</p>
-                              <p className="text-sm text-gray-500">{s.subtitle}</p>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeRecentSearch(s.id)}
-                              className="p-1 hover:bg-gray-100 rounded-full transition-all"
-                            >
-                              <X className="w-5 h-5 text-gray-300" />
-                            </button>
+                          ))
+                        ) : (
+                          <div className="flex-1 flex items-center justify-center py-20">
+                            <p className="text-gray-400 font-bold text-sm">
+                              닉네임 또는 커스텀아이디로 검색해보세요.
+                            </p>
                           </div>
-                        ))
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center py-20">
-                          <p className="text-gray-400 font-bold text-sm">
-                            닉네임 또는 이메일로 검색해보세요.
-                          </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
                   )}
                 </div>
               )}
@@ -744,23 +744,27 @@ export default function Sidebar({
                           <p className="text-[11px] text-gray-400 font-bold mt-1 tracking-tight uppercase italic">
                             {alarm.time}
                           </p>
-                          {alarm.type === 'follow' && (alarm.payload as any)?.followRequestId && (
-                            <div className="flex gap-2 mt-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onAccept(
-                                    (alarm.payload as any).followRequestId,
-                                    (alarm.payload as any)?.senderName || '사용자',
-                                  );
-                                  onRemoveAlarm(alarm.id);
-                                }}
-                                className="px-3 py-1.5 bg-rose-500 text-white text-[11px] font-black rounded-xl hover:bg-rose-600 transition-colors shadow-sm"
-                              >
-                                수락
-                              </button>
-                            </div>
-                          )}
+                          {alarm.type === 'follow' && alarm.payload && !!(alarm.payload as { followRequestId?: number }).followRequestId && (
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const payload = alarm.payload as Record<
+                                      string,
+                                      number | string
+                                    >;
+                                    onAccept(
+                                      payload.followRequestId as number,
+                                      (payload.senderName as string) || '사용자',
+                                    );
+                                    onRemoveAlarm(alarm.id);
+                                  }}
+                                  className="px-3 py-1.5 bg-rose-500 text-white text-[11px] font-black rounded-xl hover:bg-rose-600 transition-colors shadow-sm"
+                                >
+                                  수락
+                                </button>
+                              </div>
+                            )}
                         </div>
                         <button
                           onClick={() => onRemoveAlarm(alarm.id)}
@@ -824,8 +828,9 @@ export default function Sidebar({
                             >
                               <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-gray-100 to-gray-200 border border-white shadow-sm overflow-hidden shrink-0">
                                 <img
-                                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${f.name}`}
+                                  src={f.profileImgUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${f.name}`}
                                   alt={f.name}
+                                  className="w-full h-full object-cover"
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -880,6 +885,7 @@ export default function Sidebar({
                                 <img
                                   src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${req.name}`}
                                   alt={req.name}
+                                  className="w-full h-full object-cover"
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1217,4 +1223,3 @@ export default function Sidebar({
     </div>
   );
 }
-

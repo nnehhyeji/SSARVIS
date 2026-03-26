@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { MessageCircle, Mic, MicOff, Lock, Unlock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import userApi from '../../apis/userApi';
 
 // Hooks
@@ -12,7 +12,6 @@ import { useNotification } from '../../hooks/useNotification';
 import { useUserStore } from '../../store/useUserStore';
 
 // Components
-import AnimatedBackground from '../../components/AnimatedBackground';
 import Sidebar from '../../components/common/Sidebar';
 import SpeechBubble from '../../components/common/SpeechBubble';
 import CharacterScene from '../../components/features/character/CharacterScene';
@@ -21,7 +20,6 @@ import MyCardModal from '../../components/features/follow/MyCardModal';
 import SharePersonaModal from '../../components/features/follow/SharePersonaModal';
 
 // Constants & Types
-import { BG_COLORS, LOCK_MODE_PALETTE } from '../../constants/theme';
 import type { Alarm, Mode } from '../../types';
 
 import { PATHS } from '../../routes/paths';
@@ -111,10 +109,7 @@ export default function HomePage() {
     [readAlarm],
   );
 
-  const backgroundProps = useMemo(() => {
-    if (isLockMode) return LOCK_MODE_PALETTE;
-    return BG_COLORS[currentMode] || {};
-  }, [isLockMode, currentMode]);
+
 
   const handleVisit = useCallback(
     (id: number) => {
@@ -137,34 +132,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between">
-      <AnimatedBackground {...backgroundProps} />
-
-      {/* 시크릿 모드 상단 조명 효과 (Beam of Light) */}
-      <AnimatePresence>
-        {isLockMode && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
-            className="fixed inset-0 pointer-events-none z-[8]"
-          >
-            {/* 가시적인 빛의 기둥 (정중앙 수직 조명) */}
-            <div
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] opacity-50 blur-[4px]"
-              style={{
-                background:
-                  'linear-gradient(to bottom, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.2) 60%, transparent 100%)',
-                clipPath: 'polygon(45% 0, 55% 0, 100% 100%, 0% 100%)',
-              }}
-            />
-            {/* 주변을 살짝 어둡게 하는 비네팅 (배경은 보이게) */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_150px,rgba(0,0,0,0.4)_500px)]" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div className="relative w-full h-screen overflow-hidden flex flex-col justify-between bg-white">
       <Sidebar
         userInfo={userInfo}
         onLogout={handleLogout}

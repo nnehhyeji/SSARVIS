@@ -19,10 +19,13 @@ export interface FollowListResponse {
   followId: number;
   userId: number;
   nickname: string;
+  customId: string;
+  followerProfileImgUrl: string;
   description: string;
 }
 
 export interface FollowerListResponse {
+  followId: number;
   followerId: number;
   nickname: string;
   customId: string;
@@ -39,8 +42,10 @@ export interface FollowRequestListResponse {
 
 export interface UserSearchResponse {
   userId: number;
+  customId: string;
   nickname: string;
   email: string;
+  profileImageUrl: string;
   followStatus: 'NONE' | 'REQUESTED' | 'FOLLOWING';
 }
 
@@ -90,10 +95,10 @@ const followApi = {
   },
 
   // 7. 유저 검색
-  searchUsers: async (params: { nickname?: string; email?: string }) => {
+  searchUsers: async (keyword: string) => {
     const response = await axiosInstance.get<CommonResponse<UserSearchResponse[]>>(
       '/follows/search',
-      { params },
+      { params: { keyword } },
     );
     return response.data;
   },

@@ -201,9 +201,9 @@ export default function FollowSidebar({
                         <span className="text-gray-800 font-bold text-sm leading-tight">
                           {f.name}
                         </span>
-                            <span className="text-gray-500 text-[10px] leading-tight">
-                              {f.description || f.email}
-                            </span>
+                        <span className="text-gray-500 text-[10px] leading-tight">
+                          {f.description || f.email}
+                        </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -225,31 +225,33 @@ export default function FollowSidebar({
                         </button>
                       )}
 
-                      {f.followId ? <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveFollowMenuId((prev) => (prev === f.id ? null : f.id))
-                          }
-                          className="p-1 px-1.5 hover:bg-white/50 rounded-md text-gray-500 hover:text-gray-800 transition outline-none"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                        {activeFollowMenuId === f.id && (
-                          <div className="absolute right-0 top-full mt-1 w-24 bg-white/95 backdrop-blur-md border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden text-[13px] animate-in slide-in-from-top-2 fade-in">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onDelete(f);
-                                setActiveFollowMenuId(null);
-                              }}
-                              className="w-full text-left px-4 py-2 text-red-500 font-semibold hover:bg-red-50 transition"
-                            >
-                              삭제
-                            </button>
-                          </div>
-                        )}
-                      </div> : null}
+                      {f.followId ? (
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveFollowMenuId((prev) => (prev === f.id ? null : f.id))
+                            }
+                            className="p-1 px-1.5 hover:bg-white/50 rounded-md text-gray-500 hover:text-gray-800 transition outline-none"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                          {activeFollowMenuId === f.id && (
+                            <div className="absolute right-0 top-full mt-1 w-24 bg-white/95 backdrop-blur-md border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden text-[13px] animate-in slide-in-from-top-2 fade-in">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onDelete(f);
+                                  setActiveFollowMenuId(null);
+                                }}
+                                className="w-full text-left px-4 py-2 text-red-500 font-semibold hover:bg-red-50 transition"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ))}

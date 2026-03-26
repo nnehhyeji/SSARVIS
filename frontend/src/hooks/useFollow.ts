@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Follow, FollowRequest } from '../types';
 import { VISITOR_PALETTES } from '../constants/theme';
 import type { BgColors } from '../constants/theme';
@@ -59,6 +59,8 @@ export function useFollow() {
         id: f.userId,
         followId: f.followId,
         name: f.nickname || '이름 없음',
+        customId: f.customId || '',
+        profileImgUrl: f.followerProfileImgUrl || '',
         email: '',
         description: f.description || '',
         color: 'bg-indigo-100',
@@ -70,7 +72,10 @@ export function useFollow() {
 
       const mappedFollowers: Follow[] = (followerRes.data || []).map((f) => ({
         id: f.followerId,
+        followId: f.followId,
         name: f.nickname || '이름 없음',
+        customId: f.customId || '',
+        profileImgUrl: f.followerProfileImgUrl || '',
         email: '',
         description: f.description || '',
         color: 'bg-blue-100',
@@ -235,23 +240,16 @@ export function useFollow() {
       setIsSearchLoading(true);
       searchTimeoutRef.current = setTimeout(async () => {
         try {
-          // 닉네임과 이메일 검색을 병렬로 호출해 응답 시간을 줄인다.
-          // 백엔드 통합 검색 API가 생기기 전까지의 프론트 임시 최적화다.
-          const [nicknameRes, emailRes] = await Promise.all([
-            followApi.searchUsers({ nickname: query }).catch(() => ({ data: [] as never[] })),
-            followApi.searchUsers({ email: query }).catch(() => ({ data: [] as never[] })),
-          ]);
+          const res = await followApi.searchUsers(query);
+          const rawUsers = res.data || [];
 
-          const combinedData = [...(nicknameRes.data || []), ...(emailRes.data || [])];
-
-          // userId 기준으로 중복 검색 결과를 제거한다.
-          const uniqueUsers = Array.from(new Map(combinedData.map((u) => [u.userId, u])).values());
-
-          if (uniqueUsers.length > 0) {
-            const mappedUsers: Follow[] = uniqueUsers.map((u) => ({
+          if (rawUsers.length > 0) {
+            const mappedUsers: Follow[] = rawUsers.map((u) => ({
               id: u.userId,
-              followId: undefined, // 寃??寃곌낵?먮뒗 followId媛 ?놁쓣 ???덉쓬
+              followId: undefined,
               name: u.nickname,
+              customId: u.customId || '',
+              profileImgUrl: u.profileImageUrl || '',
               email: u.email,
               description: '',
               color: 'bg-gray-200',
@@ -280,7 +278,7 @@ export function useFollow() {
 
   return {
     follows,
-    allUsers: follows, // CardPage.tsx ?명솚?깆쓣 ?꾪빐 異붽?
+    allUsers: follows,
     followRequests,
     searchResults,
     isSearchLoading,
