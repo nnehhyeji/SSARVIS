@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useVoiceLockStore } from './useVoiceLockStore';
 
 // 1. Store에서 관리할 상태(State)와 액션(Action)의 타입 정의
 interface UserInfo {
@@ -34,11 +35,13 @@ export const useUserStore = create<UserState>()(
       logout: () => {
         set({ isLoggedIn: false, userInfo: null });
         localStorage.removeItem('token');
+        useVoiceLockStore.getState().resetVoiceLockState();
       },
 
       clearUserData: () => {
         set({ isLoggedIn: false, userInfo: null });
         localStorage.removeItem('token');
+        useVoiceLockStore.getState().resetVoiceLockState();
       },
     }),
     {
