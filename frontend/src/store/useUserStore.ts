@@ -49,6 +49,8 @@ export const useUserStore = create<UserState>()(
         localStorage.removeItem('token');
         useVoiceLockStore.getState().resetVoiceLockState();
       },
+
+      setCurrentMode: (mode) => set({ currentMode: mode }),
     }),
     {
       name: 'user-storage', // localStorage에 저장될 키 이름

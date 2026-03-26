@@ -132,4 +132,8 @@ public class User extends BaseTime {
         this.isPublic = !this.isPublic;
     }
 
+    public void updateProfileVisibility(Boolean isPublic) {
+        this.isPublic = isPublic;
+    }
+
 }

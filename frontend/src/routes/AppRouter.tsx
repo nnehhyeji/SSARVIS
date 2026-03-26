@@ -41,6 +41,14 @@ export const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       {
+        index: true,
+        element: (
+          <ProtectedRoute>
+            <UserMainPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: PATHS.USER_HOME_PARAM,
         element: <UserMainPage />,
       },

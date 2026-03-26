@@ -43,6 +43,8 @@ public class GuestAiRequestRelayService {
 
     private void connectAndSend(WebSocketSession frontendSession, AiChatRequestDto payload, String activeSessionId) {
         WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+        container.setDefaultMaxBinaryMessageBufferSize(1024 * 1024);
+        container.setDefaultMaxTextMessageBufferSize(1024 * 1024);
         StandardWebSocketClient client = new StandardWebSocketClient(container);
 
         GuestFastApiWebSocketHandler handler = new GuestFastApiWebSocketHandler(

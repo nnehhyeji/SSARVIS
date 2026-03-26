@@ -153,8 +153,10 @@ const userApi = {
   },
 
   // 12. 공개/비공개 계정 전환 토글
-  toggleProfileVisibility: async () => {
-    const response = await axiosInstance.get<CommonResponse<string>>('/users/profile/toggle');
+  toggleProfileVisibility: async (isPublic: boolean) => {
+    const response = await axiosInstance.patch<CommonResponse<string>>('/users/profile/toggle', {
+      isPublic,
+    });
     return response.data;
   },
 };
