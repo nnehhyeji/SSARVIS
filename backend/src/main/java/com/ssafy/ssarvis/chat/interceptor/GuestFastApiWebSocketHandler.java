@@ -13,7 +13,7 @@ import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
 @Slf4j
 @RequiredArgsConstructor
-public class GuestFastApiWebSocketHandler extends AbstractWebSocketHandler { // 🌟 핵심 변경: Text... -> Abstract...
+public class GuestFastApiWebSocketHandler extends AbstractWebSocketHandler {
 
     private final WebSocketSession frontendSession;
     private final GuestChatRedisService redisService;
@@ -23,11 +23,11 @@ public class GuestFastApiWebSocketHandler extends AbstractWebSocketHandler { // 
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        if (!frontendSession.isOpen()) return;
+        if (!frontendSession.isOpen()) {
+            return;
+        }
 
         String rawPayload = message.getPayload();
-
-        // 텍스트 패킷은 가공 없이 즉시 프론트로
         frontendSession.sendMessage(new TextMessage(rawPayload));
 
         try {
@@ -57,19 +57,23 @@ public class GuestFastApiWebSocketHandler extends AbstractWebSocketHandler { // 
             return;
         }
         try {
-            frontendSession.sendMessage(message); // 오디오 바이너리 즉시 통과 (Passthrough)
+            frontendSession.sendMessage(new BinaryMessage(message.getPayload(), message.isLast()));
         } catch (Exception e) {
             log.error("프론트엔드로의 오디오 바이너리 릴레이 전송 실패. frontendSessionId={}", frontendSession.getId(), e);
         }
     }
 
-    private void handleTextStart(AiStreamMessageDto dto) {}
+    private void handleTextStart(AiStreamMessageDto dto) {
+        // no-op
+    }
 
     private void handleTextEnd(AiStreamMessageDto dto) {
         extractAndAppendText(dto);
     }
 
-    private void handleVoiceStart(AiStreamMessageDto dto) {}
+    private void handleVoiceStart(AiStreamMessageDto dto) {
+        // no-op
+    }
 
     private void handleVoiceDelta(AiStreamMessageDto dto) {
         extractAndAppendText(dto);
