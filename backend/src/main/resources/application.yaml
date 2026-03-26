@@ -54,8 +54,8 @@ spring:
 
   app:
     slow-query:
-      threshold-ms: 50
-      csv-output-dir: ./logs/slow-queries
+      threshold-ms: 10
+#      csv-output-dir: ./logs/slow-queries
     slack:
       webhook-url: ${SLACK_WEBHOOK_URL}
       enabled: true

@@ -50,8 +50,9 @@ public class NotificationServiceImpl implements NotificationService {
 
         NotificationPayload notificationPayload = NotificationPayload.builder()
             .senderId(sender.getId())
-            .senderNickname(sender.getNickname())
+            .senderCustomId(sender.getCustomId())
             .message(notification.getMessage())
+            .senderProfileImage(sender.getProfileImageUrl())
             .createdAt(notification.getCreatedAt().toString())
             .build();
 
@@ -85,8 +86,9 @@ public class NotificationServiceImpl implements NotificationService {
 
         NotificationPayload notificationPayload = NotificationPayload.builder()
             .senderId(receiver.getId())
-            .senderNickname(receiver.getNickname())
+            .senderCustomId(receiver.getCustomId())
             .message(notification.getMessage())
+            .senderProfileImage(receiver.getProfileImageUrl())
             .createdAt(notification.getCreatedAt().toString())
             .build();
 
