@@ -12,7 +12,7 @@ public class SlowQuery6spyConfig {
 
     private final ApplicationContext applicationContext;
 
-    @Value("${spring.app.slow-query.threshold-ms:50}")
+    @Value("${spring.app.slow-query.threshold-ms:10}")
     private long thresholdMs;
 
     @PostConstruct

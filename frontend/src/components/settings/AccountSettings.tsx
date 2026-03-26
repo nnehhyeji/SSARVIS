@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Eye, MessageCircle, Timer } from 'lucide-react';
+import { motion } from 'framer-motion';
 import axios from 'axios';
 import userApi from '../../apis/userApi';
 import type { UserResponse, UpdateUserRequest } from '../../apis/userApi';
@@ -103,8 +102,27 @@ export default function AccountSettings({
     }
   };
 
+  const handleTogglePersonaCollection = async () => {
+    if (isSaving) return;
+    const prevProfile = profile;
+    setProfile((prev) => (prev ? { ...prev, isAcceptPrompt: !prev.isAcceptPrompt } : prev));
+    try {
+      setIsSaving(true);
+      await userApi.toggleNamna();
+    } catch (error) {
+      console.error('Failed to toggle persona collection:', error);
+      setProfile(prevProfile);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleWithdraw = async () => {
-    if (window.confirm('정말로 탈퇴하시겠습니까? 모든 데이터가 삭제되며 복구할 수 없습니다.')) {
+    if (
+      window.confirm(
+        '정말로 탈퇴하시겠습니까?\n탈퇴 시 모든 데이터가 삭제되며, 동일한 이메일로의 재가입이 불가능합니다.',
+      )
+    ) {
       try {
         await userApi.withdraw();
         alert('회원 탈퇴가 완료되었습니다.');
@@ -121,281 +139,227 @@ export default function AccountSettings({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-      <div>
-        <h2 className="text-3xl font-black text-gray-900 mb-2">개인정보 설정</h2>
-        <p className="text-gray-500 font-medium">서비스 내에서 표시되는 회원 정보를 관리합니다.</p>
+    <div className="flex flex-col gap-12 w-full pb-32">
+      {/* 1. 프로필 섹션 */}
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-8">
+          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-100">
+            <img
+              src={profile?.userProfileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.nickname || 'user'}`}
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <h2 className="text-4xl font-black text-gray-900 tracking-tight">{profile?.nickname}</h2>
+            <p className="text-gray-400 font-bold text-lg">ID: @{profile?.customId || 'unknown'}</p>
+            <p className="text-gray-400 font-bold text-lg">EMAIL: {profile?.email}</p>
+          </div>
+        </div>
+        <button
+          onClick={onOpenImageModal}
+          className="px-8 py-3 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-xl shadow-lg shadow-rose-500/20 transition-all active:scale-95"
+        >
+          이미지 변경
+        </button>
       </div>
 
-      <div className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100 space-y-8">
-        {/* 프로필 헤더 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <button
-              onClick={onOpenImageModal}
-              className="w-20 h-20 rounded-full bg-gradient-to-tr from-pink-100 to-green-100 border-4 border-white shadow-md flex items-center justify-center overflow-hidden relative group cursor-pointer"
-            >
-              {profile?.userProfileImageUrl ? (
-                <img
-                  src={profile.userProfileImageUrl}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
+      <div className="h-px w-full bg-gray-100" />
+
+      {/* 2. 상세 설정 리스트 */}
+      <div className="flex flex-col gap-12">
+        {/* 닉네임 */}
+        <div className="flex items-start justify-between">
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">닉네임</div>
+          <div className="flex-1 flex justify-between items-center pl-10">
+            {isEditingNickname ? (
+              <div className="flex flex-col gap-2 w-full max-w-md">
+                <input
+                  type="text"
+                  value={newNickname}
+                  onChange={(e) => setNewNickname(e.target.value)}
+                  className="text-[18px] font-black text-gray-900 bg-gray-50 rounded-xl px-4 py-3 outline-none border-2 border-rose-100 focus:border-rose-500 transition-all leading-tight"
+                  autoFocus
                 />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <div className="flex gap-2">
-                    <div className="w-1.5 h-2.5 bg-gray-800 rounded-full" />
-                    <div className="w-1.5 h-2.5 bg-gray-800 rounded-full" />
-                  </div>
-                  <div className="w-3.5 h-2 border-b-2 border-gray-800 rounded-full mt-1" />
+                <div className="flex gap-2">
+                  <button onClick={() => handleUpdateProfile('nickname')} className="text-sm text-rose-500 font-black">저장</button>
+                  <button onClick={() => setIsEditingNickname(false)} className="text-sm text-gray-400 font-black pl-2">취소</button>
                 </div>
-              )}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
-                <Camera className="w-5 h-5 text-white" />
               </div>
-            </button>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">{profile?.nickname || '사용자'}</h3>
-              <p className="text-gray-400">{profile?.email || 'email@example.com'}</p>
-            </div>
+            ) : (
+              <span className="text-[18px] font-black text-gray-900 leading-tight">{profile?.nickname}</span>
+            )}
+            {!isEditingNickname && (
+              <button onClick={() => setIsEditingNickname(true)} className="text-rose-500 font-black hover:underline underline-offset-4 text-sm">편집</button>
+            )}
           </div>
-          <button
-            onClick={onOpenImageModal}
-            className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-2xl font-bold text-gray-600 transition-colors flex items-center gap-2"
-          >
-            <Camera className="w-4 h-4" />
-            이미지 변경
-          </button>
         </div>
 
-        <div className="space-y-4">
-          {/* 닉네임 */}
-          <div className="p-5 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col gap-3 group hover:border-blue-200 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
-                  Nickname
-                </span>
-                {!isEditingNickname ? (
-                  <span className="text-lg font-bold text-gray-800">{profile?.nickname}</span>
-                ) : (
-                  <input
-                    type="text"
-                    value={newNickname}
-                    onChange={(e) => setNewNickname(e.target.value)}
-                    className="text-lg font-bold text-gray-800 bg-white border border-blue-200 rounded-xl px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    autoFocus
-                  />
-                )}
-              </div>
-              {!isEditingNickname ? (
-                <button
-                  onClick={() => setIsEditingNickname(true)}
-                  className="px-4 py-2 text-blue-500 font-bold hover:bg-blue-50 rounded-xl transition-colors"
-                >
-                  수정
-                </button>
-              ) : (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleUpdateProfile('nickname')}
-                    className="px-4 py-2 bg-blue-500 text-white font-bold rounded-xl transition-colors"
-                  >
-                    저장
-                  </button>
-                  <button
-                    onClick={() => setIsEditingNickname(false)}
-                    className="px-4 py-2 text-gray-400 font-bold hover:bg-gray-100 rounded-xl transition-colors"
-                  >
-                    취소
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 소개 */}
-          <div className="p-5 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col gap-3 group hover:border-pink-200 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col w-full mr-4">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
-                  Introduction
-                </span>
-                {!isEditingDescription ? (
-                  <span className="text-lg font-bold text-gray-800">
-                    {profile?.description || '한줄 소개를 입력해 주세요.'}
-                  </span>
-                ) : (
+        {/* 소개 */}
+        <div className="flex items-start justify-between">
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">소개</div>
+          <div className="flex-1 flex flex-col gap-4 pl-10">
+            {isEditingDescription ? (
+              <div className="flex flex-col gap-4 w-full">
+                <div className="relative">
                   <textarea
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
-                    className="text-lg font-bold text-gray-800 bg-white border border-pink-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500/20 min-h-[80px]"
-                    autoFocus
+                    className="w-full text-[18px] font-black text-gray-900 bg-gray-100 rounded-3xl px-8 py-8 outline-none min-h-[160px] resize-none border-none placeholder:text-gray-300 leading-tight"
+                    maxLength={255}
+                    placeholder="자신을 자유롭게 소개해 주세요."
                   />
-                )}
-              </div>
-              {!isEditingDescription ? (
-                <button
-                  onClick={() => setIsEditingDescription(true)}
-                  className="px-4 py-2 text-pink-500 font-bold hover:bg-pink-50 rounded-xl transition-colors shrink-0"
-                >
-                  수정
-                </button>
-              ) : (
-                <div className="flex gap-2 shrink-0">
+                  <span className="absolute bottom-6 right-8 text-xl font-bold text-gray-400">
+                    {newDescription.length}/255
+                  </span>
+                </div>
+                <div className="flex gap-6">
                   <button
                     onClick={() => handleUpdateProfile('description')}
-                    className="px-4 py-2 bg-pink-500 text-white font-bold rounded-xl transition-colors"
+                    className="text-rose-500 font-black text-sm"
                   >
                     저장
                   </button>
                   <button
                     onClick={() => setIsEditingDescription(false)}
-                    className="px-4 py-2 text-gray-400 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+                    className="text-gray-400 font-black text-sm"
                   >
                     취소
                   </button>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* 비밀번호 */}
-          <div className="p-5 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col gap-3 group hover:border-indigo-200 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
-                  Security
-                </span>
-                <span className="text-lg font-bold text-gray-800">비밀번호 변경</span>
               </div>
-              {!isEditingPassword ? (
+            ) : (
+              <div className="flex justify-between items-start w-full">
+                <p className="text-[18px] font-black text-gray-900 leading-tight max-w-2xl">
+                  {profile?.description || '소개가 없습니다.'}
+                </p>
                 <button
-                  onClick={() => setIsEditingPassword(true)}
-                  className="px-4 py-2 text-indigo-500 font-bold hover:bg-indigo-50 rounded-xl transition-colors"
+                  onClick={() => setIsEditingDescription(true)}
+                  className="text-rose-500 font-black hover:underline underline-offset-4 text-sm whitespace-nowrap"
                 >
-                  수정
+                  편집
                 </button>
-              ) : (
-                <button
-                  onClick={() => setIsEditingPassword(false)}
-                  className="px-4 py-2 text-gray-400 font-bold hover:bg-gray-100 rounded-xl transition-colors"
-                >
-                  취소
-                </button>
-              )}
-            </div>
-            <AnimatePresence>
-              {isEditingPassword && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-3 pt-2"
-                >
-                  <input
-                    type="password"
-                    placeholder="새 비밀번호 (8자 이상)"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-white border border-indigo-100 border-2 rounded-xl py-3 px-4 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 transition-all placeholder:text-gray-300"
-                  />
-                  <input
-                    type="password"
-                    placeholder="비밀번호 확인"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-white border border-indigo-100 border-2 rounded-xl py-3 px-4 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 transition-all placeholder:text-gray-300"
-                  />
-                  <button
-                    onClick={() => handleUpdateProfile('password')}
-                    className="w-full py-4 bg-indigo-500 text-white rounded-[20px] font-black text-lg hover:bg-indigo-600 transition-all active:scale-95 shadow-lg shadow-indigo-100"
-                  >
-                    비밀번호 업데이트
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* 상태 카드 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-5 rounded-3xl border border-gray-100 bg-gray-50/50 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center shrink-0">
-                <MessageCircle className="w-5 h-5 text-pink-500" />
-              </div>
-              <div className="flex flex-col overflow-hidden">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  Namna Status
-                </span>
-                <span className="text-sm font-bold text-gray-700 truncate">
-                  {profile?.isAcceptPrompt ? '문답 받는 중' : '문답 거부 중'}
-                </span>
-              </div>
-            </div>
-            <div className="p-5 rounded-3xl border border-gray-100 bg-gray-50/50 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-                <Timer className="w-5 h-5 text-indigo-500" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                  Lock Timeout
-                </span>
-                <span className="text-sm font-bold text-gray-700">
-                  {isVoiceLockRegistered ? formatTime(profile?.voiceLockTimeout) : '미설정'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* 공개/비공개 토글 */}
-          <div className="p-5 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col gap-3 group hover:border-teal-200 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
-                  <Eye className="w-5 h-5 text-teal-600" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
-                    Visibility
-                  </span>
-                  <span className="text-lg font-bold text-gray-800">
-                    {profile?.isProfilePublic ? '공개 계정' : '비공개 계정'}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleToggleProfile}
-                disabled={isSaving}
-                className={`w-14 h-7 rounded-full relative transition-all duration-300 outline-none ${profile?.isProfilePublic ? 'bg-teal-500' : 'bg-gray-300'}`}
-              >
-                <div
-                  className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 ${profile?.isProfilePublic ? 'left-8' : 'left-1'}`}
+        {/* 비밀번호 변경 */}
+        <div className="flex items-start justify-between">
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">비밀번호 변경</div>
+          <div className="flex-1 flex flex-col gap-4 pl-10">
+            {isEditingPassword ? (
+              <div className="flex flex-col gap-4 w-full max-w-md">
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="새 비밀번호"
+                  className="bg-gray-50 rounded-xl px-4 py-3 outline-none border-2 border-rose-100 focus:border-rose-500 font-bold"
                 />
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 font-medium italic">
-              * 비공개 계정일 경우 다른 사용자가 검색할 수 없습니다.
-            </p>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="새 비밀번호 확인"
+                  className="bg-gray-50 rounded-xl px-4 py-3 outline-none border-2 border-rose-100 focus:border-rose-500 font-bold"
+                />
+                <div className="flex gap-2">
+                  <button onClick={() => handleUpdateProfile('password')} className="text-sm text-rose-500 font-black">저장</button>
+                  <button onClick={() => setIsEditingPassword(false)} className="text-sm text-gray-400 font-black pl-2">취소</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between items-center w-full">
+                <div className="w-4 h-4" /> {/* Spacer */}
+                <button onClick={() => setIsEditingPassword(true)} className="text-sm text-rose-500 font-black hover:underline underline-offset-4">편집</button>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* 검색용 아이디 */}
-          <div className="p-5 rounded-3xl border border-gray-100 bg-gray-50/30 flex flex-col">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
-              Public Link ID (검색용 아이디)
-            </span>
-            <span className="text-lg font-bold text-gray-800">@{profile?.customId}</span>
+        {/* 계정 공개 범위 */}
+        <div className="flex items-center justify-between">
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">계정 공개 범위</div>
+          <div className="flex-1 pl-10 flex items-center justify-between">
+            <div className="flex flex-col gap-2">
+              <span className="text-[18px] font-black text-gray-900 leading-none">공개 계정</span>
+              <p className="text-sm font-bold text-gray-400">검색 아이디를 통해 타인이 나를 찾을 수 있습니다.</p>
+            </div>
+            <button
+              onClick={handleToggleProfile}
+              className="w-14 h-7 rounded-full relative transition-all duration-300 bg-gray-200 overflow-hidden"
+            >
+              <motion.div
+                animate={{
+                  backgroundColor: profile?.isProfilePublic ? '#f43f5e' : '#e5e7eb',
+                }}
+                className="absolute inset-0"
+              />
+              <motion.div
+                animate={{
+                  x: profile?.isProfilePublic ? 32 : 4,
+                }}
+                className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md z-10"
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* 남이 보는 나 */}
+        <div className="flex items-center justify-between">
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">남이 보는 나</div>
+          <div className="flex-1 pl-10 flex items-center justify-between">
+            <div className="flex flex-col gap-2">
+              <span className="text-[18px] font-black text-gray-900 leading-none">문답 수집</span>
+              <p className="text-sm font-bold text-gray-400">타인의 질문을 받아 응답을 수집하고 AI를 고도화합니다.</p>
+            </div>
+            <button
+              onClick={handleTogglePersonaCollection}
+              className="w-14 h-7 rounded-full relative transition-all duration-300 bg-gray-200 overflow-hidden"
+            >
+              <motion.div
+                animate={{
+                  backgroundColor: profile?.isAcceptPrompt ? '#f43f5e' : '#e5e7eb',
+                }}
+                className="absolute inset-0"
+              />
+              <motion.div
+                animate={{
+                  x: profile?.isAcceptPrompt ? 32 : 4,
+                }}
+                className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md z-10"
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* 음성 잠금 */}
+        <div className="flex items-center justify-between">
+          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">음성 잠금</div>
+          <div className="flex-1 pl-10 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-[18px] font-black text-gray-900 leading-tight">사용중</span>
+              <span className="text-sm font-bold text-gray-400">{isVoiceLockRegistered ? formatTime(profile?.voiceLockTimeout) : '미설정'}</span>
+            </div>
+            <button
+              onClick={() => navigate(PATHS.SETTINGS_PARAM.replace(':tab', 'voice'))}
+              className="text-rose-500 font-black hover:underline underline-offset-4 text-sm"
+            >
+              설정
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="flex gap-4 pt-10">
+      <div className="flex justify-center pt-20">
         <button
           onClick={handleWithdraw}
-          className="px-8 py-4 text-red-500 font-black hover:bg-red-50 rounded-[24px] transition-colors border-2 border-transparent hover:border-red-100"
+          className="text-sm font-black text-rose-500 hover:text-rose-600 border-b border-rose-500/30 pb-1"
         >
-          회원 탈퇴하기
+          회원탈퇴
         </button>
       </div>
     </div>
