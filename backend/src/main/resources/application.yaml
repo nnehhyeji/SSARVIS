@@ -46,6 +46,8 @@ spring:
         show_sql: false
         format_sql: false
         highlight_sql: false
+        jdbc:
+          time_zone: Asia/Seoul   # 추가
     open-in-view: false
 
   app:
