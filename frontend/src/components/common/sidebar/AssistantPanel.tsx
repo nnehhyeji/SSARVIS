@@ -11,8 +11,8 @@ const AssistantPanel: React.FC<AssistantPanelProps> = ({
   onModeChange,
 }) => {
   return (
-    <div className="flex-1 flex flex-col pt-2 bg-[#eee5df]">
-      <div className="flex flex-col gap-10 px-10 pt-10">
+    <div className="flex-1 flex flex-col pt-2 bg-white">
+      <div className="flex flex-col gap-8 px-8 pt-6">
         {[
           {
             label: '일상 모드',
@@ -38,7 +38,7 @@ const AssistantPanel: React.FC<AssistantPanelProps> = ({
             className={`text-left group transition-all`}
           >
             <h3
-              className={`text-3xl font-black transition-colors ${currentMode === m.mode ? 'text-rose-500' : 'text-gray-500 group-hover:text-gray-800'}`}
+              className={`text-2xl font-black transition-colors ${currentMode === m.mode ? 'text-rose-500' : 'text-gray-500 group-hover:text-gray-800'}`}
             >
               {m.label}
             </h3>

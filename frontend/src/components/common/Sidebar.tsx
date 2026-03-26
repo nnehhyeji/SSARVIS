@@ -367,20 +367,19 @@ export default function Sidebar({
       <motion.aside
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
-        initial={{ width: 80 }}
         animate={{
-          width: isExpanded ? 240 : 100,
+          width: isExpanded ? 240 : 80,
           opacity:
             !isExpanded && (activeTertiary === 'notifications' || activeTertiary === 'search')
               ? 0
               : 1,
         }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="h-full bg-[#eee5df] border-r border-gray-200 pointer-events-auto flex flex-col items-center py-8 shadow-xl z-[130]"
+        className="h-full bg-[#eee5df] border-r border-gray-200 pointer-events-auto flex flex-col items-center py-6 z-[130]"
       >
-        <div className="mb-8 flex flex-col items-center gap-2">
-          <div className="w-12 h-12 bg-white flex items-center justify-center rounded-lg shadow-sm">
-            <span className="font-bold text-gray-800 text-sm">로고</span>
+        <div className="mb-6 flex flex-col items-center gap-2">
+          <div className="w-10 h-10 bg-white flex items-center justify-center rounded-lg shadow-sm">
+            <span className="font-bold text-gray-800 text-[10px]">로고</span>
           </div>
         </div>
 
@@ -393,13 +392,13 @@ export default function Sidebar({
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 className="overflow-hidden"
               >
-                <div
-                  onClick={() => setActiveTertiary('search')}
-                  className="w-full bg-[#e5e0dc] rounded-xl flex items-center gap-3 py-3 px-4 cursor-pointer hover:bg-[#dcd2ca] transition-colors"
-                >
-                  <Search className="w-5 h-5 text-white/80 shrink-0" />
-                  <span className="text-gray-400 font-bold whitespace-nowrap">Search</span>
-                </div>
+                  <div
+                    onClick={() => setActiveTertiary('search')}
+                    className="w-full bg-[#e5e0dc] rounded-xl flex items-center gap-2 py-2 px-3 cursor-pointer hover:bg-[#dcd2ca] transition-colors"
+                  >
+                    <Search className="w-4 h-4 text-white/80 shrink-0" />
+                    <span className="text-gray-400 font-bold whitespace-nowrap text-sm">Search</span>
+                  </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -410,10 +409,10 @@ export default function Sidebar({
               <div key={item.id} className="relative group/item">
                 <button
                   onClick={() => handleItemClick(item)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-lg transition-all duration-200 hover:bg-black/5`}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 hover:bg-black/5`}
                 >
-                  <div className={`shrink-0 w-10 h-10 flex items-center justify-center relative`}>
-                    <Icon className={`w-8 h-8 ${item.color || 'text-rose-500'}`} />
+                  <div className={`shrink-0 w-8 h-8 flex items-center justify-center relative`}>
+                    <Icon className={`w-6.5 h-6.5 ${item.color || 'text-rose-500'}`} />
                     {item.badge !== undefined && item.badge > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[12px] flex items-center justify-center rounded-full font-bold">
                         {item.badge}
@@ -426,7 +425,7 @@ export default function Sidebar({
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
-                        className="text-[18px] font-medium text-gray-700 whitespace-nowrap"
+                        className="text-[16px] font-medium text-gray-700 whitespace-nowrap"
                       >
                         {item.label}
                       </motion.span>
@@ -445,10 +444,10 @@ export default function Sidebar({
               <button
                 key={item.id}
                 onClick={() => handleItemClick(item)}
-                className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-black/5 transition-all duration-300"
+                className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 transition-all duration-300"
               >
                 <div className="shrink-0 w-8 h-8 flex items-center justify-center">
-                  <Icon className={`w-8 h-8 ${item.color}`} />
+                  <Icon className={`w-6 h-6 ${item.color}`} />
                 </div>
                 <AnimatePresence>
                   {isExpanded && (
@@ -475,13 +474,13 @@ export default function Sidebar({
             animate={{
               x: 0,
               opacity: 1,
-              left: activeTertiary === 'notifications' || activeTertiary === 'search' ? 0 : 100,
+              left: activeTertiary === 'notifications' || activeTertiary === 'search' ? 0 : 80,
             }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className={`fixed top-0 h-full w-[400px] bg-[#eee5df] border-r border-gray-200 pointer-events-auto shadow-2xl overflow-hidden flex flex-col ${activeTertiary === 'notifications' || activeTertiary === 'search' ? 'z-[140]' : 'z-[120]'}`}
+            className={`fixed top-0 h-full w-[320px] bg-white border-r border-gray-200 pointer-events-auto overflow-hidden flex flex-col ${activeTertiary === 'notifications' || activeTertiary === 'search' ? 'z-[140]' : 'z-[120]'}`}
           >
-            <div className="p-8 pb-4 flex items-flex-start justify-between">
+            <div className="p-6 pb-2 flex items-flex-start justify-between">
               <div className="flex flex-col gap-1">
                 {activeTertiary === 'chat' && chatView === 'list' && (
                   <button
@@ -495,7 +494,7 @@ export default function Sidebar({
                     이전으로
                   </button>
                 )}
-                <h2 className="text-4xl font-black text-gray-800">
+                <h2 className="text-3xl font-black text-gray-800">
                   {activeTertiary === 'friends'
                     ? '팔로우 목록'
                     : activeTertiary === 'chat'
@@ -608,7 +607,7 @@ export default function Sidebar({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={`fixed top-0 bottom-0 right-0 ${activeTertiary ? 'left-[500px]' : 'left-[100px]'} bg-white pointer-events-auto shadow-2xl overflow-hidden flex flex-col z-[110] transition-all duration-200`}
+            className={`fixed top-0 bottom-0 right-0 ${activeTertiary ? 'left-[400px]' : 'left-[80px]'} bg-white pointer-events-auto border-l border-gray-200 overflow-hidden flex flex-col z-[110] transition-all duration-200`}
           >
             {/* Top Header / Back Button */}
             <div className="h-20 shrink-0 px-8 flex items-center justify-between border-b border-gray-50 z-20">
