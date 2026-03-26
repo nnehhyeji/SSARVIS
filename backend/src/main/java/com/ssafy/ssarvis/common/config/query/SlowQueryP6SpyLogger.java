@@ -4,7 +4,6 @@ import com.p6spy.engine.spy.appender.MessageFormattingStrategy;
 import com.ssafy.ssarvis.common.dto.SlowQueryInfo;
 import com.ssafy.ssarvis.common.service.QueryExecutionPlanService;
 import com.ssafy.ssarvis.common.service.SlackNotificationService;
-import com.ssafy.ssarvis.common.service.SlowQueryCsvService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.MDC;
 import org.springframework.context.ApplicationContext;
@@ -24,7 +23,7 @@ public class SlowQueryP6SpyLogger implements MessageFormattingStrategy {
     // ── 정적 필드: P6Spy는 리플렉션으로 직접 인스턴스화하므로
     //    Spring 빈 주입이 불가 → ApplicationContext를 통해 late-binding
     private static ApplicationContext ctx;
-    private static long thresholdMs = 50L;
+    private static long thresholdMs = 10L;
 
     /** SpringApplicationContext에서 주입 (SlowQueryP6SpyConfig에서 호출) */
     public static void init(ApplicationContext applicationContext, long threshold) {
@@ -63,8 +62,6 @@ public class SlowQueryP6SpyLogger implements MessageFormattingStrategy {
                 ctx.getBean(QueryExecutionPlanService.class);
             SlackNotificationService slackService =
                 ctx.getBean(SlackNotificationService.class);
-            SlowQueryCsvService csvService =
-                ctx.getBean(SlowQueryCsvService.class);
 
             // SELECT 계열만 EXPLAIN 실행 (INSERT/UPDATE/DELETE는 스킵)
             String plan = sql.trim().toUpperCase().startsWith("SELECT")
@@ -82,7 +79,6 @@ public class SlowQueryP6SpyLogger implements MessageFormattingStrategy {
                 .build();
 
             slackService.sendAsync(info);   // 비동기 Slack 전송
-            csvService.save(info);          // 동기 CSV 저장
 
         } catch (Exception e) {
             System.err.println("[SlowQueryLogger] 처리 실패: " + e.getMessage());
