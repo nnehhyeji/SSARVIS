@@ -56,7 +56,8 @@ public class UserServiceImpl implements UserService {
             throw new CustomException("이메일 중복", ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        String isVerified = redisTemplate.opsForValue().get(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
+        String isVerified = redisTemplate.opsForValue()
+            .get(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
         if (isVerified == null || !isVerified.equals("true")) {
             throw new CustomException("이메일 인증이 필요합니다.", ErrorCode.INVALID_PARAMETER);
         }
@@ -64,24 +65,27 @@ public class UserServiceImpl implements UserService {
         if (isAlreadyExistsCustomId(userCreateRequestDto.customId())) {
             throw new CustomException("아이디 중복", ErrorCode.BAD_REQUEST);
         }
-
+        SocialUser socialUser = null;
         String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
-        User newUser = User.create(userCreateRequestDto.email(), encryptedPassword, userCreateRequestDto.nickname(), userCreateRequestDto.customId());
+        User newUser = User.create(userCreateRequestDto.email(), encryptedPassword,
+            userCreateRequestDto.nickname(), userCreateRequestDto.customId());
 
         if (registerUUID != null && !registerUUID.isEmpty()) {
             // oauth 회원가입
             SocialUserInfoDto socialUserInfoDto = oAuthService.getTempSocialUserFromRedis(
                 registerUUID);
-            socialUserRepository.save(
-                SocialUser.create(
-                    socialUserInfoDto.provider(),
-                    socialUserInfoDto.providerId(),
-                    newUser));
+            socialUser = SocialUser.create(socialUserInfoDto.provider(),
+                socialUserInfoDto.providerId(),
+                newUser);
+
             newUser.updateProfileImage(socialUserInfoDto.profileImageUrl());
             oAuthService.deleteTempSocialUser(registerUUID);
         }
         userRepository.save(newUser);
 
+        if (socialUser != null) {
+            socialUserRepository.save(socialUser);
+        }
         redisTemplate.delete(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
     }
 
@@ -134,7 +138,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND));
             if (user.getWithdrawStatus()) {
                 throw new CustomException("탈퇴한 사용자입니다. 관리자에게 문의해주세요.", ErrorCode.USER_WITHDRAW);
-            }else{
+            } else {
                 throw new CustomException("이미 존재하는 이메일입니다.", ErrorCode.EMAIL_ALREADY_EXISTS);
             }
         }
@@ -142,7 +146,8 @@ public class UserServiceImpl implements UserService {
         String code = String.format("%06d", new Random().nextInt(1000000));
 
         // Redis에 5분간 코드 저장
-        redisTemplate.opsForValue().set(Constants.VERIFY_CODE_PREFIX + email, code, 5, TimeUnit.MINUTES);
+        redisTemplate.opsForValue()
+            .set(Constants.VERIFY_CODE_PREFIX + email, code, 5, TimeUnit.MINUTES);
 
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -161,7 +166,8 @@ public class UserServiceImpl implements UserService {
         String savedCode = redisTemplate.opsForValue().get(Constants.VERIFY_CODE_PREFIX + email);
 
         if (savedCode != null && savedCode.equals(code)) {
-            redisTemplate.opsForValue().set(Constants.VERIFIED_EMAIL_PREFIX + email, "true", 10, TimeUnit.MINUTES);
+            redisTemplate.opsForValue()
+                .set(Constants.VERIFIED_EMAIL_PREFIX + email, "true", 10, TimeUnit.MINUTES);
             redisTemplate.delete(Constants.VERIFY_CODE_PREFIX + email);
             return true;
         }
@@ -170,7 +176,8 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     @Override
-    public UserUpdateResponseDto updateUser(Long userId, UserUpdateRequestDto userUpdateRequestDto) {
+    public UserUpdateResponseDto updateUser(Long userId,
+        UserUpdateRequestDto userUpdateRequestDto) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
 
