@@ -31,19 +31,19 @@ import org.springframework.web.client.RestTemplate;
 @RequiredArgsConstructor
 public class OAuthService {
 
-    @Value("${oauth2.client.registration.kakao.client-id}")
+    @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
     private String kakaoClientId;
 
-    @Value("${oauth2.client.registration.kakao.client-secret}")
+    @Value("${spring.security.oauth2.client.registration.kakao.client-secret}")
     private String kakaoClientSecret;
 
-    @Value("${oauth2.client.registration.redirect-uri}")
+    @Value("${spring.security.oauth2.client.registration.kakao.redirect-uri}")
     private String kakaoRedirectUri;
 
-    @Value("${oauth2.client.provider.kakao.token-uri}")
+    @Value("${spring.security.oauth2.client.provider.kakao.token-uri}")
     private String tokenUri;
 
-    @Value("${oauth2.client.provider.kakao.user-info-uri}")
+    @Value("${spring.security.oauth2.client.provider.kakao.user-info-uri}")
     private String userInfoUri;
 
     private final RestTemplate restTemplate;
