@@ -1,7 +1,9 @@
 import React from 'react';
-import { motion, Variants } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { PATHS } from '../../routes/paths';
+import { useUserStore } from '../../store/useUserStore';
 
 /**
  * LandingPage.tsx
@@ -11,6 +13,11 @@ import { PATHS } from '../../routes/paths';
  */
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isLoggedIn, userInfo } = useUserStore();
+
+  if (isLoggedIn && userInfo?.id) {
+    return <Navigate to={PATHS.USER_HOME(userInfo.id)} replace />;
+  }
 
   // 배경 부유 애니메이션 (배경 전체가 아주 천천히 움직임)
   const floatingVariant: Variants = {
@@ -143,7 +150,7 @@ const LandingPage: React.FC = () => {
       </div>
 
       {/* 질감을 더해주는 아주 옅은 입자 노이즈 */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.04] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay z-40" />
+      <div className="absolute inset-0 pointer-events-none opacity-[0.04] bg-[url('/assets/noise.svg')] mix-blend-overlay z-40" />
     </div>
   );
 };
