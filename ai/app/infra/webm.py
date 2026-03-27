@@ -34,6 +34,8 @@ class WebMAudioEncoder:
             str(media_config.opus_channels),
             "-i",
             "pipe:0",
+            "-filter:a",
+            media_config.build_atempo_filter(),
             "-c:a",
             "libopus",
             "-f",
