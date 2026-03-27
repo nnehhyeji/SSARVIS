@@ -35,7 +35,8 @@ const PersonaPanel: React.FC<PersonaPanelProps> = ({ onModeChange }) => {
       <div className="flex flex-col gap-8 px-8 pt-6">
         {items.map((m) => {
           // With Mine 아이템인 경우 파라미터 체크, 그 외엔 기본 체크
-          const isActive = m.id === 'with_mine' ? isDualParam : (!isDualParam && location.pathname === PATHS.NAMNA);
+          const isActive =
+            m.id === 'with_mine' ? isDualParam : !isDualParam && location.pathname === PATHS.NAMNA;
 
           return (
             <button

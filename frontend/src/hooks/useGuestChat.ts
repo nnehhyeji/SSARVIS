@@ -577,7 +577,14 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
       startWakeMode();
     },
-    [clearSpeechSilenceTimer, enabled, resetTypewriter, safeStartRecognition, startSpeechCapture, startWakeMode],
+    [
+      clearSpeechSilenceTimer,
+      enabled,
+      resetTypewriter,
+      safeStartRecognition,
+      startSpeechCapture,
+      startWakeMode,
+    ],
   );
 
   const stopRecordingAndSendSTT = useCallback(() => {

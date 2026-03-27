@@ -6,7 +6,7 @@ import { PATHS } from '../../routes/paths';
 
 /**
  * GuestExperiencePage.tsx
- * 
+ *
  * 유명인 AI 모델을 체험해볼 수 있는 선택 페이지입니다.
  * 5명의 게스트 모델과 본인만의 AI를 만들 수 있는 옵션을 제공합니다.
  */
@@ -85,10 +85,10 @@ const GuestExperiencePage: React.FC = () => {
       <div className="fixed top-10 left-10 z-[100]">
         <motion.button
           onClick={() => navigate(PATHS.HOME)}
-          initial={{ width: 48, backgroundColor: "#f5f5f5" }}
-          whileHover={{ 
-            width: 160, 
-            backgroundColor: "#fce8e9", 
+          initial={{ width: 48, backgroundColor: '#f5f5f5' }}
+          whileHover={{
+            width: 160,
+            backgroundColor: '#fce8e9',
           }}
           transition={{ duration: 0.2 }}
           className="relative h-12 flex items-center justify-center rounded-full shadow-sm overflow-hidden whitespace-nowrap group"
@@ -106,10 +106,10 @@ const GuestExperiencePage: React.FC = () => {
       <div className="fixed top-10 right-10 z-[100]">
         <motion.button
           onClick={handleShare}
-          initial={{ width: 48, backgroundColor: "#f5f5f5" }}
-          whileHover={{ 
-            width: 160, 
-            backgroundColor: "#fce8e9", 
+          initial={{ width: 48, backgroundColor: '#f5f5f5' }}
+          whileHover={{
+            width: 160,
+            backgroundColor: '#fce8e9',
           }}
           transition={{ duration: 0.2 }}
           className="relative h-12 flex items-center justify-center rounded-full shadow-sm overflow-hidden whitespace-nowrap group"
@@ -147,8 +147,10 @@ const GuestExperiencePage: React.FC = () => {
                   }}
                   transition={{ duration: 0.1, ease: 'linear' }}
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
-                    (e.target as HTMLImageElement).className = "w-full h-full bg-gray-200 opacity-50";
+                    (e.target as HTMLImageElement).src =
+                      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+                    (e.target as HTMLImageElement).className =
+                      'w-full h-full bg-gray-200 opacity-50';
                   }}
                 />
               </div>
@@ -160,11 +162,11 @@ const GuestExperiencePage: React.FC = () => {
                 <h3 className="text-[28px] font-black text-gray-900 tracking-tighter leading-none">
                   {model.name}
                 </h3>
-                {model.isCustom && (
-                  <ArrowRight className="w-6 h-6 text-rose-500 ml-1" />
-                )}
+                {model.isCustom && <ArrowRight className="w-6 h-6 text-rose-500 ml-1" />}
               </div>
-              <p className={`text-[15px] tracking-tight mt-2 ${model.isCustom ? 'text-rose-500 font-medium' : 'text-gray-400 font-normal'}`}>
+              <p
+                className={`text-[15px] tracking-tight mt-2 ${model.isCustom ? 'text-rose-500 font-medium' : 'text-gray-400 font-normal'}`}
+              >
                 {model.description}
               </p>
             </div>

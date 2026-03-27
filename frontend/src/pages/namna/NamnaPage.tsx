@@ -19,12 +19,22 @@ export default function NamnaPage() {
   const { userInfo } = useUserStore();
   const [searchParams] = useSearchParams();
   const aiToAiChat = useAIToAIChat();
-  
+
   // interaction hooks
-  const { 
-    isMicOn, mouthOpenRadius, faceType, toggleMic,
-    isSpeaking, setIsSpeaking, triggerText, setTriggerText,
-    isMyAiSpeaking, setIsMyAiSpeaking, myMouthOpenRadius, myTriggerText, setMyTriggerText
+  const {
+    isMicOn,
+    mouthOpenRadius,
+    faceType,
+    toggleMic,
+    isSpeaking,
+    setIsSpeaking,
+    triggerText,
+    setTriggerText,
+    isMyAiSpeaking,
+    setIsMyAiSpeaking,
+    myMouthOpenRadius,
+    myTriggerText,
+    setMyTriggerText,
   } = useAICharacter();
 
   const {
@@ -74,7 +84,9 @@ export default function NamnaPage() {
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
   const myAiSpeech = isDualAiMode ? aiToAiChat.myLatestText || myTriggerText : myTriggerText;
-  const namnaSpeech = isDualAiMode ? aiToAiChat.targetLatestText || triggerText : latestAiText || lastAiMessage;
+  const namnaSpeech = isDualAiMode
+    ? aiToAiChat.targetLatestText || triggerText
+    : latestAiText || lastAiMessage;
   const myAiIsSpeaking = isDualAiMode ? aiToAiChat.activeSpeaker === 'mine' : isMyAiSpeaking;
   const namnaIsSpeaking = isDualAiMode ? aiToAiChat.activeSpeaker === 'target' : finalIsSpeaking;
 
@@ -83,25 +95,28 @@ export default function NamnaPage() {
   const handleStartMyAiSpeaking = useCallback(() => setIsMyAiSpeaking(true), [setIsMyAiSpeaking]);
   const handleEndMyAiSpeaking = useCallback(() => setIsMyAiSpeaking(false), [setIsMyAiSpeaking]);
 
-  const handleDualAiTopicSubmit = useCallback(async (topic: string) => {
-    if (!userInfo?.id) return;
+  const handleDualAiTopicSubmit = useCallback(
+    async (topic: string) => {
+      if (!userInfo?.id) return;
 
-    const started = await aiToAiChat.startBattle({
-      topic,
-      myUserId: userInfo.id,
-      targetUserId: userInfo.id,
-      myAssistantType: 'DAILY',
-      targetAssistantType: 'PERSONA',
-    });
+      const started = await aiToAiChat.startBattle({
+        topic,
+        myUserId: userInfo.id,
+        targetUserId: userInfo.id,
+        myAssistantType: 'DAILY',
+        targetAssistantType: 'PERSONA',
+      });
 
-    if (!started) return;
+      if (!started) return;
 
-    hasStartedDualBattleRef.current = true;
-    setIsInteractionModalOpen(false);
-    setMyTriggerText('');
-    setTriggerText('');
-    setIsChatHistoryOpen(true);
-  }, [aiToAiChat, setMyTriggerText, setTriggerText, userInfo?.id]);
+      hasStartedDualBattleRef.current = true;
+      setIsInteractionModalOpen(false);
+      setMyTriggerText('');
+      setTriggerText('');
+      setIsChatHistoryOpen(true);
+    },
+    [aiToAiChat, setMyTriggerText, setTriggerText, userInfo?.id],
+  );
 
   const stopDualAiConversation = useCallback(() => {
     hasStartedDualBattleRef.current = false;
@@ -176,16 +191,25 @@ export default function NamnaPage() {
             {/* 듀얼 모드일 시 내 비서 AI 노출 */}
             {isDualAiMode && (
               <div className="w-[350px] h-[350px] relative z-20 flex flex-col items-center justify-center animate-in slide-in-from-left-4 fade-in duration-700">
-                <div className="absolute top-[-40px] px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-200 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md">My AI</div>
-                <CharacterScene 
-                  faceType={faceType} mouthOpenRadius={myMouthOpenRadius} mode="normal" 
-                  isLockMode={false} isSpeaking={myAiIsSpeaking} isMicOn={isMicOn} label="나의 비서"
+                <div className="absolute top-[-40px] px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-200 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md">
+                  My AI
+                </div>
+                <CharacterScene
+                  faceType={faceType}
+                  mouthOpenRadius={myMouthOpenRadius}
+                  mode="normal"
+                  isLockMode={false}
+                  isSpeaking={myAiIsSpeaking}
+                  isMicOn={isMicOn}
+                  label="나의 비서"
                 />
                 <SpeechBubble text={myAiSpeech} />
               </div>
             )}
 
-            <div className={`relative z-10 flex flex-col items-center justify-center transition-all duration-700 ease-in-out ${isDualAiMode ? 'w-[350px] h-[350px]' : 'w-[500px] h-[500px]'}`}>
+            <div
+              className={`relative z-10 flex flex-col items-center justify-center transition-all duration-700 ease-in-out ${isDualAiMode ? 'w-[350px] h-[350px]' : 'w-[500px] h-[500px]'}`}
+            >
               {/* Persona Scene uses offset face type for variety */}
               <CharacterScene
                 faceType={(faceType + 2) % 6}
@@ -196,9 +220,7 @@ export default function NamnaPage() {
                 isMicOn={isMicOn}
                 label={userInfo?.nickname || '나의 페르소나'}
               />
-              {namnaSpeech && (
-                <SpeechBubble text={namnaSpeech} />
-              )}
+              {namnaSpeech && <SpeechBubble text={namnaSpeech} />}
             </div>
           </div>
 
@@ -234,10 +256,10 @@ export default function NamnaPage() {
             With Mine 종료
           </button>
         )}
-        <AiTopicModal 
-          isOpen={isInteractionModalOpen} 
-          onClose={() => setIsInteractionModalOpen(false)} 
-          onSubmit={handleDualAiTopicSubmit} 
+        <AiTopicModal
+          isOpen={isInteractionModalOpen}
+          onClose={() => setIsInteractionModalOpen(false)}
+          onSubmit={handleDualAiTopicSubmit}
         />
       </main>
 
