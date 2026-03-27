@@ -7,6 +7,14 @@ export interface PromptResponse {
   };
 }
 
+export interface EvaluationPromptResponse {
+  message: string;
+  data: {
+    systemPrompt: string;
+    promptCount: number;
+  };
+}
+
 export interface VoiceRegisterResponse {
   message: string;
   data: {
@@ -34,6 +42,22 @@ export async function postGeneratePrompt(
   const response = await axiosInstance.post<PromptResponse>(
     '/ai/prompts',
     { qna },
+    { timeout: 60000 },
+  );
+  return response.data;
+}
+
+/**
+ * [Persona Evaluation] 특정 유저에 대한 문답 평가 누적
+ * POST /api/v1/ai/prompts/{targetUserId}
+ */
+export async function postEvaluationPrompt(
+  targetUserId: number,
+  payload: { userInputQuestion: string; userInputAnswer: string },
+): Promise<EvaluationPromptResponse> {
+  const response = await axiosInstance.post<EvaluationPromptResponse>(
+    `/ai/prompts/${targetUserId}`,
+    payload,
     { timeout: 60000 },
   );
   return response.data;
