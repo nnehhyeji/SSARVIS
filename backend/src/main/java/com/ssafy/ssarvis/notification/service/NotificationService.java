@@ -8,9 +8,9 @@ import java.util.List;
 
 public interface NotificationService {
 
-    void sendFollowRequestNotification(User sender, User receiver);
+    void sendFollowRequestNotification(User sender, User receiver, Long followRequestId);
 
-    void sendFollowAcceptNotification(User sender, User receiver);
+    void sendFollowAcceptNotification(User sender, User receiver, Long followId);
 
     List<NotificationResponseDto> getNotifications(Long userId);
 
@@ -19,5 +19,7 @@ public interface NotificationService {
     void readNotification(Long userId, Long notificationId);
 
     NotificationCountResponseDto countUnreadNotifications(Long userId);
+
+    void sendFollowDirectNotification(User sender, User receiver, Long followId);
 
 }
