@@ -57,6 +57,11 @@ export default function MbtiStep({
         {/* 선택 안함 Toggle */}
         <button
           onClick={() => {
+            if (isMbtiSkipped) {
+              setIsMbtiSkipped(false);
+              return;
+            }
+
             setIsMbtiSkipped(true);
             setMbtiSlots({ e_i: '', s_n: '', t_f: '', j_p: '' });
           }}
