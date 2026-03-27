@@ -31,21 +31,6 @@ import org.springframework.web.client.RestTemplate;
 @RequiredArgsConstructor
 public class OAuthService {
 
-<<<<<<< HEAD
-    @Value("${oauth2.client.registration.kakao.client-id}")
-    private String kakaoClientId;
-
-    @Value("${oauth2.client.registration.kakao.client-secret}")
-    private String kakaoClientSecret;
-
-    @Value("${oauth2.client.registration.redirect-uri}")
-    private String kakaoRedirectUri;
-
-    @Value("${oauth2.client.provider.kakao.token-uri}")
-    private String tokenUri;
-
-    @Value("${oauth2.client.provider.kakao.user-info-uri}")
-=======
     @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
     private String kakaoClientId;
 
@@ -59,7 +44,6 @@ public class OAuthService {
     private String tokenUri;
 
     @Value("${spring.security.oauth2.client.provider.kakao.user-info-uri}")
->>>>>>> 5c5aa1f (fix: align OAuthService property keys with Spring security config)
     private String userInfoUri;
 
     private final RestTemplate restTemplate;
