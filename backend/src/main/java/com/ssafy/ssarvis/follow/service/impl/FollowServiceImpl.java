@@ -3,7 +3,6 @@ package com.ssafy.ssarvis.follow.service.impl;
 import com.ssafy.ssarvis.assistant.entity.Assistant;
 import com.ssafy.ssarvis.assistant.entity.AssistantType;
 import com.ssafy.ssarvis.assistant.repository.AssistantRepository;
-import com.ssafy.ssarvis.chat.repository.ChatSessionRepository;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.follow.dto.request.FollowAcceptDto;
@@ -23,6 +22,8 @@ import com.ssafy.ssarvis.follow.service.FollowService;
 import com.ssafy.ssarvis.notification.service.NotificationService;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.repository.UserRepository;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,40 +41,52 @@ public class FollowServiceImpl implements FollowService {
     private final FollowRepository followRepository;
     private final NotificationService notificationService;
     private final AssistantRepository assistantRepository;
-    private final ChatSessionRepository chatSessionRepository;
     private final FollowRequestRepository followRequestRepository;
 
     @Override
     public void requestFollow(Long senderId, FollowRequestDto followRequestDto) {
-
         Long receiverId = followRequestDto.receiverId();
 
+        // 자기 자신 팔로우 체크
         if (senderId.equals(receiverId)) {
             throw new CustomException(ErrorCode.CANNOT_FOLLOW_SELF.getMessage(), ErrorCode.CANNOT_FOLLOW_SELF);
         }
 
+        // 이미 팔로우 중인지 체크
         if (followRepository.existsByFollowerIdAndFollowingId(senderId, receiverId)) {
             throw new CustomException(ErrorCode.ALREADY_FOLLOWING.getMessage(), ErrorCode.ALREADY_FOLLOWING);
         }
 
+        // 이미 요청 중인지 체크
         if (followRequestRepository.existsBySenderIdAndReceiverId(senderId, receiverId)) {
             throw new CustomException(ErrorCode.ALREADY_REQUESTED_FOLLOW.getMessage(), ErrorCode.ALREADY_REQUESTED_FOLLOW);
         }
 
-        User sender = userRepository.findById(senderId)
-            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
-        User receiver = userRepository.findById(receiverId)
-            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+        User sender = userRepository.findById(senderId).orElseThrow(()-> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND));
+        User receiver = userRepository.findById(receiverId).orElseThrow(()-> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND));
 
-        FollowRequest followRequest = FollowRequest.builder()
-            .sender(sender)
-            .receiver(receiver)
-            .build();
+        //  공개 여부에 따른 조건부 처리
+        if (Boolean.TRUE.equals(receiver.getIsPublic())) {
+            // 공개 계정: 즉시 팔로우 관계 생성
+            Follow follow = Follow.builder()
+                .follower(sender)
+                .following(receiver)
+                .build();
+            followRepository.save(follow);
 
-        followRequestRepository.save(followRequest);
+            // 알림 전송: "A님이 회원님을 팔로우했습니다." (즉시 완료 알림)
+            notificationService.sendFollowAcceptNotification(sender, receiver);
+        } else {
+            // 비공개 계정: 기존처럼 팔로우 요청 생성
+            FollowRequest followRequest = FollowRequest.builder()
+                .sender(sender)
+                .receiver(receiver)
+                .build();
+            followRequestRepository.save(followRequest);
 
-        notificationService.sendFollowRequestNotification(sender, receiver);
-        log.info("친구 신청 완료 - 신청자 PK: {}, 요청 타겟 PK: {}", senderId, receiverId);
+            // 알림 전송: "A님이 팔로우 요청을 보냈습니다."
+            notificationService.sendFollowRequestNotification(sender, receiver);
+        }
     }
 
     @Override
@@ -162,18 +175,38 @@ public class FollowServiceImpl implements FollowService {
             throw new CustomException("검색어를 입력해주세요.", ErrorCode.BAD_REQUEST);
         }
 
-        return userRepository.findByNicknameOrCustomIdContaining(keyword)
+        List<User> results = userRepository.findByNicknameOrCustomIdContaining(keyword)
             .stream()
             .filter(user -> !user.getId().equals(userId))
+            .toList();
+
+        // 결과 유저 ID 추출
+        Set<Long> targetIds = results.stream().map(User::getId).collect(Collectors.toSet());
+
+        // 한 번의 IN 쿼리로 사전 조회 (N+1 방지)
+        Set<Long> followingIds = followRepository.findFollowingIdsByFollowerIdAndFollowingIds(userId, targetIds);
+        Set<Long> requestedIds = followRequestRepository.findReceiverIdsBySenderIdAndReceiverIds(userId, targetIds);
+        Set<Long> followerIds  = followRepository.findFollowerIdsByFollowingIdAndFollowerIds(userId, targetIds);
+
+        return results.stream()
             .map(user -> new UserSearchResponseDto(
                 user.getId(),
                 user.getCustomId(),
                 user.getNickname(),
                 user.getEmail(),
                 user.getProfileImageUrl(),
-                resolveFollowStatus(userId, user.getId())
+                resolveFollowStatusFromSets(user.getId(), followingIds, requestedIds), // Set 기반 판단
+                user.getIsPublic(),
+                followerIds.contains(user.getId())  // 나를 팔로우하는지 여부
             ))
             .toList();
+    }
+
+    // FollowStatus 판단 (DB 쿼리 없이 Set으로 처리)
+    private FollowStatus resolveFollowStatusFromSets(Long targetId, Set<Long> followingIds, Set<Long> requestedIds) {
+        if (followingIds.contains(targetId)) return FollowStatus.FOLLOWING;
+        if (requestedIds.contains(targetId)) return FollowStatus.REQUESTED;
+        return FollowStatus.NONE;
     }
 
     @Override
