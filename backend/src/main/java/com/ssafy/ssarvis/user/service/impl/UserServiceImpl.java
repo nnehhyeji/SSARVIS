@@ -67,7 +67,6 @@ public class UserServiceImpl implements UserService {
 
         String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
         User newUser = User.create(userCreateRequestDto.email(), encryptedPassword, userCreateRequestDto.nickname(), userCreateRequestDto.customId());
-        userRepository.save(newUser);
 
         if (registerUUID != null && !registerUUID.isEmpty()) {
             // oauth 회원가입
@@ -78,8 +77,10 @@ public class UserServiceImpl implements UserService {
                     socialUserInfoDto.provider(),
                     socialUserInfoDto.providerId(),
                     newUser));
+            newUser.updateProfileImage(socialUserInfoDto.profileImageUrl());
             oAuthService.deleteTempSocialUser(registerUUID);
         }
+        userRepository.save(newUser);
 
         redisTemplate.delete(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
     }
