@@ -26,4 +26,6 @@ public final class Constants {
 
     public static final String VERIFY_CODE_PREFIX = "email:code:";
     public static final String VERIFIED_EMAIL_PREFIX = "email:verified:";
+
+    public static final String OAUTH_TEMP_PREFIX = "oauth:register";
 }

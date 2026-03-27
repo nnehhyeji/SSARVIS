@@ -22,10 +22,4 @@ public record LoginResponseDto(
             .timeout(timeout)
             .build();
     }
-    public static LoginResponseDto createOAuthSignupUserResponse( String registerUUID) {
-        return LoginResponseDto.builder()
-            .isNewUser(true)
-            .registerUUID(registerUUID)
-            .build();
-    }
 }

@@ -5,6 +5,7 @@ import com.ssafy.ssarvis.auth.dto.request.LoginRequestDto;
 import com.ssafy.ssarvis.auth.dto.request.SetVoiceLockRequestDto;
 import com.ssafy.ssarvis.auth.dto.response.LoginResponseDto;
 import com.ssafy.ssarvis.auth.dto.TokenDto;
+import com.ssafy.ssarvis.auth.dto.response.OAuthResponseDto;
 import com.ssafy.ssarvis.auth.dto.response.VoicePasswordCheckResponse;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.auth.service.AuthService;
@@ -21,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/auth")
 public class AuthController {
 
     private final AuthService authService;
@@ -59,15 +59,15 @@ public class AuthController {
     }
 
     @GetMapping("/{provider}}/callback")
-    public ResponseEntity<BaseResponse<LoginResponseDto>> oauth2Login(
+    public ResponseEntity<BaseResponse<OAuthResponseDto>> oauth2Login(
         @PathVariable String provider,
         @RequestParam("code") String authorizationCode
     ) {
-        OAuthDto oAuthDto = authService.loginOrSignUpWithOauth2(provider, authorizationCode);
+        OAuthResponseDto oAuthResponseDto = authService.loginOrSignUpWithOauth2(provider, authorizationCode);
 
-        return oAuthDto.isNewUser()
-            ? sendOauthSignupResponse("OAuth 인증 성공, 새 회원가입 필요", oAuthDto.registerUUID())
-            : sendTokenResponse("로그인 성공", oAuthDto.tokenDto());
+        return oAuthResponseDto.isNewUser()
+            ? sendOauthSignupResponse("OAuth 인증 성공, 새 회원가입 필요", oAuthResponseDto)
+            : sendOauthSignupResponse("로그인 성공", oAuthResponseDto);
     }
 
     @PatchMapping("/voice-lock")
@@ -128,12 +128,8 @@ public class AuthController {
             );
     }
 
-    private ResponseEntity<BaseResponse<LoginResponseDto>> sendOauthSignupResponse(
-        String responseMessage, String registerUUID) {
-        return ResponseEntity.ok(
-            BaseResponse.success(
-                responseMessage,
-                LoginResponseDto.createOAuthSignupUserResponse(registerUUID))
-        );
+    private ResponseEntity<BaseResponse<OAuthResponseDto>> sendOauthSignupResponse(
+        String responseMessage, OAuthResponseDto oAuthResponseDto) {
+        return ResponseEntity.ok(BaseResponse.success(responseMessage, oAuthResponseDto));
     }
 }

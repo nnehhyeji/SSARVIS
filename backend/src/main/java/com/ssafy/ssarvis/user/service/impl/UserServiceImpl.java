@@ -1,5 +1,7 @@
 package com.ssafy.ssarvis.user.service.impl;
 
+import com.ssafy.ssarvis.auth.dto.response.SocialUserInfoDto;
+import com.ssafy.ssarvis.auth.service.OAuthService;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
@@ -8,8 +10,10 @@ import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserUpdateRequestDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
+import com.ssafy.ssarvis.user.entity.SocialUser;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.event.UserProfileImageUpdateEvent;
+import com.ssafy.ssarvis.user.repository.SocialUserRepository;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.user.service.UserService;
 import jakarta.mail.internet.MimeMessage;
@@ -34,17 +38,19 @@ import java.util.concurrent.TimeUnit;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final SocialUserRepository socialUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final S3Uploader s3Uploader;
-
-    private final JavaMailSender mailSender; // 메일 발송용
-    private final StringRedisTemplate redisTemplate; // Redis 활용
+    private final OAuthService oAuthService;
+    private final JavaMailSender mailSender;
+    private final StringRedisTemplate redisTemplate;
 
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     @Override
     public void signupUser(UserCreateRequestDto userCreateRequestDto) {
+        String registerUUID = userCreateRequestDto.registerUUID();
 
         if (isAlreadyExistsEmail(userCreateRequestDto.email())) {
             throw new CustomException("이메일 중복", ErrorCode.EMAIL_ALREADY_EXISTS);
@@ -62,6 +68,18 @@ public class UserServiceImpl implements UserService {
         String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
         User newUser = User.create(userCreateRequestDto.email(), encryptedPassword, userCreateRequestDto.nickname(), userCreateRequestDto.customId());
         userRepository.save(newUser);
+
+        if (registerUUID != null && !registerUUID.isEmpty()) {
+            // oauth 회원가입
+            SocialUserInfoDto socialUserInfoDto = oAuthService.getTempSocialUserFromRedis(
+                registerUUID);
+            socialUserRepository.save(
+                SocialUser.create(
+                    socialUserInfoDto.provider(),
+                    socialUserInfoDto.providerId(),
+                    newUser));
+            oAuthService.deleteTempSocialUser(registerUUID);
+        }
 
         redisTemplate.delete(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
     }
