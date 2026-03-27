@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Lock, ShieldCheck, ChevronRight, XCircle } from 'lucide-react';
 import authApi from '../../apis/authApi';
@@ -18,12 +19,11 @@ export default function SecuritySettings({
   formatTime,
   onOpenRegistrationModal,
 }: Props) {
+  const [lockPhrase, setLockPhrase] = useState('');
   const {
     isVoiceLockRegistered,
     isVoiceLockEnabled,
     setVoiceLockEnabled,
-    lockPhrase,
-    setLockPhrase,
     timeoutDuration,
     setTimeoutDuration,
     clearVoiceLock,
@@ -31,10 +31,16 @@ export default function SecuritySettings({
 
   const handleSaveSecuritySettings = async () => {
     if (!isVoiceLockRegistered) return;
+    const trimmedLockPhrase = lockPhrase.trim();
+    if (!trimmedLockPhrase) {
+      alert('해제 문구를 입력해주세요.');
+      return;
+    }
     setIsSaving(true);
     try {
-      await authApi.setupVoiceLock({ voicePassword: lockPhrase, timeout: timeoutDuration });
+      await authApi.setupVoiceLock({ voicePassword: trimmedLockPhrase, timeout: timeoutDuration });
       alert('보안 설정이 저장되었습니다.');
+      setLockPhrase('');
     } catch (error) {
       console.error('Failed to save security settings:', error);
       alert('설정 저장 중 오류가 발생했습니다.');
@@ -54,7 +60,9 @@ export default function SecuritySettings({
           <div className="flex flex-col gap-2">
             <h3 className="text-3xl font-black text-gray-900">음성 잠금 등록</h3>
             <p className="text-gray-400 font-bold max-w-sm px-6">
-              나의 목소리로 보안을 강화하세요.<br />정해진 문장을 말하여 잠금을 해제합니다.
+              나의 목소리로 보안을 강화하세요.
+              <br />
+              정해진 문장을 말하여 잠금을 해제합니다.
             </p>
           </div>
           <button
@@ -72,7 +80,9 @@ export default function SecuritySettings({
           </div>
           <div className="flex flex-col">
             <h3 className="text-3xl font-black text-gray-900">음성 잠금 모드</h3>
-            <p className="text-sm font-bold text-gray-400">현재 설정: {formatTime(voiceLockTimeout)}</p>
+            <p className="text-sm font-bold text-gray-400">
+              현재 설정: {formatTime(voiceLockTimeout)}
+            </p>
           </div>
         </div>
       )}
@@ -80,13 +90,17 @@ export default function SecuritySettings({
       {isVoiceLockRegistered && (
         <>
           <div className="h-px w-full bg-gray-100" />
-          
+
           <div className="flex flex-col gap-12">
             {/* 활성화 토글 */}
             <div className="flex items-center justify-between">
-              <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest">사용 여부</div>
+              <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest">
+                사용 여부
+              </div>
               <div className="flex-1 pl-10 flex items-center justify-between">
-                <span className="text-[18px] font-black text-gray-900 leading-none">음성 잠금 {isVoiceLockEnabled ? '켜짐' : '꺼짐'}</span>
+                <span className="text-[18px] font-black text-gray-900 leading-none">
+                  음성 잠금 {isVoiceLockEnabled ? '켜짐' : '꺼짐'}
+                </span>
                 <button
                   onClick={() => setVoiceLockEnabled(!isVoiceLockEnabled)}
                   className="w-14 h-7 rounded-full relative transition-all duration-300 bg-gray-200 overflow-hidden"
@@ -114,26 +128,33 @@ export default function SecuritySettings({
                 >
                   {/* 암호 문구 */}
                   <div className="flex items-start justify-between">
-                    <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">해제 문구</div>
+                    <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">
+                      해제 문구
+                    </div>
                     <div className="flex-1 pl-10 flex flex-col gap-3">
                       <div className="relative group max-w-2xl">
                         <input
                           type="text"
                           value={lockPhrase}
                           onChange={(e) => setLockPhrase(e.target.value)}
+                          placeholder="새 해제 문구를 입력하세요"
                           className="w-full bg-gray-50 border-2 border-rose-50 rounded-2xl py-6 px-8 font-black text-[18px] text-gray-900 focus:outline-none focus:border-rose-500 transition-all leading-tight"
                         />
                         <div className="absolute right-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm">
                           <Mic className="w-6 h-6 text-rose-500" />
                         </div>
                       </div>
-                      <p className="text-sm font-bold text-gray-400">* 현재 등록된 본인의 목소리 비밀번호입니다.</p>
+                      <p className="text-sm font-bold text-gray-400">
+                        * 현재 등록된 본인의 목소리 비밀번호입니다.
+                      </p>
                     </div>
                   </div>
 
                   {/* 잠금 시간 */}
                   <div className="flex items-start justify-between">
-                    <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">자동 잠금</div>
+                    <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">
+                      자동 잠금
+                    </div>
                     <div className="flex-1 pl-10 flex flex-col gap-8">
                       <div className="flex items-center gap-6">
                         {[5, 10, 30, 60].map((mins) => (
@@ -141,8 +162,8 @@ export default function SecuritySettings({
                             key={mins}
                             onClick={() => setTimeoutDuration(mins * 60)}
                             className={`px-10 py-5 rounded-2xl font-black text-2xl transition-all ${
-                              timeoutDuration === mins * 60 
-                                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20 active:scale-95' 
+                              timeoutDuration === mins * 60
+                                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20 active:scale-95'
                                 : 'bg-gray-50 text-gray-400 border-2 border-transparent hover:border-gray-100'
                             }`}
                           >
@@ -151,7 +172,9 @@ export default function SecuritySettings({
                         ))}
                       </div>
                       <p className="text-sm font-bold text-gray-400">
-                        활동이 멈춘 지 <span className="text-rose-500">{formatTime(timeoutDuration)}</span> 후 화면이 잠깁니다.
+                        활동이 멈춘 지{' '}
+                        <span className="text-rose-500">{formatTime(timeoutDuration)}</span> 후
+                        화면이 잠깁니다.
                       </p>
                     </div>
                   </div>
@@ -160,7 +183,7 @@ export default function SecuritySettings({
                   <div className="flex justify-end pt-10">
                     <button
                       onClick={handleSaveSecuritySettings}
-                      disabled={isSaving}
+                      disabled={isSaving || !lockPhrase.trim()}
                       className="px-12 py-5 bg-rose-500 text-white rounded-2xl font-black text-2xl shadow-xl shadow-rose-500/20 hover:bg-rose-600 transition-all flex items-center gap-3 active:scale-95 disabled:bg-gray-200"
                     >
                       <ShieldCheck className="w-7 h-7" />

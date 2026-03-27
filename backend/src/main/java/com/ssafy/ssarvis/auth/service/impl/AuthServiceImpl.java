@@ -1,17 +1,24 @@
 package com.ssafy.ssarvis.auth.service.impl;
 
+import com.ssafy.ssarvis.auth.dto.OAuthDto;
 import com.ssafy.ssarvis.auth.dto.TokenDto;
 import com.ssafy.ssarvis.auth.dto.request.LoginRequestDto;
 import com.ssafy.ssarvis.auth.dto.request.SetVoiceLockRequestDto;
+import com.ssafy.ssarvis.auth.dto.response.OAuthResponseDto;
+import com.ssafy.ssarvis.auth.dto.response.SocialUserInfoDto;
 import com.ssafy.ssarvis.auth.dto.response.VoicePasswordCheckResponse;
+import com.ssafy.ssarvis.auth.service.OAuthService;
 import com.ssafy.ssarvis.auth.util.JwtUtil;
 import com.ssafy.ssarvis.auth.security.CustomUserDetails;
 import com.ssafy.ssarvis.auth.service.AuthService;
 import com.ssafy.ssarvis.auth.service.RefreshTokenService;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
+import com.ssafy.ssarvis.user.entity.SocialUser;
 import com.ssafy.ssarvis.user.entity.User;
+import com.ssafy.ssarvis.user.repository.SocialUserRepository;
 import com.ssafy.ssarvis.user.repository.UserRepository;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -32,7 +39,9 @@ public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
+    private final OAuthService oAuthService;
     private final UserRepository userRepository;
+    private final SocialUserRepository socialUserRepository;
     private final JwtUtil jwtUtil;
 
     @Transactional(readOnly = true)
@@ -58,7 +67,8 @@ public class AuthServiceImpl implements AuthService {
             );
 
             User user = userRepository.findById(userId).
-                orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND.getMessage(), ErrorCode.USER_NOT_FOUND));
+                orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND.getMessage(),
+                    ErrorCode.USER_NOT_FOUND));
 
             return TokenDto.from(accessToken, refreshToken, user.getVoiceLockTimeout());
 
@@ -110,7 +120,8 @@ public class AuthServiceImpl implements AuthService {
         );
 
         User user = userRepository.findById(userId).
-            orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND.getMessage(), ErrorCode.USER_NOT_FOUND));
+            orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND.getMessage(),
+                ErrorCode.USER_NOT_FOUND));
 
         return TokenDto.from(newAccessToken, newRefreshToken, user.getVoiceLockTimeout());
     }
@@ -135,7 +146,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public VoicePasswordCheckResponse checkVoiceLockPassword(Long userId, SetVoiceLockRequestDto setVoiceLockRequestDto) {
+    public VoicePasswordCheckResponse checkVoiceLockPassword(Long userId,
+        SetVoiceLockRequestDto setVoiceLockRequestDto) {
 
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
@@ -162,6 +174,65 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
         user.deleteUserVoicePassword();
+    }
+
+    @Override
+    public OAuthResponseDto loginOrSignUpWithOauth2(String provider, String authorizationCode) {
+        // authorization code로 Oauth provider의 accessToken 발급
+        String oauthAccessToken = null;
+        SocialUserInfoDto socialUserInfoDto = null;
+
+        if ("kakao".equalsIgnoreCase(provider)) {
+            oauthAccessToken = oAuthService.getKakaoAccessToken(authorizationCode);
+            socialUserInfoDto = oAuthService.getKakaoUserInfo(oauthAccessToken);
+        } else {
+            throw new CustomException("지원하지 않는 소셜 로그인 제공자입니다.", ErrorCode.UNSUPPORTED_PROVIDER);
+        }
+
+        String email = socialUserInfoDto.email();
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+
+        if (optionalUser.isPresent()) {
+            // 존재 O -> 기존 가입 유저 (바로 로그인 처리)
+            User existingUser = optionalUser.get();
+
+            boolean isAlreadySocialSignup = socialUserRepository.existsByUser(existingUser);
+            if (!isAlreadySocialSignup) {
+                socialUserRepository.save(
+                    SocialUser.create(
+                        socialUserInfoDto.provider(),
+                        socialUserInfoDto.providerId(),
+                        existingUser));
+            }
+
+            String accessToken = jwtUtil.createAccessToken(existingUser.getId());
+            String refreshToken = jwtUtil.createRefreshToken(existingUser.getId());
+            refreshTokenService.save(existingUser.getId(), refreshToken,
+                getRefreshTokenMaxAgeSeconds());
+
+            return !isAlreadySocialSignup ?
+                OAuthResponseDto.loginAndLinkUserResponse(
+                    accessToken,
+                    optionalUser.get().getVoiceLockTimeout())
+
+                : OAuthResponseDto.loginUserResponse(
+                    accessToken,
+                    optionalUser.get().getVoiceLockTimeout()
+                );
+
+        } else {
+            // 존재 X -> 회원가입 페이지 처리 유도
+            // Redis에 소셜 유저 정보(이메일, 닉네임, 프사 등)를 30분간 담아두고 UUID 제공
+            String registerUUID = oAuthService.saveTempSocialUserToRedis(socialUserInfoDto);
+
+            // 응답: 회원가입 전 임시 발급된 UUID만 프론트엔드로 내려 줌
+            return OAuthResponseDto.signupUserResponse(
+                registerUUID,
+                socialUserInfoDto.nickname(),
+                socialUserInfoDto.profileImageUrl(),
+                socialUserInfoDto.email()
+            );
+        }
     }
 
     private Long extractUserId(Authentication authentication) {

@@ -7,6 +7,7 @@ import com.ssafy.ssarvis.chat.interceptor.FastApiWebSocketHandler;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,7 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 @RequiredArgsConstructor
 public class AiRequestRelayService {
 
+    private final ConcurrentHashMap<String, WebSocketSession> sessionMap = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
     private final AiOutputStorageService aiOutputStorageService;
 
@@ -27,9 +29,20 @@ public class AiRequestRelayService {
     private String fastApiWsUrl;
 
     public void send(WebSocketSession frontendSession, AiChatRequestDto aiChatRequestDto) {
+        String frontendSessionId = frontendSession.getId();
+        WebSocketSession fastApiSession = sessionMap.get(frontendSessionId);
+
         try {
-            FastApiWebSocketHandler handler = createFastApiHandler(frontendSession, aiChatRequestDto);
-            connectAndSend(frontendSession, handler, aiChatRequestDto);
+            if (fastApiSession != null && fastApiSession.isOpen()) {
+                // 이미 연결되어 있다면 기존 세션을 재활용하여 전송
+                log.info("FastAPI 기존 세션 재활용 전송. frontendSessionId={}", frontendSessionId);
+                sendPayloadToFastApi(frontendSession, fastApiSession, aiChatRequestDto);
+            } else {
+                // 연결이 없거나 닫혀있다면 새로 맺고 전송
+                log.info("FastAPI 새로운 세션 연결 및 전송. frontendSessionId={}", frontendSessionId);
+                FastApiWebSocketHandler handler = createFastApiHandler(frontendSession, aiChatRequestDto);
+                connectAndSend(frontendSession, handler, aiChatRequestDto);
+            }
         } catch (Exception e) {
             log.error("FastAPI 릴레이 처리 중 예외 발생. sessionId={}", aiChatRequestDto.sessionId(), e);
             notifyFrontendError(frontendSession, "FASTAPI_RELAY_FAILED");
@@ -70,6 +83,14 @@ public class AiRequestRelayService {
 
                 sendPayloadToFastApi(frontendSession, fastApiSession, payload);
             });
+    }
+
+    public void closeFastApiSession(String frontendSessionId) {
+        WebSocketSession fastApiSession = sessionMap.remove(frontendSessionId);
+        if (fastApiSession != null) {
+            log.info("프론트 소켓 종료에 따른 연관 FastAPI 세션 해제. frontendSessionId={}", frontendSessionId);
+            safeClose(fastApiSession);
+        }
     }
 
     private void handleConnectFailure(

@@ -30,19 +30,19 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
   onSearchOpen,
 }) => {
   return (
-    <div className="flex flex-col h-full bg-[#eee5df]">
+    <div className="flex flex-col h-full bg-white">
       {friendView === 'main' ? (
         <>
           <div
             onClick={onSearchOpen}
-            className="mx-4 mb-6 bg-[#e5e0dc] rounded-xl flex items-center gap-3 py-3 px-4 cursor-pointer hover:bg-[#dcd2ca] transition-colors"
+            className="mx-4 mb-6 bg-gray-100 rounded-xl flex items-center gap-3 py-3 px-4 cursor-pointer hover:bg-gray-200 transition-colors"
           >
-            <Search className="w-5 h-5 text-white/80 shrink-0" />
+            <Search className="w-5 h-5 text-gray-400 shrink-0" />
             <span className="text-gray-400 font-bold whitespace-nowrap">Search</span>
           </div>
 
           <div
-            className="group flex mx-4 mb-4 items-center justify-between p-4 bg-white/60 rounded-[28px] border border-white shadow-sm cursor-pointer hover:bg-white/80 transition-all"
+            className="group flex mx-4 mb-4 items-center justify-between p-4 bg-gray-50 rounded-[28px] border border-gray-100 shadow-sm cursor-pointer hover:bg-gray-100 transition-all"
             onClick={() => setFriendView('requests')}
           >
             <span className="text-lg font-black text-gray-600">
@@ -129,7 +129,7 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
               {followRequests.map((req) => (
                 <div
                   key={req.id}
-                  className="flex items-center gap-3 p-4 bg-white/60 rounded-2xl border border-white shadow-sm"
+                  className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm"
                 >
                   <div className="w-12 h-12 rounded-full overflow-hidden shrink-0">
                     <img

@@ -1,15 +1,21 @@
 import { useState } from 'react';
 import { Save, Sparkles, MessageCircle, User as UserIcon, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { postGeneratePrompt } from '../../../apis/aiApi';
+import { postEvaluationPrompt } from '../../../apis/aiApi';
 
 interface PersonaModalProps {
   isOpen: boolean;
   onClose: () => void;
   followName: string;
+  targetUserId: number | null;
 }
 
-export default function PersonaModal({ isOpen, onClose, followName }: PersonaModalProps) {
+export default function PersonaModal({
+  isOpen,
+  onClose,
+  followName,
+  targetUserId,
+}: PersonaModalProps) {
   const [description, setDescription] = useState('');
   const [qna, setQna] = useState([
     { id: 1, question: '이 사용자는 평소에 어떤 말투를 사용하나요?', answer: '' },
@@ -24,6 +30,10 @@ export default function PersonaModal({ isOpen, onClose, followName }: PersonaMod
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSave = async () => {
+    if (!targetUserId) {
+      alert('대상 사용자 정보를 확인할 수 없습니다.');
+      return;
+    }
     if (!description.trim()) {
       alert('설명을 입력해주세요!');
       return;
@@ -36,14 +46,23 @@ export default function PersonaModal({ isOpen, onClose, followName }: PersonaMod
 
     setIsSubmitting(true);
     try {
-      const payload = [
-        { question: '이 사람은 당신에게 어떤 사람인가요?', answer: description.trim() },
-        ...qna.map((q) => ({ question: q.question, answer: q.answer.trim() })),
-      ];
+      const combinedAnswer = [
+        `이 사람은 당신에게 어떤 사람인가요?\n${description.trim()}`,
+        ...qna.map((q) => `${q.question}\n${q.answer.trim()}`),
+      ].join('\n\n');
 
-      await postGeneratePrompt(payload);
+      const response = await postEvaluationPrompt(targetUserId, {
+        userInputQuestion: '이 사람에 대한 종합 문답',
+        userInputAnswer: combinedAnswer,
+      });
+      const latestPromptCount = response.data.promptCount;
+      const generatedPrompt = response.data.systemPrompt;
 
-      alert(`${followName}님의 페르소나가 성공적으로 저장되었습니다.`);
+      alert(
+        generatedPrompt.trim()
+          ? `${followName}님의 페르소나가 성공적으로 저장되었습니다.`
+          : `${followName}님의 문답이 저장되었습니다. 현재 누적 ${latestPromptCount}개예요.`,
+      );
       setIsSubmitting(false);
       onClose();
     } catch (error) {

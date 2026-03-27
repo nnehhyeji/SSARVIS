@@ -8,7 +8,6 @@ import { PATHS } from '../../routes/paths';
 // 분리된 데이터 및 컴포넌트 임포트
 import { QUESTIONS, VOICE_TOPICS, buildAutoAnswers } from './tutorialConstants';
 import type {
-  Question,
   TutorialStep,
   VoicePhase,
   SpeechRecognitionEvent,
@@ -83,19 +82,7 @@ function StepIndicator({ current }: { current: TutorialStep }) {
 
 export default function TutorialPage() {
   const navigate = useNavigate();
-  const nickname = useUserStore((state: ReturnType<typeof useUserStore.getState>) => state.userInfo?.nickname?.trim() || '');
-  const initialNameAnswer = nickname ? `${nickname}으로 불러줘` : '이름으로 불러줘';
-  const questions = useMemo<Question[]>(
-    () => [
-      {
-        question: '당신의 이름이 무엇인가요? 무슨 이름으로 불러드리면 좋을까요?',
-        choices: [initialNameAnswer],
-        autochoice: {},
-      },
-      ...QUESTIONS,
-    ],
-    [initialNameAnswer],
-  );
+  const nickname = useUserStore((state) => state.userInfo?.nickname?.trim() ?? '');
 
   const [step, setStep] = useState<TutorialStep>('mbti');
 
@@ -105,11 +92,7 @@ export default function TutorialPage() {
 
   // ── Questions State ─────────────────────────────────────────────────────
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<string[]>(() => {
-    const seededAnswers = new Array(QUESTIONS.length + 1).fill('');
-    seededAnswers[0] = initialNameAnswer;
-    return seededAnswers;
-  });
+  const [answers, setAnswers] = useState<string[]>(new Array(QUESTIONS.length).fill(''));
   const [waveDurations] = useState<number[]>(() =>
     [...Array(20)].map(() => 0.8 + Math.random() * 1.2),
   );
@@ -266,12 +249,10 @@ export default function TutorialPage() {
 
   const handleMbtiNext = () => {
     if (hasMbti) {
-      const auto = [initialNameAnswer, ...buildAutoAnswers(selectedMbti)];
+      const auto = buildAutoAnswers(selectedMbti);
       setAnswers(auto);
     } else {
-      const seededAnswers = new Array(questions.length).fill('');
-      seededAnswers[0] = initialNameAnswer;
-      setAnswers(seededAnswers);
+      setAnswers(new Array(QUESTIONS.length).fill(''));
     }
     setCurrentIndex(0);
     setStep('questions');
@@ -279,21 +260,17 @@ export default function TutorialPage() {
 
   // ── Question Logic ──────────────────────────────────────────────────────
   const manualIndices = useMemo(() => {
-    if (!hasMbti) return questions.map((_, i) => i);
+    if (!hasMbti) return QUESTIONS.map((_, i) => i);
     const chars = selectedMbti.split('');
-    return questions.reduce<number[]>((acc, q, i) => {
-      if (i === 0) {
-        acc.push(i);
-        return acc;
-      }
+    return QUESTIONS.reduce<number[]>((acc, q, i) => {
       const hasAutoMatch = chars.some((char) => !!q.autochoice[char]);
       if (!hasAutoMatch) acc.push(i);
       return acc;
     }, []);
-  }, [hasMbti, questions, selectedMbti]);
+  }, [hasMbti, selectedMbti]);
 
   const actualIdx = manualIndices[currentIndex] ?? 0;
-  const currentQuestion = questions[actualIdx];
+  const currentQuestion = QUESTIONS[actualIdx];
   const currentAnswer = answers[actualIdx];
 
   const handleSelectAnswer = (ans: string) => {
@@ -322,25 +299,20 @@ export default function TutorialPage() {
   const progress = totalManual > 0 ? ((currentIndex + 1) / totalManual) * 100 : 100;
   const timerPercent = (recordingTime / MAX_RECORDING_SEC) * 100;
 
-  useEffect(() => {
-    setAnswers((prev) => {
-      if (prev[0] === initialNameAnswer) {
-        return prev;
-      }
-
-      const nextAnswers = [...prev];
-      nextAnswers[0] = initialNameAnswer;
-      return nextAnswers;
-    });
-  }, [initialNameAnswer]);
-
   // ── Final Finish Action ──────────────────────────────────────────────────
   const handleFinish = async () => {
     setStep('loading');
     // 답변이 있는 질문만 필터링하여 전송 데이터 최적화
-    const qna = questions.map((q, i) => ({ question: q.question, answer: answers[i] })).filter(
+    const qna = QUESTIONS.map((q, i) => ({ question: q.question, answer: answers[i] })).filter(
       (item) => item.answer && item.answer.trim() !== '',
     );
+
+    if (nickname) {
+      qna.unshift({
+        question: '당신의 이름이 무엇인가요? 무슨 이름으로 불러드리면 좋을까요?',
+        answer: `${nickname}으로 불러줘`,
+      });
+    }
 
     // 질문 답변이 하나도 없는지 체크 (AI 서버 min_length=1 대응)
     if (qna.length === 0) {

@@ -1,6 +1,8 @@
 import asyncio
 import subprocess
 
+from app.config.media import media_config
+
 
 class AudioTranscodingError(RuntimeError):
     """Raised when uploaded audio cannot be transcoded to MP3."""
@@ -20,6 +22,8 @@ class AudioTranscoder:
             "-i",
             "pipe:0",
             "-vn",
+            "-filter:a",
+            media_config.build_atempo_filter(),
             "-acodec",
             "libmp3lame",
             "-f",

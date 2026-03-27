@@ -1,5 +1,6 @@
 package com.ssafy.ssarvis.user.entity;
 
+import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.entity.BaseTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -130,6 +131,10 @@ public class User extends BaseTime {
 
     public void toggleProfile() {
         this.isPublic = !this.isPublic;
+    }
+
+    public void updateProfileVisibility(Boolean isPublic) {
+        this.isPublic = isPublic;
     }
 
 }

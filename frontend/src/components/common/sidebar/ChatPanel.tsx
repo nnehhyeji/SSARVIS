@@ -93,7 +93,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   {['daily', 'study', 'counsel'].map((mode) => (
                     <button
                       key={mode}
-                      onClick={() => setAssistantFilters([mode])}
+                      onClick={() =>
+                        setAssistantFilters((prev) => (prev.includes(mode) ? [] : [mode]))
+                      }
                       className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${assistantFilters.includes(mode) ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
                     >
                       {mode === 'daily'

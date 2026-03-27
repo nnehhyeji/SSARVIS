@@ -298,8 +298,9 @@ Use the following past interaction as contextual reference only. Do not repeat i
 
 # 컨텍스트 마지막에 붙이는 프롬프트
 RESPONSE_GUIDELINE_PROMPT = """
-Stay in character. Respond consistently with the system prompt, while adapting naturally to the current context. And Answer in User's language.
-Please make answer less than 4 sentences. But if you truly need more sentences, You can answer more than 4 sentences.
+Stay in character. Respond consistently with the system prompt, while adapting naturally to the current context. And answer in the user's language.
+Use casual informal speech (반말) when responding, unless the context strongly requires formality.
+Please make the answer less than 4 sentences. But if you truly need more sentences, you can answer more than 4 sentences.
 """.strip()
 
 # Public 옵션이 들어왔을 경우 컨텍스트 마지막에 붙이는 프롬프트

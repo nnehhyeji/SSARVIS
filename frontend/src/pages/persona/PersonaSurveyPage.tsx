@@ -4,13 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Sparkles, MessageCircle, User as UserIcon } from 'lucide-react';
 
 import { PATHS } from '../../routes/paths';
-import { postGeneratePrompt } from '../../apis/aiApi';
+import { postEvaluationPrompt } from '../../apis/aiApi';
 
 export default function PersonaSurveyPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isFirst = searchParams.get('isFirst') === 'true';
+  const targetUserId = Number(userId);
 
   const [userName, setUserName] = useState('사용자');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,6 +39,10 @@ export default function PersonaSurveyPage() {
   };
 
   const handleSubmit = async () => {
+    if (!Number.isFinite(targetUserId)) {
+      alert('대상 사용자 정보를 확인할 수 없습니다.');
+      return;
+    }
     if (!description.trim()) {
       alert('설명을 입력해주세요!');
       return;
@@ -48,28 +53,42 @@ export default function PersonaSurveyPage() {
       return;
     }
 
-    const payload = [
-      { question: '이 사람은 당신에게 어떤 사람인가요?', answer: description.trim() },
-      ...qna.map((q) => ({ question: q.question, answer: q.answer.trim() })),
-    ];
+    const combinedAnswer = [
+      `이 사람은 당신에게 어떤 사람인가요?\n${description.trim()}`,
+      ...qna.map((q) => `${q.question}\n${q.answer.trim()}`),
+    ].join('\n\n');
 
     if (isFirst) {
-      // 첫 응답: 생성 중 화면을 띄우고 기다린 뒤 이동
       setIsGenerating(true);
-      try {
-        await postGeneratePrompt(payload);
-      } catch (error) {
-        console.error('프롬프트 생성 실패:', error);
-      } finally {
-        navigate(`${PATHS.VISIT(Number(userId))}?mode=persona`);
-      }
     } else {
-      // 기존 페르소나가 있는 경우: fire-and-forget 백그라운드 처리 후 즉시 이동
-      setIsSubmitting(true); // 버튼 더블클릭 방지용
-      postGeneratePrompt(payload).catch((error) => console.error('프롬프트 업데이트 실패:', error));
+      setIsSubmitting(true);
+    }
 
-      alert('설문이 반영되었습니다! 감사합니다.');
-      navigate(`${PATHS.VISIT(Number(userId))}?mode=persona`);
+    try {
+      const response = await postEvaluationPrompt(targetUserId, {
+        userInputQuestion: '이 사람에 대한 종합 문답',
+        userInputAnswer: combinedAnswer,
+      });
+      const latestPromptCount = response.data.promptCount;
+      const generatedPrompt = response.data.systemPrompt;
+
+      const hasPersonaPrompt = !!generatedPrompt.trim();
+      const nextSearch = hasPersonaPrompt ? '?mode=persona' : '?mode=persona&empty=true';
+
+      if (!isFirst) {
+        if (hasPersonaPrompt) {
+          alert('설문이 반영되었습니다! 감사합니다.');
+        } else {
+          alert(`문답이 저장되었습니다. 현재 누적 ${latestPromptCount}개예요.`);
+        }
+      }
+
+      navigate(`${PATHS.VISIT(targetUserId)}${nextSearch}`);
+    } catch (error) {
+      console.error('프롬프트 생성 실패:', error);
+      alert('문답 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setIsGenerating(false);
+      setIsSubmitting(false);
     }
   };
 

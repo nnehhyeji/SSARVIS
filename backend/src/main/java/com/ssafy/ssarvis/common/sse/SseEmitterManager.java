@@ -58,6 +58,7 @@ public class SseEmitterManager {
             log.debug("SSE 연결 없음 (다른 인스턴스 처리) - userId: {}", userId);
             return;
         }
+        log.info("sendToEmitter: userId={}, emitter={}, eventNamer={}, data={}", userId, emitter, eventName, data);
         sendToEmitter(userId, emitter, eventName, data);
     }
 

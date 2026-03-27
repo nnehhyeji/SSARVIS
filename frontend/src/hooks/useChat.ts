@@ -43,11 +43,11 @@ interface RecordingOptions {
   targetUserId: number | null;
 }
 
-const WAKE_WORD = '자비스';
+const WAKE_WORD = '싸비스';
 const SPEECH_SILENCE_MS = 2000;
 const TRANSCRIPT_VISIBLE_MS = 3000;
 
-const WAKE_WORD_ALIASES = [WAKE_WORD, '자비', '자빗', '자빕', '자비스', '서비스', '잡스'];
+const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '서비스', '싸비스야', '사비서', '싸비스'];
 
 function normalizeWakeTranscript(text: string) {
   return text.replace(/\s+/g, '').toLowerCase();
@@ -67,6 +67,7 @@ export function useChat() {
   const [isLockMode, setIsLockMode] = useState(false);
   const [sttText, setSttText] = useState('');
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [latestAiText, setLatestAiText] = useState('안녕하세요. 무엇을 도와드릴까요?');
   const [voiceStatus, setVoiceStatus] = useState('마이크 버튼을 눌러 웨이크 워드를 활성화하세요.');
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
@@ -94,6 +95,8 @@ export function useChat() {
   const isSpeechRecognitionSupported = useRef(true);
   const awaitingResponseRef = useRef(false);
   const resumeWakeWordRef = useRef<(() => void) | null>(null);
+  const aiPlaybackActiveRef = useRef(false);
+  const pendingWakeResumeRef = useRef(false);
 
   const processAudioQueue = useCallback(() => {
     const sourceBuffer = sourceBufferRef.current;
@@ -141,6 +144,17 @@ export function useChat() {
     if (clearTranscript) {
       setSttText('');
     }
+  }, []);
+
+  const resumeWakeWordWhenReady = useCallback(() => {
+    if (!wakeWordActiveRef.current) return;
+    if (awaitingResponseRef.current || aiPlaybackActiveRef.current) {
+      pendingWakeResumeRef.current = true;
+      return;
+    }
+
+    pendingWakeResumeRef.current = false;
+    resumeWakeWordRef.current?.();
   }, []);
 
   const updateVoiceStatus = useCallback((message: string) => {
@@ -225,19 +239,19 @@ export function useChat() {
       if (message.type === 'ACK') return;
       if (message.type === 'END_OF_STREAM') {
         endAwaitingResponse();
-        resumeWakeWordRef.current?.();
+        resumeWakeWordWhenReady();
         console.debug('WebSocket stream ended:', message.type);
         return;
       }
       if (message.type === 'CANCELLED') {
         endAwaitingResponse();
-        resumeWakeWordRef.current?.();
+        resumeWakeWordWhenReady();
         console.warn('WebSocket request cancelled:', message.type, message.message);
         return;
       }
       if (message.type === 'ERROR' || message.type === 'error') {
         endAwaitingResponse(false);
-        resumeWakeWordRef.current?.();
+        resumeWakeWordWhenReady();
         console.error('WebSocket state:', message.type, {
           message: message.message,
           detail: message.detail,
@@ -256,6 +270,7 @@ export function useChat() {
         case 'text.end': {
           const aiResponseText = message.payload?.text || '';
           let index = 0;
+          setLatestAiText(aiResponseText);
 
           typeWriterIntervalRef.current = setInterval(() => {
             setChatMessages((prev) => {
@@ -280,9 +295,21 @@ export function useChat() {
           const mediaSource = new MediaSource();
           const audio = new Audio();
           audio.src = URL.createObjectURL(mediaSource);
-          audio.onplay = () => setIsAiSpeaking(true);
-          audio.onpause = () => setIsAiSpeaking(false);
-          audio.onended = () => setIsAiSpeaking(false);
+          audio.onplay = () => {
+            aiPlaybackActiveRef.current = true;
+            setIsAiSpeaking(true);
+          };
+          audio.onpause = () => {
+            aiPlaybackActiveRef.current = false;
+            setIsAiSpeaking(false);
+          };
+          audio.onended = () => {
+            aiPlaybackActiveRef.current = false;
+            setIsAiSpeaking(false);
+            if (pendingWakeResumeRef.current) {
+              resumeWakeWordWhenReady();
+            }
+          };
           audio.play().catch((error) => console.warn('오디오 자동재생 대기:', error));
 
           mediaSource.addEventListener('sourceopen', () => {
@@ -310,7 +337,7 @@ export function useChat() {
 
     wsRef.current = socket;
     return socket;
-  }, [endAwaitingResponse, processAudioQueue]);
+  }, [endAwaitingResponse, processAudioQueue, resumeWakeWordWhenReady]);
 
   const ensureSocketReady = useCallback(async () => {
     const socket = connectSocket();
@@ -808,6 +835,7 @@ export function useChat() {
   return {
     chatInput,
     chatMessages,
+    latestAiText,
     isLockMode,
     sttText,
     isAiSpeaking,

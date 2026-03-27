@@ -23,7 +23,7 @@ type CustomWindow = Window & {
 };
 
 const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({ onClose }) => {
-  const { setLockPhrase, setIsVoiceLockRegistered, setVoiceLockEnabled, timeoutDuration } =
+  const { setIsVoiceLockRegistered, setVoiceLockEnabled, timeoutDuration } =
     useVoiceLockStore();
   const { faceType, mouthOpenRadius } = useAICharacter();
 
@@ -152,13 +152,12 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
     setErrorMsg('');
 
     try {
-      await authApi.setupVoiceLock({
-        voicePassword: transcript.trim(),
-        timeout: timeoutDuration,
-      });
-      setLockPhrase(transcript.trim());
-      setIsVoiceLockRegistered(true);
-      setVoiceLockEnabled(true);
+        await authApi.setupVoiceLock({
+          voicePassword: transcript.trim(),
+          timeout: timeoutDuration,
+        });
+        setIsVoiceLockRegistered(true);
+        setVoiceLockEnabled(true);
       setStep('success');
     } catch (error) {
       console.error('Failed to setup voice lock:', error);
