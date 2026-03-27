@@ -3,6 +3,7 @@ package com.ssafy.ssarvis.notification.service.impl;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.common.sse.RedisMessagePublisher;
+import com.ssafy.ssarvis.follow.entity.FollowDirection;
 import com.ssafy.ssarvis.notification.dto.request.SseNotificationMessageRequestDto;
 import com.ssafy.ssarvis.notification.dto.response.NotificationCountResponseDto;
 import com.ssafy.ssarvis.notification.dto.response.NotificationPayload;
@@ -14,6 +15,7 @@ import com.ssafy.ssarvis.notification.repository.NotificationRepository;
 import com.ssafy.ssarvis.notification.repository.NotificationTypeRepository;
 import com.ssafy.ssarvis.notification.service.NotificationService;
 import com.ssafy.ssarvis.user.entity.User;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -51,10 +53,14 @@ public class NotificationServiceImpl implements NotificationService {
 
         NotificationPayload notificationPayload = NotificationPayload.builder()
             .senderId(sender.getId())
+            .senderEmail(sender.getEmail())
+            .senderCustomId(sender.getCustomId())
+            .senderProfileImage(sender.getProfileImageUrl())
+            .createdAt(LocalDateTime.now().toString())
             .senderNickname(sender.getNickname())
             .targetUserId(receiver.getId())
             .followRequestId(followRequestId)
-            .direction("FOLLOWER")
+            .direction(FollowDirection.FOLLOWER.name())
             .message(sender.getNickname() + "님이 친구 신청을 보냈습니다.")
             .build();
 
@@ -90,14 +96,14 @@ public class NotificationServiceImpl implements NotificationService {
             .senderProfileImage(receiver.getProfileImageUrl())
             .targetUserId(sender.getId())
             .followId(followId)
-            .direction("FOLLOWING") // 수신자 기준 방향 (내가 팔로잉함)
+            .direction(FollowDirection.FOLLOWING.name())
             .message(msg)
             .createdAt(notification.getCreatedAt().toString())
             .build();
 
         redisMessagePublisher.publisher(SseNotificationMessageRequestDto.builder()
             .receiverId(sender.getId())
-            .eventName("FOLLOW_REQUEST_ACCEPTED")
+            .eventName(NotificationTypeEnum.FOLLOW_ACCEPT.name())
             .payload(payload).build());
 
         log.info("친구 수락 알림 발송 - 전송자 PK: {}, 응답자 PK: {}",
@@ -173,14 +179,14 @@ public class NotificationServiceImpl implements NotificationService {
             .senderProfileImage(sender.getProfileImageUrl())
             .targetUserId(receiver.getId())
             .followId(followId)
-            .direction("FOLLOWER") // 수신자 기준: "나를 팔로우한 새로운 팔로워"
+            .direction(FollowDirection.FOLLOWER.name())
             .message(msg)
             .createdAt(notification.getCreatedAt().toString())
             .build();
 
         redisMessagePublisher.publisher(SseNotificationMessageRequestDto.builder()
             .receiverId(receiver.getId())
-            .eventName("FOLLOW_CREATED")
+            .eventName(NotificationTypeEnum.FOLLOW_CREATED.name())
             .payload(payload)
             .build());
 

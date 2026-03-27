@@ -75,7 +75,7 @@ public class FollowServiceImpl implements FollowService {
             followRepository.save(follow);
 
             // 알림 전송: "A님이 회원님을 팔로우했습니다." (즉시 완료 알림)
-            notificationService.sendFollowAcceptNotification(sender, receiver, follow.getId());
+            notificationService.sendFollowDirectNotification(sender, receiver, follow.getId());
         } else {
             // 비공개 계정: 기존처럼 팔로우 요청 생성
             FollowRequest followRequest = FollowRequest.builder()
