@@ -11,26 +11,41 @@ import PersonaSurveyPage from '../pages/persona/PersonaSurveyPage';
 import AssistantPage from '../pages/assistant/AssistantPage';
 import NamnaPage from '../pages/namna/NamnaPage';
 import ChatArchiveListPage from '../pages/chat/ChatArchiveListPage';
+import GuestExperiencePage from '../pages/guest/GuestExperiencePage';
+import GuestCompletePage from '../pages/guest/GuestCompletePage';
+
+import LandingPage from '../pages/landing/LandingPage';
 
 import ProtectedRoute from '../components/common/ProtectedRoute';
 import MainLayout from '../components/layout/MainLayout';
 import { PATHS } from './paths';
 
 /**
- * React Router v6.4+의 createBrowserRouter를 사용한 라우터 객체입니다.
+ * 애플리케이션 라우터 설정
  */
 export const router = createBrowserRouter([
   {
-    path: PATHS.HOME,
-    element: <MainLayout />,
+    path: '/',
+    element: <LandingPage />, // 루트 도메인 접속 시 체험/로그인 선택 랜딩 페이지
+  },
+  {
+    path: PATHS.GUEST_EXPERIENCE,
+    element: <GuestExperiencePage />,
+  },
+  {
+    path: PATHS.GUEST_COMPLETE_PARAM,
+    element: <GuestCompletePage />,
+  },
+  {
+    element: <MainLayout />, // 사이드바가 필요한 내부 홈/기능 페이지들
     children: [
       {
-        index: true,
-        element: <UserMainPage />,
-      },
-      {
         path: PATHS.USER_HOME_PARAM,
-        element: <UserMainPage />,
+        element: (
+          <ProtectedRoute>
+            <UserMainPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: PATHS.ASSISTANT,

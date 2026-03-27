@@ -120,11 +120,12 @@ public class UserController {
         return ResponseEntity.ok(BaseResponse.success(String.valueOf(result)));
     }
 
-    @GetMapping("/profile/toggle")
-    public ResponseEntity<BaseResponse<Boolean>> toggleProfileStatus(
-        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    @PatchMapping("/profile/toggle")
+    public ResponseEntity<BaseResponse<Boolean>> updateProfileStatus(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @RequestBody @Valid UserProfileVisibilityUpdateRequestDto requestDto
     ) {
-        boolean result = userService.toggleProfile(customUserDetails.getUserId());
+        boolean result = userService.updateProfileVisibility(customUserDetails.getUserId(), requestDto.isPublic());
         return ResponseEntity.ok(BaseResponse.success(String.valueOf(result)));
     }
 
