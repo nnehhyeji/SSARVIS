@@ -8,9 +8,14 @@ public record NotificationPayload(
     Long senderId,
     String senderEmail,
     String senderCustomId,
+    String senderNickname,
     String senderProfileImage,
     String message,
-    String createdAt
+    String createdAt,
+    Long targetUserId,
+    Long followRequestId,
+    Long followId,
+    String direction
 
 ) {
 

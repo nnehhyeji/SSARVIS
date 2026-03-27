@@ -3,7 +3,8 @@ package com.ssafy.ssarvis.notification.entity;
 public enum NotificationTypeEnum {
 
     FOLLOW_REQUEST("친구 신청"),
-    FOLLOW_ACCEPT("친구 수락");
+    FOLLOW_ACCEPT("친구 수락"),
+    FOLLOW_CREATED("친구 등록");
 
     private final String description;
 
