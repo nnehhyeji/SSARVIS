@@ -363,8 +363,8 @@ export default function TutorialPage() {
   // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center p-4 bg-white">
-      <div className="w-full max-w-2xl z-10">
+    <div className="relative w-full min-h-screen overflow-y-auto overflow-x-hidden flex flex-col items-center justify-start sm:justify-center p-4 bg-white">
+      <div className="w-full max-w-2xl z-10 my-6 sm:my-0">
         {step !== 'loading' && <StepIndicator current={step} />}
 
         <AnimatePresence mode="wait">
