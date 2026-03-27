@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Lock, ShieldCheck, ChevronRight, XCircle } from 'lucide-react';
 import authApi from '../../apis/authApi';
@@ -18,12 +19,11 @@ export default function SecuritySettings({
   formatTime,
   onOpenRegistrationModal,
 }: Props) {
+  const [lockPhrase, setLockPhrase] = useState('');
   const {
     isVoiceLockRegistered,
     isVoiceLockEnabled,
     setVoiceLockEnabled,
-    lockPhrase,
-    setLockPhrase,
     timeoutDuration,
     setTimeoutDuration,
     clearVoiceLock,
@@ -31,10 +31,16 @@ export default function SecuritySettings({
 
   const handleSaveSecuritySettings = async () => {
     if (!isVoiceLockRegistered) return;
+    const trimmedLockPhrase = lockPhrase.trim();
+    if (!trimmedLockPhrase) {
+      alert('해제 문구를 입력해주세요.');
+      return;
+    }
     setIsSaving(true);
     try {
-      await authApi.setupVoiceLock({ voicePassword: lockPhrase, timeout: timeoutDuration });
+      await authApi.setupVoiceLock({ voicePassword: trimmedLockPhrase, timeout: timeoutDuration });
       alert('보안 설정이 저장되었습니다.');
+      setLockPhrase('');
     } catch (error) {
       console.error('Failed to save security settings:', error);
       alert('설정 저장 중 오류가 발생했습니다.');
@@ -131,6 +137,7 @@ export default function SecuritySettings({
                           type="text"
                           value={lockPhrase}
                           onChange={(e) => setLockPhrase(e.target.value)}
+                          placeholder="새 해제 문구를 입력하세요"
                           className="w-full bg-gray-50 border-2 border-rose-50 rounded-2xl py-6 px-8 font-black text-[18px] text-gray-900 focus:outline-none focus:border-rose-500 transition-all leading-tight"
                         />
                         <div className="absolute right-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm">
@@ -176,7 +183,7 @@ export default function SecuritySettings({
                   <div className="flex justify-end pt-10">
                     <button
                       onClick={handleSaveSecuritySettings}
-                      disabled={isSaving}
+                      disabled={isSaving || !lockPhrase.trim()}
                       className="px-12 py-5 bg-rose-500 text-white rounded-2xl font-black text-2xl shadow-xl shadow-rose-500/20 hover:bg-rose-600 transition-all flex items-center gap-3 active:scale-95 disabled:bg-gray-200"
                     >
                       <ShieldCheck className="w-7 h-7" />
