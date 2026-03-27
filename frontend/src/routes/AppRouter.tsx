@@ -101,11 +101,7 @@ export const router = createBrowserRouter([
       },
       {
         path: PATHS.PERSONA_PARAM,
-        element: (
-          <ProtectedRoute>
-            <PersonaSurveyPage />
-          </ProtectedRoute>
-        ),
+        element: <PersonaSurveyPage />,
       },
     ],
   },
