@@ -19,9 +19,9 @@ const ProfilePage: React.FC = () => {
         const [profileData, followList, followerList] = await Promise.all([
           userApi.getUserProfile(),
           followApi.getFollowList(),
-          followApi.getFollowerList()
+          followApi.getFollowerList(),
         ]);
-        
+
         setProfile(profileData);
         setFollowingCount(followList.data?.length || 0);
         setFollowerCount(followerList.data?.length || 0);
@@ -41,9 +41,10 @@ const ProfilePage: React.FC = () => {
     if (!myId) return;
 
     const shareUrl = `${window.location.origin}/${myId}`;
-    
+
     // 클립보드 복사
-    navigator.clipboard.writeText(shareUrl)
+    navigator.clipboard
+      .writeText(shareUrl)
       .then(() => {
         alert('내 명함 링크가 클립보드에 복사되었습니다! 🪪');
       })
@@ -78,7 +79,7 @@ const ProfilePage: React.FC = () => {
               <h1 className="text-6xl font-black text-gray-900 tracking-tighter drop-shadow-sm">
                 {userInfo?.nickname || 'nneh'}
               </h1>
-              
+
               {/* 팔로워/팔로잉 카운트 영역 */}
               <div className="flex items-center gap-6 my-2">
                 <div className="flex items-center gap-2 group/stat cursor-default">

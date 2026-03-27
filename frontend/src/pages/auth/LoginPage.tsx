@@ -109,7 +109,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] flex items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-6xl bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row min-h-[640px]"
@@ -123,12 +123,16 @@ export default function LoginPage() {
               </div>
               <span className="text-[#11141D] font-black text-3xl tracking-tight">SSARVIS</span>
             </div>
-            
+
             <div className="space-y-6">
-              <span className="text-[#11141D]/50 text-sm font-black tracking-[0.2em] block uppercase">YOUR AI ARCHIVE</span>
+              <span className="text-[#11141D]/50 text-sm font-black tracking-[0.2em] block uppercase">
+                YOUR AI ARCHIVE
+              </span>
               <h1 className="text-[#11141D] text-5xl font-extrabold leading-[1.2] break-keep">
-                나를 닮은<br />
-                나만의 AI가<br />
+                나를 닮은
+                <br />
+                나만의 AI가
+                <br />
                 시작되는 곳
               </h1>
             </div>
@@ -137,7 +141,7 @@ export default function LoginPage() {
 
         {/* Right Side Form */}
         <div className="w-full md:w-[55%] p-8 md:p-12 flex flex-col relative order-1 md:order-2 self-center">
-          <button 
+          <button
             onClick={() => navigate(PATHS.HOME)}
             className="absolute top-6 left-8 text-gray-400 hover:text-gray-600 transition-colors"
           >
@@ -146,12 +150,16 @@ export default function LoginPage() {
 
           <div className="mb-6 m-4">
             <h2 className="text-[#11141D] text-3xl font-bold mb-1.5 leading-tight">Welcome back</h2>
-            <p className="text-gray-400 text-sm font-medium">정보를 입력하여 로그인을 진행해주세요.</p>
+            <p className="text-gray-400 text-sm font-medium">
+              정보를 입력하여 로그인을 진행해주세요.
+            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Email</label>
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
+                Email
+              </label>
               <input
                 type="email"
                 placeholder="name@example.com"
@@ -163,7 +171,9 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Password</label>
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
+                Password
+              </label>
               <input
                 type="password"
                 placeholder="••••••••"
@@ -188,7 +198,9 @@ export default function LoginPage() {
                     <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
                   </div>
                 </div>
-                <span className="text-xs font-bold text-gray-300 group-hover:text-gray-500 transition-colors">아이디 기억</span>
+                <span className="text-xs font-bold text-gray-300 group-hover:text-gray-500 transition-colors">
+                  아이디 기억
+                </span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer group">
@@ -203,7 +215,9 @@ export default function LoginPage() {
                     <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
                   </div>
                 </div>
-                <span className="text-xs font-bold text-gray-300 group-hover:text-gray-500 transition-colors">자동 로그인</span>
+                <span className="text-xs font-bold text-gray-300 group-hover:text-gray-500 transition-colors">
+                  자동 로그인
+                </span>
               </label>
             </div>
 

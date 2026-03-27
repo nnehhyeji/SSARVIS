@@ -2,10 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  ChevronLeft,
-  Check,
-} from 'lucide-react';
+import { ChevronLeft, Check } from 'lucide-react';
 import { PATHS } from '../../routes/paths';
 import userApi from '../../apis/userApi';
 import authApi from '../../apis/authApi';
@@ -49,7 +46,6 @@ export default function SignupPage() {
       if (timer) clearInterval(timer);
     };
   }, [isTimerActive, timeLeft]);
-
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,7 +165,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] flex items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-6xl bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row min-h-[720px]"
@@ -183,12 +179,16 @@ export default function SignupPage() {
               </div>
               <span className="text-[#11141D] font-black text-3xl tracking-tight">SSARVIS</span>
             </div>
-            
+
             <div className="space-y-6">
-              <span className="text-[#11141D]/50 text-sm font-black tracking-[0.2em] block uppercase">YOUR AI ARCHIVE</span>
+              <span className="text-[#11141D]/50 text-sm font-black tracking-[0.2em] block uppercase">
+                YOUR AI ARCHIVE
+              </span>
               <h1 className="text-[#11141D] text-5xl font-extrabold leading-[1.2] break-keep">
-                나를 닮은<br />
-                나만의 AI가<br />
+                나를 닮은
+                <br />
+                나만의 AI가
+                <br />
                 시작되는 곳
               </h1>
             </div>
@@ -197,7 +197,7 @@ export default function SignupPage() {
 
         {/* Right Side Form */}
         <div className="w-full md:w-[55%] p-8 md:p-12 flex flex-col relative order-1 md:order-2 self-center">
-          <button 
+          <button
             onClick={() => navigate(PATHS.HOME)}
             className="absolute top-6 left-8 text-gray-400 hover:text-gray-600 transition-colors"
           >
@@ -212,7 +212,9 @@ export default function SignupPage() {
           <form onSubmit={handleSignup} className="space-y-3">
             {/* ID Field */}
             <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">ID</label>
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
+                ID
+              </label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -243,7 +245,9 @@ export default function SignupPage() {
 
             {/* Email Field */}
             <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Email</label>
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
+                Email
+              </label>
               <div className="flex gap-2">
                 <input
                   type="email"
@@ -263,12 +267,16 @@ export default function SignupPage() {
                   disabled={emailStatus === 'sending' || emailStatus === 'verified'}
                   className="px-5 py-3 bg-white border border-gray-200 text-[#11141D] rounded-2xl font-bold text-[11px] hover:bg-gray-50 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
                 >
-                  {emailStatus === 'sending' ? '발송 중' : emailStatus === 'verified' ? '인증됨' : '인증요청'}
+                  {emailStatus === 'sending'
+                    ? '발송 중'
+                    : emailStatus === 'verified'
+                      ? '인증됨'
+                      : '인증요청'}
                 </button>
               </div>
 
               {(emailStatus === 'sent' || emailStatus === 'verified') && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="space-y-2 mt-2"
@@ -292,8 +300,12 @@ export default function SignupPage() {
                     </button>
                   </div>
                   {emailStatus === 'sent' && (
-                    <p className={`text-[9px] font-bold ml-1 ${timeLeft < 30 ? 'text-red-500' : 'text-[#D5A09D]'}`}>
-                      {timeLeft > 0 ? `남은 시간 ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : '인증 만료'}
+                    <p
+                      className={`text-[9px] font-bold ml-1 ${timeLeft < 30 ? 'text-red-500' : 'text-[#D5A09D]'}`}
+                    >
+                      {timeLeft > 0
+                        ? `남은 시간 ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`
+                        : '인증 만료'}
                     </p>
                   )}
                 </motion.div>
@@ -302,7 +314,9 @@ export default function SignupPage() {
 
             {/* Password Field */}
             <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Password</label>
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
+                Password
+              </label>
               <input
                 type="password"
                 placeholder="비밀번호 입력 (8~20자)"
@@ -317,7 +331,9 @@ export default function SignupPage() {
 
             {/* Nickname Field */}
             <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">Nickname</label>
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
+                Nickname
+              </label>
               <input
                 type="text"
                 placeholder="활동할 닉네임"
