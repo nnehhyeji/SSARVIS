@@ -1,6 +1,7 @@
 package com.ssafy.ssarvis.follow.repository;
 
 import com.ssafy.ssarvis.follow.entity.Follow;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,4 +33,9 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
     @Query("SELECT f FROM Follow f JOIN FETCH f.follower WHERE f.following.id = :followingId")
     List<Follow> findAllByFollowingIdWithFollower(@Param("followingId") Long followingId);
 
+    @Query("SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId AND f.following.id IN :targetIds")
+    Set<Long> findFollowingIdsByFollowerIdAndFollowingIds(@Param("userId") Long userId, @Param("targetIds") Set<Long> targetIds);
+
+    @Query("SELECT f.follower.id FROM Follow f WHERE f.following.id = :userId AND f.follower.id IN :targetIds")
+    Set<Long> findFollowerIdsByFollowingIdAndFollowerIds(@Param("userId") Long userId, @Param("targetIds") Set<Long> targetIds);
 }

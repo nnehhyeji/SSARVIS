@@ -8,5 +8,7 @@ public record UserSearchResponseDto(
     String nickname,
     String email,
     String profileImageUrl,
-    FollowStatus followStatus
+    FollowStatus followStatus,
+    Boolean isProfilePublic,
+    Boolean isFollower
 ) {}
