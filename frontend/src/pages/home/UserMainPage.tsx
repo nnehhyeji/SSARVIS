@@ -74,21 +74,22 @@ export default function UserMainPage() {
   const guestChat = useGuestChat({ enabled: !isLoggedIn && !isMyHome, targetUserId: targetId });
   const aiToAiChat = useAIToAIChat();
 
-  const activeChat = !isLoggedIn && !isMyHome
-    ? guestChat
-    : {
-        chatInput,
-        chatMessages,
-        isLockMode,
-        sttText,
-        isAiSpeaking,
-        isAwaitingResponse,
-        setChatInput,
-        toggleLock,
-        sendMessage,
-        startRecording,
-        stopRecordingAndSendSTT,
-      };
+  const activeChat =
+    !isLoggedIn && !isMyHome
+      ? guestChat
+      : {
+          chatInput,
+          chatMessages,
+          isLockMode,
+          sttText,
+          isAiSpeaking,
+          isAwaitingResponse,
+          setChatInput,
+          toggleLock,
+          sendMessage,
+          startRecording,
+          stopRecordingAndSendSTT,
+        };
 
   const {
     follows,
@@ -152,15 +153,22 @@ export default function UserMainPage() {
 
   // AI 발화 말풍선용 데이터 추출
   const lastAiMessage = useMemo(() => {
-    return chatMessages.slice().reverse().find((m) => m.sender === 'ai')?.text || '';
+    return (
+      chatMessages
+        .slice()
+        .reverse()
+        .find((m) => m.sender === 'ai')?.text || ''
+    );
   }, [chatMessages]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
   const myAiSpeech = isDualAiMode ? aiToAiChat.myLatestText || myTriggerText : myTriggerText;
   const visitorAiSpeech = isDualAiMode ? aiToAiChat.targetLatestText || triggerText : triggerText;
   const myAiIsSpeaking = isDualAiMode ? aiToAiChat.activeSpeaker === 'mine' : isMyAiSpeaking;
-  const visitorAiIsSpeaking = isDualAiMode ? aiToAiChat.activeSpeaker === 'target' : finalIsSpeaking;
-  const ownerName = isMyHome ? (userInfo?.nickname || '나') : (visitedFollowName || '친구');
+  const visitorAiIsSpeaking = isDualAiMode
+    ? aiToAiChat.activeSpeaker === 'target'
+    : finalIsSpeaking;
+  const ownerName = isMyHome ? userInfo?.nickname || '나' : visitedFollowName || '친구';
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
 
   // --- Render Helpers ---
@@ -251,8 +259,9 @@ export default function UserMainPage() {
   }
 
   return (
-    <div className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}>
-      
+    <div
+      className={`relative w-full h-full overflow-hidden flex flex-col justify-between transition-colors duration-500 ${isLockMode ? 'bg-black' : 'bg-white'}`}
+    >
       {/* 상단 룸 정보 (방문 시 노출) */}
       {!isMyHome && (
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
@@ -289,7 +298,9 @@ export default function UserMainPage() {
             title="AI 끼리 대화"
           >
             <MessageSquare className="w-6 h-6" />
-            <span className="text-[10px] font-black leading-none">{isDualAiMode ? '그만하기' : '둘이대화'}</span>
+            <span className="text-[10px] font-black leading-none">
+              {isDualAiMode ? '그만하기' : '둘이대화'}
+            </span>
           </button>
         </div>
       )}
@@ -321,7 +332,13 @@ export default function UserMainPage() {
                         : 'DAILY';
                     const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
                     const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
-                    activeChat.startRecording(null, assistantType, memoryPolicy, category, targetId);
+                    activeChat.startRecording(
+                      null,
+                      assistantType,
+                      memoryPolicy,
+                      category,
+                      targetId,
+                    );
                   } else {
                     activeChat.stopRecordingAndSendSTT();
                   }
@@ -346,7 +363,11 @@ export default function UserMainPage() {
                 className={`p-4 rounded-full backdrop-blur-md shadow-lg border transition-all duration-300 ${activeChat.isLockMode ? 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20' : 'bg-white/10 border-white/30 hover:bg-white/20'}`}
               >
                 <div className="flex items-center justify-center">
-                  {isLockMode ? <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" /> : <Unlock className="w-8 h-8 text-gray-300" />}
+                  {isLockMode ? (
+                    <Lock className="w-8 h-8 text-yellow-400 fill-yellow-400/20" />
+                  ) : (
+                    <Unlock className="w-8 h-8 text-gray-300" />
+                  )}
                 </div>
               </button>
             </div>
@@ -414,7 +435,9 @@ export default function UserMainPage() {
                     label={isMyHome ? '나의 AI' : `${ownerName}님의 AI`}
                   />
                   {isDualAiMode && visitorAiSpeech && <SpeechBubble text={visitorAiSpeech} />}
-                  {!isDualAiMode && isMicOn && lastAiMessage && <SpeechBubble text={lastAiMessage} />}
+                  {!isDualAiMode && isMicOn && lastAiMessage && (
+                    <SpeechBubble text={lastAiMessage} />
+                  )}
                 </>
               )}
             </div>
@@ -454,10 +477,21 @@ export default function UserMainPage() {
                     : 'DAILY';
                 const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
                 const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
-                activeChat.sendMessage(activeChat.chatInput, null, assistantType, memoryPolicy, category, targetId);
+                activeChat.sendMessage(
+                  activeChat.chatInput,
+                  null,
+                  assistantType,
+                  memoryPolicy,
+                  category,
+                  targetId,
+                );
               }}
               onClose={() => setIsChatHistoryOpen(false)}
-              inputPlaceholder={isDualAiMode ? '둘이대화 진행 중에는 직접 입력할 수 없습니다.' : '메시지를 입력하세요...'}
+              inputPlaceholder={
+                isDualAiMode
+                  ? '둘이대화 진행 중에는 직접 입력할 수 없습니다.'
+                  : '메시지를 입력하세요...'
+              }
               isInputDisabled={isDualAiMode}
             />
             <button

@@ -8,7 +8,7 @@ import { useUserStore } from '../../store/useUserStore';
 /**
  * LandingPage.tsx
  *
- * 모션을 더 뚜렷하게(Wider Pulse) 만들어 사용자가 일렁임을 확실히 인지할 수 있도록 
+ * 모션을 더 뚜렷하게(Wider Pulse) 만들어 사용자가 일렁임을 확실히 인지할 수 있도록
  * 수정한 버전입니다.
  */
 const LandingPage: React.FC = () => {
@@ -71,34 +71,33 @@ const LandingPage: React.FC = () => {
       {/* 2. 끊임없이 일렁이는 동심원 파형 (범위 확대 버전) */}
       <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
         {[...Array(9)].map((_, i) => {
-          const size = (i + 1) * 320; 
+          const size = (i + 1) * 320;
           const stagger = i * 0.4;
-          
+
           return (
             <motion.div
               key={i}
               variants={rippleVariants(stagger)}
               initial="initial"
               animate="animate"
-              style={{ 
+              style={{
                 willChange: 'transform, opacity',
                 zIndex: 10 - i,
               }}
               className="absolute rounded-full"
             >
-              <div 
+              <div
                 className="rounded-full flex items-center justify-center"
                 style={{
                   width: `${size}px`,
                   height: `${size}px`,
                   // 가장 안쪽 원(i=0)일 때만 특별한 그라데이션 적용 + 빛 번짐
-                  background: i === 0 
-                    ? 'radial-gradient(circle, #D96477 0%, rgba(217, 100, 119, 0.3) 60%, transparent 100%)'
-                    : `rgba(255, 255, 255, ${0.03 + (i * 0.007)})`,
+                  background:
+                    i === 0
+                      ? 'radial-gradient(circle, #D96477 0%, rgba(217, 100, 119, 0.3) 60%, transparent 100%)'
+                      : `rgba(255, 255, 255, ${0.03 + i * 0.007})`,
                   border: '1.5px solid rgba(255, 255, 255, 0.08)',
-                  boxShadow: i === 0 
-                    ? '0 0 100px rgba(217, 100, 119, 0.4)' 
-                    : 'none',
+                  boxShadow: i === 0 ? '0 0 100px rgba(217, 100, 119, 0.4)' : 'none',
                 }}
               />
             </motion.div>

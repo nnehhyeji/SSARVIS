@@ -54,11 +54,11 @@ export const useVoiceLockStore = create<VoiceLockState>()(
           // 1. 등록 여부 (Voice Fingerprint) 조회
           const authRes = await authApi.getVoiceLockStatus();
           const registered = authRes.data.checked;
-          
+
           // 2. 설정 정보 (Enabled, Timeout) 조회
           const userProfile = await userApi.getUserProfile();
-          
-          set({ 
+
+          set({
             isVoiceLockRegistered: registered,
             isVoiceLockEnabled: userProfile.isVoiceLockActive && registered,
             timeoutDuration: userProfile.voiceLockTimeout || DEFAULT_TIMEOUT_DURATION,
