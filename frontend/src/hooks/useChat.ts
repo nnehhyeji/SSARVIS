@@ -43,11 +43,11 @@ interface RecordingOptions {
   targetUserId: number | null;
 }
 
-const WAKE_WORD = '자비스';
+const WAKE_WORD = '싸비스';
 const SPEECH_SILENCE_MS = 2000;
 const TRANSCRIPT_VISIBLE_MS = 3000;
 
-const WAKE_WORD_ALIASES = [WAKE_WORD, '자비', '자빗', '자빕', '자비스', '서비스', '잡스'];
+const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '서비스', '싸비스야', '사비서', '싸비스'];
 
 function normalizeWakeTranscript(text: string) {
   return text.replace(/\s+/g, '').toLowerCase();

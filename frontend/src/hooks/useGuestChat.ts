@@ -49,8 +49,8 @@ interface PendingGuestTextPayload {
 }
 
 const DEFAULT_GREETING = '안녕하세요. 무엇을 도와드릴까요?';
-const WAKE_WORD = '자비스';
-const WAKE_WORD_ALIASES = [WAKE_WORD, '자비', '자빗', '자빕', '자비스', '서비스', '잡스'];
+const WAKE_WORD = '싸비스';
+const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '서비스', '싸비스야', '사비서', '싸비스'];
 const SPEECH_SILENCE_MS = 2000;
 
 type RecognitionMode = 'idle' | 'wake' | 'speech';
