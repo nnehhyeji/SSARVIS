@@ -41,4 +41,8 @@ public class SocialUser {
     @JoinColumn(name = "user_id")
     @ManyToOne(fetch = FetchType.LAZY)
     private User user;
+
+    public static SocialUser create(String provider, String providerId, User user) {
+        return SocialUser.builder().provider(provider).providerId(providerId).user(user).build();
+    }
 }

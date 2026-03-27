@@ -38,6 +38,11 @@ public enum ErrorCode {
     SOCIAL_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "소셜 로그인에 실패했습니다."),
     SOCIAL_UNLINK_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "소셜 연동 해제에 실패했습니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "리프레시 토큰이 일치하지 않습니다."),
+    OAUTH_TOKEN_FAILED(HttpStatus.UNAUTHORIZED, "카카오 요청 중 에러가 발생했습니다."),
+    UNSUPPORTED_PROVIDER(HttpStatus.UNAUTHORIZED, "지원하지 않는 소셜 로그인 제공자입니다."),
+    OAUTH_PROFILE_FAILED(HttpStatus.UNAUTHORIZED, "카카오 프로필 조회 중 에러가 발생했습니다."),
+    OAUTH_SESSION_EXPIRED(HttpStatus.BAD_REQUEST, "회원가입 세션이 만료되었습니다."),
+    OAUTH_TEMP_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "소셜 로그인 정보를 불러올 수 없습니다."),
 
     // ============================================================
     // 1. USER (사용자)
@@ -47,6 +52,7 @@ public enum ErrorCode {
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 닉네임입니다."),
     VOICE_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "음성 비밀번호가 일치하지 않습니다."),
     USER_WITHDRAW(HttpStatus.FORBIDDEN, "탈퇴한 유저입니다."),
+    OAUTH_TEMP_SAVE_FAILED(HttpStatus.BAD_REQUEST, "임시 저장 실패"),
 
     // ============================================================
     // 2. ASSISTANT (어시스턴트)

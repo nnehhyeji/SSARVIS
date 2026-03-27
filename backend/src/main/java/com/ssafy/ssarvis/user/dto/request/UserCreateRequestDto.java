@@ -23,7 +23,9 @@ public record UserCreateRequestDto(
     String nickname,
 
     @NotBlank(message = "아이디는 필수 입력값입니다.")
-    String customId
+    String customId,
+
+    String registerUUID
 ) {
 
 }

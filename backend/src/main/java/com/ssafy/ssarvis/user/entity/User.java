@@ -1,5 +1,6 @@
 package com.ssafy.ssarvis.user.entity;
 
+import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.entity.BaseTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

@@ -1,5 +1,7 @@
 package com.ssafy.ssarvis.user.service.impl;
 
+import com.ssafy.ssarvis.auth.dto.response.SocialUserInfoDto;
+import com.ssafy.ssarvis.auth.service.OAuthService;
 import com.ssafy.ssarvis.common.advice.CustomException;
 import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
@@ -8,8 +10,10 @@ import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserUpdateRequestDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
+import com.ssafy.ssarvis.user.entity.SocialUser;
 import com.ssafy.ssarvis.user.entity.User;
 import com.ssafy.ssarvis.user.event.UserProfileImageUpdateEvent;
+import com.ssafy.ssarvis.user.repository.SocialUserRepository;
 import com.ssafy.ssarvis.user.repository.UserRepository;
 import com.ssafy.ssarvis.user.service.UserService;
 import jakarta.mail.internet.MimeMessage;
@@ -34,23 +38,26 @@ import java.util.concurrent.TimeUnit;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final SocialUserRepository socialUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final S3Uploader s3Uploader;
-
-    private final JavaMailSender mailSender; // 메일 발송용
-    private final StringRedisTemplate redisTemplate; // Redis 활용
+    private final OAuthService oAuthService;
+    private final JavaMailSender mailSender;
+    private final StringRedisTemplate redisTemplate;
 
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     @Override
     public void signupUser(UserCreateRequestDto userCreateRequestDto) {
+        String registerUUID = userCreateRequestDto.registerUUID();
 
         if (isAlreadyExistsEmail(userCreateRequestDto.email())) {
             throw new CustomException("이메일 중복", ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        String isVerified = redisTemplate.opsForValue().get(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
+        String isVerified = redisTemplate.opsForValue()
+            .get(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
         if (isVerified == null || !isVerified.equals("true")) {
             throw new CustomException("이메일 인증이 필요합니다.", ErrorCode.INVALID_PARAMETER);
         }
@@ -58,11 +65,27 @@ public class UserServiceImpl implements UserService {
         if (isAlreadyExistsCustomId(userCreateRequestDto.customId())) {
             throw new CustomException("아이디 중복", ErrorCode.BAD_REQUEST);
         }
-
+        SocialUser socialUser = null;
         String encryptedPassword = passwordEncoder.encode(userCreateRequestDto.password());
-        User newUser = User.create(userCreateRequestDto.email(), encryptedPassword, userCreateRequestDto.nickname(), userCreateRequestDto.customId());
+        User newUser = User.create(userCreateRequestDto.email(), encryptedPassword,
+            userCreateRequestDto.nickname(), userCreateRequestDto.customId());
+
+        if (registerUUID != null && !registerUUID.isEmpty()) {
+            // oauth 회원가입
+            SocialUserInfoDto socialUserInfoDto = oAuthService.getTempSocialUserFromRedis(
+                registerUUID);
+            socialUser = SocialUser.create(socialUserInfoDto.provider(),
+                socialUserInfoDto.providerId(),
+                newUser);
+
+            newUser.updateProfileImage(socialUserInfoDto.profileImageUrl());
+            oAuthService.deleteTempSocialUser(registerUUID);
+        }
         userRepository.save(newUser);
 
+        if (socialUser != null) {
+            socialUserRepository.save(socialUser);
+        }
         redisTemplate.delete(Constants.VERIFIED_EMAIL_PREFIX + userCreateRequestDto.email());
     }
 
@@ -115,7 +138,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND));
             if (user.getWithdrawStatus()) {
                 throw new CustomException("탈퇴한 사용자입니다. 관리자에게 문의해주세요.", ErrorCode.USER_WITHDRAW);
-            }else{
+            } else {
                 throw new CustomException("이미 존재하는 이메일입니다.", ErrorCode.EMAIL_ALREADY_EXISTS);
             }
         }
@@ -123,7 +146,8 @@ public class UserServiceImpl implements UserService {
         String code = String.format("%06d", new Random().nextInt(1000000));
 
         // Redis에 5분간 코드 저장
-        redisTemplate.opsForValue().set(Constants.VERIFY_CODE_PREFIX + email, code, 5, TimeUnit.MINUTES);
+        redisTemplate.opsForValue()
+            .set(Constants.VERIFY_CODE_PREFIX + email, code, 5, TimeUnit.MINUTES);
 
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -142,7 +166,8 @@ public class UserServiceImpl implements UserService {
         String savedCode = redisTemplate.opsForValue().get(Constants.VERIFY_CODE_PREFIX + email);
 
         if (savedCode != null && savedCode.equals(code)) {
-            redisTemplate.opsForValue().set(Constants.VERIFIED_EMAIL_PREFIX + email, "true", 10, TimeUnit.MINUTES);
+            redisTemplate.opsForValue()
+                .set(Constants.VERIFIED_EMAIL_PREFIX + email, "true", 10, TimeUnit.MINUTES);
             redisTemplate.delete(Constants.VERIFY_CODE_PREFIX + email);
             return true;
         }
@@ -151,11 +176,15 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     @Override
-    public UserUpdateResponseDto updateUser(Long userId, UserUpdateRequestDto userUpdateRequestDto) {
+    public UserUpdateResponseDto updateUser(Long userId,
+        UserUpdateRequestDto userUpdateRequestDto) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
 
-        String encryptedPassword = passwordEncoder.encode(userUpdateRequestDto.password());
+        String encryptedPassword = user.getPassword();
+        if (userUpdateRequestDto.password() != null && !userUpdateRequestDto.password().isBlank()) {
+            encryptedPassword = passwordEncoder.encode(userUpdateRequestDto.password());
+        }
 
         user.update(
             trimToNull(encryptedPassword),
