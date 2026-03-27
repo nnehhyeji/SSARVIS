@@ -28,6 +28,7 @@ export default function NamnaPage() {
   const {
     chatInput,
     chatMessages,
+    latestAiText,
     isLockMode,
     sttText,
     isAiSpeaking,
@@ -161,7 +162,9 @@ export default function NamnaPage() {
                 isMicOn={isMicOn}
                 label={userInfo?.nickname || '나의 페르소나'}
               />
-              {(isMicOn ? triggerText : lastAiMessage) && <SpeechBubble text={isMicOn ? triggerText : lastAiMessage} />}
+              {(isDualAiMode ? triggerText : latestAiText || lastAiMessage) && (
+                <SpeechBubble text={isDualAiMode ? triggerText : latestAiText || lastAiMessage} />
+              )}
             </div>
           </div>
 
