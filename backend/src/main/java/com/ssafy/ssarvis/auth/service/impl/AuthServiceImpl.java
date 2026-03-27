@@ -196,8 +196,8 @@ public class AuthServiceImpl implements AuthService {
             // 존재 O -> 기존 가입 유저 (바로 로그인 처리)
             User existingUser = optionalUser.get();
 
-            boolean isAlreadySignup = socialUserRepository.existsByUser(existingUser);
-            if (isAlreadySignup) {
+            boolean isAlreadySocialSignup = socialUserRepository.existsByUser(existingUser);
+            if (!isAlreadySocialSignup) {
                 socialUserRepository.save(
                     SocialUser.create(
                         socialUserInfoDto.provider(),
@@ -210,14 +210,12 @@ public class AuthServiceImpl implements AuthService {
             refreshTokenService.save(existingUser.getId(), refreshToken,
                 getRefreshTokenMaxAgeSeconds());
 
-            return isAlreadySignup ?
+            return !isAlreadySocialSignup ?
                 OAuthResponseDto.loginAndLinkUserResponse(
-                    false,
                     accessToken,
                     optionalUser.get().getVoiceLockTimeout())
 
                 : OAuthResponseDto.loginUserResponse(
-                    false,
                     accessToken,
                     optionalUser.get().getVoiceLockTimeout()
                 );
@@ -229,7 +227,6 @@ public class AuthServiceImpl implements AuthService {
 
             // 응답: 회원가입 전 임시 발급된 UUID만 프론트엔드로 내려 줌
             return OAuthResponseDto.signupUserResponse(
-                true,
                 registerUUID,
                 socialUserInfoDto.nickname(),
                 socialUserInfoDto.profileImageUrl(),

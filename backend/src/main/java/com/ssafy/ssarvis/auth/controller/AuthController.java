@@ -58,7 +58,7 @@ public class AuthController {
             .body(BaseResponse.success("로그아웃 성공"));
     }
 
-    @GetMapping("/{provider}}/callback")
+    @GetMapping("/{provider}/callback")
     public ResponseEntity<BaseResponse<OAuthResponseDto>> oauth2Login(
         @PathVariable String provider,
         @RequestParam("code") String authorizationCode

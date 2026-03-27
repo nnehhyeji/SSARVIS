@@ -8,7 +8,7 @@ import lombok.Builder;
 @JsonInclude(Include.NON_NULL)
 public record OAuthResponseDto(
     boolean isNewUser,
-    boolean isAlreadySignup,
+    boolean isLinked,
 
     String registerUUID,
     String nickName,
@@ -19,10 +19,10 @@ public record OAuthResponseDto(
     Long timeout
 ) {
 
-    public static OAuthResponseDto signupUserResponse(boolean isNewUser, String registerUUID,
+    public static OAuthResponseDto signupUserResponse(String registerUUID,
         String nickName, String profileImageUrl, String email) {
         return OAuthResponseDto.builder()
-            .isNewUser(isNewUser)
+            .isNewUser(true)
             .registerUUID(registerUUID)
             .nickName(nickName)
             .profileImageUrl(profileImageUrl)
@@ -30,7 +30,7 @@ public record OAuthResponseDto(
             .build();
     }
 
-    public static OAuthResponseDto loginUserResponse(boolean isNewUser, String accessToken,
+    public static OAuthResponseDto loginUserResponse(String accessToken,
         Long timeout) {
         return OAuthResponseDto.builder()
             .isNewUser(false)
@@ -39,11 +39,11 @@ public record OAuthResponseDto(
             .build();
     }
 
-    public static OAuthResponseDto loginAndLinkUserResponse(boolean isNewUser, String accessToken,
+    public static OAuthResponseDto loginAndLinkUserResponse(String accessToken,
         Long timeout) {
         return OAuthResponseDto.builder()
             .isNewUser(false)
-            .isAlreadySignup(true)
+            .isLinked(true)
             .accessToken(accessToken)
             .timeout(timeout)
             .build();
