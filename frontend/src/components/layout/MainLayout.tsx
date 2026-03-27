@@ -95,30 +95,32 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="flex w-full h-screen bg-[#FDFCFB] overflow-hidden">
-      <Sidebar
-        userInfo={userInfo}
-        onLogout={handleLogout}
-        onMyCardClick={() => navigate(PATHS.PROFILE)}
-        currentMode={currentMode}
-        onModeChange={(m) => setCurrentMode(m)}
-        alarms={alarms}
-        onAlarmClick={handleAlarmClick}
-        onReadAllAlarms={readAllAlarms}
-        onDeleteAllAlarms={removeAllAlarms}
-        onRemoveAlarm={removeAlarm}
-        follows={follows}
-        followRequests={followRequests}
-        onSearch={handleSearch}
-        onRequest={requestFollow}
-        onVisit={handleVisit}
-        onAccept={acceptRequest}
-        onReject={rejectRequest}
-        onDelete={deleteFollow}
-        searchResults={searchResults}
-        isSearchLoading={isSearchLoading}
-        requestFollow={requestFollow}
-        viewCount={viewCount}
-      />
+      {isLoggedIn && (
+        <Sidebar
+          userInfo={userInfo}
+          onLogout={handleLogout}
+          onMyCardClick={() => navigate(PATHS.PROFILE)}
+          currentMode={currentMode}
+          onModeChange={(m) => setCurrentMode(m)}
+          alarms={alarms}
+          onAlarmClick={handleAlarmClick}
+          onReadAllAlarms={readAllAlarms}
+          onDeleteAllAlarms={removeAllAlarms}
+          onRemoveAlarm={removeAlarm}
+          follows={follows}
+          followRequests={followRequests}
+          onSearch={handleSearch}
+          onRequest={requestFollow}
+          onVisit={handleVisit}
+          onAccept={acceptRequest}
+          onReject={rejectRequest}
+          onDelete={deleteFollow}
+          searchResults={searchResults}
+          isSearchLoading={isSearchLoading}
+          requestFollow={requestFollow}
+          viewCount={viewCount}
+        />
+      )}
 
       <main className="flex-1 relative overflow-hidden">
         <Outlet />

@@ -40,12 +40,12 @@ export const router = createBrowserRouter([
     element: <MainLayout />, // 사이드바가 필요한 내부 홈/기능 페이지들
     children: [
       {
+        path: PATHS.VISIT_PARAM,
+        element: <UserMainPage />,
+      },
+      {
         path: PATHS.USER_HOME_PARAM,
-        element: (
-          <ProtectedRoute>
-            <UserMainPage />
-          </ProtectedRoute>
-        ),
+        element: <UserMainPage />,
       },
       {
         path: PATHS.ASSISTANT,
@@ -105,11 +105,7 @@ export const router = createBrowserRouter([
       },
       {
         path: PATHS.PERSONA_PARAM,
-        element: (
-          <ProtectedRoute>
-            <PersonaSurveyPage />
-          </ProtectedRoute>
-        ),
+        element: <PersonaSurveyPage />,
       },
     ],
   },

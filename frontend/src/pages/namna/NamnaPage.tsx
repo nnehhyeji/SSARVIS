@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { MessageCircle, Mic, MicOff, Eye } from 'lucide-react';
@@ -13,10 +13,12 @@ import SpeechBubble from '../../components/common/SpeechBubble';
 import CharacterScene from '../../components/features/character/CharacterScene';
 import ChatWindow from '../../components/features/chat/ChatWindow';
 import AiTopicModal from '../../components/features/assistant/AiTopicModal';
+import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 
 export default function NamnaPage() {
   const { userInfo } = useUserStore();
   const [searchParams] = useSearchParams();
+  const aiToAiChat = useAIToAIChat();
   
   // interaction hooks
   const { 
@@ -28,6 +30,7 @@ export default function NamnaPage() {
   const {
     chatInput,
     chatMessages,
+    latestAiText,
     isLockMode,
     sttText,
     isAiSpeaking,
@@ -41,14 +44,17 @@ export default function NamnaPage() {
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(!isMicOn);
   const [isDualAiMode, setIsDualAiMode] = useState(false);
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
+  const hasStartedDualBattleRef = useRef(false);
 
   // URL 파라미터 감지 (With Mine 연동)
   useEffect(() => {
     if (searchParams.get('dual') === 'true') {
       setIsDualAiMode(true);
       setIsInteractionModalOpen(true);
+      hasStartedDualBattleRef.current = false;
     } else {
       setIsDualAiMode(false);
+      hasStartedDualBattleRef.current = false;
     }
   }, [searchParams]);
 
@@ -67,6 +73,10 @@ export default function NamnaPage() {
   }, [chatMessages]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
+  const myAiSpeech = isDualAiMode ? aiToAiChat.myLatestText || myTriggerText : myTriggerText;
+  const namnaSpeech = isDualAiMode ? aiToAiChat.targetLatestText || triggerText : latestAiText || lastAiMessage;
+  const myAiIsSpeaking = isDualAiMode ? aiToAiChat.activeSpeaker === 'mine' : isMyAiSpeaking;
+  const namnaIsSpeaking = isDualAiMode ? aiToAiChat.activeSpeaker === 'target' : finalIsSpeaking;
 
   const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
   const handleEndSpeaking = useCallback(() => setIsSpeaking(false), [setIsSpeaking]);
@@ -74,14 +84,33 @@ export default function NamnaPage() {
   const handleEndMyAiSpeaking = useCallback(() => setIsMyAiSpeaking(false), [setIsMyAiSpeaking]);
 
   const handleDualAiTopicSubmit = useCallback(async (topic: string) => {
+    if (!userInfo?.id) return;
+
+    const started = await aiToAiChat.startBattle({
+      topic,
+      myUserId: userInfo.id,
+      targetUserId: userInfo.id,
+      myAssistantType: 'DAILY',
+      targetAssistantType: 'PERSONA',
+    });
+
+    if (!started) return;
+
+    hasStartedDualBattleRef.current = true;
     setIsInteractionModalOpen(false);
-    setMyTriggerText(`나: 얘들아, "${topic}"에 대해 대화해봐!`);
-    
-    // 연동 안 된 상태 고려하여 수동으로 상대 AI의 대화 유도 (Mock)
-    setTimeout(() => {
-      setTriggerText(`나의 페르소나: 알겠어! "${topic}"에 대해서 이야기해보자.`);
-    }, 2000);
-  }, [setIsInteractionModalOpen, setMyTriggerText, setTriggerText]);
+    setMyTriggerText('');
+    setTriggerText('');
+    setIsChatHistoryOpen(true);
+  }, [aiToAiChat, setMyTriggerText, setTriggerText, userInfo?.id]);
+
+  const stopDualAiConversation = useCallback(() => {
+    hasStartedDualBattleRef.current = false;
+    aiToAiChat.stopBattle();
+    setIsDualAiMode(false);
+    setIsInteractionModalOpen(false);
+    setMyTriggerText('');
+    setTriggerText('');
+  }, [aiToAiChat, setMyTriggerText, setTriggerText]);
 
   useEffect(() => {
     if (triggerText) {
@@ -98,6 +127,12 @@ export default function NamnaPage() {
       return () => clearTimeout(t);
     }
   }, [myTriggerText, handleStartMyAiSpeaking, handleEndMyAiSpeaking]);
+
+  useEffect(() => {
+    if (!isDualAiMode || !hasStartedDualBattleRef.current || aiToAiChat.isBattling) return;
+    hasStartedDualBattleRef.current = false;
+    setIsDualAiMode(false);
+  }, [aiToAiChat.isBattling, isDualAiMode]);
 
   return (
     <div
@@ -144,9 +179,9 @@ export default function NamnaPage() {
                 <div className="absolute top-[-40px] px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-200 text-[10px] font-bold tracking-wider uppercase backdrop-blur-md">My AI</div>
                 <CharacterScene 
                   faceType={faceType} mouthOpenRadius={myMouthOpenRadius} mode="normal" 
-                  isLockMode={false} isSpeaking={isMyAiSpeaking} isMicOn={isMicOn} label="나의 비서"
+                  isLockMode={false} isSpeaking={myAiIsSpeaking} isMicOn={isMicOn} label="나의 비서"
                 />
-                <SpeechBubble text={myTriggerText} />
+                <SpeechBubble text={myAiSpeech} />
               </div>
             )}
 
@@ -157,11 +192,13 @@ export default function NamnaPage() {
                 mouthOpenRadius={mouthOpenRadius}
                 mode="persona"
                 isLockMode={isLockMode}
-                isSpeaking={finalIsSpeaking}
+                isSpeaking={namnaIsSpeaking}
                 isMicOn={isMicOn}
                 label={userInfo?.nickname || '나의 페르소나'}
               />
-              {(isMicOn ? triggerText : lastAiMessage) && <SpeechBubble text={isMicOn ? triggerText : lastAiMessage} />}
+              {namnaSpeech && (
+                <SpeechBubble text={namnaSpeech} />
+              )}
             </div>
           </div>
 
@@ -189,6 +226,14 @@ export default function NamnaPage() {
         >
           <MessageCircle className={`w-8 h-8 ${isLockMode ? 'text-white' : 'text-gray-800'}`} />
         </button>
+        {isDualAiMode && aiToAiChat.isBattling && (
+          <button
+            onClick={stopDualAiConversation}
+            className="absolute top-8 right-8 px-5 py-3 rounded-full bg-white/80 backdrop-blur-md border border-white/60 text-sm font-black text-rose-500 shadow-xl hover:bg-white transition-colors z-40"
+          >
+            With Mine 종료
+          </button>
+        )}
         <AiTopicModal 
           isOpen={isInteractionModalOpen} 
           onClose={() => setIsInteractionModalOpen(false)} 

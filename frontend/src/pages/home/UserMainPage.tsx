@@ -504,6 +504,7 @@ export default function UserMainPage() {
             isOpen={isPersonaModalOpen}
             onClose={() => setIsPersonaModalOpen(false)}
             followName={ownerName}
+            targetUserId={targetId}
           />
           <AiTopicModal
             isOpen={isDualAiTopicModalOpen}
