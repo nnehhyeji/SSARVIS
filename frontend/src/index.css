@@ -1,2 +1,60 @@
 /* src/index.css */
-@import 'tailwindcss';
+@import "tailwindcss";
+
+/* 1. Noto Sans KR (구글 폰트) 가져오기 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
+
+/* 2. 가지고 계신 Neue Haas Display 파일 등록 (모든 굵기 매핑) */
+@font-face {
+  font-family: 'Neue Haas Grotesk'; /* 우리가 부를 이름 */
+  src: url('./fonts/NeueHaasDisplay-Roman.woff') format('woff');
+  font-weight: 400; /* Normal */
+}
+@font-face {
+  font-family: 'Neue Haas Grotesk';
+  src: url('./fonts/NeueHaasDisplay-Mediu.woff') format('woff');
+  font-weight: 500; /* Medium */
+}
+@font-face {
+  font-family: 'Neue Haas Grotesk';
+  src: url('./fonts/NeueHaasDisplay-Bold.woff') format('woff');
+  font-weight: 700; /* Bold */
+}
+@font-face {
+  font-family: 'Neue Haas Grotesk';
+  src: url('./fonts/NeueHaasDisplay-Black.woff') format('woff');
+  font-weight: 900; /* Black */
+}
+@font-face {
+  font-family: 'Neue Haas Grotesk';
+  src: url('./fonts/NeueHaasDisplay-Light.woff') format('woff');
+  font-weight: 300; /* Light */
+}
+@font-face {
+  font-family: 'Neue Haas Grotesk';
+  src: url('./fonts/NeueHaasDisplay-XThin.woff') format('woff');
+  font-weight: 200; /* XThin */
+}
+@font-face {
+  font-family: 'Neue Haas Grotesk';
+  src: url('./fonts/NeueHaasDisplay-XXThin.woff') format('woff');
+  font-weight: 100; /* XXThin */
+}
+
+/* 3. 테일윈드 테마 설정 추가 */
+@theme {
+  --font-sans: "Neue Haas Grotesk", "Noto Sans KR", sans-serif;
+
+  /* 포인트 컬러 지정 */
+  --color-primary: #F7576E;
+  --color-primary-sub: #D96477;
+  --color-secondary: #EBE2DB;
+  --color-secondary-sub: #C7B1A0;
+}
+
+/* 4. 전체 앱에 기본 폰트 적용 */
+:root {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
