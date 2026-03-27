@@ -37,7 +37,7 @@ export default function MbtiStep({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -24 }}
       transition={{ duration: 0.4 }}
-      className="bg-white/30 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-2xl p-6 sm:p-8 flex flex-col items-center"
+      className="bg-white/30 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-2xl p-6 sm:p-8 flex flex-col items-center h-[700px] w-full"
     >
       {/* Header */}
       <div className="flex flex-col items-center text-center mb-6 space-y-2">
@@ -57,6 +57,11 @@ export default function MbtiStep({
         {/* 선택 안함 Toggle */}
         <button
           onClick={() => {
+            if (isMbtiSkipped) {
+              setIsMbtiSkipped(false);
+              return;
+            }
+
             setIsMbtiSkipped(true);
             setMbtiSlots({ e_i: '', s_n: '', t_f: '', j_p: '' });
           }}
@@ -129,18 +134,21 @@ export default function MbtiStep({
       </div>
 
       {/* Info box */}
-      {hasMbti && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full mb-4 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl flex items-center gap-3"
-        >
-          <Zap className="w-5 h-5 text-gray-400 shrink-0" />
-          <p className="text-xs sm:text-sm text-gray-600 font-medium">
-            <strong>{selectedMbti}</strong> 선택 시 관련된 문항들이 자동으로 작성되며 생략됩니다.
-          </p>
-        </motion.div>
-      )}
+      <div className="flex-1" />
+      <div className="h-[60px] w-full mb-4 flex items-end justify-center">
+        {hasMbti && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl flex items-center gap-3"
+          >
+            <Zap className="w-5 h-5 text-gray-400 shrink-0" />
+            <p className="text-xs sm:text-sm text-gray-600 font-medium">
+              <strong>{selectedMbti}</strong> 선택 시 관련된 문항들이 자동으로 작성되며 생략됩니다.
+            </p>
+          </motion.div>
+        )}
+      </div>
 
       <button
         disabled={!isValidToProceed}

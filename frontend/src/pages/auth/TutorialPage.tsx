@@ -85,6 +85,7 @@ export default function TutorialPage() {
   const nickname = useUserStore((state) => state.userInfo?.nickname?.trim() ?? '');
 
   const [step, setStep] = useState<TutorialStep>('mbti');
+  const [isVoiceAnimating, setIsVoiceAnimating] = useState(false);
 
   // ── MBTI State ────────────────────────────────────────────────────────
   const [mbtiSlots, setMbtiSlots] = useState({ e_i: '', s_n: '', t_f: '', j_p: '' });
@@ -360,11 +361,152 @@ export default function TutorialPage() {
     }
   };
 
+  // ── Hands-Free Logic ─────────────────────────────────────────────────────
+  const stateRef = useRef({ step, currentIndex, answers, manualIndices, isVoiceAnimating, lastProcessedAt: 0 });
+  useEffect(() => {
+    stateRef.current = { step, currentIndex, answers, manualIndices, isVoiceAnimating, lastProcessedAt: stateRef.current.lastProcessedAt };
+  });
+
+  useEffect(() => {
+    if (step !== 'mbti' && step !== 'questions') return;
+
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) return;
+
+    let recognition: SpeechRecognitionType | null = null;
+    let isUnmounted = false;
+
+    try {
+      recognition = new SpeechRecognitionAPI();
+      recognition.lang = 'ko-KR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        const { step: curStep, currentIndex: curIdx, manualIndices: curManual, isVoiceAnimating: curAnim, lastProcessedAt } = stateRef.current;
+        if (curAnim) return;
+
+        const now = Date.now();
+        // 이전 응답 처리 후 1.5초 동안은 추가 음성 입력을 무시 (지문 겹침 방지)
+        if (now - lastProcessedAt < 1500) return;
+
+        // 누적된 전체가 아닌 방금 말한 최신 마디(latest phrase)만 파싱
+        const latestResult = event.results[event.results.length - 1];
+        if (!latestResult) return;
+        const text = latestResult[0].transcript.replace(/\s+/g, '');
+
+        if (curStep === 'mbti') {
+          const mbtiMap: Record<string, string> = {
+            '이엔에프제이': 'ENFJ', '이엔에프피': 'ENFP', '이엔티제이': 'ENTJ', '이엔티피': 'ENTP',
+            '이에스에프제이': 'ESFJ', '이에스에프피': 'ESFP', '이에스티제이': 'ESTJ', '이에스티피': 'ESTP',
+            '아이엔에프제이': 'INFJ', '아이엔에프피': 'INFP', '아이엔티제이': 'INTJ', '아이엔티피': 'INTP',
+            '아이에스에프제이': 'ISFJ', '아이에스에프피': 'ISFP', '아이에스티제이': 'ISTJ', '아이에스티피': 'ISTP',
+            '엔프제': 'ENFJ', '엔프피': 'ENFP', '엔티제': 'ENTJ', '엔티피': 'ENTP',
+            '엣프제': 'ESFJ', '엣프피': 'ESFP', '엣티제': 'ESTJ', '엣티피': 'ESTP',
+            '인프제': 'INFJ', '인프피': 'INFP', '인티제': 'INTJ', '인티피': 'INTP',
+            '잇프제': 'ISFJ', '잇프피': 'ISFP', '잇티제': 'ISTJ', '잇티피': 'ISTP'
+          };
+          let matchedMbti = '';
+          for (const [kr, en] of Object.entries(mbtiMap)) {
+            if (text.includes(kr)) {
+              matchedMbti = en;
+              break;
+            }
+          }
+          if (!matchedMbti) {
+             const match = text.toUpperCase().match(/[E|I][S|N][T|F][J|P]/);
+             if (match) matchedMbti = match[0];
+          }
+
+          if (matchedMbti) {
+            stateRef.current.lastProcessedAt = Date.now();
+            setIsVoiceAnimating(true);
+            const chars = matchedMbti.split('');
+            const delays = [0, 300, 600, 900];
+            const keys = ['e_i', 's_n', 't_f', 'j_p'] as const;
+            
+            chars.forEach((char, idx) => {
+              setTimeout(() => {
+                setIsMbtiSkipped(false);
+                setMbtiSlots((p) => ({ ...p, [keys[idx]]: char }));
+              }, delays[idx]);
+            });
+
+            setTimeout(() => {
+              const auto = buildAutoAnswers(matchedMbti);
+              setAnswers(auto);
+              setCurrentIndex(0);
+              setStep('questions');
+              setIsVoiceAnimating(false);
+            }, 1400); 
+          }
+        } else if (curStep === 'questions') {
+          const qIdx = curManual[curIdx] ?? 0;
+          const currentQuestion = QUESTIONS[qIdx];
+          if (!currentQuestion) return;
+
+          let chosenIndex = -1;
+          for (let i = 0; i < currentQuestion.choices.length; i++) {
+            const choiceText = currentQuestion.choices[i].replace(/\s+/g, '');
+            if (text.includes(`${i + 1}번`) || text.includes(choiceText)) {
+              chosenIndex = i;
+              break;
+            }
+          }
+
+          if (chosenIndex !== -1) {
+            stateRef.current.lastProcessedAt = Date.now();
+            setIsVoiceAnimating(true);
+            const ans = currentQuestion.choices[chosenIndex];
+            
+            setAnswers(prev => {
+              const updated = [...prev];
+              updated[qIdx] = ans;
+              return updated;
+            });
+
+            setTimeout(() => {
+              const latestAnswers = stateRef.current.answers;
+              const newAnswers = [...latestAnswers];
+              newAnswers[qIdx] = ans;
+              const newAnsweredCount = curManual.filter(idx => !!newAnswers[idx]).length;
+
+              if (curIdx < curManual.length - 1) {
+                setCurrentIndex(p => p + 1);
+              } else if (newAnsweredCount === curManual.length) {
+                setStep('voice');
+              }
+              setIsVoiceAnimating(false);
+            }, 800);
+          }
+        }
+      };
+
+      recognition.onend = () => {
+        if (!isUnmounted && (step === 'mbti' || step === 'questions')) {
+          try { recognition?.start(); } catch (e) {}
+        }
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.warn('Speech recognition for tutorial failed', e);
+    }
+
+    return () => {
+      isUnmounted = true;
+      if (recognition) {
+        recognition.onend = null;
+        recognition.stop();
+      }
+    };
+  }, [step, setStep, setAnswers]);
+
   // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center p-4 bg-white">
-      <div className="w-full max-w-2xl z-10">
+    <div className="relative w-full min-h-screen overflow-y-auto overflow-x-hidden flex flex-col items-center justify-start sm:justify-center p-4 bg-white">
+      <div className="w-full max-w-2xl z-10 my-6 sm:my-0">
         {step !== 'loading' && <StepIndicator current={step} />}
 
         <AnimatePresence mode="wait">
