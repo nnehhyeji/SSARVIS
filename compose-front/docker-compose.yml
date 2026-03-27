@@ -1,0 +1,135 @@
+name: ${COMPOSE_PROJECT_NAME:-ssarvis-front}
+
+services:
+  mysql:
+    image: mysql:8.0.45
+    container_name: ssarvis-front-mysql
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    command:
+      - --default-authentication-plugin=mysql_native_password
+    ports:
+      - "${MYSQL_HOST_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u$MYSQL_USER -p$MYSQL_PASSWORD || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:8.4.2-trixie
+    container_name: ssarvis-front-redis
+    command: [ "redis-server", "--appendonly", "yes" ]
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  mongodb:
+    image: mongo:8.2-noble
+    container_name: ssarvis-front-mongodb
+    ports:
+      - "${MONGO_HOST_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: ssarvis-front-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      ELASTIC_APM_ENABLED: ${ELASTIC_APM_ENABLED:-false}
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MATTERMOST_WEBHOOK_URL: ${MATTERMOST_WEBHOOK_URL}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/ssarvis}
+      SSE_TIMEOUT: ${SSE_TIMEOUT}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_TIME: ${JWT_ACCESS_TOKEN_TIME}
+      JWT_REFRESH_TOKEN_TIME: ${JWT_REFRESH_TOKEN_TIME}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-local-dev-bucket}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-local-access-key}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-local-secret-key}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AI_SERVER_URL: ${AI_SERVER_URL:-http://ai:8000}
+      FAST_API_SERVER_WS_URL: ${FAST_API_SERVER_WS_URL:-ws://ai:8000/api/v1/chat}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      CLOUDFRONT_DOMAIN: ${CLOUDFRONT_DOMAIN}
+    ports:
+      - "${BACKEND_HOST_PORT:-8080}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      ai:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  ai:
+    build:
+      context: ../ai
+      dockerfile: Dockerfile
+    container_name: ssarvis-front-ai
+    env_file: .env
+    environment:
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+    ports:
+      - "${AI_HOST_PORT:-18000}:8000"
+    depends_on:
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ssarvis-front-qdrant
+    ports:
+      - "${QDRANT_HOST_PORT:-16333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  mongo_data:
+  qdrant_data:
