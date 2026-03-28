@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -26,8 +26,10 @@ export default function SignupPage() {
   const [customIdStatus, setCustomIdStatus] = useState<
     'none' | 'checking' | 'available' | 'duplicate'
   >('none');
+  const [checkedCustomId, setCheckedCustomId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const customIdCheckRequestIdRef = useRef(0);
 
   const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d$@$!%*#?&]{8,20}$/;
   const isPasswordValid = passwordRegex.test(password);
@@ -50,7 +52,9 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (customIdStatus !== 'available') {
+    const normalizedCustomId = customId.trim();
+
+    if (customIdStatus !== 'available' || checkedCustomId !== normalizedCustomId) {
       alert('아이디 중복 확인을 해주세요.');
       return;
     }
@@ -65,7 +69,12 @@ export default function SignupPage() {
 
     try {
       setIsSubmitting(true);
-      const response = await userApi.signup({ email, password, nickname, customId });
+      const response = await userApi.signup({
+        email,
+        password,
+        nickname,
+        customId: normalizedCustomId,
+      });
 
       const loginResponse = await authApi.login({ email, password });
       const { accessToken, timeout } = loginResponse.data;
@@ -145,20 +154,37 @@ export default function SignupPage() {
   };
 
   const checkCustomIdDuplicate = async () => {
-    if (!customId || customId.length < 4) {
+    const normalizedCustomId = customId.trim();
+
+    if (!normalizedCustomId || normalizedCustomId.length < 4) {
       alert('아이디는 4자 이상이어야 합니다.');
       return;
     }
+
+    const requestId = ++customIdCheckRequestIdRef.current;
+
     try {
       setCustomIdStatus('checking');
-      const response = await userApi.checkCustomId({ customId });
+      const response = await userApi.checkCustomId({ customId: normalizedCustomId });
+
+      if (requestId !== customIdCheckRequestIdRef.current) {
+        return;
+      }
+
       if (response.isDuplicate) {
         setCustomIdStatus('duplicate');
+        setCheckedCustomId('');
       } else {
         setCustomIdStatus('available');
+        setCheckedCustomId(normalizedCustomId);
       }
     } catch {
+      if (requestId !== customIdCheckRequestIdRef.current) {
+        return;
+      }
+
       setCustomIdStatus('none');
+      setCheckedCustomId('');
       alert('아이디 확인 중 오류가 발생했습니다.');
     }
   };
@@ -222,7 +248,9 @@ export default function SignupPage() {
                   value={customId}
                   onChange={(e) => {
                     setCustomId(e.target.value);
+                    customIdCheckRequestIdRef.current += 1;
                     setCustomIdStatus('none');
+                    setCheckedCustomId('');
                   }}
                   className="flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm"
                   required
@@ -240,6 +268,9 @@ export default function SignupPage() {
                 <p className="text-[9px] text-green-600 font-bold ml-1 flex items-center gap-1">
                   <Check className="w-3 h-3" /> 사용 가능한 아이디입니다.
                 </p>
+              )}
+              {customIdStatus === 'duplicate' && (
+                <p className="text-[9px] text-red-500 font-bold ml-1">이미 사용 중인 아이디입니다.</p>
               )}
             </div>
 
