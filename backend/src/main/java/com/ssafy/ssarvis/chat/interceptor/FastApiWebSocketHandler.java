@@ -24,6 +24,7 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final String sessionId;
     private final Long userId;
+    private final Object frontendSendLock = new Object();
 
     private final StringBuilder aiTextBuilder = new StringBuilder();
 
@@ -75,11 +76,13 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
 
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) throws Exception {
-        relayBinaryToFrontend(message);
-//        appendAudioChunk(message);
+        byte[] bytes = new byte[message.getPayload().remaining()];
+        message.getPayload().get(bytes);
+
+        relayBinaryToFrontend(bytes);
 
         if (this.finalBinaryExist) {
-            appendAudioChunk(message);
+            appendAudioChunk(bytes);
             finishAndSaveAiOutput();
         }
     }
@@ -167,33 +170,35 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         try {
-            frontendSession.sendMessage(message);
+            synchronized (frontendSendLock) {
+                frontendSession.sendMessage(message);
+            }
         } catch (Exception e) {
             log.error("프론트 텍스트 릴레이 실패. frontendSessionId={}", frontendSession.getId(), e);
         }
     }
 
-    private void relayBinaryToFrontend(BinaryMessage message) {
+    private void relayBinaryToFrontend(byte[] bytes) {
         if (frontendSession == null || !frontendSession.isOpen()) {
             return;
         }
 
         try {
-            frontendSession.sendMessage(message);
+            synchronized (frontendSendLock) {
+                frontendSession.sendMessage(new BinaryMessage(bytes));
+            }
         } catch (Exception e) {
             log.error("프론트 오디오 릴레이 실패. frontendSessionId={}", frontendSession.getId(), e);
         }
     }
 
-    private void appendAudioChunk(BinaryMessage message) {
+    private void appendAudioChunk(byte[] bytes) {
         if (!voiceStarted || bos == null) {
             log.warn("voice.start 이전이거나 응답 오디오 스트림이 없습니다.");
             return;
         }
 
         try {
-            byte[] bytes = new byte[message.getPayload().remaining()];
-            message.getPayload().get(bytes);
             bos.write(bytes);
         } catch (IOException e) {
             log.error("응답 오디오 임시 파일 기록 실패", e);
@@ -221,9 +226,11 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         try {
-            frontendSession.sendMessage(new TextMessage(
-                "{\"type\":\"ERROR\",\"code\":\"" + errorCode + "\"}"
-            ));
+            synchronized (frontendSendLock) {
+                frontendSession.sendMessage(new TextMessage(
+                    "{\"type\":\"ERROR\",\"code\":\"" + errorCode + "\"}"
+                ));
+            }
         } catch (Exception e) {
             log.error("프론트 오류 메시지 전송 실패", e);
         }
@@ -235,7 +242,9 @@ public class FastApiWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         try {
-            frontendSession.sendMessage(new TextMessage("{\"type\":\"END_OF_STREAM\"}"));
+            synchronized (frontendSendLock) {
+                frontendSession.sendMessage(new TextMessage("{\"type\":\"END_OF_STREAM\"}"));
+            }
         } catch (Exception e) {
             log.error("END_OF_STREAM 전송 실패", e);
         }

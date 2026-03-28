@@ -26,6 +26,9 @@ interface UseConversationStageStateParams {
   isAiSpeaking: boolean;
   isAwaitingResponse: boolean;
   isCharacterSpeaking: boolean;
+  aiTextStreamingComplete?: boolean;
+  aiStreamComplete?: boolean;
+  isAiTextTyping?: boolean;
   connectionNotice?: string;
   liveCaptionWindowMs?: number;
   longCaptionThreshold?: number;
@@ -41,6 +44,9 @@ export function useConversationStageState({
   isAiSpeaking,
   isAwaitingResponse,
   isCharacterSpeaking,
+  aiTextStreamingComplete = true,
+  aiStreamComplete = true,
+  isAiTextTyping = false,
   connectionNotice,
   liveCaptionWindowMs = 1600,
   longCaptionThreshold = 55,
@@ -98,6 +104,9 @@ export function useConversationStageState({
   const aiCaptionText = latestAiText || triggerText || lastAiMessage;
   const aiCaptionSegments = useMemo(() => {
     if (!aiCaptionText) return { doneLength: 0, activeLength: 0 };
+    if (aiStreamComplete || (aiTextStreamingComplete && !isAiSpeaking && !isAiTextTyping)) {
+      return { doneLength: aiCaptionText.length, activeLength: 0 };
+    }
     if (isCharacterSpeaking) {
       const spokenLength = Math.max(
         0,
@@ -112,8 +121,8 @@ export function useConversationStageState({
       };
     }
 
-    return { doneLength: aiCaptionText.length, activeLength: 0 };
-  }, [aiCaptionText, aiSpeechProgress, isCharacterSpeaking]);
+    return getActiveSegment(aiCaptionText);
+  }, [aiCaptionText, aiSpeechProgress, aiStreamComplete, aiTextStreamingComplete, isAiSpeaking, isAiTextTyping, isCharacterSpeaking]);
 
   const activeSpeaker: 'ai' | 'user' | null = isAiSpeaking ? 'ai' : isLiveUserCaption ? 'user' : null;
   const activeCaptionText = activeSpeaker === 'ai' ? aiCaptionText : activeSpeaker === 'user' ? userCaptionText : '';

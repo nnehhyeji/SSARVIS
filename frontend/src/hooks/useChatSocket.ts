@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { getApiOrigin } from '../config/api';
 
@@ -8,7 +8,7 @@ interface UseChatSocketOptions<TMessage = unknown> {
   getToken?: () => string | null;
   connectTimeoutMs?: number;
   onOpen?: () => void;
-  onClose?: (context: { hadToken: boolean }) => void;
+  onClose?: (context: { hadToken: boolean; code: number; reason: string; wasClean: boolean }) => void;
   onMessage?: (message: TMessage) => void | Promise<void>;
   onBinaryChunk?: (chunk: ArrayBuffer) => void;
   onConnectionUnavailable?: (hasToken: boolean) => void;
@@ -26,12 +26,28 @@ export function useChatSocket<TMessage = unknown>({
   onConnectionUnavailable,
 }: UseChatSocketOptions<TMessage>) {
   const wsRef = useRef<WebSocket | null>(null);
+  const messageQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const getTokenRef = useRef(getToken);
+  const onOpenRef = useRef(onOpen);
+  const onCloseRef = useRef(onClose);
+  const onMessageRef = useRef(onMessage);
+  const onBinaryChunkRef = useRef(onBinaryChunk);
+  const onConnectionUnavailableRef = useRef(onConnectionUnavailable);
+
+  useEffect(() => {
+    getTokenRef.current = getToken;
+    onOpenRef.current = onOpen;
+    onCloseRef.current = onClose;
+    onMessageRef.current = onMessage;
+    onBinaryChunkRef.current = onBinaryChunk;
+    onConnectionUnavailableRef.current = onConnectionUnavailable;
+  }, [getToken, onBinaryChunk, onClose, onConnectionUnavailable, onMessage, onOpen]);
 
   const connectSocket = useCallback(() => {
-    const token = getToken();
+    const token = getTokenRef.current();
     if (!token) {
       console.log('[useChatSocket] connectSocket skipped: no token');
-      onConnectionUnavailable?.(false);
+      onConnectionUnavailableRef.current?.(false);
       return null;
     }
 
@@ -55,46 +71,48 @@ export function useChatSocket<TMessage = unknown>({
 
     socket.onopen = () => {
       console.log('[useChatSocket] socket open');
-      onOpen?.();
+      onOpenRef.current?.();
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       console.log('[useChatSocket] socket close');
-      onClose?.({ hadToken: !!getToken() });
+      onCloseRef.current?.({
+        hadToken: !!getTokenRef.current(),
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      });
       if (wsRef.current === socket) {
         wsRef.current = null;
       }
     };
 
-    socket.onmessage = async (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        onBinaryChunk?.(event.data);
-        return;
-      }
+    socket.onmessage = (event) => {
+      messageQueueRef.current = messageQueueRef.current
+        .catch(() => {
+          // keep queue alive even if a previous handler failed
+        })
+        .then(async () => {
+          if (event.data instanceof ArrayBuffer) {
+            onBinaryChunkRef.current?.(event.data);
+            return;
+          }
 
-      if (event.data instanceof Blob) {
-        const buffer = await event.data.arrayBuffer();
-        onBinaryChunk?.(buffer);
-        return;
-      }
+          if (event.data instanceof Blob) {
+            const buffer = await event.data.arrayBuffer();
+            onBinaryChunkRef.current?.(buffer);
+            return;
+          }
 
-      if (typeof event.data !== 'string') return;
-      const parsed = JSON.parse(event.data) as TMessage;
-      await onMessage?.(parsed);
+          if (typeof event.data !== 'string') return;
+          const parsed = JSON.parse(event.data) as TMessage;
+          await onMessageRef.current?.(parsed);
+        });
     };
 
     wsRef.current = socket;
     return socket;
-  }, [
-    getToken,
-    onBinaryChunk,
-    onClose,
-    onConnectionUnavailable,
-    onMessage,
-    onOpen,
-    path,
-    tokenQueryKey,
-  ]);
+  }, [path, tokenQueryKey]);
 
   const ensureSocketReady = useCallback(async () => {
     const socket = connectSocket();
@@ -110,7 +128,7 @@ export function useChatSocket<TMessage = unknown>({
 
     if (socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
       console.log('[useChatSocket] ensureSocketReady failed: socket is CLOSED/CLOSING');
-      onConnectionUnavailable?.(!!getToken());
+      onConnectionUnavailableRef.current?.(!!getTokenRef.current());
       return false;
     }
 
@@ -134,7 +152,7 @@ export function useChatSocket<TMessage = unknown>({
         clearTimeout(timeoutId);
         
         console.log('[useChatSocket] ensureSocketReady result:', result);
-        if (!result) onConnectionUnavailable?.(!!getToken());
+        if (!result) onConnectionUnavailableRef.current?.(!!getTokenRef.current());
         resolve(result);
       };
 
@@ -155,7 +173,7 @@ export function useChatSocket<TMessage = unknown>({
       socket.addEventListener('error', handleError);
       socket.addEventListener('close', handleClose);
     });
-  }, [connectSocket, connectTimeoutMs, getToken, onConnectionUnavailable]);
+  }, [connectSocket, connectTimeoutMs]);
 
   const closeSocket = useCallback((force = false) => {
     const socket = wsRef.current;

@@ -27,6 +27,7 @@ export default function UserMainPage() {
   const navigate = useNavigate();
   const { hasHydrated, userInfo, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   const currentUserId = userInfo?.id ?? null;
   const targetId = userId ? Number(userId) : currentUserId;
@@ -61,6 +62,9 @@ export default function UserMainPage() {
     sttText,
     isAiSpeaking,
     isAwaitingResponse,
+    aiTextStreamingComplete,
+    aiStreamComplete,
+    isAiTextTyping,
     connectionNotice,
     setChatInput,
     setChatMessages,
@@ -220,6 +224,9 @@ export default function UserMainPage() {
     isAiSpeaking,
     isAwaitingResponse,
     isCharacterSpeaking: finalIsSpeaking,
+    aiTextStreamingComplete,
+    aiStreamComplete,
+    isAiTextTyping,
     connectionNotice,
   });
 
@@ -233,8 +240,25 @@ export default function UserMainPage() {
   const homeUserDisplayName = profile?.nickname || userInfo?.nickname || 'User';
 
   useEffect(() => {
+    const markInteracted = () => {
+      setHasUserInteracted(true);
+    };
+
+    window.addEventListener('pointerdown', markInteracted, { once: true, passive: true });
+    window.addEventListener('keydown', markInteracted, { once: true });
+    window.addEventListener('touchstart', markInteracted, { once: true, passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', markInteracted);
+      window.removeEventListener('keydown', markInteracted);
+      window.removeEventListener('touchstart', markInteracted);
+    };
+  }, []);
+
+  useEffect(() => {
     if (
       !hasHydrated ||
+      !hasUserInteracted ||
       didAutoStartRef.current ||
       isMicOn ||
       !targetId ||
@@ -264,6 +288,7 @@ export default function UserMainPage() {
   }, [
     activeChat,
     currentMode,
+    hasUserInteracted,
     hasHydrated,
     isDualAiMode,
     isLockMode,

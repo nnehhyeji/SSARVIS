@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-// Singleton AudioContext — survives across hook instances and re-renders.
-// Once resumed during a user gesture, it stays unlocked for the page lifetime.
 let globalAudioContext: AudioContext | null = null;
+let audioUnlockListenersBound = false;
+const AUDIO_PLAYBACK_MAX_WAIT_MS = 30000;
 
 function getOrCreateAudioContext(): AudioContext {
   if (!globalAudioContext || globalAudioContext.state === 'closed') {
@@ -14,13 +14,27 @@ function getOrCreateAudioContext(): AudioContext {
   return globalAudioContext;
 }
 
+async function resumeGlobalAudioContext(): Promise<void> {
+  const ctx = getOrCreateAudioContext();
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+}
+
+function primeAudioContext() {
+  const ctx = getOrCreateAudioContext();
+  const buf = ctx.createBuffer(1, 1, 22050);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(ctx.destination);
+  src.start();
+}
+
 export function useChatAudioPlayback() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [aiSpeechProgress, setAiSpeechProgress] = useState(0);
 
-  const mediaSourceRef = useRef<MediaSource | null>(null);
-  const sourceBufferRef = useRef<SourceBuffer | null>(null);
-  const audioQueueRef = useRef<ArrayBuffer[]>([]);
+  const audioChunksRef = useRef<ArrayBuffer[]>([]);
   const audioElemRef = useRef<HTMLAudioElement | null>(null);
   const aiPlaybackFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiSpeechProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -28,20 +42,42 @@ export function useChatAudioPlayback() {
   const playbackSessionIdRef = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
   const isCleaningUpRef = useRef(false);
-  const mediaElementSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const playRetryCleanupRef = useRef<(() => void) | null>(null);
+  const playbackEndedCallbackRef = useRef<(() => void) | null>(null);
+  const playbackStartedCallbackRef = useRef<(() => void) | null>(null);
+  const finalizedPlaybackSessionRef = useRef<number | null>(null);
+  const playbackStartedSessionRef = useRef<number | null>(null);
+  const finalAudioCaptureArmedRef = useRef(false);
+  const pendingFinalizeAfterCaptureRef = useRef(false);
+  const finalizeAudioStreamRef = useRef<(() => void) | null>(null);
+  const largestObservedChunkRef = useRef<ArrayBuffer | null>(null);
 
-  const processAudioQueue = useCallback(() => {
-    const sourceBuffer = sourceBufferRef.current;
-    if (!sourceBuffer || sourceBuffer.updating || audioQueueRef.current.length === 0) return;
-
-    try {
-      const chunk = audioQueueRef.current.shift();
-      if (chunk) {
-        sourceBuffer.appendBuffer(chunk);
-      }
-    } catch (error) {
-      console.error('Audio buffer append failed:', error);
+  useEffect(() => {
+    if (audioUnlockListenersBound) {
+      return undefined;
     }
+
+    const unlockAudio = () => {
+      resumeGlobalAudioContext()
+        .then(() => {
+          primeAudioContext();
+        })
+        .catch(() => {
+          // ignore; next gesture will retry
+        });
+    };
+
+    audioUnlockListenersBound = true;
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio);
+    window.addEventListener('touchstart', unlockAudio, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+      audioUnlockListenersBound = false;
+    };
   }, []);
 
   const clearAiPlaybackFallbackTimer = useCallback(() => {
@@ -66,40 +102,28 @@ export function useChatAudioPlayback() {
       if (!audio) return;
 
       const currentTime = audio.currentTime || 0;
-      let estimatedDuration = 0;
+      const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+      if (duration <= 0) return;
 
-      if (Number.isFinite(audio.duration) && audio.duration > 0) {
-        estimatedDuration = audio.duration;
-      } else if (audio.buffered.length > 0) {
-        estimatedDuration = audio.buffered.end(audio.buffered.length - 1);
-      }
-
-      if (estimatedDuration <= 0) return;
-
-      const rawProgress = currentTime / estimatedDuration;
+      const rawProgress = currentTime / duration;
       const clampedProgress = Math.max(0, Math.min(rawProgress, audio.ended ? 1 : 0.98));
       setAiSpeechProgress((prev) => (clampedProgress > prev ? clampedProgress : prev));
     }, 80);
   }, [clearAiSpeechProgressTimer]);
 
-  // ★ Call this during a user gesture (e.g. mic button click).
-  // AudioContext.resume() during a gesture unlocks it for the entire page lifetime.
   const warmUpAudio = useCallback(() => {
     try {
       const ctx = getOrCreateAudioContext();
       if (ctx.state === 'suspended') {
-        ctx.resume().then(() => {
-          console.log('[audio] AudioContext resumed — autoplay permanently unlocked');
-        });
+        void ctx.resume();
       }
-      // Also play a tiny silent buffer through it to fully activate
       const buf = ctx.createBuffer(1, 1, 22050);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.connect(ctx.destination);
       src.start();
     } catch {
-      // ignore — will try again next time
+      // ignore
     }
   }, []);
 
@@ -111,6 +135,7 @@ export function useChatAudioPlayback() {
         }
         return;
       }
+
       isCleaningUpRef.current = true;
       clearAiPlaybackFallbackTimer();
       clearAiSpeechProgressTimer();
@@ -125,26 +150,9 @@ export function useChatAudioPlayback() {
         audio.src = '';
       }
 
-      const sourceBuffer = sourceBufferRef.current;
-      if (sourceBuffer) {
-        sourceBuffer.removeEventListener('updateend', processAudioQueue);
-      }
-
-      const mediaSource = mediaSourceRef.current;
-      if (mediaSource && mediaSource.readyState === 'open') {
-        try {
-          mediaSource.endOfStream();
-        } catch {
-          // noop
-        }
-      }
-
       audioElemRef.current = null;
-      mediaSourceRef.current = null;
-      sourceBufferRef.current = null;
-      audioQueueRef.current = [];
+      audioChunksRef.current = [];
       aiPlaybackActiveRef.current = false;
-      mediaElementSourceRef.current = null;
       setAiSpeechProgress(0);
 
       if (objectUrlRef.current) {
@@ -152,152 +160,260 @@ export function useChatAudioPlayback() {
         objectUrlRef.current = null;
       }
 
+      if (playRetryCleanupRef.current) {
+        playRetryCleanupRef.current();
+        playRetryCleanupRef.current = null;
+      }
+
+      playbackEndedCallbackRef.current = null;
+      playbackStartedCallbackRef.current = null;
+      finalAudioCaptureArmedRef.current = false;
+      pendingFinalizeAfterCaptureRef.current = false;
+      largestObservedChunkRef.current = null;
+
       if (resetSpeaking) {
         setIsAiSpeaking(false);
       }
 
       isCleaningUpRef.current = false;
     },
-    [clearAiPlaybackFallbackTimer, clearAiSpeechProgressTimer, processAudioQueue],
+    [clearAiPlaybackFallbackTimer, clearAiSpeechProgressTimer],
+  );
+
+  const enqueueAudioChunk = useCallback((chunk: ArrayBuffer) => {
+    console.log('[audio] binary chunk received', {
+      bytes: chunk.byteLength,
+      armed: finalAudioCaptureArmedRef.current,
+      sessionId: playbackSessionIdRef.current,
+    });
+
+    if (
+      !largestObservedChunkRef.current ||
+      chunk.byteLength >= largestObservedChunkRef.current.byteLength
+    ) {
+      largestObservedChunkRef.current = chunk.slice(0);
+    }
+
+    if (!finalAudioCaptureArmedRef.current) {
+      return;
+    }
+
+    if (audioChunksRef.current.length > 0) {
+      return;
+    }
+
+    audioChunksRef.current = [chunk.slice(0)];
+    finalAudioCaptureArmedRef.current = false;
+    console.log('[audio] captured final audio blob', {
+      bytes: chunk.byteLength,
+      sessionId: playbackSessionIdRef.current,
+    });
+
+    if (pendingFinalizeAfterCaptureRef.current) {
+      pendingFinalizeAfterCaptureRef.current = false;
+      queueMicrotask(() => {
+        finalizeAudioStreamRef.current?.();
+      });
+    }
+  }, []);
+
+  const armFinalAudioCapture = useCallback(() => {
+    audioChunksRef.current = [];
+    finalAudioCaptureArmedRef.current = true;
+    console.log('[audio] armFinalAudioCapture', { sessionId: playbackSessionIdRef.current });
+  }, []);
+
+  const startAudioPlayback = useCallback(
+    (callbacks?: { onPlay?: () => void; onEnded?: () => void }) => {
+      cleanupAudioPlayback(true);
+      playbackSessionIdRef.current += 1;
+      playbackStartedCallbackRef.current = callbacks?.onPlay ?? null;
+      playbackEndedCallbackRef.current = callbacks?.onEnded ?? null;
+      finalizedPlaybackSessionRef.current = null;
+      playbackStartedSessionRef.current = null;
+      finalAudioCaptureArmedRef.current = false;
+      pendingFinalizeAfterCaptureRef.current = false;
+      audioChunksRef.current = [];
+      largestObservedChunkRef.current = null;
+      aiPlaybackActiveRef.current = false;
+      setIsAiSpeaking(false);
+      setAiSpeechProgress(0);
+      console.log('[audio] startAudioPlayback reset', { sessionId: playbackSessionIdRef.current + 1 });
+    },
+    [cleanupAudioPlayback],
   );
 
   const finalizeAudioStream = useCallback(() => {
     clearAiPlaybackFallbackTimer();
+
     const sessionId = playbackSessionIdRef.current;
-
-    const mediaSource = mediaSourceRef.current;
-    const sourceBuffer = sourceBufferRef.current;
-
-    const scheduleFallbackCleanup = () => {
-      clearAiPlaybackFallbackTimer();
-      aiPlaybackFallbackTimerRef.current = setTimeout(() => {
-        if (sessionId !== playbackSessionIdRef.current) return;
-        const audio = audioElemRef.current;
-        if (!audio || audio.ended || audio.paused || !aiPlaybackActiveRef.current) {
-          cleanupAudioPlayback(true);
-        }
-      }, 1200);
-    };
-
-    const closeMediaSource = () => {
-      if (mediaSource && mediaSource.readyState === 'open') {
-        try {
-          mediaSource.endOfStream();
-        } catch {
-          // ignore and rely on fallback cleanup
-        }
+    if (finalizedPlaybackSessionRef.current === sessionId) {
+      console.log('[audio] finalizeAudioStream skipped: already finalized', { sessionId });
+      return;
+    }
+    const chunks = audioChunksRef.current.slice();
+    if (chunks.length === 0) {
+      if (finalAudioCaptureArmedRef.current) {
+        console.log('[audio] finalizeAudioStream deferred: waiting for final audio blob', { sessionId });
+        pendingFinalizeAfterCaptureRef.current = true;
+        return;
       }
 
-      scheduleFallbackCleanup();
-    };
+      if (largestObservedChunkRef.current) {
+        console.warn('[audio] finalizeAudioStream using largest observed chunk fallback', {
+          sessionId,
+          bytes: largestObservedChunkRef.current.byteLength,
+        });
+        chunks.push(largestObservedChunkRef.current.slice(0));
+      }
+    }
 
-    if (sourceBuffer?.updating) {
-      const handleUpdateEnd = () => {
-        sourceBuffer.removeEventListener('updateend', handleUpdateEnd);
-        closeMediaSource();
-      };
-      sourceBuffer.addEventListener('updateend', handleUpdateEnd);
+    if (chunks.length === 0) {
+      finalizedPlaybackSessionRef.current = sessionId;
+      audioChunksRef.current = [];
+      finalAudioCaptureArmedRef.current = false;
+      largestObservedChunkRef.current = null;
+      console.log('[audio] finalizeAudioStream ended without playable chunk', { sessionId });
+      const callback = playbackEndedCallbackRef.current;
+      cleanupAudioPlayback(true);
+      callback?.();
       return;
     }
 
-    closeMediaSource();
-  }, [cleanupAudioPlayback, clearAiPlaybackFallbackTimer]);
+    finalizedPlaybackSessionRef.current = sessionId;
+    audioChunksRef.current = [];
+    finalAudioCaptureArmedRef.current = false;
+    pendingFinalizeAfterCaptureRef.current = false;
+    largestObservedChunkRef.current = null;
 
-  const enqueueAudioChunk = useCallback(
-    (chunk: ArrayBuffer) => {
-      audioQueueRef.current.push(chunk);
-      processAudioQueue();
-    },
-    [processAudioQueue],
-  );
+    const audio = new Audio();
+    audio.autoplay = false;
+    audio.playsInline = true;
+    audio.preload = 'auto';
 
-  const startAudioPlayback = useCallback(
-    (onEnded?: () => void) => {
-      cleanupAudioPlayback(false);
-      playbackSessionIdRef.current += 1;
-      const sessionId = playbackSessionIdRef.current;
-      audioQueueRef.current = [];
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
 
-      const mediaSource = new MediaSource();
-      const audio = new Audio();
+    const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+    objectUrlRef.current = URL.createObjectURL(audioBlob);
+    audio.src = objectUrlRef.current;
+    audioElemRef.current = audio;
+    console.log('[audio] finalizeAudioStream creating audio element', {
+      sessionId,
+      chunks: chunks.length,
+      bytes: audioBlob.size,
+    });
 
-      mediaSourceRef.current = mediaSource;
-      objectUrlRef.current = URL.createObjectURL(mediaSource);
-      audio.src = objectUrlRef.current;
-      isCleaningUpRef.current = false;
-
-      // ★ Route audio through the already-unlocked AudioContext
-      // This bypasses autoplay policy because AudioContext was resumed during user gesture
-      try {
-        const ctx = getOrCreateAudioContext();
-        if (ctx.state === 'suspended') {
-          ctx.resume().catch(() => { });
-        }
-        const mediaElementSource = ctx.createMediaElementSource(audio);
-        mediaElementSource.connect(ctx.destination);
-        mediaElementSourceRef.current = mediaElementSource;
-      } catch (e) {
-        // Fallback: if AudioContext fails, audio still plays through default output
-        console.warn('[audio] AudioContext routing failed, using default:', e);
+    const schedulePlayRetryOnGesture = () => {
+      if (playRetryCleanupRef.current) {
+        playRetryCleanupRef.current();
       }
 
-      audio.onplay = () => {
+      const retryPlay = () => {
         if (sessionId !== playbackSessionIdRef.current) return;
-        clearAiPlaybackFallbackTimer();
-        aiPlaybackActiveRef.current = true;
-        setIsAiSpeaking(true);
-        startAiSpeechProgressTracking();
-      };
-
-      audio.onpause = () => {
-        if (sessionId !== playbackSessionIdRef.current) return;
-        aiPlaybackActiveRef.current = false;
-        setIsAiSpeaking(false);
-      };
-
-      audio.onended = () => {
-        if (sessionId !== playbackSessionIdRef.current) return;
-        aiPlaybackActiveRef.current = false;
-        setAiSpeechProgress(1);
-        cleanupAudioPlayback(true);
-        onEnded?.();
-      };
-
-      audio.onerror = () => {
-        if (sessionId !== playbackSessionIdRef.current) return;
-        cleanupAudioPlayback(true);
-      };
-
-      mediaSource.addEventListener('sourceopen', () => {
-        if (sessionId !== playbackSessionIdRef.current) return;
-        try {
-          const sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
-          sourceBufferRef.current = sourceBuffer;
-
-          // Play after first chunk is buffered
-          let playStarted = false;
-          sourceBuffer.addEventListener('updateend', () => {
-            if (!playStarted) {
-              playStarted = true;
-              // AudioContext is unlocked → play() will succeed
-              audio.play().catch(() => { });
-            }
-            processAudioQueue();
+        if (playbackStartedSessionRef.current === sessionId) return;
+        resumeGlobalAudioContext()
+          .catch(() => {
+            // ignore and still attempt media playback
+          })
+          .finally(() => {
+            void audio.play().catch(() => {
+              // if it still fails, wait for the next gesture
+            });
           });
-        } catch (error) {
-          console.warn('SourceBuffer creation failed:', error);
-        }
-      });
+      };
 
-      audioElemRef.current = audio;
-    },
-    [
-      cleanupAudioPlayback,
-      clearAiPlaybackFallbackTimer,
-      processAudioQueue,
-      startAiSpeechProgressTracking,
-    ],
-  );
+      const cleanup = () => {
+        window.removeEventListener('pointerdown', handleGesture);
+        window.removeEventListener('keydown', handleGesture);
+        window.removeEventListener('touchstart', handleGesture);
+      };
+
+      const handleGesture = () => {
+        cleanup();
+        playRetryCleanupRef.current = null;
+        retryPlay();
+      };
+
+      window.addEventListener('pointerdown', handleGesture, { once: true, passive: true });
+      window.addEventListener('keydown', handleGesture, { once: true });
+      window.addEventListener('touchstart', handleGesture, { once: true, passive: true });
+      playRetryCleanupRef.current = cleanup;
+    };
+
+    const attemptPlay = () => {
+      if (playbackStartedSessionRef.current === sessionId) return;
+      console.log('[audio] audio.play() attempt', { sessionId });
+      void audio.play().catch((error) => {
+        console.warn('[audio] play() blocked; retrying on next user gesture', error);
+        schedulePlayRetryOnGesture();
+      });
+    };
+
+    audio.onplay = () => {
+      if (sessionId !== playbackSessionIdRef.current) return;
+      if (playbackStartedSessionRef.current === sessionId) return;
+      console.log('[audio] onplay', { sessionId });
+      playbackStartedSessionRef.current = sessionId;
+      clearAiPlaybackFallbackTimer();
+      aiPlaybackActiveRef.current = true;
+      setIsAiSpeaking(true);
+      startAiSpeechProgressTracking();
+      if (playRetryCleanupRef.current) {
+        playRetryCleanupRef.current();
+        playRetryCleanupRef.current = null;
+      }
+      const callback = playbackStartedCallbackRef.current;
+      playbackStartedCallbackRef.current = null;
+      callback?.();
+    };
+
+    audio.onpause = () => {
+      if (sessionId !== playbackSessionIdRef.current) return;
+      console.log('[audio] onpause', { sessionId });
+      aiPlaybackActiveRef.current = false;
+      setIsAiSpeaking(false);
+    };
+
+    audio.onended = () => {
+      if (sessionId !== playbackSessionIdRef.current) return;
+      console.log('[audio] onended', { sessionId });
+      aiPlaybackActiveRef.current = false;
+      setAiSpeechProgress(1);
+      const callback = playbackEndedCallbackRef.current;
+      cleanupAudioPlayback(true);
+      playbackEndedCallbackRef.current = null;
+      callback?.();
+    };
+
+    audio.onerror = () => {
+      if (sessionId !== playbackSessionIdRef.current) return;
+      console.warn('[audio] onerror', { sessionId, error: audio.error?.message ?? audio.error?.code ?? 'unknown' });
+      const callback = playbackEndedCallbackRef.current;
+      cleanupAudioPlayback(true);
+      playbackEndedCallbackRef.current = null;
+      callback?.();
+    };
+
+    aiPlaybackFallbackTimerRef.current = setTimeout(() => {
+      if (sessionId !== playbackSessionIdRef.current) return;
+      console.warn('[audio] blob playback forced cleanup after max wait');
+      const callback = playbackEndedCallbackRef.current;
+      cleanupAudioPlayback(true);
+      playbackEndedCallbackRef.current = null;
+      callback?.();
+    }, AUDIO_PLAYBACK_MAX_WAIT_MS);
+
+    attemptPlay();
+  }, [
+    cleanupAudioPlayback,
+    clearAiPlaybackFallbackTimer,
+    startAiSpeechProgressTracking,
+  ]);
+
+  finalizeAudioStreamRef.current = finalizeAudioStream;
 
   return {
     audioElemRef,
@@ -305,6 +421,7 @@ export function useChatAudioPlayback() {
     aiSpeechProgress,
     aiPlaybackActiveRef,
     enqueueAudioChunk,
+    armFinalAudioCapture,
     startAudioPlayback,
     finalizeAudioStream,
     cleanupAudioPlayback,

@@ -27,6 +27,9 @@ export default function AssistantPage() {
     sttText,
     isAiSpeaking,
     isAwaitingResponse,
+    aiTextStreamingComplete,
+    aiStreamComplete,
+    isAiTextTyping,
     connectionNotice,
     setChatInput,
     setChatMessages,
@@ -131,6 +134,9 @@ export default function AssistantPage() {
     isAiSpeaking,
     isAwaitingResponse,
     isCharacterSpeaking: finalIsSpeaking,
+    aiTextStreamingComplete,
+    aiStreamComplete,
+    isAiTextTyping,
     connectionNotice,
   });
 
