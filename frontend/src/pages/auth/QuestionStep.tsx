@@ -12,6 +12,7 @@ interface QuestionStepProps {
   handleSelectAnswer: (ans: string) => void;
   handlePrevQuestion: () => void;
   handleNextQuestion: () => void;
+  handleBackToMbti: () => void;
   isCurrentAnswered: boolean;
   allAnswered: boolean;
 }
@@ -26,6 +27,7 @@ export default function QuestionStep({
   handleSelectAnswer,
   handlePrevQuestion,
   handleNextQuestion,
+  handleBackToMbti,
   isCurrentAnswered,
   allAnswered,
 }: QuestionStepProps) {
@@ -36,7 +38,7 @@ export default function QuestionStep({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -24 }}
       transition={{ duration: 0.4 }}
-      className="bg-white/30 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-2xl p-8 flex flex-col h-[700px] w-full relative overflow-hidden"
+      className="bg-white/30 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-2xl p-8 flex flex-col min-h-[800px] w-full relative overflow-hidden"
     >
       {/* Progress row */}
       <div className="flex items-center justify-between mb-3">
@@ -49,7 +51,7 @@ export default function QuestionStep({
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full h-2 bg-white/40 rounded-full overflow-hidden mb-10">
+      <div className="w-full h-2 bg-white/40 rounded-full overflow-hidden mb-6 shrink-0">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
@@ -57,33 +59,59 @@ export default function QuestionStep({
         />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2">
-        {/* Question Text */}
-        <div className="mb-10 min-h-[100px] flex flex-col items-center justify-center text-center px-4">
-          <div className="p-2 bg-white/60 rounded-xl mb-4 shadow-sm border border-white">
-            <Sparkles className="w-5 h-5 text-gray-500" />
-          </div>
-          <h2 className="text-xl sm:text-2xl font-black text-gray-800 leading-tight">
-            {currentQuestion.question}
-          </h2>
-        </div>
-
-        {/* Choice List */}
-        <div className="flex flex-col gap-3 mb-6 justify-center">
-          {currentQuestion.choices.map((choice, i) => {
-            const isSelected = currentAnswer === choice;
-            const isOnboardingTarget = currentIndex === 0 && i === 0 && !isCurrentAnswered;
-
-            return (
-              <div key={choice} className={`relative ${isOnboardingTarget ? 'z-[60]' : 'z-20'}`}>
-                <button
-                  onClick={() => handleSelectAnswer(choice)}
-                  className={`w-full py-4 px-6 rounded-2xl font-bold transition-all text-left flex items-center justify-between group ${
-                    isSelected
-                      ? 'bg-gray-800 text-white shadow-lg scale-[1.01]'
-                      : 'bg-white/60 text-gray-600 hover:bg-white border border-white'
-                  }`}
+      <div className="flex-1 min-h-0 px-2 pb-2 flex flex-col justify-center relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentIndex}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className={`flex flex-col flex-1 relative ${
+              currentIndex === 0 && !isCurrentAnswered ? 'z-[60]' : ''
+            }`}
+          >
+            {/* Simple Onboarding Border */}
+            {currentIndex === 0 && !isCurrentAnswered && (
+              <div className="absolute -inset-4 sm:-inset-6 rounded-[2.5rem] border-4 border-white/80 border-dashed pointer-events-none flex justify-center z-0 h-[calc(100%+20px)] mt-[-10px]">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="absolute -top-6 sm:-top-8"
                 >
+                  <div className="bg-white text-gray-800 px-6 py-3 rounded-full text-sm sm:text-base font-black shadow-2xl flex items-center gap-2 border border-gray-100 whitespace-nowrap tracking-tight">
+                    🎤 말하고 싶은 항목을 <span className="bg-gray-100 rounded-md px-2 py-1 mx-1 text-purple-600">"1번"</span> 처럼 이야기해보세요!
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {/* Question Text */}
+            <div className="mb-6 flex flex-col items-center justify-center text-center px-4 shrink-0 relative z-10">
+              <div className="p-2 bg-white/60 rounded-xl mb-4 shadow-sm border border-white">
+                <Sparkles className="w-5 h-5 text-gray-500" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-gray-800 leading-tight">
+                {currentQuestion.question}
+              </h2>
+            </div>
+
+            {/* Choice List */}
+            <div className="flex flex-col gap-3 mb-2 justify-center shrink-0 relative z-10">
+              {currentQuestion.choices.map((choice) => {
+                const isSelected = currentAnswer === choice;
+
+                return (
+                  <div key={choice} className="relative z-20">
+                    <button
+                      onClick={() => handleSelectAnswer(choice)}
+                      className={`w-full py-4 px-6 rounded-2xl font-bold transition-all text-left flex items-center justify-between group border border-transparent ${
+                        isSelected
+                          ? 'bg-gray-800 text-white shadow-lg scale-[1.01]'
+                          : 'bg-white/90 text-gray-600 hover:bg-white border-white/50'
+                      }`}
+                    >
                   <span>{choice}</span>
                   <div
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
@@ -95,43 +123,22 @@ export default function QuestionStep({
                     {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white shadow-sm" />}
                   </div>
                 </button>
-
-                <AnimatePresence>
-                  {isOnboardingTarget && (
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute z-[70] left-1/2 -top-16 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none sm:top-1/2 sm:-translate-y-1/2 sm:-left-[260px] sm:-translate-x-0 sm:flex-row sm:left-auto"
-                    >
-                      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.5)] whitespace-nowrap text-sm sm:text-base border border-white/20 flex flex-col items-center sm:items-end font-medium">
-                        <span>숫자로 <strong className="text-yellow-300 text-lg font-black bg-black/10 px-2 py-0.5 rounded-lg ml-1">"1번"</strong> 이라고</span>
-                        <span>소리 내어 말해보세요!</span>
-                      </div>
-                      <motion.div animate={{ x: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="hidden sm:block">
-                        <span className="text-4xl drop-shadow-lg">👉</span>
-                      </motion.div>
-                      <motion.div animate={{ y: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="block sm:hidden">
-                        <span className="text-4xl drop-shadow-lg">👇</span>
-                      </motion.div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
             );
           })}
         </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Navigation Buttons */}
-      <div className="flex gap-4 mt-2">
+      <div className="flex gap-4 mt-auto pt-6 shrink-0 relative z-[60]">
         <button
-          onClick={handlePrevQuestion}
-          disabled={currentIndex === 0}
-          className="flex-1 py-4 bg-white/60 text-gray-400 rounded-2xl font-bold border border-white hover:bg-white hover:text-gray-600 transition-all flex items-center justify-center gap-2 group disabled:opacity-0"
+          onClick={currentIndex === 0 ? handleBackToMbti : handlePrevQuestion}
+          className="flex-1 py-4 bg-white/60 text-gray-500 rounded-2xl font-bold border border-white hover:bg-white hover:text-gray-700 transition-all flex items-center justify-center gap-2 group"
         >
           <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          이전
+          {currentIndex === 0 ? 'MBTI로' : '이전'}
         </button>
         <button
           onClick={handleNextQuestion}
@@ -148,11 +155,11 @@ export default function QuestionStep({
       </div>
 
       {/* Hint if not answered */}
-      {!isCurrentAnswered && (
-        <p className="text-center text-xs font-bold text-gray-400 mt-4 animate-pulse relative z-20">
+      <div className="h-4 mt-4 relative z-20">
+        <p className={`text-center text-xs font-bold transition-opacity duration-300 ${isCurrentAnswered ? 'opacity-0' : 'text-gray-400 animate-pulse'}`}>
           답변을 선택하면 다음으로 넘어갈 수 있습니다.
         </p>
-      )}
+      </div>
 
       {/* Onboarding Dim Overlay */}
       <AnimatePresence>
@@ -161,7 +168,7 @@ export default function QuestionStep({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-[#281b30]/70 backdrop-blur-[2px] z-50 pointer-events-none rounded-[2rem]"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 pointer-events-none rounded-[2rem]"
           />
         )}
       </AnimatePresence>

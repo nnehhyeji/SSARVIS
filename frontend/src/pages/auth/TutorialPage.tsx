@@ -300,6 +300,10 @@ export default function TutorialPage() {
   const progress = totalManual > 0 ? ((currentIndex + 1) / totalManual) * 100 : 100;
   const timerPercent = (recordingTime / MAX_RECORDING_SEC) * 100;
 
+  const handleBackToMbti = () => {
+    setStep('mbti');
+  };
+
   // ── Final Finish Action ──────────────────────────────────────────────────
   const handleFinish = async () => {
     setStep('loading');
@@ -362,13 +366,13 @@ export default function TutorialPage() {
   };
 
   // ── Hands-Free Logic ─────────────────────────────────────────────────────
-  const stateRef = useRef({ step, currentIndex, answers, manualIndices, isVoiceAnimating, lastProcessedAt: 0 });
+  const stateRef = useRef({ step, currentIndex, answers, manualIndices, isVoiceAnimating, voicePhase, lastProcessedAt: 0 });
   useEffect(() => {
-    stateRef.current = { step, currentIndex, answers, manualIndices, isVoiceAnimating, lastProcessedAt: stateRef.current.lastProcessedAt };
+    stateRef.current = { step, currentIndex, answers, manualIndices, isVoiceAnimating, voicePhase, lastProcessedAt: stateRef.current.lastProcessedAt };
   });
 
   useEffect(() => {
-    if (step !== 'mbti' && step !== 'questions') return;
+    if (step === 'loading' || (step === 'voice' && voicePhase !== 'idle')) return;
 
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) return;
@@ -383,7 +387,7 @@ export default function TutorialPage() {
       recognition.interimResults = true;
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const { step: curStep, currentIndex: curIdx, manualIndices: curManual, isVoiceAnimating: curAnim, lastProcessedAt } = stateRef.current;
+        const { step: curStep, currentIndex: curIdx, manualIndices: curManual, isVoiceAnimating: curAnim, lastProcessedAt, voicePhase: curPhase } = stateRef.current;
         if (curAnim) return;
 
         const now = Date.now();
@@ -445,6 +449,18 @@ export default function TutorialPage() {
           const currentQuestion = QUESTIONS[qIdx];
           if (!currentQuestion) return;
 
+          if (text.includes('뒤로가기') || text.includes('이전')) {
+            if (curIdx > 0) {
+              stateRef.current.lastProcessedAt = Date.now();
+              setIsVoiceAnimating(true);
+              setTimeout(() => {
+                setCurrentIndex(p => p - 1);
+                setIsVoiceAnimating(false);
+              }, 500);
+            }
+            return;
+          }
+
           let chosenIndex = -1;
           for (let i = 0; i < currentQuestion.choices.length; i++) {
             const choiceText = currentQuestion.choices[i].replace(/\s+/g, '');
@@ -479,11 +495,15 @@ export default function TutorialPage() {
               setIsVoiceAnimating(false);
             }, 800);
           }
+        } else if (curStep === 'voice' && curPhase === 'idle') {
+          if (text.includes('소개')) {
+            startRecording();
+          }
         }
       };
 
       recognition.onend = () => {
-        if (!isUnmounted && (step === 'mbti' || step === 'questions')) {
+        if (!isUnmounted && (step === 'mbti' || step === 'questions' || (step === 'voice' && voicePhase === 'idle'))) {
           try { recognition?.start(); } catch (e) {}
         }
       };
@@ -500,13 +520,13 @@ export default function TutorialPage() {
         recognition.stop();
       }
     };
-  }, [step, setStep, setAnswers]);
+  }, [step, voicePhase, startRecording, setStep, setAnswers]);
 
   // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative w-full min-h-screen overflow-y-auto overflow-x-hidden flex flex-col items-center justify-start sm:justify-center p-4 bg-white">
-      <div className="w-full max-w-2xl z-10 my-6 sm:my-0">
+    <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center bg-white">
+      <div className="w-full max-w-2xl z-10 scale-[0.8] origin-center shrink-0">
         {step !== 'loading' && <StepIndicator current={step} />}
 
         <AnimatePresence mode="wait">
@@ -534,6 +554,7 @@ export default function TutorialPage() {
               handleSelectAnswer={handleSelectAnswer}
               handlePrevQuestion={handlePrevQuestion}
               handleNextQuestion={handleNextQuestion}
+              handleBackToMbti={handleBackToMbti}
               isCurrentAnswered={isCurrentAnswered}
               allAnswered={allAnswered}
             />

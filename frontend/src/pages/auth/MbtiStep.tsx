@@ -37,7 +37,7 @@ export default function MbtiStep({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -24 }}
       transition={{ duration: 0.4 }}
-      className="bg-white/30 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-2xl p-6 sm:p-8 flex flex-col items-center h-[700px] w-full"
+      className="bg-white/30 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-2xl p-6 sm:p-8 flex flex-col items-center min-h-[800px] w-full"
     >
       {/* Header */}
       <div className="flex flex-col items-center text-center mb-6 space-y-2">
