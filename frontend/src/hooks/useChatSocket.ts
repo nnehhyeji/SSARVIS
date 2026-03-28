@@ -98,22 +98,32 @@ export function useChatSocket<TMessage = unknown>({
 
   const ensureSocketReady = useCallback(async () => {
     const socket = connectSocket();
-    console.log('[useChatSocket] ensureSocketReady start', socket?.readyState ?? 'null');
+    const currentState = socket?.readyState ?? WebSocket.CLOSED;
+    console.log('[useChatSocket] ensureSocketReady start', { currentState });
+
     if (!socket) return false;
 
     if (socket.readyState === WebSocket.OPEN) {
-      console.log('[useChatSocket] ensureSocketReady already open');
+      console.log('[useChatSocket] ensureSocketReady already OPEN');
       return true;
     }
 
-    if (socket.readyState !== WebSocket.CONNECTING) {
-      console.log('[useChatSocket] ensureSocketReady failed: invalid state', socket.readyState);
+    if (socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+      console.log('[useChatSocket] ensureSocketReady failed: socket is CLOSED/CLOSING');
       onConnectionUnavailable?.(!!getToken());
       return false;
     }
 
+    console.log('[useChatSocket] ensureSocketReady waiting for CONNECTING socket...');
     return await new Promise<boolean>((resolve) => {
       let resolved = false;
+
+      const timeoutId = setTimeout(() => {
+        if (!resolved) {
+          console.log('[useChatSocket] ensureSocketReady TIMEOUT');
+          cleanup(false);
+        }
+      }, connectTimeoutMs);
 
       const cleanup = (result: boolean) => {
         if (resolved) return;
@@ -122,19 +132,24 @@ export function useChatSocket<TMessage = unknown>({
         socket.removeEventListener('error', handleError);
         socket.removeEventListener('close', handleClose);
         clearTimeout(timeoutId);
-        if (!result) {
-          console.log('[useChatSocket] ensureSocketReady failed while waiting');
-          onConnectionUnavailable?.(!!getToken());
-        } else {
-          console.log('[useChatSocket] ensureSocketReady success');
-        }
+        
+        console.log('[useChatSocket] ensureSocketReady result:', result);
+        if (!result) onConnectionUnavailable?.(!!getToken());
         resolve(result);
       };
 
-      const handleOpen = () => cleanup(true);
-      const handleError = () => cleanup(false);
-      const handleClose = () => cleanup(false);
-      const timeoutId = setTimeout(() => cleanup(false), connectTimeoutMs);
+      const handleOpen = () => {
+        console.log('[useChatSocket] ensureSocketReady handleOpen');
+        cleanup(true);
+      };
+      const handleError = (e: any) => {
+        console.log('[useChatSocket] ensureSocketReady handleError', e);
+        cleanup(false);
+      };
+      const handleClose = () => {
+        console.log('[useChatSocket] ensureSocketReady handleClose');
+        cleanup(false);
+      };
 
       socket.addEventListener('open', handleOpen);
       socket.addEventListener('error', handleError);
