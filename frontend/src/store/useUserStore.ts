@@ -11,6 +11,7 @@ interface UserInfo {
 }
 
 interface UserState {
+  hasHydrated: boolean;
   isLoggedIn: boolean;
   userInfo: UserInfo | null;
   currentMode: Mode;
@@ -18,11 +19,13 @@ interface UserState {
   logout: () => void;
   clearUserData: () => void;
   setCurrentMode: (mode: Mode) => void;
+  setHasHydrated: (value: boolean) => void;
 }
 
 export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
+      hasHydrated: false,
       isLoggedIn: false,
       userInfo: null,
       currentMode: 'normal',
@@ -42,9 +45,13 @@ export const useUserStore = create<UserState>()(
       },
 
       setCurrentMode: (mode) => set({ currentMode: mode }),
+      setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     {
       name: 'user-storage',
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );
