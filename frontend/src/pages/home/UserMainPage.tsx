@@ -23,7 +23,8 @@ export default function UserMainPage() {
   const navigate = useNavigate();
   const { hasHydrated, userInfo, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
-  const visitorGreetingAppliedRef = useRef(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [isAutoStartSuppressed, setIsAutoStartSuppressed] = useState(false);
 
   const currentUserId = userInfo?.id ?? null;
   const targetId = userId ? Number(userId) : currentUserId;
@@ -52,10 +53,15 @@ export default function UserMainPage() {
     sttText,
     isAiSpeaking,
     isAwaitingResponse,
+    isContinuousConversationEnabled,
+    aiTextStreamingComplete,
+    aiStreamComplete,
+    isAiTextTyping,
     connectionNotice,
     setChatInput,
     setChatMessages,
     toggleLock,
+    toggleContinuousConversation,
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
@@ -194,6 +200,9 @@ export default function UserMainPage() {
     isAiSpeaking,
     isAwaitingResponse,
     isCharacterSpeaking: finalIsSpeaking,
+    aiTextStreamingComplete,
+    aiStreamComplete,
+    isAiTextTyping,
     connectionNotice,
   });
 
@@ -265,9 +274,27 @@ export default function UserMainPage() {
   const homeUserDisplayName = profile?.nickname || userInfo?.nickname || 'User';
 
   useEffect(() => {
+    const markInteracted = () => {
+      setHasUserInteracted(true);
+    };
+
+    window.addEventListener('pointerdown', markInteracted, { once: true, passive: true });
+    window.addEventListener('keydown', markInteracted, { once: true });
+    window.addEventListener('touchstart', markInteracted, { once: true, passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', markInteracted);
+      window.removeEventListener('keydown', markInteracted);
+      window.removeEventListener('touchstart', markInteracted);
+    };
+  }, []);
+
+  useEffect(() => {
     if (
       !hasHydrated ||
+      !hasUserInteracted ||
       didAutoStartRef.current ||
+      isAutoStartSuppressed ||
       isMicOn ||
       !targetId ||
       showEmptyPersonaMessage
@@ -295,7 +322,10 @@ export default function UserMainPage() {
   }, [
     activeChat,
     currentMode,
+    hasUserInteracted,
     hasHydrated,
+    isAutoStartSuppressed,
+    isDualAiMode,
     isLockMode,
     isMicOn,
     isMyHome,
@@ -355,6 +385,11 @@ export default function UserMainPage() {
     stopRecordingAndSendSTT,
     toggleMic,
   ]);
+
+  const handleToggleContinuousConversation = useCallback(() => {
+    setIsAutoStartSuppressed(true);
+    toggleContinuousConversation();
+  }, [toggleContinuousConversation]);
 
   const handleHomeSendText = useCallback(() => {
     if (!chatInput.trim()) return;
@@ -492,6 +527,8 @@ export default function UserMainPage() {
         onSendText={handleHomeSendText}
         onCancel={cancelTurn}
         onToggleLock={toggleLock}
+        isContinuousConversationEnabled={isContinuousConversationEnabled}
+        onToggleContinuousConversation={handleToggleContinuousConversation}
       />
     );
   }
