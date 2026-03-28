@@ -1,5 +1,19 @@
 import { useCallback, useRef, useState } from 'react';
 
+// Singleton AudioContext — survives across hook instances and re-renders.
+// Once resumed during a user gesture, it stays unlocked for the page lifetime.
+let globalAudioContext: AudioContext | null = null;
+
+function getOrCreateAudioContext(): AudioContext {
+  if (!globalAudioContext || globalAudioContext.state === 'closed') {
+    const Ctor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    globalAudioContext = new Ctor();
+  }
+  return globalAudioContext;
+}
+
 export function useChatAudioPlayback() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [aiSpeechProgress, setAiSpeechProgress] = useState(0);
@@ -14,6 +28,7 @@ export function useChatAudioPlayback() {
   const playbackSessionIdRef = useRef(0);
   const objectUrlRef = useRef<string | null>(null);
   const isCleaningUpRef = useRef(false);
+  const mediaElementSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   const processAudioQueue = useCallback(() => {
     const sourceBuffer = sourceBufferRef.current;
@@ -67,6 +82,27 @@ export function useChatAudioPlayback() {
     }, 80);
   }, [clearAiSpeechProgressTimer]);
 
+  // ★ Call this during a user gesture (e.g. mic button click).
+  // AudioContext.resume() during a gesture unlocks it for the entire page lifetime.
+  const warmUpAudio = useCallback(() => {
+    try {
+      const ctx = getOrCreateAudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+          console.log('[audio] AudioContext resumed — autoplay permanently unlocked');
+        });
+      }
+      // Also play a tiny silent buffer through it to fully activate
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start();
+    } catch {
+      // ignore — will try again next time
+    }
+  }, []);
+
   const cleanupAudioPlayback = useCallback(
     (resetSpeaking: boolean = true) => {
       if (isCleaningUpRef.current) {
@@ -108,6 +144,7 @@ export function useChatAudioPlayback() {
       sourceBufferRef.current = null;
       audioQueueRef.current = [];
       aiPlaybackActiveRef.current = false;
+      mediaElementSourceRef.current = null;
       setAiSpeechProgress(0);
 
       if (objectUrlRef.current) {
@@ -189,6 +226,21 @@ export function useChatAudioPlayback() {
       audio.src = objectUrlRef.current;
       isCleaningUpRef.current = false;
 
+      // ★ Route audio through the already-unlocked AudioContext
+      // This bypasses autoplay policy because AudioContext was resumed during user gesture
+      try {
+        const ctx = getOrCreateAudioContext();
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => { });
+        }
+        const mediaElementSource = ctx.createMediaElementSource(audio);
+        mediaElementSource.connect(ctx.destination);
+        mediaElementSourceRef.current = mediaElementSource;
+      } catch (e) {
+        // Fallback: if AudioContext fails, audio still plays through default output
+        console.warn('[audio] AudioContext routing failed, using default:', e);
+      }
+
       audio.onplay = () => {
         if (sessionId !== playbackSessionIdRef.current) return;
         clearAiPlaybackFallbackTimer();
@@ -216,14 +268,22 @@ export function useChatAudioPlayback() {
         cleanupAudioPlayback(true);
       };
 
-      audio.play().catch((error) => console.warn('Audio playback start failed:', error));
-
       mediaSource.addEventListener('sourceopen', () => {
         if (sessionId !== playbackSessionIdRef.current) return;
         try {
           const sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
-          sourceBuffer.addEventListener('updateend', processAudioQueue);
           sourceBufferRef.current = sourceBuffer;
+
+          // Play after first chunk is buffered
+          let playStarted = false;
+          sourceBuffer.addEventListener('updateend', () => {
+            if (!playStarted) {
+              playStarted = true;
+              // AudioContext is unlocked → play() will succeed
+              audio.play().catch(() => { });
+            }
+            processAudioQueue();
+          });
         } catch (error) {
           console.warn('SourceBuffer creation failed:', error);
         }
@@ -249,5 +309,6 @@ export function useChatAudioPlayback() {
     finalizeAudioStream,
     cleanupAudioPlayback,
     clearAiPlaybackFallbackTimer,
+    warmUpAudio,
   };
 }
