@@ -67,17 +67,22 @@ export function useChat() {
   const [isLockMode, setIsLockMode] = useState(false);
   const [sttText, setSttText] = useState('');
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [aiSpeechProgress, setAiSpeechProgress] = useState(0);
   const [latestAiText, setLatestAiText] = useState('안녕하세요. 무엇을 도와드릴까요?');
   const [voiceStatus, setVoiceStatus] = useState('마이크 버튼을 눌러 웨이크 워드를 활성화하세요.');
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+  const [connectionNotice, setConnectionNotice] = useState('');
 
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaSourceRef = useRef<MediaSource | null>(null);
   const sourceBufferRef = useRef<SourceBuffer | null>(null);
   const audioQueueRef = useRef<ArrayBuffer[]>([]);
   const audioElemRef = useRef<HTMLAudioElement | null>(null);
   const typeWriterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const aiPlaybackFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aiSpeechProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const recognitionRef = useRef<WebSpeechRecognition | null>(null);
   const recognitionModeRef = useRef<RecognitionMode>('idle');
@@ -131,6 +136,20 @@ export function useChat() {
     }
   }, []);
 
+  const clearAiPlaybackFallbackTimer = useCallback(() => {
+    if (aiPlaybackFallbackTimerRef.current) {
+      clearTimeout(aiPlaybackFallbackTimerRef.current);
+      aiPlaybackFallbackTimerRef.current = null;
+    }
+  }, []);
+
+  const clearAiSpeechProgressTimer = useCallback(() => {
+    if (aiSpeechProgressTimerRef.current) {
+      clearInterval(aiSpeechProgressTimerRef.current);
+      aiSpeechProgressTimerRef.current = null;
+    }
+  }, []);
+
   const beginAwaitingResponse = useCallback((message = '응답 생성 중...') => {
     awaitingResponseRef.current = true;
     setIsAwaitingResponse(true);
@@ -163,6 +182,115 @@ export function useChat() {
       setSttText(message);
     }
   }, []);
+
+  const cleanupAudioPlayback = useCallback(
+    (resetSpeaking: boolean = true) => {
+      clearAiPlaybackFallbackTimer();
+      clearAiSpeechProgressTimer();
+
+      const audio = audioElemRef.current;
+      if (audio) {
+        audio.onplay = null;
+        audio.onpause = null;
+        audio.onended = null;
+        audio.onerror = null;
+        audio.pause();
+        if (audio.src.startsWith('blob:')) {
+          URL.revokeObjectURL(audio.src);
+        }
+      }
+
+      const sourceBuffer = sourceBufferRef.current;
+      if (sourceBuffer) {
+        sourceBuffer.removeEventListener('updateend', processAudioQueue);
+      }
+
+      const mediaSource = mediaSourceRef.current;
+      if (mediaSource && mediaSource.readyState === 'open') {
+        try {
+          mediaSource.endOfStream();
+        } catch {
+          // ignore MediaSource finalization errors
+        }
+      }
+
+      audioElemRef.current = null;
+      mediaSourceRef.current = null;
+      sourceBufferRef.current = null;
+      audioQueueRef.current = [];
+      aiPlaybackActiveRef.current = false;
+      setAiSpeechProgress(0);
+
+      if (resetSpeaking) {
+        setIsAiSpeaking(false);
+      }
+    },
+    [clearAiPlaybackFallbackTimer, clearAiSpeechProgressTimer, processAudioQueue],
+  );
+
+  const finalizeAudioStream = useCallback(() => {
+    clearAiPlaybackFallbackTimer();
+
+    const mediaSource = mediaSourceRef.current;
+    const sourceBuffer = sourceBufferRef.current;
+
+    const scheduleFallbackCleanup = () => {
+      clearAiPlaybackFallbackTimer();
+      aiPlaybackFallbackTimerRef.current = setTimeout(() => {
+        const audio = audioElemRef.current;
+        if (!audio || audio.ended || audio.paused || !aiPlaybackActiveRef.current) {
+          cleanupAudioPlayback(true);
+        }
+      }, 1200);
+    };
+
+    const closeMediaSource = () => {
+      if (mediaSource && mediaSource.readyState === 'open') {
+        try {
+          mediaSource.endOfStream();
+        } catch {
+          // ignore and rely on fallback cleanup
+        }
+      }
+
+      scheduleFallbackCleanup();
+    };
+
+    if (sourceBuffer?.updating) {
+      const handleUpdateEnd = () => {
+        sourceBuffer.removeEventListener('updateend', handleUpdateEnd);
+        closeMediaSource();
+      };
+      sourceBuffer.addEventListener('updateend', handleUpdateEnd);
+      return;
+    }
+
+    closeMediaSource();
+  }, [cleanupAudioPlayback, clearAiPlaybackFallbackTimer]);
+
+  const startAiSpeechProgressTracking = useCallback(() => {
+    clearAiSpeechProgressTimer();
+
+    aiSpeechProgressTimerRef.current = setInterval(() => {
+      const audio = audioElemRef.current;
+      if (!audio) return;
+
+      const currentTime = audio.currentTime || 0;
+      let estimatedDuration = 0;
+
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        estimatedDuration = audio.duration;
+      } else if (audio.buffered.length > 0) {
+        estimatedDuration = audio.buffered.end(audio.buffered.length - 1);
+      }
+
+      if (estimatedDuration <= 0) return;
+
+      const rawProgress = currentTime / estimatedDuration;
+      const clampedProgress = Math.max(0, Math.min(rawProgress, audio.ended ? 1 : 0.98));
+      setAiSpeechProgress((prev) => (clampedProgress > prev ? clampedProgress : prev));
+    }, 80);
+  }, [clearAiSpeechProgressTimer]);
 
   const stopMediaRecorder = useCallback(() => {
     const mediaRecorder = mediaRecorderRef.current;
@@ -202,7 +330,10 @@ export function useChat() {
 
   const connectSocket = useCallback(() => {
     const token = localStorage.getItem('token');
-    if (!token) return null;
+    if (!token) {
+      setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
+      return null;
+    }
 
     if (
       wsRef.current &&
@@ -226,6 +357,25 @@ export function useChat() {
       }
     };
 
+    socket.onopen = () => {
+      setConnectionNotice('');
+      console.log('WebSocket connected');
+    };
+
+    socket.onclose = () => {
+      console.log('WebSocket closed');
+      const hasToken = !!localStorage.getItem('token');
+      if (!hasToken) {
+        setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
+      } else if (awaitingResponseRef.current) {
+        setConnectionNotice('서버 연결이 끊어졌습니다. 다시 시도해주세요.');
+      }
+
+      if (wsRef.current === socket) {
+        wsRef.current = null;
+      }
+    };
+
     socket.onmessage = async (event) => {
       if (event.data instanceof ArrayBuffer) {
         audioQueueRef.current.push(event.data);
@@ -238,19 +388,30 @@ export function useChat() {
       const message = JSON.parse(event.data);
       if (message.type === 'ACK') return;
       if (message.type === 'END_OF_STREAM') {
+        setConnectionNotice('');
         endAwaitingResponse();
+        finalizeAudioStream();
         resumeWakeWordWhenReady();
         console.debug('WebSocket stream ended:', message.type);
         return;
       }
       if (message.type === 'CANCELLED') {
+        setConnectionNotice('');
         endAwaitingResponse();
+        cleanupAudioPlayback(true);
         resumeWakeWordWhenReady();
         console.warn('WebSocket request cancelled:', message.type, message.message);
         return;
       }
       if (message.type === 'ERROR' || message.type === 'error') {
+        const code = message.payload?.code;
+        if (code === 'TOKEN_EXPIRED' || code === 'UNAUTHORIZED' || code === 401) {
+          setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
+        } else {
+          setConnectionNotice('응답을 불러오지 못했습니다. 다시 시도해주세요.');
+        }
         endAwaitingResponse(false);
+        cleanupAudioPlayback(true);
         resumeWakeWordWhenReady();
         console.error('WebSocket state:', message.type, {
           message: message.message,
@@ -291,13 +452,17 @@ export function useChat() {
         }
 
         case 'voice.start': {
+          cleanupAudioPlayback(false);
           audioQueueRef.current = [];
           const mediaSource = new MediaSource();
           const audio = new Audio();
+          mediaSourceRef.current = mediaSource;
           audio.src = URL.createObjectURL(mediaSource);
           audio.onplay = () => {
+            clearAiPlaybackFallbackTimer();
             aiPlaybackActiveRef.current = true;
             setIsAiSpeaking(true);
+            startAiSpeechProgressTracking();
           };
           audio.onpause = () => {
             aiPlaybackActiveRef.current = false;
@@ -305,10 +470,14 @@ export function useChat() {
           };
           audio.onended = () => {
             aiPlaybackActiveRef.current = false;
-            setIsAiSpeaking(false);
+            setAiSpeechProgress(1);
+            cleanupAudioPlayback(true);
             if (pendingWakeResumeRef.current) {
               resumeWakeWordWhenReady();
             }
+          };
+          audio.onerror = () => {
+            cleanupAudioPlayback(true);
           };
           audio.play().catch((error) => console.warn('오디오 자동재생 대기:', error));
 
@@ -337,14 +506,28 @@ export function useChat() {
 
     wsRef.current = socket;
     return socket;
-  }, [endAwaitingResponse, processAudioQueue, resumeWakeWordWhenReady]);
+  }, [
+    cleanupAudioPlayback,
+    clearAiPlaybackFallbackTimer,
+    startAiSpeechProgressTracking,
+    endAwaitingResponse,
+    finalizeAudioStream,
+    processAudioQueue,
+    resumeWakeWordWhenReady,
+  ]);
 
   const ensureSocketReady = useCallback(async () => {
     const socket = connectSocket();
     if (!socket) return false;
 
-    if (socket.readyState === WebSocket.OPEN) return true;
-    if (socket.readyState !== WebSocket.CONNECTING) return false;
+    if (socket.readyState === WebSocket.OPEN) {
+      setConnectionNotice('');
+      return true;
+    }
+    if (socket.readyState !== WebSocket.CONNECTING) {
+      setConnectionNotice('서버 연결이 끊어졌습니다. 다시 시도해주세요.');
+      return false;
+    }
 
     return await new Promise<boolean>((resolve) => {
       let resolved = false;
@@ -356,6 +539,14 @@ export function useChat() {
         socket.removeEventListener('error', handleError);
         socket.removeEventListener('close', handleClose);
         clearTimeout(timeoutId);
+        if (!result) {
+          const hasToken = !!localStorage.getItem('token');
+          setConnectionNotice(
+            hasToken
+              ? '서버 연결이 끊어졌습니다. 다시 시도해주세요.'
+              : '로그인이 만료되었습니다. 다시 로그인해주세요.',
+          );
+        }
         resolve(result);
       };
 
@@ -643,9 +834,13 @@ export function useChat() {
       clearRestartTimer();
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
+      clearAiPlaybackFallbackTimer();
+      cleanupAudioPlayback(true);
       recognitionRef.current = null;
     };
   }, [
+    cleanupAudioPlayback,
+    clearAiPlaybackFallbackTimer,
     clearRestartTimer,
     clearSpeechSilenceTimer,
     clearTranscriptTimer,
@@ -664,11 +859,15 @@ export function useChat() {
       clearRestartTimer();
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
+      clearAiPlaybackFallbackTimer();
+      cleanupAudioPlayback(true);
       stopMediaRecorder();
       stopRecognition();
       wsRef.current?.close();
     };
   }, [
+    cleanupAudioPlayback,
+    clearAiPlaybackFallbackTimer,
     clearRestartTimer,
     clearSpeechSilenceTimer,
     clearTranscriptTimer,
@@ -754,6 +953,7 @@ export function useChat() {
     wakeWordActiveRef.current = false;
     setIsWakeWordActive(false);
     endAwaitingResponse();
+    cleanupAudioPlayback(true);
     pendingSpeechCaptureRef.current = false;
     clearSpeechSilenceTimer();
     finalizeSpeechOnEndRef.current = false;
@@ -770,6 +970,7 @@ export function useChat() {
     sttTextRef.current = '';
     updateVoiceStatus('웨이크 워드 대기가 중지되었습니다.');
   }, [
+    cleanupAudioPlayback,
     clearSpeechSilenceTimer,
     endAwaitingResponse,
     finalizeSpeechTurn,
@@ -781,6 +982,8 @@ export function useChat() {
   const cancelTurn = useCallback(() => {
     setSttText('');
     sttTextRef.current = '';
+    endAwaitingResponse();
+    cleanupAudioPlayback(true);
     clearSpeechSilenceTimer();
     finalizeSpeechOnEndRef.current = false;
     speechTurnCompletedRef.current = true;
@@ -794,7 +997,14 @@ export function useChat() {
     if (wakeWordActiveRef.current) {
       startWakeMode();
     }
-  }, [clearSpeechSilenceTimer, startWakeMode, stopMediaRecorder, stopRecognition]);
+  }, [
+    cleanupAudioPlayback,
+    clearSpeechSilenceTimer,
+    endAwaitingResponse,
+    startWakeMode,
+    stopMediaRecorder,
+    stopRecognition,
+  ]);
 
   const sendMessage = useCallback(
     (
@@ -806,12 +1016,17 @@ export function useChat() {
       targetUserId: number | null = null,
     ) => {
       if (!text.trim()) return;
+      if (!localStorage.getItem('token')) {
+        setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
+        return;
+      }
 
       setChatInput('');
       setChatMessages((prev) => [...prev, { sender: 'me', text }]);
       beginAwaitingResponse();
 
       if (wsRef.current?.readyState === WebSocket.OPEN) {
+        setConnectionNotice('');
         wsRef.current.send(
           JSON.stringify({
             type: 'CHAT_START',
@@ -836,12 +1051,14 @@ export function useChat() {
     chatInput,
     chatMessages,
     latestAiText,
+    aiSpeechProgress,
     isLockMode,
     sttText,
     isAiSpeaking,
     isWakeWordActive,
     isAwaitingResponse,
     voiceStatus,
+    connectionNotice,
     audioElemRef,
     setChatInput,
     setChatMessages,
