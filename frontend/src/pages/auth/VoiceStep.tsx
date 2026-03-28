@@ -48,7 +48,7 @@ export default function VoiceStep({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.4 }}
-      className="bg-white/30 backdrop-blur-2xl border border-white/40 rounded-[3rem] shadow-2xl p-8 flex flex-col"
+      className="bg-white/30 backdrop-blur-2xl border border-white/40 rounded-[3rem] shadow-2xl p-8 flex flex-col min-h-[800px] w-full relative overflow-hidden"
     >
       {/* Header */}
       <div className="flex flex-col items-center text-center mb-8 space-y-2">
@@ -94,7 +94,11 @@ export default function VoiceStep({
             >
               <Mic className="w-10 h-10 text-white" />
             </motion.button>
-            <p className="text-sm text-gray-400 font-medium">마이크를 눌러 녹음을 시작하세요</p>
+            <div className="flex flex-col items-center text-center gap-2 mt-2">
+              <p className="text-gray-700 font-bold bg-gray-100 px-5 py-3 rounded-2xl shadow-inner border border-gray-200 text-sm sm:text-base">
+                🎙️ 마이크 버튼을 누르거나 <strong className="text-purple-600 bg-purple-100 px-2 py-0.5 rounded-lg ml-1">"나에대해서 소개할게"</strong><br className="hidden sm:block" /> 라고 말씀하시면 자동으로 녹음이 시작됩니다!
+              </p>
+            </div>
           </motion.div>
         )}
 
