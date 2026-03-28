@@ -28,6 +28,7 @@ export default function UserMainPage() {
   const { hasHydrated, userInfo, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [isAutoStartSuppressed, setIsAutoStartSuppressed] = useState(false);
 
   const currentUserId = userInfo?.id ?? null;
   const targetId = userId ? Number(userId) : currentUserId;
@@ -62,6 +63,7 @@ export default function UserMainPage() {
     sttText,
     isAiSpeaking,
     isAwaitingResponse,
+    isContinuousConversationEnabled,
     aiTextStreamingComplete,
     aiStreamComplete,
     isAiTextTyping,
@@ -69,6 +71,7 @@ export default function UserMainPage() {
     setChatInput,
     setChatMessages,
     toggleLock,
+    toggleContinuousConversation,
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
@@ -260,6 +263,7 @@ export default function UserMainPage() {
       !hasHydrated ||
       !hasUserInteracted ||
       didAutoStartRef.current ||
+      isAutoStartSuppressed ||
       isMicOn ||
       !targetId ||
       isDualAiMode ||
@@ -290,6 +294,7 @@ export default function UserMainPage() {
     currentMode,
     hasUserInteracted,
     hasHydrated,
+    isAutoStartSuppressed,
     isDualAiMode,
     isLockMode,
     isMicOn,
@@ -414,6 +419,11 @@ export default function UserMainPage() {
     toggleMic,
   ]);
 
+  const handleToggleContinuousConversation = useCallback(() => {
+    setIsAutoStartSuppressed(true);
+    toggleContinuousConversation();
+  }, [toggleContinuousConversation]);
+
   const handleHomeSendText = useCallback(() => {
     if (!chatInput.trim()) return;
 
@@ -496,6 +506,8 @@ export default function UserMainPage() {
         onSendText={handleHomeSendText}
         onCancel={cancelTurn}
         onToggleLock={toggleLock}
+        isContinuousConversationEnabled={isContinuousConversationEnabled}
+        onToggleContinuousConversation={handleToggleContinuousConversation}
       />
     );
   }

@@ -86,6 +86,8 @@ interface AssistantConversationStageProps {
   onSendText: () => void;
   onCancel: () => void;
   onToggleLock: () => void;
+  isContinuousConversationEnabled?: boolean;
+  onToggleContinuousConversation?: () => void;
 }
 
 export default function AssistantConversationStage({
@@ -120,6 +122,8 @@ export default function AssistantConversationStage({
   onSendText,
   onCancel,
   onToggleLock,
+  isContinuousConversationEnabled = false,
+  onToggleContinuousConversation,
 }: AssistantConversationStageProps) {
   const [isNarrowLayout, setIsNarrowLayout] = useState(false);
   const showTextInput = isTextInputMode || !isMicOn;
@@ -414,6 +418,21 @@ export default function AssistantConversationStage({
               {isLockMode ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
               {isLockMode ? CONVERSATION_UI.controls.lock : CONVERSATION_UI.controls.unlock}
             </button>
+
+            {onToggleContinuousConversation ? (
+              <button
+                onClick={onToggleContinuousConversation}
+                className={`flex h-14 shrink-0 items-center gap-2 rounded-full border px-5 text-sm font-bold transition-all duration-200 ${
+                  isContinuousConversationEnabled
+                    ? 'border-[#F7576E]/20 bg-[#F7576E]/10 text-[#F7576E]'
+                    : isLockMode
+                      ? 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10'
+                      : 'border-[#E4E4E4] bg-[#FAFAFA] text-[#555555] hover:bg-[#F4F4F4]'
+                }`}
+              >
+                {isContinuousConversationEnabled ? '연속 대화 ON' : '연속 대화 OFF'}
+              </button>
+            ) : null}
           </div>
         </footer>
       </div>

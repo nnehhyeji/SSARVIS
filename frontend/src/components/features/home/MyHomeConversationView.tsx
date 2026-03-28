@@ -31,6 +31,8 @@ interface MyHomeConversationViewProps {
   onSendText: () => void;
   onCancel: () => void;
   onToggleLock: () => void;
+  isContinuousConversationEnabled?: boolean;
+  onToggleContinuousConversation?: () => void;
 }
 
 export default function MyHomeConversationView(props: MyHomeConversationViewProps) {

@@ -27,6 +27,7 @@ export default function AssistantPage() {
     sttText,
     isAiSpeaking,
     isAwaitingResponse,
+    isContinuousConversationEnabled,
     aiTextStreamingComplete,
     aiStreamComplete,
     isAiTextTyping,
@@ -34,6 +35,7 @@ export default function AssistantPage() {
     setChatInput,
     setChatMessages,
     toggleLock,
+    toggleContinuousConversation,
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
@@ -207,6 +209,8 @@ export default function AssistantPage() {
       onSendText={handleSendText}
       onCancel={cancelTurn}
       onToggleLock={toggleLock}
+      isContinuousConversationEnabled={isContinuousConversationEnabled}
+      onToggleContinuousConversation={toggleContinuousConversation}
     />
   );
 }
