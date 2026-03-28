@@ -1,3 +1,5 @@
+import { avatarFallback } from '../../utils/avatar';
+
 export type AvatarRowItem = {
   userId: number;
   nickname: string;
@@ -9,9 +11,6 @@ type AvatarRowProps = {
   items: AvatarRowItem[];
 };
 
-const avatarFallback = (seed: string) =>
-  `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed || 'user')}`;
-
 export default function AvatarRow({ title, items }: AvatarRowProps) {
   return (
     <section className="space-y-5">
@@ -19,7 +18,7 @@ export default function AvatarRow({ title, items }: AvatarRowProps) {
       <div className="flex gap-6 overflow-x-auto pb-2">
         {items.map((item) => (
           <img
-            key={`${title}-${item.userId}`}
+            key={item.userId}
             src={item.profileImageUrl || avatarFallback(item.nickname)}
             alt={item.nickname}
             title={item.nickname}
