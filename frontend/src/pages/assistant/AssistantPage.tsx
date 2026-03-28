@@ -1,27 +1,16 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { UserResponse } from '../../apis/userApi';
 import userApi from '../../apis/userApi';
 import AssistantConversationStage from '../../components/features/assistant/AssistantConversationStage';
+import { CONVERSATION_UI } from '../../constants/conversationUi';
 import { useAICharacter } from '../../hooks/useAICharacter';
 import { useChat } from '../../hooks/useChat';
+import { useConversationStageState } from '../../hooks/useConversationStageState';
 import { useUserStore } from '../../store/useUserStore';
 
-function getActiveSegment(text: string) {
-  const trimmed = text.trimEnd();
-  if (!trimmed) return { doneLength: 0, activeLength: 0 };
-
-  const lastWhitespace = Math.max(trimmed.lastIndexOf(' '), trimmed.lastIndexOf('\n'));
-  const activeStart = lastWhitespace >= 0 ? lastWhitespace + 1 : 0;
-
-  return {
-    doneLength: activeStart,
-    activeLength: trimmed.length - activeStart,
-  };
-}
-
 export default function AssistantPage() {
-  const { userInfo, currentMode } = useUserStore();
+  const { userInfo, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
 
   const { isMicOn, mouthOpenRadius, faceType, toggleMic, isSpeaking, setIsSpeaking, triggerText } =
@@ -47,7 +36,6 @@ export default function AssistantPage() {
   } = useChat();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
-  const [lastUserSpeechAt, setLastUserSpeechAt] = useState(0);
   const [modeHistories, setModeHistories] = useState<
     Record<string, { sender: 'ai' | 'me'; text: string }[]>
   >({
@@ -75,6 +63,12 @@ export default function AssistantPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (currentMode === 'normal') {
+      setCurrentMode('study');
+    }
+  }, [currentMode, setCurrentMode]);
 
   useEffect(() => {
     const prevMode = prevModeRef.current;
@@ -107,65 +101,29 @@ export default function AssistantPage() {
 
   const assistantType = useMemo(() => {
     if (currentMode === 'counseling') return 'COUNSEL';
-    if (currentMode === 'normal') return 'DAILY';
-    return currentMode.toUpperCase();
+    return 'STUDY';
   }, [currentMode]);
 
-  const lastAiRenderedMessage = useMemo(() => {
-    return (
-      chatMessages
-        .slice()
-        .reverse()
-        .find((message) => message.sender === 'ai')?.text || ''
-    );
-  }, [chatMessages]);
-
-  const lastUserMessage = useMemo(() => {
-    return (
-      chatMessages
-        .slice()
-        .reverse()
-        .find((message) => message.sender === 'me')?.text || ''
-    );
-  }, [chatMessages]);
-
-  useEffect(() => {
-    if (sttText.trim() && !isAiSpeaking && !isAwaitingResponse) {
-      setLastUserSpeechAt(Date.now());
-    }
-  }, [sttText, isAiSpeaking, isAwaitingResponse]);
-
-  const isLiveUserCaption =
-    isMicOn &&
-    !isAiSpeaking &&
-    !isAwaitingResponse &&
-    sttText.trim().length > 0 &&
-    Date.now() - lastUserSpeechAt < 1600;
-
-  const userCaptionText = isLiveUserCaption ? sttText.trim() : lastUserMessage;
-  const userCaptionSegments = isLiveUserCaption
-    ? getActiveSegment(userCaptionText)
-    : { doneLength: userCaptionText.length, activeLength: 0 };
-
-  const aiCaptionText = latestAiText || triggerText || lastAiRenderedMessage;
-  const aiCaptionSegments = useMemo(() => {
-    if (!aiCaptionText) return { doneLength: 0, activeLength: 0 };
-    if (finalIsSpeaking) {
-      const spokenLength = Math.max(
-        0,
-        Math.min(Math.floor(aiCaptionText.length * aiSpeechProgress), aiCaptionText.length),
-      );
-
-      if (spokenLength === 0) return { doneLength: 0, activeLength: 0 };
-
-      return {
-        doneLength: Math.max(0, spokenLength - 1),
-        activeLength: 1,
-      };
-    }
-
-    return { doneLength: aiCaptionText.length, activeLength: 0 };
-  }, [aiCaptionText, aiSpeechProgress, finalIsSpeaking]);
+  const {
+    aiCaptionText,
+    aiCaptionSegments,
+    userCaptionText,
+    userCaptionSegments,
+    activeSpeaker,
+    statusText,
+    statusSubtext,
+  } = useConversationStageState({
+    chatMessages,
+    latestAiText,
+    triggerText,
+    aiSpeechProgress,
+    isMicOn,
+    sttText,
+    isAiSpeaking,
+    isAwaitingResponse,
+    isCharacterSpeaking: finalIsSpeaking,
+    connectionNotice,
+  });
 
   const profileImage =
     profile?.userProfileImageUrl ||
@@ -175,19 +133,6 @@ export default function AssistantPage() {
 
   const assistantDisplayName = `${userInfo?.nickname || profile?.nickname || 'User'} AI`;
   const userDisplayName = profile?.nickname || userInfo?.nickname || 'User';
-  const activeSpeaker: 'ai' | 'user' | null = isAiSpeaking ? 'ai' : isLiveUserCaption ? 'user' : null;
-
-  const statusText = connectionNotice
-    ? connectionNotice
-    : isAiSpeaking
-      ? 'AI 응답 중'
-      : isLiveUserCaption
-        ? '말하는 중'
-        : isAwaitingResponse
-          ? '응답 대기 중'
-          : isMicOn
-            ? '대기 중'
-            : '텍스트 입력 가능';
 
   const handleMicToggle = () => {
     toggleMic();
@@ -213,7 +158,7 @@ export default function AssistantPage() {
 
   return (
     <AssistantConversationStage
-      title="대화"
+      title={CONVERSATION_UI.titles.assistant}
       currentMode={currentMode}
       isLockMode={isLockMode}
       isMicOn={isMicOn}
@@ -231,6 +176,7 @@ export default function AssistantPage() {
       userActiveLength={userCaptionSegments.activeLength}
       activeSpeaker={activeSpeaker}
       statusText={statusText}
+      statusSubtext={statusSubtext}
       connectionNotice={connectionNotice}
       chatInput={chatInput}
       onChatInputChange={setChatInput}

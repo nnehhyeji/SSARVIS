@@ -6,42 +6,45 @@ interface AssistantPanelProps {
   onModeChange: (mode: Mode) => void;
 }
 
+const assistantModes: Array<{
+  label: string;
+  mode: Mode;
+  desc: string;
+}> = [
+  {
+    label: '학습 모드',
+    mode: 'study',
+    desc: '공부, 정리, 설명이 필요한 대화를 이어가는 모드입니다.',
+  },
+  {
+    label: '상담 모드',
+    mode: 'counseling',
+    desc: '마음을 정리하고 이야기를 나누는 데 집중하는 모드입니다.',
+  },
+];
+
 const AssistantPanel: React.FC<AssistantPanelProps> = ({ currentMode, onModeChange }) => {
   return (
-    <div className="flex-1 flex flex-col pt-2 bg-white">
+    <div className="flex flex-1 flex-col bg-white pt-2">
       <div className="flex flex-col gap-8 px-8 pt-6">
-        {[
-          {
-            label: '일상 모드',
-            mode: 'normal' as Mode,
-            desc: '일상적인 대화와 교감을 나눕니다.',
-          },
-          {
-            label: '학습 모드',
-            mode: 'study' as Mode,
-            desc: '지식 습득과 질문 답변에 최적화됩니다.',
-          },
-          {
-            label: '상담 모드',
-            mode: 'counseling' as Mode,
-            desc: '고민 상담과 감정적인 지지를 제공합니다.',
-          },
-        ].map((m) => (
+        {assistantModes.map((mode) => (
           <button
-            key={m.mode}
-            onClick={() => {
-              onModeChange(m.mode);
-            }}
-            className={`text-left group transition-all`}
+            key={mode.mode}
+            onClick={() => onModeChange(mode.mode)}
+            className="group text-left transition-all"
           >
             <h3
-              className={`text-2xl font-black transition-colors ${currentMode === m.mode ? 'text-rose-500' : 'text-gray-500 group-hover:text-gray-800'}`}
+              className={`text-2xl font-black transition-colors ${
+                currentMode === mode.mode
+                  ? 'text-rose-500'
+                  : 'text-gray-500 group-hover:text-gray-800'
+              }`}
             >
-              {m.label}
+              {mode.label}
             </h3>
-            <p className="text-sm font-bold text-gray-400 mt-2 leading-relaxed">{m.desc}</p>
-            {currentMode === m.mode && (
-              <div className="mt-4 h-1.5 w-16 bg-rose-500 rounded-full shadow-sm" />
+            <p className="mt-2 text-sm font-bold leading-relaxed text-gray-400">{mode.desc}</p>
+            {currentMode === mode.mode && (
+              <div className="mt-4 h-1.5 w-16 rounded-full bg-rose-500 shadow-sm" />
             )}
           </button>
         ))}
