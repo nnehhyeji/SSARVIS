@@ -5,6 +5,7 @@ interface MyHomeConversationViewProps {
   currentMode: string;
   isLockMode: boolean;
   isMicOn: boolean;
+  isTextInputMode?: boolean;
   faceType: number;
   mouthOpenRadius: number;
   isCharacterSpeaking: boolean;
@@ -20,6 +21,9 @@ interface MyHomeConversationViewProps {
   activeSpeaker: 'ai' | 'user' | null;
   statusText: string;
   statusSubtext?: string;
+  isLongAiCaption?: boolean;
+  isLongUserCaption?: boolean;
+  isLongActiveCaption?: boolean;
   connectionNotice?: string;
   chatInput: string;
   onChatInputChange: (value: string) => void;

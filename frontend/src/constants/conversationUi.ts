@@ -8,7 +8,7 @@ export const CONVERSATION_UI = {
     userSpeaking: '말하는 중',
     awaiting: '골똘히 생각 중',
     awaitingVariants: ['골똘히 생각 중', '무슨 말 할지 고민 중', '감정이입 중'],
-    idle: '대기 중',
+    idle: '말 걸어보기',
     textInput: '텍스트 입력 가능',
   },
   placeholder: {

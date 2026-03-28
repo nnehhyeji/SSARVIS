@@ -28,6 +28,7 @@ interface UseConversationStageStateParams {
   isCharacterSpeaking: boolean;
   connectionNotice?: string;
   liveCaptionWindowMs?: number;
+  longCaptionThreshold?: number;
 }
 
 export function useConversationStageState({
@@ -42,9 +43,10 @@ export function useConversationStageState({
   isCharacterSpeaking,
   connectionNotice,
   liveCaptionWindowMs = 1600,
+  longCaptionThreshold = 55,
 }: UseConversationStageStateParams) {
   const [lastUserSpeechAt, setLastUserSpeechAt] = useState(0);
-  const [statusSubtext, setStatusSubtext] = useState('');
+  const [awaitingStatusText, setAwaitingStatusText] = useState<string>(CONVERSATION_UI.status.awaiting);
 
   const lastAiMessage = useMemo(() => {
     return (
@@ -72,13 +74,13 @@ export function useConversationStageState({
 
   useEffect(() => {
     if (!isAwaitingResponse || connectionNotice) {
-      setStatusSubtext('');
+      setAwaitingStatusText(CONVERSATION_UI.status.awaiting);
       return;
     }
 
     const variants = CONVERSATION_UI.status.awaitingVariants;
     const next = variants[Math.floor(Math.random() * variants.length)] ?? '';
-    setStatusSubtext(next);
+    setAwaitingStatusText(next || CONVERSATION_UI.status.awaiting);
   }, [connectionNotice, isAwaitingResponse]);
 
   const isLiveUserCaption =
@@ -114,6 +116,10 @@ export function useConversationStageState({
   }, [aiCaptionText, aiSpeechProgress, isCharacterSpeaking]);
 
   const activeSpeaker: 'ai' | 'user' | null = isAiSpeaking ? 'ai' : isLiveUserCaption ? 'user' : null;
+  const activeCaptionText = activeSpeaker === 'ai' ? aiCaptionText : activeSpeaker === 'user' ? userCaptionText : '';
+  const isLongAiCaption = aiCaptionText.trim().length >= longCaptionThreshold;
+  const isLongUserCaption = userCaptionText.trim().length >= longCaptionThreshold;
+  const isLongActiveCaption = activeCaptionText.trim().length >= longCaptionThreshold;
 
   const statusText = connectionNotice
     ? connectionNotice
@@ -122,7 +128,7 @@ export function useConversationStageState({
       : isLiveUserCaption
         ? CONVERSATION_UI.status.userSpeaking
         : isAwaitingResponse
-          ? CONVERSATION_UI.status.awaiting
+          ? awaitingStatusText
           : isMicOn
             ? CONVERSATION_UI.status.idle
             : CONVERSATION_UI.status.textInput;
@@ -134,7 +140,10 @@ export function useConversationStageState({
     userCaptionSegments,
     activeSpeaker,
     statusText,
-    statusSubtext,
+    statusSubtext: '',
+    isLongAiCaption,
+    isLongUserCaption,
+    isLongActiveCaption,
     lastAiMessage,
     lastUserMessage,
     isLiveUserCaption,
