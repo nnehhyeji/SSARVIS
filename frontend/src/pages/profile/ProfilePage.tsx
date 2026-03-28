@@ -10,6 +10,7 @@ import followApi, {
 } from '../../apis/followApi';
 import AvatarRow, { type AvatarRowItem } from '../../components/profile/AvatarRow';
 import { PATHS } from '../../routes/paths';
+import { avatarFallback } from '../../utils/avatar';
 
 const sortByTopChatters = (items: AvatarRowItem[], topChatters: TopChatterResponse[]) => {
   const ranking = new Map<number, number>();

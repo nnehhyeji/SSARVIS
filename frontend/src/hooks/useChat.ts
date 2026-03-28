@@ -57,6 +57,10 @@ interface ChatSocketMessage {
   };
 }
 
+interface UseChatOptions {
+  initialGreeting?: string;
+}
+
 const DEFAULT_GREETING = '난 너야, 만나서 반가워.';
 const WAKE_WORD = '싸비스';
 const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '싸비쓰', '서비스', '싸비스야', '비스', '싸비', '싸쓰'];
@@ -94,18 +98,18 @@ function extractSpeechAfterWakeWord(text: string): string {
   return '';
 }
 
-export function useChat() {
+export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions = {}) {
   const navigate = useNavigate();
   const userInfo = useUserStore((state) => state.userInfo);
   const { isLocked } = useVoiceLockStore();
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { sender: 'ai', text: DEFAULT_GREETING },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(
+    initialGreeting ? [{ sender: 'ai', text: initialGreeting }] : [],
+  );
   const [backupMessages, setBackupMessages] = useState<ChatMessage[] | null>(null);
   const [isLockMode, setIsLockMode] = useState(false);
   const [sttText, setSttText] = useState('');
-  const [latestAiText, setLatestAiText] = useState(DEFAULT_GREETING);
+  const [latestAiText, setLatestAiText] = useState(initialGreeting);
   const [voiceStatus, setVoiceStatus] = useState(WAKE_GUIDE_TEXT);
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
@@ -948,7 +952,8 @@ export function useChat() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((track) => track.stop());
       } catch (error) {
-        updateVoiceStatus(`마이크 권한을 확인할 수 없어요: ${String((error as Error).message || error)}`);
+        void error;
+        updateVoiceStatus('마이크 권한을 확인할 수 없어요');
         return;
       }
 

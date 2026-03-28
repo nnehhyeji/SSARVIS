@@ -156,7 +156,7 @@ export default function AssistantPage() {
 
   const handleSendText = () => {
     if (!chatInput.trim()) return;
-    sendMessage(chatInput, null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
+    sendMessage(chatInput);
   };
 
   useEffect(() => {
