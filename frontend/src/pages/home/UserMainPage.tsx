@@ -9,13 +9,9 @@ import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
 import { useUserStore } from '../../store/useUserStore';
 
-import MyCardModal from '../../components/features/follow/MyCardModal';
-import SharePersonaModal from '../../components/features/follow/SharePersonaModal';
-import ModePanel from '../../components/features/assistant/ModePanel';
 import AiTopicModal from '../../components/features/assistant/AiTopicModal';
-import PersonaModal from '../../components/features/follow/PersonaModal';
 import MyHomeConversationView from '../../components/features/home/MyHomeConversationView';
-import VisitorHomeView from '../../components/features/home/VisitorHomeView';
+import VisitorConversationStage from '../../components/features/home/VisitorConversationStage';
 
 import { PATHS } from '../../routes/paths';
 import userApi from '../../apis/userApi';
@@ -42,17 +38,11 @@ export default function UserMainPage() {
     mouthOpenRadius,
     faceType,
     toggleMic,
-    changeFace,
     isSpeaking,
     setIsSpeaking,
-    isMyAiSpeaking,
-    setIsMyAiSpeaking,
-    myMouthOpenRadius,
-    myTriggerText,
     triggerText,
     setTriggerText,
-    setMyTriggerText,
-  } = useAICharacter();
+  } = useAICharacter({ enableDefaultTriggerText: isMyHome });
 
   const {
     chatInput,
@@ -76,52 +66,33 @@ export default function UserMainPage() {
     startRecording,
     stopRecordingAndSendSTT,
     cancelTurn,
-  } = useChat();
+  } = useChat({ initialGreeting: isMyHome ? undefined : '' });
 
   const guestChat = useGuestChat({ enabled: !isLoggedIn && !isMyHome, targetUserId: targetId });
   const aiToAiChat = useAIToAIChat();
+  const shouldUseGuestChat = hasHydrated && !isLoggedIn && !isMyHome;
 
-  const shouldUseGuestChat =
-    hasHydrated && !isLoggedIn && !isMyHome;
+  const activeChat = shouldUseGuestChat
+    ? guestChat
+    : {
+        chatInput,
+        chatMessages,
+        isLockMode,
+        sttText,
+        isAiSpeaking,
+        isAwaitingResponse,
+        setChatInput,
+        toggleLock,
+        sendMessage,
+        startRecording,
+        stopRecordingAndSendSTT,
+      };
 
-  const activeChat =
-    shouldUseGuestChat
-      ? guestChat
-      : {
-          chatInput,
-          chatMessages,
-          isLockMode,
-          sttText,
-          isAiSpeaking,
-          isAwaitingResponse,
-          setChatInput,
-          toggleLock,
-          sendMessage,
-          startRecording,
-          stopRecordingAndSendSTT,
-        };
+  const { follows, isVisitorMode, visitedFollowName, visitFollow, leaveFollow } = useFollow();
 
-  const {
-    follows,
-    isVisitorMode,
-    visitedFollowName,
-    isDualAiMode,
-    isInteractionModalOpen,
-    visitorVisibility,
-    setIsDualAiMode,
-    setIsInteractionModalOpen,
-    visitFollow,
-    leaveFollow,
-  } = useFollow();
-
-  const [isMyCardModalOpen, setIsMyCardModalOpen] = useState(false);
-  const [isSharePersonaOpen, setIsSharePersonaOpen] = useState(false);
-  const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(!isMicOn);
-  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
-  const [isDualAiTopicModalOpen, setIsDualAiTopicModalOpen] = useState(false);
-  const [roomViewCount, setRoomViewCount] = useState(0);
   const [profile, setProfile] = useState<UserResponse | null>(null);
   const [isTextInputMode, setIsTextInputMode] = useState(false);
+  const [isAiTopicModalOpen, setIsAiTopicModalOpen] = useState(false);
   const [modeHistories, setModeHistories] = useState<
     Record<string, { sender: 'ai' | 'me'; text: string }[]>
   >({
@@ -148,7 +119,6 @@ export default function UserMainPage() {
         const data = await userApi.getUserProfile();
         if (!isMounted) return;
         setProfile(data);
-        setRoomViewCount(data.viewCount ?? 0);
       } catch (error) {
         console.error('Failed to load home profile:', error);
       }
@@ -179,32 +149,35 @@ export default function UserMainPage() {
   useEffect(() => {
     if (isMyHome || !targetId || !isLoggedIn) return;
 
-    const welcome = visitFollow(targetId, true);
-    if (welcome) {
-      setTriggerText(welcome);
-    }
+    visitFollow(targetId, true);
 
     return () => {
       leaveFollow();
     };
-  }, [isLoggedIn, isMyHome, leaveFollow, setTriggerText, targetId, visitFollow]);
-
-  useEffect(() => {
-    if (isMyHome || !targetId) return;
-
-    const user = follows.find((follow) => follow.id === targetId);
-    setRoomViewCount(user?.view_count ?? 0);
-  }, [follows, isMyHome, targetId]);
+  }, [isLoggedIn, isMyHome, leaveFollow, targetId, visitFollow]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
-  const myAiSpeech = isDualAiMode ? aiToAiChat.myLatestText || myTriggerText : myTriggerText;
-  const visitorAiSpeech = isDualAiMode ? aiToAiChat.targetLatestText || triggerText : triggerText;
-  const myAiIsSpeaking = isDualAiMode ? aiToAiChat.activeSpeaker === 'mine' : isMyAiSpeaking;
-  const visitorAiIsSpeaking = isDualAiMode
-    ? aiToAiChat.activeSpeaker === 'target'
-    : finalIsSpeaking;
   const ownerName = isMyHome ? userInfo?.nickname || 'User' : visitedFollowName || 'Visitor';
+  const visitorDescription =
+    follows.find((follow) => follow.id === targetId)?.description?.trim() || '';
+  const visitorIntroText = visitorDescription || `어서와, ${ownerName} ai한테 말을 걸어봐`;
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
+
+  useEffect(() => {
+    if (isMyHome) {
+      visitorGreetingAppliedRef.current = false;
+      return;
+    }
+
+    if (!visitedFollowName || visitorGreetingAppliedRef.current) return;
+
+    setTriggerText(visitorIntroText);
+    visitorGreetingAppliedRef.current = true;
+  }, [isMyHome, setTriggerText, visitedFollowName, visitorIntroText]);
+
+  useEffect(() => {
+    visitorGreetingAppliedRef.current = false;
+  }, [targetId]);
 
   const {
     aiCaptionText: homeAiCaptionText,
@@ -232,6 +205,64 @@ export default function UserMainPage() {
     isAiTextTyping,
     connectionNotice,
   });
+
+  const visitorLatestAiText = shouldUseGuestChat ? '' : latestAiText;
+  const visitorAiSpeechProgress = shouldUseGuestChat ? 0 : aiSpeechProgress;
+  const visitorConnectionNotice = shouldUseGuestChat ? '' : connectionNotice;
+
+  const {
+    aiCaptionText: visitorAiCaptionText,
+    aiCaptionSegments: visitorAiCaptionSegments,
+    statusText: visitorStageStatusText,
+  } = useConversationStageState({
+    chatMessages: activeChat.chatMessages,
+    latestAiText: visitorLatestAiText,
+    triggerText,
+    aiSpeechProgress: visitorAiSpeechProgress,
+    isMicOn,
+    sttText: activeChat.sttText,
+    isAiSpeaking: activeChat.isAiSpeaking,
+    isAwaitingResponse: activeChat.isAwaitingResponse,
+    isCharacterSpeaking: activeChat.isAiSpeaking || isSpeaking,
+    connectionNotice: visitorConnectionNotice,
+  });
+
+  const hasVisitorConversationStarted =
+    activeChat.chatMessages.some((message) => message.sender === 'me') ||
+    activeChat.isAwaitingResponse ||
+    activeChat.isAiSpeaking ||
+    activeChat.sttText.trim().length > 0;
+  const visitorBaseCaptionText =
+    !hasVisitorConversationStarted && triggerText.trim().length > 0
+      ? triggerText
+      : visitorAiCaptionText;
+  const visitorBaseDoneLength =
+    !hasVisitorConversationStarted && triggerText.trim().length > 0
+      ? triggerText.length
+      : visitorAiCaptionSegments.doneLength;
+  const visitorBaseActiveLength =
+    !hasVisitorConversationStarted && triggerText.trim().length > 0
+      ? 0
+      : visitorAiCaptionSegments.activeLength;
+
+  const battleCaptionText =
+    aiToAiChat.isBattling && aiToAiChat.targetLatestText.trim()
+      ? aiToAiChat.targetLatestText
+      : visitorBaseCaptionText;
+  const battleIsTargetSpeaking =
+    aiToAiChat.activeSpeaker === 'target' && battleCaptionText.trim().length > 0;
+  const visitorCaptionDoneLength = aiToAiChat.isBattling
+    ? battleIsTargetSpeaking
+      ? Math.max(0, battleCaptionText.length - 1)
+      : battleCaptionText.length
+    : visitorBaseDoneLength;
+  const visitorCaptionActiveLength = aiToAiChat.isBattling
+    ? battleIsTargetSpeaking
+      ? 1
+      : 0
+    : visitorBaseActiveLength;
+  const visitorStageCaptionText = aiToAiChat.isBattling ? battleCaptionText : visitorBaseCaptionText;
+  const visitorStageStatus = aiToAiChat.isBattling ? aiToAiChat.statusMessage : visitorStageStatusText;
 
   const homeProfileImage =
     profile?.userProfileImageUrl ||
@@ -266,7 +297,6 @@ export default function UserMainPage() {
       isAutoStartSuppressed ||
       isMicOn ||
       !targetId ||
-      isDualAiMode ||
       showEmptyPersonaMessage
     ) {
       return;
@@ -307,16 +337,6 @@ export default function UserMainPage() {
 
   const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
   const handleEndSpeaking = useCallback(() => setIsSpeaking(false), [setIsSpeaking]);
-  const handleStartMyAiSpeaking = useCallback(() => setIsMyAiSpeaking(true), [setIsMyAiSpeaking]);
-  const handleEndMyAiSpeaking = useCallback(() => setIsMyAiSpeaking(false), [setIsMyAiSpeaking]);
-
-  useEffect(() => {
-    if (!myTriggerText) return;
-
-    handleStartMyAiSpeaking();
-    const timeout = setTimeout(handleEndMyAiSpeaking, myTriggerText.length * 100 + 500);
-    return () => clearTimeout(timeout);
-  }, [handleEndMyAiSpeaking, handleStartMyAiSpeaking, myTriggerText]);
 
   useEffect(() => {
     if (!triggerText) return;
@@ -325,59 +345,6 @@ export default function UserMainPage() {
     const timeout = setTimeout(handleEndSpeaking, triggerText.length * 100 + 500);
     return () => clearTimeout(timeout);
   }, [handleEndSpeaking, handleStartSpeaking, triggerText]);
-
-  useEffect(() => {
-    setIsChatHistoryOpen(!isMicOn);
-  }, [isMicOn]);
-
-  useEffect(() => {
-    if (!isDualAiMode || aiToAiChat.isBattling) return;
-    setIsDualAiMode(false);
-  }, [aiToAiChat.isBattling, isDualAiMode, setIsDualAiMode]);
-
-  const openDualAiTopicModal = useCallback(() => {
-    if (isMyHome || !targetId) return;
-
-    if (!isLoggedIn) {
-      setIsDualAiMode(true);
-      setIsInteractionModalOpen(false);
-      return;
-    }
-
-    setIsInteractionModalOpen(false);
-    setIsDualAiTopicModalOpen(true);
-  }, [isLoggedIn, isMyHome, setIsDualAiMode, setIsInteractionModalOpen, targetId]);
-
-  const stopDualAiConversation = useCallback(() => {
-    aiToAiChat.stopBattle();
-    setIsDualAiMode(false);
-    setIsDualAiTopicModalOpen(false);
-    setMyTriggerText('');
-    setTriggerText('');
-  }, [aiToAiChat, setIsDualAiMode, setMyTriggerText, setTriggerText]);
-
-  const handleDualAiTopicSubmit = useCallback(
-    async (topic: string) => {
-      if (!userInfo?.id || !targetId) return;
-
-      const started = await aiToAiChat.startBattle({
-        topic,
-        myUserId: userInfo.id,
-        targetUserId: targetId,
-        myAssistantType: 'DAILY',
-        targetAssistantType: 'DAILY',
-      });
-
-      if (!started) return;
-
-      setIsDualAiMode(true);
-      setIsDualAiTopicModalOpen(false);
-      setMyTriggerText('');
-      setTriggerText('');
-      setIsChatHistoryOpen(true);
-    },
-    [aiToAiChat, setIsDualAiMode, setMyTriggerText, setTriggerText, targetId, userInfo?.id],
-  );
 
   const getAssistantType = useCallback(() => {
     if (isMyHome) {
@@ -427,8 +394,8 @@ export default function UserMainPage() {
   const handleHomeSendText = useCallback(() => {
     if (!chatInput.trim()) return;
 
-    sendMessage(chatInput, null, getAssistantType(), getMemoryPolicy(), 'USER_AI');
-  }, [chatInput, getAssistantType, getMemoryPolicy, sendMessage]);
+    sendMessage(chatInput);
+  }, [chatInput, sendMessage]);
 
   const handleVisitorMicToggle = useCallback(() => {
     const assistantType = getAssistantType();
@@ -456,20 +423,74 @@ export default function UserMainPage() {
   ]);
 
   const handleVisitorSendChat = useCallback(() => {
-    activeChat.sendMessage(
-      activeChat.chatInput,
-      null,
-      getAssistantType(),
-      getMemoryPolicy(),
-      getSessionCategory(),
-      targetId,
-    );
-  }, [activeChat, getAssistantType, getMemoryPolicy, getSessionCategory, targetId]);
+    if (!activeChat.chatInput.trim()) return;
+
+    if (shouldUseGuestChat) {
+      guestChat.sendMessage(
+        guestChat.chatInput,
+        null,
+        getAssistantType(),
+        getMemoryPolicy(),
+        getSessionCategory(),
+        targetId,
+      );
+      return;
+    }
+
+    sendMessage(chatInput);
+  }, [
+    activeChat.chatInput,
+    chatInput,
+    getAssistantType,
+    getMemoryPolicy,
+    getSessionCategory,
+    guestChat,
+    sendMessage,
+    shouldUseGuestChat,
+    targetId,
+  ]);
+
+  const handleOpenPersona = useCallback(() => {
+    if (!targetId) return;
+    navigate(PATHS.PERSONA(targetId));
+  }, [navigate, targetId]);
+
+  const handleToggleDualAi = useCallback(() => {
+    if (aiToAiChat.isBattling) {
+      aiToAiChat.stopBattle();
+      return;
+    }
+
+    if (!isLoggedIn || !currentUserId || !targetId) return;
+
+    setIsAiTopicModalOpen(true);
+  }, [aiToAiChat, currentUserId, isLoggedIn, targetId]);
+
+  const handleDualAiTopicSubmit = useCallback(
+    async (topic: string) => {
+      if (!currentUserId || !targetId) return;
+
+      const started = await aiToAiChat.startBattle({
+        topic,
+        myUserId: currentUserId,
+        targetUserId: targetId,
+        myAssistantType: 'DAILY',
+        targetAssistantType: 'DAILY',
+      });
+
+      if (!started) return;
+
+      setIsAiTopicModalOpen(false);
+      setIsTextInputMode(false);
+      setTriggerText('');
+    },
+    [aiToAiChat, currentUserId, setTriggerText, targetId],
+  );
 
   if (!isMyHome && isLoggedIn && (!isVisitorMode || !visitedFollowName)) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-[#FDFCFB]">
-        <p className="font-bold text-gray-500">홈 정보를 불러오는 중입니다.</p>
+        <p className="font-bold text-gray-500">방문 중인 친구 정보를 불러오는 중입니다.</p>
       </div>
     );
   }
@@ -514,75 +535,45 @@ export default function UserMainPage() {
 
   return (
     <>
-      <VisitorHomeView
-        ownerName={ownerName}
-        roomViewCount={roomViewCount}
+      <VisitorConversationStage
+        title={ownerName}
         currentMode={currentMode}
         isMicOn={isMicOn}
-        isLockMode={isLockMode}
-        isDualAiMode={isDualAiMode}
-        showEmptyPersonaMessage={showEmptyPersonaMessage}
-        visitorVisibility={visitorVisibility}
+        isTextInputMode={isTextInputMode}
         faceType={faceType}
         mouthOpenRadius={mouthOpenRadius}
-        myMouthOpenRadius={myMouthOpenRadius}
-        myAiIsSpeaking={myAiIsSpeaking}
-        myAiSpeech={myAiSpeech}
-        visitorAiIsSpeaking={visitorAiIsSpeaking}
-        visitorAiSpeech={visitorAiSpeech}
-        isChatHistoryOpen={isChatHistoryOpen}
-        activeChat={activeChat}
-        battleMessages={aiToAiChat.battleMessages}
-        onNavigatePersona={() => navigate(PATHS.PERSONA(targetId!))}
-        onNavigatePersonaSetup={() => navigate(`${PATHS.PERSONA(targetId!)}?isFirst=true`)}
-        onToggleDualAi={() => {
-          if (isDualAiMode) {
-            stopDualAiConversation();
+        isCharacterSpeaking={battleIsTargetSpeaking || activeChat.isAiSpeaking || isSpeaking}
+        assistantDisplayName={`${ownerName} AI`}
+        aiCaptionText={visitorStageCaptionText}
+        aiDoneLength={visitorCaptionDoneLength}
+        aiActiveLength={visitorCaptionActiveLength}
+        statusText={visitorStageStatus}
+        connectionNotice={visitorConnectionNotice}
+        isDualAiRunning={aiToAiChat.isBattling}
+        canStartDualAi={Boolean(isLoggedIn && currentUserId && targetId)}
+        chatInput={activeChat.chatInput}
+        onChatInputChange={activeChat.setChatInput}
+        onMicToggle={handleVisitorMicToggle}
+        onSendText={handleVisitorSendChat}
+        onCancel={() => {
+          if (aiToAiChat.isBattling) {
+            aiToAiChat.stopBattle();
             return;
           }
-          openDualAiTopicModal();
+          if (shouldUseGuestChat) {
+            guestChat.stopRecordingAndSendSTT();
+            return;
+          }
+          cancelTurn();
         }}
-        onMicToggle={handleVisitorMicToggle}
-        onSendChat={handleVisitorSendChat}
-        onCloseChatHistory={() => setIsChatHistoryOpen(false)}
-        onToggleChatHistory={() => setIsChatHistoryOpen((prev) => !prev)}
+        onOpenPersona={handleOpenPersona}
+        onToggleDualAi={handleToggleDualAi}
       />
 
-      <ModePanel
-        currentMode={currentMode}
-        isVisitorMode={true}
-        isInteractionModalOpen={isInteractionModalOpen}
-        isDualAiMode={isDualAiMode}
-        onToggleInteraction={() => setIsInteractionModalOpen((prev) => !prev)}
-        onModeChange={(mode) => setCurrentMode(mode)}
-        onChangeFace={changeFace}
-        onStartDualAi={openDualAiTopicModal}
-        onStopDualAi={stopDualAiConversation}
-      />
-      <PersonaModal
-        isOpen={isPersonaModalOpen}
-        onClose={() => setIsPersonaModalOpen(false)}
-        followName={ownerName}
-        targetUserId={targetId}
-      />
       <AiTopicModal
-        isOpen={isDualAiTopicModalOpen}
-        onClose={() => setIsDualAiTopicModalOpen(false)}
+        isOpen={isAiTopicModalOpen}
+        onClose={() => setIsAiTopicModalOpen(false)}
         onSubmit={handleDualAiTopicSubmit}
-      />
-
-      <MyCardModal
-        isOpen={isMyCardModalOpen}
-        onClose={() => setIsMyCardModalOpen(false)}
-        userId={currentUserId}
-        userName={userInfo?.nickname || '사용자'}
-        userHandle={userInfo?.email ? `@${userInfo.email.split('@')[0]}` : '@ssarvis_me'}
-        followingCount={0}
-        followerCount={0}
-      />
-      <SharePersonaModal
-        isOpen={isSharePersonaOpen}
-        onClose={() => setIsSharePersonaOpen(false)}
       />
     </>
   );

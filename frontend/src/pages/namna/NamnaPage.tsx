@@ -238,7 +238,7 @@ export default function NamnaPage() {
           input={chatInput}
           onInputChange={setChatInput}
           onSend={() => {
-            sendMessage(chatInput, null, 'PERSONA', isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
+            sendMessage(chatInput);
           }}
           onClose={() => setIsChatHistoryOpen(false)}
         />
