@@ -1,6 +1,5 @@
 package com.ssafy.ssarvis.user.entity;
 
-import com.ssafy.ssarvis.common.constant.Constants;
 import com.ssafy.ssarvis.common.entity.BaseTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -42,8 +41,7 @@ public class User extends BaseTime {
     private String customId;
 
     @NotNull
-    @Builder.Default
-    private String description = "안녕하세요";
+    private String description;
 
     @Column(name = "voice_password")
     private String voicePassword;
@@ -91,23 +89,45 @@ public class User extends BaseTime {
             .password(password)
             .nickname(nickname)
             .customId(customId)
+            .description(defaultDescription(nickname))
             .build();
+    }
+
+    private static String defaultDescription(String nickname) {
+        return String.format("어서와, %s AI와 대화를 시작해봐", nickname);
     }
 
     public void updateProfileImage(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
     }
 
-    public void update(String password, String nickname, String description, Costume costume, String voicePassword, String customId) {
-        if (password != null) this.password = password;
-        if (nickname != null) this.nickname = nickname;
-        if (description != null) this.description = description;
-        if (costume != null) this.costume = costume;
+    public void update(
+        String password,
+        String nickname,
+        String description,
+        Costume costume,
+        String voicePassword,
+        String customId
+    ) {
+        if (password != null) {
+            this.password = password;
+        }
+        if (nickname != null) {
+            this.nickname = nickname;
+        }
+        if (description != null) {
+            this.description = description;
+        }
+        if (costume != null) {
+            this.costume = costume;
+        }
         if (voicePassword != null) {
             this.isVoiceLockActive = true;
             this.voicePassword = voicePassword;
         }
-        if(customId != null) this.customId = customId;
+        if (customId != null) {
+            this.customId = customId;
+        }
     }
 
     public void deleteUser() {
@@ -136,5 +156,4 @@ public class User extends BaseTime {
     public void updateProfileVisibility(Boolean isPublic) {
         this.isPublic = isPublic;
     }
-
 }
