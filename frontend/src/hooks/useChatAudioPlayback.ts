@@ -11,6 +11,9 @@ export function useChatAudioPlayback() {
   const aiPlaybackFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiSpeechProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const aiPlaybackActiveRef = useRef(false);
+  const playbackSessionIdRef = useRef(0);
+  const objectUrlRef = useRef<string | null>(null);
+  const isCleaningUpRef = useRef(false);
 
   const processAudioQueue = useCallback(() => {
     const sourceBuffer = sourceBufferRef.current;
@@ -66,6 +69,13 @@ export function useChatAudioPlayback() {
 
   const cleanupAudioPlayback = useCallback(
     (resetSpeaking: boolean = true) => {
+      if (isCleaningUpRef.current) {
+        if (resetSpeaking) {
+          setIsAiSpeaking(false);
+        }
+        return;
+      }
+      isCleaningUpRef.current = true;
       clearAiPlaybackFallbackTimer();
       clearAiSpeechProgressTimer();
 
@@ -76,9 +86,7 @@ export function useChatAudioPlayback() {
         audio.onended = null;
         audio.onerror = null;
         audio.pause();
-        if (audio.src.startsWith('blob:')) {
-          URL.revokeObjectURL(audio.src);
-        }
+        audio.src = '';
       }
 
       const sourceBuffer = sourceBufferRef.current;
@@ -102,15 +110,23 @@ export function useChatAudioPlayback() {
       aiPlaybackActiveRef.current = false;
       setAiSpeechProgress(0);
 
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+
       if (resetSpeaking) {
         setIsAiSpeaking(false);
       }
+
+      isCleaningUpRef.current = false;
     },
     [clearAiPlaybackFallbackTimer, clearAiSpeechProgressTimer, processAudioQueue],
   );
 
   const finalizeAudioStream = useCallback(() => {
     clearAiPlaybackFallbackTimer();
+    const sessionId = playbackSessionIdRef.current;
 
     const mediaSource = mediaSourceRef.current;
     const sourceBuffer = sourceBufferRef.current;
@@ -118,6 +134,7 @@ export function useChatAudioPlayback() {
     const scheduleFallbackCleanup = () => {
       clearAiPlaybackFallbackTimer();
       aiPlaybackFallbackTimerRef.current = setTimeout(() => {
+        if (sessionId !== playbackSessionIdRef.current) return;
         const audio = audioElemRef.current;
         if (!audio || audio.ended || audio.paused || !aiPlaybackActiveRef.current) {
           cleanupAudioPlayback(true);
@@ -160,15 +177,20 @@ export function useChatAudioPlayback() {
   const startAudioPlayback = useCallback(
     (onEnded?: () => void) => {
       cleanupAudioPlayback(false);
+      playbackSessionIdRef.current += 1;
+      const sessionId = playbackSessionIdRef.current;
       audioQueueRef.current = [];
 
       const mediaSource = new MediaSource();
       const audio = new Audio();
 
       mediaSourceRef.current = mediaSource;
-      audio.src = URL.createObjectURL(mediaSource);
+      objectUrlRef.current = URL.createObjectURL(mediaSource);
+      audio.src = objectUrlRef.current;
+      isCleaningUpRef.current = false;
 
       audio.onplay = () => {
+        if (sessionId !== playbackSessionIdRef.current) return;
         clearAiPlaybackFallbackTimer();
         aiPlaybackActiveRef.current = true;
         setIsAiSpeaking(true);
@@ -176,11 +198,13 @@ export function useChatAudioPlayback() {
       };
 
       audio.onpause = () => {
+        if (sessionId !== playbackSessionIdRef.current) return;
         aiPlaybackActiveRef.current = false;
         setIsAiSpeaking(false);
       };
 
       audio.onended = () => {
+        if (sessionId !== playbackSessionIdRef.current) return;
         aiPlaybackActiveRef.current = false;
         setAiSpeechProgress(1);
         cleanupAudioPlayback(true);
@@ -188,12 +212,14 @@ export function useChatAudioPlayback() {
       };
 
       audio.onerror = () => {
+        if (sessionId !== playbackSessionIdRef.current) return;
         cleanupAudioPlayback(true);
       };
 
       audio.play().catch((error) => console.warn('Audio playback start failed:', error));
 
       mediaSource.addEventListener('sourceopen', () => {
+        if (sessionId !== playbackSessionIdRef.current) return;
         try {
           const sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
           sourceBuffer.addEventListener('updateend', processAudioQueue);

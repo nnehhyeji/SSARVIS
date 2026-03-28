@@ -12,6 +12,8 @@ import { useUserStore } from '../../store/useUserStore';
 export default function AssistantPage() {
   const { userInfo, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
+  const [pageNotice, setPageNotice] = useState('');
+  const [isTextInputMode, setIsTextInputMode] = useState(false);
 
   const { isMicOn, mouthOpenRadius, faceType, toggleMic, isSpeaking, setIsSpeaking, triggerText } =
     useAICharacter();
@@ -67,6 +69,10 @@ export default function AssistantPage() {
   useEffect(() => {
     if (currentMode === 'normal') {
       setCurrentMode('study');
+      if (!sessionStorage.getItem('assistant-mode-migrated-notice')) {
+        setPageNotice('일상 모드는 홈으로 이동되었어요. AI 비서에서는 학습 모드로 이어집니다.');
+        sessionStorage.setItem('assistant-mode-migrated-notice', '1');
+      }
     }
   }, [currentMode, setCurrentMode]);
 
@@ -112,6 +118,9 @@ export default function AssistantPage() {
     activeSpeaker,
     statusText,
     statusSubtext,
+    isLongAiCaption,
+    isLongUserCaption,
+    isLongActiveCaption,
   } = useConversationStageState({
     chatMessages,
     latestAiText,
@@ -137,8 +146,10 @@ export default function AssistantPage() {
   const handleMicToggle = () => {
     toggleMic();
     if (!isMicOn) {
+      setIsTextInputMode(false);
       startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
     } else {
+      setIsTextInputMode(true);
       stopRecordingAndSendSTT();
     }
   };
@@ -152,6 +163,7 @@ export default function AssistantPage() {
     if (didAutoStartRef.current || isMicOn) return;
 
     didAutoStartRef.current = true;
+    setIsTextInputMode(false);
     toggleMic();
     startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
   }, [assistantType, isLockMode, isMicOn, startRecording, toggleMic]);
@@ -162,6 +174,7 @@ export default function AssistantPage() {
       currentMode={currentMode}
       isLockMode={isLockMode}
       isMicOn={isMicOn}
+      isTextInputMode={isTextInputMode}
       faceType={faceType}
       mouthOpenRadius={mouthOpenRadius}
       isCharacterSpeaking={finalIsSpeaking}
@@ -177,6 +190,10 @@ export default function AssistantPage() {
       activeSpeaker={activeSpeaker}
       statusText={statusText}
       statusSubtext={statusSubtext}
+      isLongAiCaption={isLongAiCaption}
+      isLongUserCaption={isLongUserCaption}
+      isLongActiveCaption={isLongActiveCaption}
+      pageNotice={pageNotice}
       connectionNotice={connectionNotice}
       chatInput={chatInput}
       onChatInputChange={setChatInput}

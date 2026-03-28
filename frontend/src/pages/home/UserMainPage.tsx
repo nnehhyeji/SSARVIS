@@ -111,6 +111,7 @@ export default function UserMainPage() {
   const [isDualAiTopicModalOpen, setIsDualAiTopicModalOpen] = useState(false);
   const [roomViewCount, setRoomViewCount] = useState(0);
   const [profile, setProfile] = useState<UserResponse | null>(null);
+  const [isTextInputMode, setIsTextInputMode] = useState(false);
   const [modeHistories, setModeHistories] = useState<
     Record<string, { sender: 'ai' | 'me'; text: string }[]>
   >({
@@ -203,6 +204,9 @@ export default function UserMainPage() {
     activeSpeaker: homeStageActiveSpeaker,
     statusText: homeStageStatusText,
     statusSubtext: homeStageStatusSubtext,
+    isLongAiCaption: homeIsLongAiCaption,
+    isLongUserCaption: homeIsLongUserCaption,
+    isLongActiveCaption: homeIsLongActiveCaption,
   } = useConversationStageState({
     chatMessages,
     latestAiText,
@@ -243,6 +247,7 @@ export default function UserMainPage() {
     const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
 
     didAutoStartRef.current = true;
+    setIsTextInputMode(false);
     toggleMic();
     activeChat.startRecording(null, assistantType, memoryPolicy, category, targetId);
   }, [
@@ -356,10 +361,12 @@ export default function UserMainPage() {
 
     toggleMic();
     if (!isMicOn) {
+      setIsTextInputMode(false);
       startRecording(null, assistantType, memoryPolicy, 'USER_AI');
       return;
     }
 
+    setIsTextInputMode(true);
     stopRecordingAndSendSTT();
   }, [
     getAssistantType,
@@ -383,10 +390,12 @@ export default function UserMainPage() {
 
     toggleMic();
     if (!isMicOn) {
+      setIsTextInputMode(false);
       activeChat.startRecording(null, assistantType, memoryPolicy, category, targetId);
       return;
     }
 
+    setIsTextInputMode(true);
     activeChat.stopRecordingAndSendSTT();
   }, [
     activeChat,
@@ -423,6 +432,7 @@ export default function UserMainPage() {
         currentMode={currentMode}
         isLockMode={isLockMode}
         isMicOn={isMicOn}
+        isTextInputMode={isTextInputMode}
         faceType={faceType}
         mouthOpenRadius={mouthOpenRadius}
         isCharacterSpeaking={finalIsSpeaking}
@@ -438,6 +448,9 @@ export default function UserMainPage() {
         activeSpeaker={homeStageActiveSpeaker}
         statusText={homeStageStatusText}
         statusSubtext={homeStageStatusSubtext}
+        isLongAiCaption={homeIsLongAiCaption}
+        isLongUserCaption={homeIsLongUserCaption}
+        isLongActiveCaption={homeIsLongActiveCaption}
         connectionNotice={connectionNotice}
         chatInput={chatInput}
         onChatInputChange={setChatInput}

@@ -18,12 +18,14 @@ function CaptionLine({
   activeLength,
   align,
   isLockMode,
+  size,
 }: {
   text: string;
   doneLength: number;
   activeLength: number;
   align: 'left' | 'right';
   isLockMode: boolean;
+  size?: 'default' | 'compact';
 }) {
   if (!text.trim()) return null;
 
@@ -37,7 +39,11 @@ function CaptionLine({
 
   return (
     <div
-      className={`max-w-[min(38vw,34rem)] whitespace-pre-wrap break-words text-[clamp(2rem,2.8vw,3.5rem)] font-black leading-[1.28] tracking-[-0.05em] ${
+      className={`max-w-[min(38vw,34rem)] whitespace-pre-wrap break-words font-black tracking-[-0.05em] ${
+        size === 'compact'
+          ? 'text-[clamp(1.6rem,2.2vw,2.8rem)] leading-[1.24]'
+          : 'text-[clamp(2rem,2.8vw,3.5rem)] leading-[1.28]'
+      } ${
         align === 'right' ? 'text-right' : 'text-left'
       }`}
     >
@@ -53,6 +59,7 @@ interface AssistantConversationStageProps {
   currentMode: string;
   isLockMode: boolean;
   isMicOn: boolean;
+  isTextInputMode?: boolean;
   faceType: number;
   mouthOpenRadius: number;
   isCharacterSpeaking: boolean;
@@ -68,6 +75,10 @@ interface AssistantConversationStageProps {
   activeSpeaker: 'ai' | 'user' | null;
   statusText: string;
   statusSubtext?: string;
+  isLongAiCaption?: boolean;
+  isLongUserCaption?: boolean;
+  isLongActiveCaption?: boolean;
+  pageNotice?: string;
   connectionNotice?: string;
   chatInput: string;
   onChatInputChange: (value: string) => void;
@@ -82,6 +93,7 @@ export default function AssistantConversationStage({
   currentMode,
   isLockMode,
   isMicOn,
+  isTextInputMode = false,
   faceType,
   mouthOpenRadius,
   isCharacterSpeaking,
@@ -97,6 +109,10 @@ export default function AssistantConversationStage({
   activeSpeaker,
   statusText,
   statusSubtext,
+  isLongAiCaption = false,
+  isLongUserCaption = false,
+  isLongActiveCaption = false,
+  pageNotice,
   connectionNotice,
   chatInput,
   onChatInputChange,
@@ -106,6 +122,7 @@ export default function AssistantConversationStage({
   onToggleLock,
 }: AssistantConversationStageProps) {
   const [isNarrowLayout, setIsNarrowLayout] = useState(false);
+  const showTextInput = isTextInputMode || !isMicOn;
 
   useEffect(() => {
     const updateLayout = () => {
@@ -117,8 +134,19 @@ export default function AssistantConversationStage({
     return () => window.removeEventListener('resize', updateLayout);
   }, []);
 
-  const showAiSection = !isNarrowLayout || activeSpeaker !== 'user';
-  const showUserSection = !isNarrowLayout || activeSpeaker !== 'ai';
+  const longCaptionThreshold = isNarrowLayout ? 36 : 55;
+  const shouldFocusActiveSpeaker =
+    (isNarrowLayout && activeSpeaker !== null) || isLongActiveCaption;
+  const showAiSection =
+    shouldFocusActiveSpeaker ? activeSpeaker !== 'user' : !isNarrowLayout || activeSpeaker !== 'user';
+  const showUserSection =
+    shouldFocusActiveSpeaker ? activeSpeaker !== 'ai' : !isNarrowLayout || activeSpeaker !== 'ai';
+  const aiCaptionSize = isLongAiCaption ? 'compact' : 'default';
+  const userCaptionSize = isLongUserCaption ? 'compact' : 'default';
+  const aiCaptionOffsetClass =
+    aiCaptionText.trim().length >= longCaptionThreshold ? 'pt-28' : 'pt-20';
+  const userCaptionOffsetClass =
+    userCaptionText.trim().length >= longCaptionThreshold ? 'pt-12' : 'pt-6';
 
   return (
     <div
@@ -151,10 +179,28 @@ export default function AssistantConversationStage({
           }`}
         />
 
+        {pageNotice ? (
+          <div className="shrink-0 px-8 pt-4 md:px-12">
+            <div
+              className={`mx-auto max-w-[920px] rounded-2xl px-4 py-3 text-sm font-semibold ${
+                isLockMode
+                  ? 'border border-white/10 bg-white/[0.04] text-white/75'
+                  : 'border border-[#EFE7D7] bg-[#FFF9EE] text-[#7A6642]'
+              }`}
+            >
+              {pageNotice}
+            </div>
+          </div>
+        ) : null}
+
         <main className="relative flex-1 overflow-hidden px-8 pb-8 pt-8 md:px-12">
           <div className="relative h-full min-h-[540px]">
             {showAiSection && (
-              <section className="absolute left-0 top-[11%] flex w-[58%] items-start gap-10 max-xl:w-[62%] max-lg:w-[72%]">
+              <section
+                className={`absolute left-0 flex items-start gap-10 max-xl:w-[62%] max-lg:w-[72%] ${
+                  showUserSection ? 'top-[11%] w-[58%]' : 'top-[16%] w-[76%] max-xl:w-[82%] max-lg:w-[88%]'
+                }`}
+              >
                 <div className="relative h-[220px] w-[220px] shrink-0">
                   <CharacterScene
                     faceType={faceType}
@@ -174,7 +220,7 @@ export default function AssistantConversationStage({
                   </div>
                 </div>
 
-                <div className="pt-20">
+                <div className={aiCaptionOffsetClass}>
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={`ai-${title}-${aiCaptionText}`}
@@ -189,6 +235,7 @@ export default function AssistantConversationStage({
                         activeLength={aiActiveLength}
                         align="left"
                         isLockMode={isLockMode}
+                        size={aiCaptionSize}
                       />
                     </motion.div>
                   </AnimatePresence>
@@ -197,8 +244,14 @@ export default function AssistantConversationStage({
             )}
 
             {showUserSection && (
-              <section className="absolute bottom-[18%] right-0 flex w-[54%] items-start justify-end gap-8 max-xl:w-[60%] max-lg:w-[72%]">
-                <div className="max-w-[min(34vw,31rem)] pt-6">
+              <section
+                className={`absolute right-0 flex items-start justify-end gap-8 ${
+                  showAiSection
+                    ? 'bottom-[18%] w-[54%] max-xl:w-[60%] max-lg:w-[72%]'
+                    : 'bottom-[16%] w-[76%] max-xl:w-[82%] max-lg:w-[88%]'
+                }`}
+              >
+                <div className={`max-w-[min(34vw,31rem)] ${userCaptionOffsetClass}`}>
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={`user-${title}-${userCaptionText}`}
@@ -213,6 +266,7 @@ export default function AssistantConversationStage({
                         activeLength={userActiveLength}
                         align="right"
                         isLockMode={isLockMode}
+                        size={userCaptionSize}
                       />
                     </motion.div>
                   </AnimatePresence>
@@ -300,7 +354,7 @@ export default function AssistantConversationStage({
               {isMicOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
             </button>
 
-            {!isMicOn && (
+            {showTextInput && (
               <div
                 className={`flex min-w-0 flex-1 items-center gap-2 rounded-[18px] px-4 py-2 ${
                   isLockMode

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ChatMessage } from '../types';
 import { useChatAudioPlayback } from './useChatAudioPlayback';
@@ -53,11 +53,19 @@ interface ChatSocketMessage {
   };
 }
 
-const DEFAULT_GREETING = '서비스와 대화할 준비가 되었어요.';
+const DEFAULT_GREETING = '난 너야, 만나서 반가워.';
 const WAKE_WORD = '싸비스';
-const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '서비서', '서비스', '싸비서'];
+const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '싸비쓰', '서비스', '싸비스야', '비스', '싸비', '싸쓰'];
 const SPEECH_SILENCE_MS = 2000;
 const TRANSCRIPT_VISIBLE_MS = 3000;
+const WAITING_FOR_AI_TEXT = 'AI 응답을 준비하고 있어요...';
+const WAKE_GUIDE_TEXT = `"${WAKE_WORD}"라고 말하면 음성 인식을 시작할게요.`;
+const WAKE_DETECTED_TEXT = `${WAKE_WORD}를 들었어요. 하고 싶은 말을 이어서 해주세요.`;
+const SPEECH_LISTENING_TEXT = '말씀을 듣고 있어요...';
+const CONNECTION_ERROR_TEXT = '서버 연결에 문제가 있어요. 다시 시도해주세요.';
+const LOGIN_EXPIRED_TEXT = '로그인이 만료되었어요. 다시 로그인해주세요.';
+const SECRET_MODE_GREETING = '시크릿 모드예요. 이 대화는 기록되지 않고 지금 이 순간에만 머물러요.';
+const SPEECH_STOPPED_TEXT = '음성 듣기를 종료했어요.';
 
 function normalizeWakeTranscript(text: string) {
   return text.replace(/\s+/g, '').toLowerCase();
@@ -78,7 +86,7 @@ export function useChat() {
   const [sttText, setSttText] = useState('');
   const [latestAiText, setLatestAiText] = useState(DEFAULT_GREETING);
   const [voiceStatus, setVoiceStatus] = useState(
-    `"${WAKE_WORD}"라고 말하면 음성 대화를 시작할 수 있어요.`,
+    WAKE_GUIDE_TEXT,
   );
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
@@ -145,7 +153,7 @@ export function useChat() {
     }
   }, []);
 
-  const beginAwaitingResponse = useCallback((message = 'AI 응답을 기다리는 중...') => {
+  const beginAwaitingResponse = useCallback((message = WAITING_FOR_AI_TEXT) => {
     awaitingResponseRef.current = true;
     setIsAwaitingResponse(true);
     setVoiceStatus(message);
@@ -226,7 +234,7 @@ export function useChat() {
 
   const handleConnectionUnavailable = useCallback((hasToken: boolean) => {
     setConnectionNotice(
-      hasToken ? '서버 연결이 끊어졌습니다. 다시 시도해주세요.' : '로그인이 만료되었습니다. 다시 로그인해주세요.',
+      hasToken ? CONNECTION_ERROR_TEXT : LOGIN_EXPIRED_TEXT,
     );
   }, []);
 
@@ -236,9 +244,9 @@ export function useChat() {
 
   const handleSocketClose = useCallback(({ hadToken }: { hadToken: boolean }) => {
     if (!hadToken) {
-      setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
+      setConnectionNotice(LOGIN_EXPIRED_TEXT);
     } else if (awaitingResponseRef.current || isSubmittingSpeechTurnRef.current) {
-      setConnectionNotice('서버 연결이 끊어졌습니다. 다시 시도해주세요.');
+      setConnectionNotice(CONNECTION_ERROR_TEXT);
     }
   }, []);
 
@@ -268,9 +276,9 @@ export function useChat() {
         isSubmittingSpeechTurnRef.current = false;
         const code = message.payload?.code;
         if (code === 'TOKEN_EXPIRED' || code === 'UNAUTHORIZED' || code === 401) {
-          setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
+          setConnectionNotice(LOGIN_EXPIRED_TEXT);
         } else {
-          setConnectionNotice('응답을 불러오지 못했습니다. 다시 시도해주세요.');
+          setConnectionNotice(CONNECTION_ERROR_TEXT);
         }
         endAwaitingResponse(false);
         cleanupAudioPlayback(true);
@@ -329,13 +337,40 @@ export function useChat() {
     ],
   );
 
-  const { wsRef, connectSocket, ensureSocketReady, closeSocket } = useChatSocket<ChatSocketMessage>({
+  const { wsRef, ensureSocketReady, closeSocket } = useChatSocket<ChatSocketMessage>({
     onOpen: handleSocketOpen,
     onClose: handleSocketClose,
     onMessage: handleSocketMessage,
     onBinaryChunk: enqueueAudioChunk,
     onConnectionUnavailable: handleConnectionUnavailable,
   });
+
+  const sendTextTurn = useCallback(
+    async (options: RecordingOptions, text: string) => {
+      const socketReady = await ensureSocketReady();
+      const socket = wsRef.current;
+
+      if (!socketReady || !socket || socket.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+
+      socket.send(
+        JSON.stringify({
+          type: 'CHAT_START',
+          sessionId: options.sessionId,
+          assistantType: options.assistantType,
+          memoryPolicy: options.memoryPolicy,
+          chatSessionType: options.chatSessionType,
+          targetUserId: options.targetUserId,
+        }),
+      );
+      socket.send(JSON.stringify({ type: 'AUDIO_END' }));
+      socket.send(JSON.stringify({ type: 'TEXT', text }));
+
+      return true;
+    },
+    [ensureSocketReady, wsRef],
+  );
 
   const startWakeMode = useCallback(() => {
     if (!recognitionRef.current || !wakeWordActiveRef.current || isSubmittingSpeechTurnRef.current) {
@@ -353,11 +388,11 @@ export function useChat() {
 
       setSttText(heardText);
       sttTextRef.current = heardText;
-      updateVoiceStatus(`들린 문장: "${heardText}"`);
+      updateVoiceStatus(heardText);
 
       if (containsWakeWord(heardText)) {
-        updateVoiceStatus('호출어를 들었어요. 지금부터 말해 주세요.');
-        setSttText('지금부터 말해 주세요...');
+        updateVoiceStatus(WAKE_DETECTED_TEXT);
+        setSttText(SPEECH_LISTENING_TEXT);
         pendingSpeechCaptureRef.current = true;
         stopRecognition();
       }
@@ -392,14 +427,12 @@ export function useChat() {
 
       if (shouldSendText && finalText) {
         const options = currentRecordingOptionsRef.current;
-        const socketReady = await ensureSocketReady();
-        const socket = wsRef.current;
 
-        if (!options || !socketReady || !socket || socket.readyState !== WebSocket.OPEN) {
+        if (!options || !(await sendTextTurn(options, finalText))) {
           isSubmittingSpeechTurnRef.current = false;
           endAwaitingResponse();
-          updateVoiceStatus('서버와 연결되지 않아 방금 말한 내용을 보내지 못했어요.');
-          setConnectionNotice('서버 연결이 끊어졌습니다. 다시 시도해주세요.');
+          updateVoiceStatus('서버에 음성 질문을 보내지 못했어요. 다시 시도해주세요.');
+          setConnectionNotice(CONNECTION_ERROR_TEXT);
           setSttText('');
           sttTextRef.current = '';
           speechTurnCompletedRef.current = false;
@@ -407,27 +440,14 @@ export function useChat() {
           return;
         }
 
-        socket.send(
-          JSON.stringify({
-            type: 'CHAT_START',
-            sessionId: options.sessionId,
-            assistantType: options.assistantType,
-            memoryPolicy: options.memoryPolicy,
-            chatSessionType: options.chatSessionType,
-            targetUserId: options.targetUserId,
-          }),
-        );
-        socket.send(JSON.stringify({ type: 'AUDIO_END' }));
-        socket.send(JSON.stringify({ type: 'TEXT', text: finalText }));
-
         recognitionModeRef.current = 'idle';
         beginAwaitingResponse();
         setChatMessages((prev) => [...prev, { sender: 'me', text: finalText }]);
-        updateVoiceStatus(`내가 말한 내용: "${finalText}"`);
+        updateVoiceStatus(finalText);
         clearTranscriptTimer();
         transcriptClearTimerRef.current = setTimeout(() => {
           if (awaitingResponseRef.current) {
-            setSttText('AI 응답을 기다리는 중...');
+            setSttText(WAITING_FOR_AI_TEXT);
           } else {
             setSttText('');
           }
@@ -439,8 +459,8 @@ export function useChat() {
         }
 
         isSubmittingSpeechTurnRef.current = false;
-        updateVoiceStatus(`"${WAKE_WORD}"라고 부르면 다시 들을 수 있어요.`);
-        setSttText(`"${WAKE_WORD}"라고 부르면 다시 들을 수 있어요.`);
+        updateVoiceStatus(WAKE_GUIDE_TEXT);
+        setSttText(WAKE_GUIDE_TEXT);
       }
 
       sttTextRef.current = '';
@@ -450,8 +470,8 @@ export function useChat() {
       clearSpeechSilenceTimer,
       clearTranscriptTimer,
       endAwaitingResponse,
-      ensureSocketReady,
       resumeWakeWordWhenReady,
+      sendTextTurn,
       stopMediaRecorder,
       updateVoiceStatus,
       wsRef,
@@ -475,38 +495,16 @@ export function useChat() {
       return;
     }
 
-    const socketReady = await ensureSocketReady();
-    if (!socketReady || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      updateVoiceStatus('서버와 연결되지 않아 음성 대화를 시작하지 못했어요.');
+    if (false) {
+      updateVoiceStatus(CONNECTION_ERROR_TEXT);
       return;
     }
 
-    const { sessionId, assistantType, memoryPolicy, chatSessionType, targetUserId } =
-      currentRecordingOptionsRef.current;
-
-    wsRef.current.send(
-      JSON.stringify({
-        type: 'CHAT_START',
-        sessionId,
-        assistantType,
-        memoryPolicy,
-        chatSessionType,
-        targetUserId,
-      }),
-    );
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(event.data);
-        }
-      };
-      mediaRecorder.start(250);
-      mediaRecorderRef.current = mediaRecorder;
+      stream.getTracks().forEach((track) => track.stop());
     } catch (error) {
-      updateVoiceStatus(`마이크를 사용할 수 없어요: ${String((error as Error).message || error)}`);
+      updateVoiceStatus(`마이크 권한을 가져오지 못했어요: ${String((error as Error).message || error)}`);
       return;
     }
 
@@ -515,7 +513,7 @@ export function useChat() {
     recognitionModeRef.current = 'speech';
     clearTranscriptTimer();
     clearSpeechSilenceTimer();
-    setSttText('지금부터 말해 주세요...');
+    setSttText(SPEECH_LISTENING_TEXT);
     sttTextRef.current = '';
     recognitionRef.current.continuous = true;
     recognitionRef.current.interimResults = true;
@@ -531,7 +529,7 @@ export function useChat() {
 
       setSttText(normalizedText);
       sttTextRef.current = normalizedText;
-      updateVoiceStatus(`인식된 문장: "${normalizedText}"`);
+      updateVoiceStatus(normalizedText);
       scheduleSpeechFinalize();
     };
 
@@ -539,11 +537,9 @@ export function useChat() {
   }, [
     clearSpeechSilenceTimer,
     clearTranscriptTimer,
-    ensureSocketReady,
     safeStartRecognition,
     scheduleSpeechFinalize,
     updateVoiceStatus,
-    wsRef,
   ]);
 
   useEffect(() => {
@@ -567,8 +563,8 @@ export function useChat() {
       isRecognizingRef.current = true;
       updateVoiceStatus(
         recognitionModeRef.current === 'wake'
-          ? `"${WAKE_WORD}"라고 부르면 음성 대화를 시작해요.`
-          : '지금부터 말해 주세요...',
+          ? WAKE_GUIDE_TEXT
+          : SPEECH_LISTENING_TEXT,
       );
     };
 
@@ -582,13 +578,13 @@ export function useChat() {
 
       if (recognitionModeRef.current === 'wake') {
         if (event.error !== 'aborted') {
-          updateVoiceStatus(`"${WAKE_WORD}"라고 부르면 음성 대화를 시작해요.`);
+          updateVoiceStatus(WAKE_GUIDE_TEXT);
         }
         return;
       }
 
       if (recognitionModeRef.current === 'speech') {
-        updateVoiceStatus(`음성 인식 중 오류가 발생했어요: ${event.error}`);
+        updateVoiceStatus(`음성 인식 중 문제가 생겼어요: ${event.error}`);
       }
     };
 
@@ -664,8 +660,6 @@ export function useChat() {
   ]);
 
   useEffect(() => {
-    connectSocket();
-
     return () => {
       clearRestartTimer();
       clearTranscriptTimer();
@@ -685,7 +679,6 @@ export function useChat() {
     clearTranscriptTimer,
     clearTypeWriter,
     closeSocket,
-    connectSocket,
     stopMediaRecorder,
     stopRecognition,
   ]);
@@ -697,7 +690,7 @@ export function useChat() {
     let frameIndex = 0;
 
     const intervalId = setInterval(() => {
-      setSttText(`AI 응답을 기다리는 중... ${frames[frameIndex]}`);
+      setSttText(`${WAITING_FOR_AI_TEXT} ${frames[frameIndex]}`);
       frameIndex = (frameIndex + 1) % frames.length;
     }, 180);
 
@@ -710,7 +703,7 @@ export function useChat() {
     if (!isLockMode) {
       setBackupMessages(chatMessages);
       setChatMessages([
-        { sender: 'ai', text: '시크릿 모드가 켜졌어요. 이 모드에서는 새로운 대화만 보여드릴게요.' },
+        { sender: 'ai', text: SECRET_MODE_GREETING },
       ]);
     } else if (backupMessages) {
       setChatMessages(backupMessages);
@@ -747,7 +740,7 @@ export function useChat() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((track) => track.stop());
       } catch (error) {
-        updateVoiceStatus(`마이크 권한을 확인해주세요: ${String((error as Error).message || error)}`);
+        updateVoiceStatus(`마이크 권한을 확인할 수 없어요: ${String((error as Error).message || error)}`);
         return;
       }
 
@@ -755,9 +748,9 @@ export function useChat() {
       setIsWakeWordActive(true);
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
-      setSttText(`"${WAKE_WORD}"라고 부르면 음성 대화를 시작해요.`);
+      setSttText(WAKE_GUIDE_TEXT);
       sttTextRef.current = '';
-      updateVoiceStatus(`"${WAKE_WORD}"라고 부르면 음성 대화를 시작해요.`);
+      updateVoiceStatus(WAKE_GUIDE_TEXT);
       startWakeMode();
     },
     [clearSpeechSilenceTimer, clearTranscriptTimer, startWakeMode, updateVoiceStatus],
@@ -783,7 +776,7 @@ export function useChat() {
     stopRecognition();
     setSttText('');
     sttTextRef.current = '';
-    updateVoiceStatus('음성 대기를 종료했어요.');
+    updateVoiceStatus(SPEECH_STOPPED_TEXT);
   }, [
     cleanupAudioPlayback,
     clearSpeechSilenceTimer,
@@ -822,7 +815,7 @@ export function useChat() {
   ]);
 
   const sendMessage = useCallback(
-    (
+    async (
       text: string,
       sessionId: string | null,
       assistantType: string,
@@ -834,7 +827,7 @@ export function useChat() {
       if (!normalized) return;
 
       if (!localStorage.getItem('token')) {
-        setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
+        setConnectionNotice(LOGIN_EXPIRED_TEXT);
         return;
       }
 
@@ -842,26 +835,23 @@ export function useChat() {
       setChatMessages((prev) => [...prev, { sender: 'me', text: normalized }]);
       beginAwaitingResponse();
 
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        setConnectionNotice('');
-        wsRef.current.send(
-          JSON.stringify({
-            type: 'CHAT_START',
-            sessionId,
-            assistantType,
-            memoryPolicy,
-            chatSessionType,
-            targetUserId,
-          }),
-        );
-        wsRef.current.send(JSON.stringify({ type: 'AUDIO_END' }));
-        wsRef.current.send(JSON.stringify({ type: 'TEXT', text: normalized }));
+      const options: RecordingOptions = {
+        sessionId,
+        assistantType,
+        memoryPolicy,
+        chatSessionType,
+        targetUserId,
+      };
+
+      if (!(await sendTextTurn(options, normalized))) {
+        endAwaitingResponse();
+        setConnectionNotice(CONNECTION_ERROR_TEXT);
         return;
       }
 
-      connectSocket();
+      setConnectionNotice('');
     },
-    [beginAwaitingResponse, connectSocket, wsRef],
+    [beginAwaitingResponse, endAwaitingResponse, sendTextTurn],
   );
 
   return {
@@ -886,3 +876,4 @@ export function useChat() {
     cancelTurn,
   };
 }
+
