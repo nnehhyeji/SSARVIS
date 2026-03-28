@@ -10,12 +10,17 @@ export interface NotificationDTO {
 }
 
 export interface RealtimeNotificationDTO {
-  senderId: number;
-  senderEmail: string;
-  senderCustomId: string;
-  senderProfileImage: string;
+  senderId?: number;
+  senderEmail?: string;
+  senderCustomId?: string;
+  senderNickname?: string;
+  senderProfileImage?: string;
   message: string;
   createdAt: string;
+  targetUserId?: number;
+  followRequestId?: number;
+  followId?: number;
+  direction?: string;
 }
 
 export interface NotificationCountDTO {

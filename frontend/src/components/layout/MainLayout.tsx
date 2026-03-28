@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../common/Sidebar';
 import { useUserStore } from '../../store/useUserStore';
@@ -29,9 +29,29 @@ const MainLayout: React.FC = () => {
     acceptRequest,
     rejectRequest,
     handleSearch,
+    fetchFollows,
+    fetchFollowRequests,
   } = useFollow();
 
   const { alarms, readAlarm, readAllAlarms, removeAllAlarms, removeAlarm } = useNotification();
+  const followRequestAlarmSignature = useMemo(
+    () =>
+      alarms
+        .filter((alarm) => alarm.type === 'FOLLOW_REQUEST')
+        .map((alarm) => `${alarm.id}:${alarm.isRead ? 'read' : 'unread'}`)
+        .join('|'),
+    [alarms],
+  );
+  const followRelationAlarmSignature = useMemo(
+    () =>
+      alarms
+        .filter((alarm) => alarm.type === 'FOLLOW_ACCEPT' || alarm.type === 'FOLLOW_CREATED')
+        .map((alarm) => `${alarm.id}:${alarm.type}`)
+        .join('|'),
+    [alarms],
+  );
+  const lastFollowRequestAlarmSignatureRef = useRef('');
+  const lastFollowRelationAlarmSignatureRef = useRef('');
 
   // Initialize Voice Lock Timer globally for Main Layout
   useVoiceLockTimer();
@@ -55,6 +75,22 @@ const MainLayout: React.FC = () => {
       isMounted = false;
     };
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !followRequestAlarmSignature) return;
+    if (lastFollowRequestAlarmSignatureRef.current === followRequestAlarmSignature) return;
+
+    lastFollowRequestAlarmSignatureRef.current = followRequestAlarmSignature;
+    void fetchFollowRequests();
+  }, [fetchFollowRequests, followRequestAlarmSignature, isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !followRelationAlarmSignature) return;
+    if (lastFollowRelationAlarmSignatureRef.current === followRelationAlarmSignature) return;
+
+    lastFollowRelationAlarmSignatureRef.current = followRelationAlarmSignature;
+    void fetchFollows();
+  }, [fetchFollows, followRelationAlarmSignature, isLoggedIn]);
 
   // Handle "/" redirect
   useEffect(() => {

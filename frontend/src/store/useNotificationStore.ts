@@ -43,7 +43,12 @@ const mapRealtimeNotificationToAlarm = (
     senderId: dto.senderId,
     senderEmail: dto.senderEmail,
     senderCustomId: dto.senderCustomId,
+    senderNickname: dto.senderNickname,
     senderProfileImage: dto.senderProfileImage,
+    targetUserId: dto.targetUserId,
+    followRequestId: dto.followRequestId,
+    followId: dto.followId,
+    direction: dto.direction,
   },
 });
 
@@ -156,6 +161,7 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
 
     eventSource.addEventListener('FOLLOW_REQUEST', handleCustomEvent('FOLLOW_REQUEST'));
     eventSource.addEventListener('FOLLOW_ACCEPT', handleCustomEvent('FOLLOW_ACCEPT'));
+    eventSource.addEventListener('FOLLOW_CREATED', handleCustomEvent('FOLLOW_CREATED'));
     eventSource.addEventListener('NOTIFICATION', handleCustomEvent('NOTIFICATION'));
 
     eventSource.onerror = (error: any) => {
