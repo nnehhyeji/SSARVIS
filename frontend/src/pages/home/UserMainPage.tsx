@@ -25,7 +25,7 @@ export default function UserMainPage() {
   const { userId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { userInfo, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
+  const { hasHydrated, userInfo, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
 
   const currentUserId = userInfo?.id ?? null;
@@ -74,8 +74,11 @@ export default function UserMainPage() {
   const guestChat = useGuestChat({ enabled: !isLoggedIn && !isMyHome, targetUserId: targetId });
   const aiToAiChat = useAIToAIChat();
 
+  const shouldUseGuestChat =
+    hasHydrated && !isLoggedIn && !isMyHome;
+
   const activeChat =
-    !isLoggedIn && !isMyHome
+    shouldUseGuestChat
       ? guestChat
       : {
           chatInput,
@@ -230,7 +233,14 @@ export default function UserMainPage() {
   const homeUserDisplayName = profile?.nickname || userInfo?.nickname || 'User';
 
   useEffect(() => {
-    if (didAutoStartRef.current || isMicOn || !targetId || isDualAiMode || showEmptyPersonaMessage) {
+    if (
+      !hasHydrated ||
+      didAutoStartRef.current ||
+      isMicOn ||
+      !targetId ||
+      isDualAiMode ||
+      showEmptyPersonaMessage
+    ) {
       return;
     }
 
@@ -245,14 +255,16 @@ export default function UserMainPage() {
         : 'DAILY';
     const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
     const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
+    const recordingTargetId = category === 'USER_AI' ? null : targetId;
 
-    didAutoStartRef.current = true;
     setIsTextInputMode(false);
     toggleMic();
-    activeChat.startRecording(null, assistantType, memoryPolicy, category, targetId);
+    activeChat.startRecording(null, assistantType, memoryPolicy, category, recordingTargetId);
+    didAutoStartRef.current = true;
   }, [
     activeChat,
     currentMode,
+    hasHydrated,
     isDualAiMode,
     isLockMode,
     isMicOn,
@@ -387,11 +399,12 @@ export default function UserMainPage() {
     const assistantType = getAssistantType();
     const memoryPolicy = getMemoryPolicy();
     const category = getSessionCategory();
+    const recordingTargetId = category === 'USER_AI' ? null : targetId;
 
     toggleMic();
     if (!isMicOn) {
       setIsTextInputMode(false);
-      activeChat.startRecording(null, assistantType, memoryPolicy, category, targetId);
+      activeChat.startRecording(null, assistantType, memoryPolicy, category, recordingTargetId);
       return;
     }
 

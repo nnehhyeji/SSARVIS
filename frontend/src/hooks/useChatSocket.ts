@@ -30,6 +30,7 @@ export function useChatSocket<TMessage = unknown>({
   const connectSocket = useCallback(() => {
     const token = getToken();
     if (!token) {
+      console.log('[useChatSocket] connectSocket skipped: no token');
       onConnectionUnavailable?.(false);
       return null;
     }
@@ -39,6 +40,7 @@ export function useChatSocket<TMessage = unknown>({
       (wsRef.current.readyState === WebSocket.OPEN ||
         wsRef.current.readyState === WebSocket.CONNECTING)
     ) {
+      console.log('[useChatSocket] reusing socket', wsRef.current.readyState);
       return wsRef.current;
     }
 
@@ -48,13 +50,16 @@ export function useChatSocket<TMessage = unknown>({
     const socket = new WebSocket(
       `${protocol}//${host}${path}?${tokenQueryKey}=${encodeURIComponent(token)}`,
     );
+    console.log('[useChatSocket] creating socket', { path, host });
     socket.binaryType = 'arraybuffer';
 
     socket.onopen = () => {
+      console.log('[useChatSocket] socket open');
       onOpen?.();
     };
 
     socket.onclose = () => {
+      console.log('[useChatSocket] socket close');
       onClose?.({ hadToken: !!getToken() });
       if (wsRef.current === socket) {
         wsRef.current = null;
@@ -93,13 +98,16 @@ export function useChatSocket<TMessage = unknown>({
 
   const ensureSocketReady = useCallback(async () => {
     const socket = connectSocket();
+    console.log('[useChatSocket] ensureSocketReady start', socket?.readyState ?? 'null');
     if (!socket) return false;
 
     if (socket.readyState === WebSocket.OPEN) {
+      console.log('[useChatSocket] ensureSocketReady already open');
       return true;
     }
 
     if (socket.readyState !== WebSocket.CONNECTING) {
+      console.log('[useChatSocket] ensureSocketReady failed: invalid state', socket.readyState);
       onConnectionUnavailable?.(!!getToken());
       return false;
     }
@@ -115,7 +123,10 @@ export function useChatSocket<TMessage = unknown>({
         socket.removeEventListener('close', handleClose);
         clearTimeout(timeoutId);
         if (!result) {
+          console.log('[useChatSocket] ensureSocketReady failed while waiting');
           onConnectionUnavailable?.(!!getToken());
+        } else {
+          console.log('[useChatSocket] ensureSocketReady success');
         }
         resolve(result);
       };
@@ -136,9 +147,11 @@ export function useChatSocket<TMessage = unknown>({
     if (!socket) return;
 
     if (!force && socket.readyState === WebSocket.CONNECTING) {
+      console.log('[useChatSocket] closeSocket skipped: connecting');
       return;
     }
 
+    console.log('[useChatSocket] closeSocket', { force, readyState: socket.readyState });
     socket.close();
   }, []);
 

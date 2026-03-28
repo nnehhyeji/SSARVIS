@@ -195,12 +195,14 @@ export default function AssistantConversationStage({
 
         <main className="relative flex-1 overflow-hidden px-8 pb-8 pt-8 md:px-12">
           <div className="relative h-full min-h-[540px]">
-            {showAiSection && (
-              <section
-                className={`absolute left-0 flex items-start gap-10 max-xl:w-[62%] max-lg:w-[72%] ${
-                  showUserSection ? 'top-[11%] w-[58%]' : 'top-[16%] w-[76%] max-xl:w-[82%] max-lg:w-[88%]'
-                }`}
-              >
+            <section
+              className={`absolute left-0 flex items-start gap-10 transition-opacity duration-200 max-xl:w-[62%] max-lg:w-[72%] ${
+                showUserSection ? 'top-[11%] w-[58%]' : 'top-[16%] w-[76%] max-xl:w-[82%] max-lg:w-[88%]'
+              } ${
+                showAiSection ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+              }`}
+              aria-hidden={!showAiSection}
+            >
                 <div className="relative h-[220px] w-[220px] shrink-0">
                   <CharacterScene
                     faceType={faceType}
@@ -240,17 +242,18 @@ export default function AssistantConversationStage({
                     </motion.div>
                   </AnimatePresence>
                 </div>
-              </section>
-            )}
+            </section>
 
-            {showUserSection && (
-              <section
-                className={`absolute right-0 flex items-start justify-end gap-8 ${
-                  showAiSection
-                    ? 'bottom-[18%] w-[54%] max-xl:w-[60%] max-lg:w-[72%]'
-                    : 'bottom-[16%] w-[76%] max-xl:w-[82%] max-lg:w-[88%]'
-                }`}
-              >
+            <section
+              className={`absolute right-0 flex items-start justify-end gap-8 transition-opacity duration-200 ${
+                showAiSection
+                  ? 'bottom-[18%] w-[54%] max-xl:w-[60%] max-lg:w-[72%]'
+                  : 'bottom-[16%] w-[76%] max-xl:w-[82%] max-lg:w-[88%]'
+              } ${
+                showUserSection ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+              }`}
+              aria-hidden={!showUserSection}
+            >
                 <div className={`max-w-[min(34vw,31rem)] ${userCaptionOffsetClass}`}>
                   <AnimatePresence mode="wait">
                     <motion.div
@@ -291,8 +294,7 @@ export default function AssistantConversationStage({
                     {userDisplayName}
                   </div>
                 </div>
-              </section>
-            )}
+            </section>
           </div>
         </main>
 
