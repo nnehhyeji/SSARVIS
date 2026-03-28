@@ -7,6 +7,8 @@ import { useChatSocket } from './useChatSocket';
 import { useVoiceLockStore } from '../store/useVoiceLockStore';
 import { useUserStore } from '../store/useUserStore';
 import { PATHS } from '../routes/paths';
+import { getUserVoiceModel } from '../apis/aiApi';
+import { toast } from '../store/useToastStore';
 
 interface WebSpeechRecognitionResultItem {
   transcript: string;
@@ -66,15 +68,22 @@ const WAKE_WORD = '싸비스';
 const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '싸비쓰', '서비스', '싸비스야', '비스', '싸비', '싸쓰'];
 // 1.5초 무응답 시 API 요청 전송
 const SPEECH_SILENCE_MS = 1500;
+const INITIAL_SPEECH_GRACE_MS = 3500;
 const TRANSCRIPT_VISIBLE_MS = 3000;
+const TEXT_END_FALLBACK_MS = 4000;
+const WAKE_RESUME_COOLDOWN_MS = 1200;
 const WAITING_FOR_AI_TEXT = 'AI 응답을 준비하고 있어요...';
 const WAKE_GUIDE_TEXT = `"${WAKE_WORD}"라고 말하면 음성 인식을 시작할게요.`;
 const WAKE_DETECTED_TEXT = `${WAKE_WORD}를 들었어요. 하고 싶은 말을 이어서 해주세요.`;
 const SPEECH_LISTENING_TEXT = '말씀을 듣고 있어요...';
 const CONNECTION_ERROR_TEXT = '서버 연결에 문제가 있어요. 다시 시도해주세요.';
 const LOGIN_EXPIRED_TEXT = '로그인이 만료되었어요. 다시 로그인해주세요.';
+const VOICE_REGISTRATION_REQUIRED_TEXT =
+  '대화를 시작하려면 먼저 음성을 등록해야 해요. 튜토리얼에서 음성 등록을 완료해 주세요.';
 const SECRET_MODE_GREETING = '시크릿 모드예요. 이 대화는 기록되지 않고 지금 이 순간에만 머물러요.';
 const SPEECH_STOPPED_TEXT = '음성 듣기를 종료했어요.';
+const VOICE_REGISTRATION_TOAST_ID = 'voice-registration-required';
+const CONTINUOUS_CONVERSATION_STORAGE_KEY = 'continuous-conversation-enabled-v2';
 
 function normalizeText(text: string) {
   return text.replace(/\s+/g, '').toLowerCase();
@@ -113,7 +122,19 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   const [voiceStatus, setVoiceStatus] = useState(WAKE_GUIDE_TEXT);
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
+  const [isContinuousConversationEnabled, setIsContinuousConversationEnabled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const stored = window.localStorage.getItem(CONTINUOUS_CONVERSATION_STORAGE_KEY);
+      return stored === null ? true : stored === 'true';
+    } catch {
+      return true;
+    }
+  });
   const [connectionNotice, setConnectionNotice] = useState('');
+  const [aiTextStreamingComplete, setAiTextStreamingComplete] = useState(true);
+  const [aiStreamComplete, setAiStreamComplete] = useState(true);
+  const [isAiTextTyping, setIsAiTextTyping] = useState(false);
 
   const {
     audioElemRef,
@@ -121,11 +142,11 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     aiSpeechProgress,
     aiPlaybackActiveRef,
     enqueueAudioChunk,
+    armFinalAudioCapture,
     startAudioPlayback,
     finalizeAudioStream,
     cleanupAudioPlayback,
     clearAiPlaybackFallbackTimer,
-    warmUpAudio,
   } = useChatAudioPlayback();
 
   // --- Refs ---
@@ -158,6 +179,16 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   const finalizeSpeechTurnRef = useRef<((shouldSend: boolean) => Promise<void>) | null>(null);
   const startSpeechCaptureRef = useRef<((initialText?: string) => Promise<void>) | null>(null);
   const safeStartRecognitionRef = useRef<(() => void) | null>(null);
+  const hasVerifiedVoiceModelRef = useRef(false);
+  const voiceModelCheckPromiseRef = useRef<Promise<boolean> | null>(null);
+  const hasDetectedSpeechRef = useRef(false);
+  const pendingAiResponseTextRef = useRef('');
+  const endOfStreamFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textEndFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wakeResumeCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wakeModeReadyAtRef = useRef(0);
+  const isContinuousConversationEnabledRef = useRef(isContinuousConversationEnabled);
+  const hasCompletedInitialWakeTurnRef = useRef(false);
 
   // --- Timer helpers ---
   const clearTypeWriter = useCallback(() => {
@@ -165,6 +196,24 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       clearInterval(typeWriterIntervalRef.current);
       typeWriterIntervalRef.current = null;
     }
+    setIsAiTextTyping(false);
+  }, []);
+
+  const commitFinalAiMessage = useCallback((finalText?: string) => {
+    const resolvedText = (finalText ?? pendingAiResponseTextRef.current).trim();
+    if (!resolvedText) return;
+
+    setLatestAiText(resolvedText);
+    setChatMessages((prev) => {
+      const next = [...prev];
+      const last = next[next.length - 1];
+      if (last?.sender === 'ai') {
+        last.text = resolvedText;
+      } else {
+        next.push({ sender: 'ai', text: resolvedText });
+      }
+      return next;
+    });
   }, []);
 
   const clearRestartTimer = useCallback(() => {
@@ -188,6 +237,27 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     }
   }, []);
 
+  const clearEndOfStreamFallbackTimer = useCallback(() => {
+    if (endOfStreamFallbackTimerRef.current) {
+      clearTimeout(endOfStreamFallbackTimerRef.current);
+      endOfStreamFallbackTimerRef.current = null;
+    }
+  }, []);
+
+  const clearTextEndFallbackTimer = useCallback(() => {
+    if (textEndFallbackTimerRef.current) {
+      clearTimeout(textEndFallbackTimerRef.current);
+      textEndFallbackTimerRef.current = null;
+    }
+  }, []);
+
+  const clearWakeResumeCooldownTimer = useCallback(() => {
+    if (wakeResumeCooldownTimerRef.current) {
+      clearTimeout(wakeResumeCooldownTimerRef.current);
+      wakeResumeCooldownTimerRef.current = null;
+    }
+  }, []);
+
   const stopSilenceMonitor = useCallback(() => {
     if (silenceIntervalRef.current) {
       clearInterval(silenceIntervalRef.current);
@@ -199,9 +269,13 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   const beginAwaitingResponse = useCallback((message = WAITING_FOR_AI_TEXT) => {
     awaitingResponseRef.current = true;
     setIsAwaitingResponse(true);
+    setAiTextStreamingComplete(false);
+    setAiStreamComplete(false);
+    clearEndOfStreamFallbackTimer();
+    clearTextEndFallbackTimer();
     setVoiceStatus(message);
     setSttText(message);
-  }, []);
+  }, [clearEndOfStreamFallbackTimer, clearTextEndFallbackTimer]);
 
   const endAwaitingResponse = useCallback((clearTranscript: boolean = true) => {
     awaitingResponseRef.current = false;
@@ -231,8 +305,30 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     }
 
     pendingWakeResumeRef.current = false;
-    resumeWakeWordRef.current?.();
-  }, [aiPlaybackActiveRef]);
+    clearWakeResumeCooldownTimer();
+    wakeModeReadyAtRef.current = Date.now() + WAKE_RESUME_COOLDOWN_MS;
+    setSttText('');
+    wakeResumeCooldownTimerRef.current = setTimeout(() => {
+      if (
+        !wakeWordActiveRef.current ||
+        awaitingResponseRef.current ||
+        aiPlaybackActiveRef.current ||
+        isSubmittingSpeechTurnRef.current
+      ) {
+        return;
+      }
+      if (isContinuousConversationEnabledRef.current && hasCompletedInitialWakeTurnRef.current) {
+        void startSpeechCaptureRef.current?.('');
+        return;
+      }
+      updateVoiceStatus(WAKE_GUIDE_TEXT);
+      resumeWakeWordRef.current?.();
+    }, WAKE_RESUME_COOLDOWN_MS);
+  }, [
+    aiPlaybackActiveRef,
+    clearWakeResumeCooldownTimer,
+    updateVoiceStatus,
+  ]);
 
   const stopMediaRecorder = useCallback(() => {
     const mediaRecorder = mediaRecorderRef.current;
@@ -280,30 +376,109 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     setConnectionNotice('');
   }, []);
 
-  const handleSocketClose = useCallback(({ hadToken }: { hadToken: boolean }) => {
+  const openVoiceRegistrationGuide = useCallback(() => {
+    navigate(PATHS.TUTORIAL);
+  }, [navigate]);
+
+  const showVoiceRegistrationToast = useCallback(() => {
+    toast.dismiss(VOICE_REGISTRATION_TOAST_ID);
+    toast.show({
+      id: VOICE_REGISTRATION_TOAST_ID,
+      title: '음성 등록이 필요해요',
+      description: VOICE_REGISTRATION_REQUIRED_TEXT,
+      variant: 'info',
+      duration: 7000,
+      actionLabel: '튜토리얼 이동',
+      onAction: openVoiceRegistrationGuide,
+    });
+  }, [openVoiceRegistrationGuide]);
+
+  const handleVoiceRegistrationRequired = useCallback(() => {
+    hasVerifiedVoiceModelRef.current = false;
+    setConnectionNotice(VOICE_REGISTRATION_REQUIRED_TEXT);
+    endAwaitingResponse(false);
+    cleanupAudioPlayback(true);
+    updateVoiceStatus(VOICE_REGISTRATION_REQUIRED_TEXT);
+    showVoiceRegistrationToast();
+    resumeWakeWordWhenReady();
+  }, [
+    cleanupAudioPlayback,
+    endAwaitingResponse,
+    resumeWakeWordWhenReady,
+    showVoiceRegistrationToast,
+    updateVoiceStatus,
+  ]);
+
+  const ensureVoiceModelReady = useCallback(async () => {
+    if (hasVerifiedVoiceModelRef.current) {
+      return true;
+    }
+
+    if (voiceModelCheckPromiseRef.current) {
+      return voiceModelCheckPromiseRef.current;
+    }
+
+    voiceModelCheckPromiseRef.current = (async () => {
+      try {
+        const response = await getUserVoiceModel();
+        const modelId = response.data?.modelId?.trim();
+        if (!modelId) {
+          throw new Error('Voice model is missing');
+        }
+        hasVerifiedVoiceModelRef.current = true;
+        return true;
+      } catch (error) {
+        console.warn('[useChat] voice model check failed', error);
+        hasVerifiedVoiceModelRef.current = false;
+        handleVoiceRegistrationRequired();
+        return false;
+      } finally {
+        voiceModelCheckPromiseRef.current = null;
+      }
+    })();
+
+    return voiceModelCheckPromiseRef.current;
+  }, [handleVoiceRegistrationRequired]);
+
+  const handleSocketClose = useCallback(({ hadToken, code, reason }: { hadToken: boolean; code: number; reason: string }) => {
     if (!hadToken) {
       setConnectionNotice(LOGIN_EXPIRED_TEXT);
+    } else if (code === 1011 && !hasVerifiedVoiceModelRef.current) {
+      handleVoiceRegistrationRequired();
+    } else if (code === 1011 && reason.includes('ASSISTANT')) {
+      handleVoiceRegistrationRequired();
     } else if (awaitingResponseRef.current || isSubmittingSpeechTurnRef.current) {
       setConnectionNotice(CONNECTION_ERROR_TEXT);
     }
-  }, []);
+  }, [handleVoiceRegistrationRequired]);
 
   const handleSocketMessage = useCallback(
     async (message: ChatSocketMessage) => {
       if (message.type === 'ACK') return;
 
       if (message.type === 'END_OF_STREAM') {
+        console.log('[socket] END_OF_STREAM');
         isSubmittingSpeechTurnRef.current = false;
         setConnectionNotice('');
-        endAwaitingResponse();
+        clearEndOfStreamFallbackTimer();
+        clearTextEndFallbackTimer();
+        setAiStreamComplete(true);
+        clearTypeWriter();
+        commitFinalAiMessage();
         finalizeAudioStream();
-        resumeWakeWordWhenReady();
         return;
       }
 
       if (message.type === 'CANCELLED') {
+        console.log('[socket] CANCELLED');
         isSubmittingSpeechTurnRef.current = false;
         setConnectionNotice('');
+        clearEndOfStreamFallbackTimer();
+        clearTextEndFallbackTimer();
+        setAiTextStreamingComplete(true);
+        setAiStreamComplete(true);
+        pendingAiResponseTextRef.current = '';
+        clearTypeWriter();
         endAwaitingResponse();
         cleanupAudioPlayback(true);
         resumeWakeWordWhenReady();
@@ -311,29 +486,59 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       }
 
       if (message.type === 'ERROR' || message.type === 'error') {
+        console.log('[socket] ERROR', message);
         isSubmittingSpeechTurnRef.current = false;
         const code = message.payload?.code;
-        if (code === 'TOKEN_EXPIRED' || code === 'UNAUTHORIZED' || code === 401) {
+        const errorText = message.payload?.text ?? '';
+        if (errorText.includes('ASSISTANT가 존재하지 않습니다')) {
+          handleVoiceRegistrationRequired();
+        } else if (code === 'TOKEN_EXPIRED' || code === 'UNAUTHORIZED' || code === 401) {
           setConnectionNotice(LOGIN_EXPIRED_TEXT);
         } else {
           setConnectionNotice(CONNECTION_ERROR_TEXT);
         }
-        endAwaitingResponse(false);
-        cleanupAudioPlayback(true);
-        resumeWakeWordWhenReady();
+        if (!errorText.includes('ASSISTANT가 존재하지 않습니다')) {
+          clearEndOfStreamFallbackTimer();
+          clearTextEndFallbackTimer();
+          setAiTextStreamingComplete(true);
+          setAiStreamComplete(true);
+          pendingAiResponseTextRef.current = '';
+          clearTypeWriter();
+          endAwaitingResponse(false);
+          cleanupAudioPlayback(true);
+          resumeWakeWordWhenReady();
+        }
         return;
       }
 
       switch (message.type) {
         case 'text.start':
+          console.log('[socket] text.start');
           clearTypeWriter();
+          clearTextEndFallbackTimer();
+          pendingAiResponseTextRef.current = '';
+          setAiTextStreamingComplete(false);
           setChatMessages((prev) => [...prev, { sender: 'ai', text: '' }]);
           break;
 
         case 'text.end': {
+          console.log('[socket] text.end', { textLength: message.payload?.text?.length ?? 0 });
           const aiResponseText = message.payload?.text || '';
+          pendingAiResponseTextRef.current = aiResponseText;
+          setAiTextStreamingComplete(true);
+          clearTextEndFallbackTimer();
+          textEndFallbackTimerRef.current = setTimeout(() => {
+            console.warn('[socket] text.end fallback fired');
+            setAiStreamComplete(true);
+            clearTypeWriter();
+            commitFinalAiMessage(aiResponseText);
+            endAwaitingResponse();
+            cleanupAudioPlayback(true);
+            resumeWakeWordWhenReady();
+          }, TEXT_END_FALLBACK_MS);
           let index = 0;
           setLatestAiText(aiResponseText);
+          setIsAiTextTyping(true);
           typeWriterIntervalRef.current = setInterval(() => {
             setChatMessages((prev) => {
               const next = [...prev];
@@ -346,17 +551,45 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
             index += 1;
             if (index >= aiResponseText.length) {
               clearTypeWriter();
+              commitFinalAiMessage(aiResponseText);
             }
           }, 50);
           break;
         }
 
         case 'voice.start':
-          startAudioPlayback(() => {
-            if (pendingWakeResumeRef.current) {
+          console.log('[socket] voice.start');
+          clearEndOfStreamFallbackTimer();
+          clearTextEndFallbackTimer();
+          startAudioPlayback({
+            onPlay: () => {
+              endAwaitingResponse();
+            },
+            onEnded: () => {
+              endAwaitingResponse();
+              if (pendingWakeResumeRef.current) {
+                resumeWakeWordWhenReady();
+                return;
+              }
               resumeWakeWordWhenReady();
-            }
+            },
           });
+          break;
+
+        case 'voice.end':
+          console.log('[socket] voice.end');
+          clearEndOfStreamFallbackTimer();
+          clearTextEndFallbackTimer();
+          armFinalAudioCapture();
+          endOfStreamFallbackTimerRef.current = setTimeout(() => {
+            console.warn('[socket] voice.end fallback fired');
+            setAiStreamComplete(true);
+            clearTypeWriter();
+            commitFinalAiMessage();
+            endAwaitingResponse();
+            finalizeAudioStream();
+            resumeWakeWordWhenReady();
+          }, 1500);
           break;
 
         default:
@@ -365,7 +598,12 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     },
     [
       cleanupAudioPlayback,
+      armFinalAudioCapture,
       clearTypeWriter,
+      clearEndOfStreamFallbackTimer,
+      clearTextEndFallbackTimer,
+      commitFinalAiMessage,
+      handleVoiceRegistrationRequired,
       endAwaitingResponse,
       finalizeAudioStream,
       resumeWakeWordWhenReady,
@@ -456,6 +694,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       if (shouldSendText && finalText) {
         console.log('[finalize] → sending to API via WebSocket...');
         beginAwaitingResponse();
+        setSttText('');
         updateVoiceStatus(finalText);
 
         const options = currentRecordingOptionsRef.current;
@@ -483,6 +722,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
         }
 
         console.log('[finalize] SEND SUCCESS — waiting for AI response');
+        hasCompletedInitialWakeTurnRef.current = true;
         setChatMessages((prev) => [...prev, { sender: 'me', text: finalText }]);
 
         // Reset so next turn can proceed after AI responds
@@ -550,9 +790,19 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       }
 
       const elapsed = Date.now() - lastSpeechTimeRef.current;
-      if (elapsed >= SPEECH_SILENCE_MS) {
+      const silenceThreshold = hasDetectedSpeechRef.current
+        ? SPEECH_SILENCE_MS
+        : INITIAL_SPEECH_GRACE_MS;
+      if (elapsed >= silenceThreshold) {
         const text = sttTextRef.current.trim();
-        console.log('[silence] ★★★ 1.5s silence detected! elapsed=' + elapsed + 'ms, text=' + JSON.stringify(text));
+        console.log(
+          '[silence] ★★★ silence detected! elapsed=' +
+            elapsed +
+            'ms, threshold=' +
+            silenceThreshold +
+            'ms, text=' +
+            JSON.stringify(text),
+        );
         stopSilenceMonitor();
         // Call via ref — always the latest version, never stale
         void finalizeSpeechTurnRef.current?.(!!text);
@@ -589,6 +839,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
       stopSilenceMonitor();
+      hasDetectedSpeechRef.current = !!initialText.trim();
       sttTextRef.current = initialText.trim();
       if (initialText.trim()) {
         setSttText(initialText.trim());
@@ -620,6 +871,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
         console.log('[speech] onresult', { normalizedText });
 
+        hasDetectedSpeechRef.current = true;
         setSttText(normalizedText);
         sttTextRef.current = normalizedText;
         updateVoiceStatus(normalizedText);
@@ -718,9 +970,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       }
 
       // Fallback: visual feedback only
-      setSttText(heardText);
-      sttTextRef.current = heardText;
-      updateVoiceStatus(heardText);
+      sttTextRef.current = '';
     };
 
     safeStartRecognition();
@@ -833,12 +1083,13 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
       // Wake mode ended → restart
       if (mode === 'wake') {
-        if (!manualStop && wakeWordActiveRef.current) {
+        if (wakeWordActiveRef.current) {
+          const delay = Math.max(250, wakeModeReadyAtRef.current - Date.now());
           restartTimerRef.current = setTimeout(() => {
-            if (!isSubmittingSpeechTurnRef.current) {
+            if (wakeWordActiveRef.current && !isSubmittingSpeechTurnRef.current) {
               safeStartRecognitionRef.current?.();
             }
-          }, 250);
+          }, delay);
         }
         return;
       }
@@ -852,6 +1103,9 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       clearSpeechSilenceTimer();
       stopSilenceMonitor();
       clearAiPlaybackFallbackTimer();
+      clearEndOfStreamFallbackTimer();
+      clearTextEndFallbackTimer();
+      clearWakeResumeCooldownTimer();
       clearTypeWriter();
       cleanupAudioPlayback(true);
       recognitionRef.current = null;
@@ -860,10 +1114,13 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   }, [
     cleanupAudioPlayback,
     clearAiPlaybackFallbackTimer,
+    clearEndOfStreamFallbackTimer,
+    clearTextEndFallbackTimer,
     clearRestartTimer,
     clearSpeechSilenceTimer,
     clearTranscriptTimer,
     clearTypeWriter,
+    clearWakeResumeCooldownTimer,
     stopSilenceMonitor,
     updateVoiceStatus,
   ]);
@@ -875,6 +1132,9 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
       clearAiPlaybackFallbackTimer();
+      clearEndOfStreamFallbackTimer();
+      clearTextEndFallbackTimer();
+      clearWakeResumeCooldownTimer();
       clearTypeWriter();
       cleanupAudioPlayback(true);
       stopMediaRecorder();
@@ -884,10 +1144,13 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   }, [
     cleanupAudioPlayback,
     clearAiPlaybackFallbackTimer,
+    clearEndOfStreamFallbackTimer,
+    clearTextEndFallbackTimer,
     clearRestartTimer,
     clearSpeechSilenceTimer,
     clearTranscriptTimer,
     clearTypeWriter,
+    clearWakeResumeCooldownTimer,
     closeSocket,
     stopMediaRecorder,
     stopRecognition,
@@ -906,6 +1169,18 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       clearInterval(intervalId);
     };
   }, [isAwaitingResponse]);
+
+  useEffect(() => {
+    isContinuousConversationEnabledRef.current = isContinuousConversationEnabled;
+    try {
+      window.localStorage.setItem(
+        CONTINUOUS_CONVERSATION_STORAGE_KEY,
+        String(isContinuousConversationEnabled),
+      );
+    } catch {
+      // ignore storage failures
+    }
+  }, [isContinuousConversationEnabled]);
 
   // Lock mode toggle
   const toggleLock = useCallback(() => {
@@ -940,6 +1215,11 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
         return;
       }
 
+      const isVoiceModelReady = await ensureVoiceModelReady();
+      if (!isVoiceModelReady) {
+        return;
+      }
+
       currentRecordingOptionsRef.current = {
         sessionId,
         assistantType,
@@ -958,34 +1238,85 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       }
 
       wakeWordActiveRef.current = true;
+      hasCompletedInitialWakeTurnRef.current = false;
       setIsWakeWordActive(true);
 
-      // Unlock audio autoplay policy during this user gesture
-      warmUpAudio();
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
-      setSttText(WAKE_GUIDE_TEXT);
       sttTextRef.current = '';
-      updateVoiceStatus(WAKE_GUIDE_TEXT);
 
       // Pre-connect WebSocket while user is waiting
       void ensureSocketReady();
 
+      setSttText(WAKE_GUIDE_TEXT);
+      updateVoiceStatus(WAKE_GUIDE_TEXT);
       startWakeMode();
     },
     [
       clearSpeechSilenceTimer,
       clearTranscriptTimer,
       ensureSocketReady,
+      ensureVoiceModelReady,
       isLocked,
+      startSpeechCapture,
       startWakeMode,
       updateVoiceStatus,
-      warmUpAudio,
     ],
   );
 
+  const toggleContinuousConversation = useCallback(() => {
+    setIsContinuousConversationEnabled((prev) => {
+      const next = !prev;
+      isContinuousConversationEnabledRef.current = next;
+      try {
+        window.localStorage.setItem(CONTINUOUS_CONVERSATION_STORAGE_KEY, String(next));
+      } catch {
+        // ignore storage failures
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!wakeWordActiveRef.current || !recognitionRef.current || awaitingResponseRef.current) {
+      return;
+    }
+
+    clearRestartTimer();
+
+    if (isContinuousConversationEnabled && hasCompletedInitialWakeTurnRef.current) {
+      if (recognitionModeRef.current === 'wake') {
+        pendingSpeechCaptureRef.current = false;
+        pendingSpeechSeedRef.current = '';
+        stopRecognition();
+        setSttText('');
+        void startSpeechCaptureRef.current?.('');
+      }
+      return;
+    }
+
+    if (recognitionModeRef.current === 'speech' && !isSubmittingSpeechTurnRef.current) {
+      stopSilenceMonitor();
+      clearSpeechSilenceTimer();
+      stopRecognition();
+      sttTextRef.current = '';
+      setSttText(WAKE_GUIDE_TEXT);
+      updateVoiceStatus(WAKE_GUIDE_TEXT);
+      startWakeMode();
+    }
+  }, [
+    clearRestartTimer,
+    clearSpeechSilenceTimer,
+    isContinuousConversationEnabled,
+    startWakeMode,
+    stopRecognition,
+    stopSilenceMonitor,
+    updateVoiceStatus,
+  ]);
+
   const stopRecordingAndSendSTT = useCallback(() => {
     wakeWordActiveRef.current = false;
+    hasCompletedInitialWakeTurnRef.current = false;
     setIsWakeWordActive(false);
     endAwaitingResponse();
     cleanupAudioPlayback(true);
@@ -1040,6 +1371,15 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || !currentRecordingOptionsRef.current) return;
+      const isVoiceModelReady = await ensureVoiceModelReady();
+      if (!isVoiceModelReady) {
+        return;
+      }
+      setAiTextStreamingComplete(false);
+      setAiStreamComplete(false);
+      pendingAiResponseTextRef.current = '';
+      clearEndOfStreamFallbackTimer();
+      clearTypeWriter();
       const options = currentRecordingOptionsRef.current;
       beginAwaitingResponse();
       const ok = await sendTextTurn(options, text.trim());
@@ -1050,7 +1390,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
         setChatMessages((prev) => [...prev, { sender: 'me', text: text.trim() }]);
       }
     },
-    [beginAwaitingResponse, endAwaitingResponse, sendTextTurn],
+    [beginAwaitingResponse, clearEndOfStreamFallbackTimer, clearTypeWriter, endAwaitingResponse, ensureVoiceModelReady, sendTextTurn],
   );
 
   return {
@@ -1065,10 +1405,16 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     isAiSpeaking,
     isWakeWordActive,
     isAwaitingResponse,
+    isContinuousConversationEnabled,
+    aiTextStreamingComplete,
+    aiStreamComplete,
+    isAiTextTyping,
     connectionNotice,
     setChatInput,
     setChatMessages,
     toggleLock,
+    toggleContinuousConversation,
+    setIsContinuousConversationEnabled,
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
