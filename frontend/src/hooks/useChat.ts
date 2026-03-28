@@ -1,8 +1,12 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ChatMessage } from '../types';
 import { useChatAudioPlayback } from './useChatAudioPlayback';
+import { useNavigate } from 'react-router-dom';
 import { useChatSocket } from './useChatSocket';
+import { useVoiceLockStore } from '../store/useVoiceLockStore';
+import { useUserStore } from '../store/useUserStore';
+import { PATHS } from '../routes/paths';
 
 interface WebSpeechRecognitionResultItem {
   transcript: string;
@@ -77,6 +81,8 @@ function containsWakeWord(text: string) {
 }
 
 export function useChat() {
+  const navigate = useNavigate();
+  const userInfo = useUserStore((state) => state.userInfo);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { sender: 'ai', text: DEFAULT_GREETING },
@@ -386,6 +392,48 @@ export function useChat() {
       const heardText = lastResult?.[0]?.transcript?.trim() || '';
       if (!heardText) return;
 
+      const noSpaceText = heardText.replace(/\s+/g, '').toLowerCase();
+      if (noSpaceText.includes('대기모드')) {
+        const voiceLockStore = useVoiceLockStore.getState();
+        if (voiceLockStore.isVoiceLockEnabled) {
+          stopRecognition();
+          voiceLockStore.setIsLocked(true);
+          return;
+        }
+      }
+
+      // Voice Navigation
+      if (noSpaceText.includes('내정보')) {
+        stopRecognition();
+        navigate(PATHS.PROFILE);
+        return;
+      }
+      if (noSpaceText.includes('ai비서') || noSpaceText.includes('에이아이비서')) {
+        stopRecognition();
+        navigate(PATHS.ASSISTANT);
+        return;
+      }
+      if (noSpaceText.includes('남이보는나')) {
+        stopRecognition();
+        navigate(PATHS.NAMNA);
+        return;
+      }
+      if (noSpaceText.includes('대화보관함')) {
+        stopRecognition();
+        navigate(PATHS.CHAT);
+        return;
+      }
+      if (noSpaceText.includes('설정')) {
+        stopRecognition();
+        navigate(PATHS.SETTINGS_PARAM.replace(':tab', 'account'));
+        return;
+      }
+      if (noSpaceText === '홈' || noSpaceText.includes('홈으로') || noSpaceText.includes('홈화면') || noSpaceText.includes('메인화면')) {
+        stopRecognition();
+        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+        return;
+      }
+
       setSttText(heardText);
       sttTextRef.current = heardText;
       updateVoiceStatus(heardText);
@@ -526,6 +574,48 @@ export function useChat() {
 
       const normalizedText = transcript.trim();
       if (!normalizedText) return;
+
+      const noSpaceText = normalizedText.replace(/\s+/g, '').toLowerCase();
+      if (noSpaceText.includes('대기모드')) {
+        const voiceLockStore = useVoiceLockStore.getState();
+        if (voiceLockStore.isVoiceLockEnabled) {
+          stopRecognition();
+          voiceLockStore.setIsLocked(true);
+          return;
+        }
+      }
+
+      // Voice Navigation
+      if (noSpaceText.includes('내정보')) {
+        stopRecognition();
+        navigate(PATHS.PROFILE);
+        return;
+      }
+      if (noSpaceText.includes('ai비서') || noSpaceText.includes('에이아이비서')) {
+        stopRecognition();
+        navigate(PATHS.ASSISTANT);
+        return;
+      }
+      if (noSpaceText.includes('남이보는나')) {
+        stopRecognition();
+        navigate(PATHS.NAMNA);
+        return;
+      }
+      if (noSpaceText.includes('대화보관함')) {
+        stopRecognition();
+        navigate(PATHS.CHAT);
+        return;
+      }
+      if (noSpaceText.includes('설정')) {
+        stopRecognition();
+        navigate(PATHS.SETTINGS_PARAM.replace(':tab', 'account'));
+        return;
+      }
+      if (noSpaceText === '홈' || noSpaceText.includes('홈으로') || noSpaceText.includes('홈화면') || noSpaceText.includes('메인화면')) {
+        stopRecognition();
+        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+        return;
+      }
 
       setSttText(normalizedText);
       sttTextRef.current = normalizedText;

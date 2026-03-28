@@ -82,6 +82,7 @@ function StepIndicator({ current }: { current: TutorialStep }) {
 
 export default function TutorialPage() {
   const navigate = useNavigate();
+  const { userInfo } = useUserStore();
   const nickname = useUserStore((state) => state.userInfo?.nickname?.trim() ?? '');
 
   const [step, setStep] = useState<TutorialStep>('mbti');
@@ -345,7 +346,7 @@ export default function TutorialPage() {
       if (isAllSuccess) {
         // 성공 시 잠시 대기 후 이동
         setTimeout(() => {
-          navigate(PATHS.HOME);
+          navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
         }, 2000);
       } else {
         // 어느 하나라도 실패한 경우 로그 출력 및 에러 처리

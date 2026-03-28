@@ -617,7 +617,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     [enabled, sendGuestText],
   );
 
-  const toggleLock = useCallback(() => {}, []);
+  const toggleLock = useCallback(() => { }, []);
 
   useEffect(() => {
     if (!enabled) {

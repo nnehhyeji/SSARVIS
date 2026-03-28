@@ -72,6 +72,7 @@ const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
 const RECENT_SEARCH_LIMIT = 5;
 
 export default function Sidebar({
+  userInfo,
   onLogout,
   onMyCardClick,
   currentMode,
@@ -213,7 +214,7 @@ export default function Sidebar({
   }
 
   const menuItems: MenuItem[] = [
-    { id: 'home', icon: Home, label: '홈', path: PATHS.HOME, color: 'text-rose-500' },
+    { id: 'home', icon: Home, label: '홈', path: userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME, color: 'text-rose-500' },
     { id: 'myinfo', icon: User, label: '내 정보', action: onMyCardClick, color: 'text-rose-500' },
     {
       id: 'ai_assistant',
@@ -356,7 +357,7 @@ export default function Sidebar({
         setFriendTab('following');
       }
       if (item.tertiaryId !== 'chat' && selectedChatId) {
-        navigate(PATHS.HOME);
+        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
       }
     }
   };
@@ -513,7 +514,7 @@ export default function Sidebar({
               <button
                 onClick={() => {
                   setActiveTertiary(null);
-                  if (selectedChatId) navigate(PATHS.HOME);
+                  if (selectedChatId) navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
                 }}
                 className="p-2 hover:bg-black/5 rounded-full transition-colors mt-2"
               >
@@ -625,7 +626,7 @@ export default function Sidebar({
             {/* Top Header / Back Button */}
             <div className="h-20 shrink-0 px-8 flex items-center justify-between border-b border-gray-50 z-20">
               <button
-                onClick={() => navigate(PATHS.HOME)}
+                onClick={() => navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME)}
                 className="group flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors"
               >
                 <div className="w-10 h-10 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-gray-50 transition">

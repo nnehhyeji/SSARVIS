@@ -31,7 +31,7 @@ export default function LoginPage() {
       });
 
       void useVoiceLockStore.getState().fetchVoiceLockStatus();
-      navigate(PATHS.HOME);
+      navigate(PATHS.USER_HOME(profile.id));
     } catch (error) {
       console.error('Auto login failed', error);
       localStorage.removeItem('token');
@@ -80,7 +80,7 @@ export default function LoginPage() {
       });
 
       await useVoiceLockStore.getState().fetchVoiceLockStatus();
-      navigate(PATHS.HOME);
+      navigate(PATHS.USER_HOME(profile.id));
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         alert(error.response?.data?.message || '로그인 중 오류가 발생했습니다.');

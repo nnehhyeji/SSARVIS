@@ -8,6 +8,8 @@ import { PATHS } from '../../routes/paths';
 import authApi from '../../apis/authApi';
 import type { Alarm } from '../../types';
 import userApi from '../../apis/userApi';
+import { useVoiceLockTimer } from '../../hooks/useVoiceLockTimer';
+import VoiceLockOverlay from '../common/VoiceLockOverlay';
 
 const MainLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -30,6 +32,9 @@ const MainLayout: React.FC = () => {
   } = useFollow();
 
   const { alarms, readAlarm, readAllAlarms, removeAllAlarms, removeAlarm } = useNotification();
+
+  // Initialize Voice Lock Timer globally for Main Layout
+  useVoiceLockTimer();
 
   // Load view count (or profile info)
   useEffect(() => {
@@ -125,6 +130,7 @@ const MainLayout: React.FC = () => {
       <main className="flex-1 relative overflow-hidden">
         <Outlet />
       </main>
+      <VoiceLockOverlay />
     </div>
   );
 };
