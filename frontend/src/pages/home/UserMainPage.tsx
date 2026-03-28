@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { MessageCircle, Mic, MicOff, Lock, Unlock, Sparkles, MessageSquare } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -18,18 +18,34 @@ import MyCardModal from '../../components/features/follow/MyCardModal';
 import SharePersonaModal from '../../components/features/follow/SharePersonaModal';
 import ModePanel from '../../components/features/assistant/ModePanel';
 import AiTopicModal from '../../components/features/assistant/AiTopicModal';
+import AssistantConversationStage from '../../components/features/assistant/AssistantConversationStage';
 import PersonaModal from '../../components/features/follow/PersonaModal';
 import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 
 // Constants & Types
 import { PATHS } from '../../routes/paths';
 import userApi from '../../apis/userApi';
+import type { UserResponse } from '../../apis/userApi';
+
+function getActiveSegment(text: string) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return { doneLength: 0, activeLength: 0 };
+
+  const lastWhitespace = Math.max(trimmed.lastIndexOf(' '), trimmed.lastIndexOf('\n'));
+  const activeStart = lastWhitespace >= 0 ? lastWhitespace + 1 : 0;
+
+  return {
+    doneLength: activeStart,
+    activeLength: trimmed.length - activeStart,
+  };
+}
 
 export default function UserMainPage() {
   const { userId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { userInfo, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
+  const didAutoStartRef = useRef(false);
 
   // --- Determine Home Owner ---
   const currentUserId = userInfo?.id ?? null;
@@ -61,15 +77,20 @@ export default function UserMainPage() {
   const {
     chatInput,
     chatMessages,
+    latestAiText,
+    aiSpeechProgress,
     isLockMode,
     sttText,
     isAiSpeaking,
     isAwaitingResponse,
+    connectionNotice,
     setChatInput,
+    setChatMessages,
     toggleLock,
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
+    cancelTurn,
   } = useChat();
   const guestChat = useGuestChat({ enabled: !isLoggedIn && !isMyHome, targetUserId: targetId });
   const aiToAiChat = useAIToAIChat();
@@ -111,6 +132,17 @@ export default function UserMainPage() {
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
   const [isDualAiTopicModalOpen, setIsDualAiTopicModalOpen] = useState(false);
   const [roomViewCount, setRoomViewCount] = useState(0);
+  const [profile, setProfile] = useState<UserResponse | null>(null);
+  const [lastUserSpeechAt, setLastUserSpeechAt] = useState(0);
+  const [modeHistories, setModeHistories] = useState<
+    Record<string, { sender: 'ai' | 'me'; text: string }[]>
+  >({
+    normal: [],
+    study: [],
+    counseling: [],
+    persona: [],
+  });
+  const prevModeRef = useRef(currentMode);
 
   // --- Lifecycle: Room Initialization ---
   useEffect(() => {
@@ -118,6 +150,44 @@ export default function UserMainPage() {
       setCurrentMode('persona');
     }
   }, [isPersonaShared, setCurrentMode]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!isMyHome) return;
+
+    const loadProfile = async () => {
+      try {
+        const data = await userApi.getUserProfile();
+        if (isMounted) setProfile(data);
+      } catch (error) {
+        console.error('Failed to load home profile:', error);
+      }
+    };
+
+    void loadProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, [isMyHome]);
+
+  useEffect(() => {
+    if (!isMyHome) return;
+
+    const prevMode = prevModeRef.current;
+    if (prevMode !== currentMode) {
+      cancelTurn();
+
+      setModeHistories((prev) => ({
+        ...prev,
+        [prevMode]: chatMessages,
+      }));
+
+      const history = modeHistories[currentMode] || [];
+      setChatMessages(history);
+      prevModeRef.current = currentMode;
+    }
+  }, [cancelTurn, chatMessages, currentMode, isMyHome, modeHistories, setChatMessages]);
 
   useEffect(() => {
     let isMounted = true;
@@ -170,6 +240,108 @@ export default function UserMainPage() {
     : finalIsSpeaking;
   const ownerName = isMyHome ? userInfo?.nickname || '나' : visitedFollowName || '친구';
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
+
+  useEffect(() => {
+    if (isMyHome && sttText.trim() && !isAiSpeaking && !isAwaitingResponse) {
+      setLastUserSpeechAt(Date.now());
+    }
+  }, [isAiSpeaking, isAwaitingResponse, isMyHome, sttText]);
+
+  const isLiveUserCaption =
+    isMyHome &&
+    isMicOn &&
+    !isAiSpeaking &&
+    !isAwaitingResponse &&
+    sttText.trim().length > 0 &&
+    Date.now() - lastUserSpeechAt < 1600;
+
+  const lastUserMessage = useMemo(() => {
+    return (
+      chatMessages
+        .slice()
+        .reverse()
+        .find((message) => message.sender === 'me')?.text || ''
+    );
+  }, [chatMessages]);
+
+  const homeAiCaptionText = latestAiText || triggerText || lastAiMessage;
+  const homeAiCaptionSegments = useMemo(() => {
+    if (!homeAiCaptionText) return { doneLength: 0, activeLength: 0 };
+    if (finalIsSpeaking) {
+      const spokenLength = Math.max(
+        0,
+        Math.min(Math.floor(homeAiCaptionText.length * aiSpeechProgress), homeAiCaptionText.length),
+      );
+
+      if (spokenLength === 0) return { doneLength: 0, activeLength: 0 };
+
+      return {
+        doneLength: Math.max(0, spokenLength - 1),
+        activeLength: 1,
+      };
+    }
+
+    return { doneLength: homeAiCaptionText.length, activeLength: 0 };
+  }, [aiSpeechProgress, finalIsSpeaking, homeAiCaptionText]);
+
+  const homeUserCaptionText = isLiveUserCaption ? sttText.trim() : lastUserMessage;
+  const homeUserCaptionSegments = isLiveUserCaption
+    ? getActiveSegment(homeUserCaptionText)
+    : { doneLength: homeUserCaptionText.length, activeLength: 0 };
+
+  const homeProfileImage =
+    profile?.userProfileImageUrl ||
+    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+      profile?.nickname || userInfo?.nickname || 'User',
+    )}`;
+
+  const homeAssistantDisplayName = `${userInfo?.nickname || profile?.nickname || 'User'} AI`;
+  const homeUserDisplayName = profile?.nickname || userInfo?.nickname || 'User';
+  const homeActiveSpeaker: 'ai' | 'user' | null = isAiSpeaking ? 'ai' : isLiveUserCaption ? 'user' : null;
+  const homeStatusText = connectionNotice
+    ? connectionNotice
+    : isAiSpeaking
+      ? 'AI 응답 중'
+      : isLiveUserCaption
+        ? '말하는 중'
+        : isAwaitingResponse
+          ? '응답 대기 중'
+        : isMicOn
+          ? '대기 중'
+          : '텍스트 입력 가능';
+
+  useEffect(() => {
+    if (didAutoStartRef.current || isMicOn || !targetId || isDualAiMode || showEmptyPersonaMessage) {
+      return;
+    }
+
+    const assistantType = isMyHome
+      ? currentMode === 'counseling'
+        ? 'COUNSEL'
+        : currentMode === 'normal'
+          ? 'DAILY'
+          : currentMode.toUpperCase()
+      : isPersonaShared
+        ? 'PERSONA'
+        : 'DAILY';
+    const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
+    const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
+
+    didAutoStartRef.current = true;
+    toggleMic();
+    activeChat.startRecording(null, assistantType, memoryPolicy, category, targetId);
+  }, [
+    activeChat,
+    currentMode,
+    isDualAiMode,
+    isLockMode,
+    isMicOn,
+    isMyHome,
+    isPersonaShared,
+    showEmptyPersonaMessage,
+    targetId,
+    toggleMic,
+  ]);
 
   // --- Render Helpers ---
   const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
@@ -255,6 +427,59 @@ export default function UserMainPage() {
       <div className="flex w-full h-full items-center justify-center bg-[#FDFCFB]">
         <p className="text-gray-500 font-bold">방 정보를 불러오는 중...</p>
       </div>
+    );
+  }
+
+  if (isMyHome) {
+    const assistantType =
+      currentMode === 'counseling'
+        ? 'COUNSEL'
+        : currentMode === 'normal'
+          ? 'DAILY'
+          : currentMode.toUpperCase();
+
+    const handleHomeMicToggle = () => {
+      toggleMic();
+      if (!isMicOn) {
+        startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
+      } else {
+        stopRecordingAndSendSTT();
+      }
+    };
+
+    const handleHomeSendText = () => {
+      if (!chatInput.trim()) return;
+      sendMessage(chatInput, null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
+    };
+
+    return (
+      <AssistantConversationStage
+        title="홈"
+        currentMode={currentMode}
+        isLockMode={isLockMode}
+        isMicOn={isMicOn}
+        faceType={faceType}
+        mouthOpenRadius={mouthOpenRadius}
+        isCharacterSpeaking={finalIsSpeaking}
+        assistantDisplayName={homeAssistantDisplayName}
+        userDisplayName={homeUserDisplayName}
+        profileImage={homeProfileImage}
+        aiCaptionText={homeAiCaptionText}
+        aiDoneLength={homeAiCaptionSegments.doneLength}
+        aiActiveLength={homeAiCaptionSegments.activeLength}
+        userCaptionText={homeUserCaptionText}
+        userDoneLength={homeUserCaptionSegments.doneLength}
+        userActiveLength={homeUserCaptionSegments.activeLength}
+        activeSpeaker={homeActiveSpeaker}
+        statusText={homeStatusText}
+        connectionNotice={connectionNotice}
+        chatInput={chatInput}
+        onChatInputChange={setChatInput}
+        onMicToggle={handleHomeMicToggle}
+        onSendText={handleHomeSendText}
+        onCancel={cancelTurn}
+        onToggleLock={toggleLock}
+      />
     );
   }
 

@@ -372,12 +372,6 @@ export default function Sidebar({
               exit={{ opacity: 0 }}
               onClick={() => {
                 setActiveTertiary(null);
-
-                const isAssistantPage = location.pathname.startsWith(PATHS.ASSISTANT);
-                const isNamnaPage = location.pathname.startsWith(PATHS.NAMNA);
-                if (isAssistantPage || isNamnaPage) {
-                  navigate(PATHS.HOME);
-                }
               }}
               className="fixed inset-0 bg-transparent pointer-events-auto z-[115]"
             />

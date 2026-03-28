@@ -60,6 +60,9 @@ services:
       dockerfile: Dockerfile
     container_name: ssarvis-front-backend
     environment:
+      KAKAO_CLIENT_ID: $KAKAO_CLIENT_ID
+      KAKAO_CLIENT_SECRET: $KAKAO_CLIENT_SECRET
+      KAKAO_REDIRECT_URI: $KAKAO_REDIRECT_URI
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
       ELASTIC_APM_ENABLED: ${ELASTIC_APM_ENABLED:-false}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
