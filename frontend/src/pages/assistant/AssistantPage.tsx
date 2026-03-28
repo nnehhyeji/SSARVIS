@@ -35,7 +35,6 @@ export default function AssistantPage() {
     setChatInput,
     setChatMessages,
     toggleLock,
-    toggleContinuousConversation,
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
@@ -210,7 +209,6 @@ export default function AssistantPage() {
       onCancel={cancelTurn}
       onToggleLock={toggleLock}
       isContinuousConversationEnabled={isContinuousConversationEnabled}
-      onToggleContinuousConversation={toggleContinuousConversation}
     />
   );
 }

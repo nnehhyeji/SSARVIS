@@ -83,7 +83,6 @@ const VOICE_REGISTRATION_REQUIRED_TEXT =
 const SECRET_MODE_GREETING = '시크릿 모드예요. 이 대화는 기록되지 않고 지금 이 순간에만 머물러요.';
 const SPEECH_STOPPED_TEXT = '음성 듣기를 종료했어요.';
 const VOICE_REGISTRATION_TOAST_ID = 'voice-registration-required';
-const CONTINUOUS_CONVERSATION_STORAGE_KEY = 'continuous-conversation-enabled-v2';
 
 function normalizeText(text: string) {
   return text.replace(/\s+/g, '').toLowerCase();
@@ -122,15 +121,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   const [voiceStatus, setVoiceStatus] = useState(WAKE_GUIDE_TEXT);
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
-  const [isContinuousConversationEnabled, setIsContinuousConversationEnabled] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const stored = window.localStorage.getItem(CONTINUOUS_CONVERSATION_STORAGE_KEY);
-      return stored === null ? true : stored === 'true';
-    } catch {
-      return true;
-    }
-  });
+  const [isContinuousConversationEnabled] = useState(true);
   const [connectionNotice, setConnectionNotice] = useState('');
   const [aiTextStreamingComplete, setAiTextStreamingComplete] = useState(true);
   const [aiStreamComplete, setAiStreamComplete] = useState(true);
@@ -1170,18 +1161,6 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     };
   }, [isAwaitingResponse]);
 
-  useEffect(() => {
-    isContinuousConversationEnabledRef.current = isContinuousConversationEnabled;
-    try {
-      window.localStorage.setItem(
-        CONTINUOUS_CONVERSATION_STORAGE_KEY,
-        String(isContinuousConversationEnabled),
-      );
-    } catch {
-      // ignore storage failures
-    }
-  }, [isContinuousConversationEnabled]);
-
   // Lock mode toggle
   const toggleLock = useCallback(() => {
     if (!isLockMode) {
@@ -1263,56 +1242,6 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       updateVoiceStatus,
     ],
   );
-
-  const toggleContinuousConversation = useCallback(() => {
-    setIsContinuousConversationEnabled((prev) => {
-      const next = !prev;
-      isContinuousConversationEnabledRef.current = next;
-      try {
-        window.localStorage.setItem(CONTINUOUS_CONVERSATION_STORAGE_KEY, String(next));
-      } catch {
-        // ignore storage failures
-      }
-      return next;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!wakeWordActiveRef.current || !recognitionRef.current || awaitingResponseRef.current) {
-      return;
-    }
-
-    clearRestartTimer();
-
-    if (isContinuousConversationEnabled && hasCompletedInitialWakeTurnRef.current) {
-      if (recognitionModeRef.current === 'wake') {
-        pendingSpeechCaptureRef.current = false;
-        pendingSpeechSeedRef.current = '';
-        stopRecognition();
-        setSttText('');
-        void startSpeechCaptureRef.current?.('');
-      }
-      return;
-    }
-
-    if (recognitionModeRef.current === 'speech' && !isSubmittingSpeechTurnRef.current) {
-      stopSilenceMonitor();
-      clearSpeechSilenceTimer();
-      stopRecognition();
-      sttTextRef.current = '';
-      setSttText(WAKE_GUIDE_TEXT);
-      updateVoiceStatus(WAKE_GUIDE_TEXT);
-      startWakeMode();
-    }
-  }, [
-    clearRestartTimer,
-    clearSpeechSilenceTimer,
-    isContinuousConversationEnabled,
-    startWakeMode,
-    stopRecognition,
-    stopSilenceMonitor,
-    updateVoiceStatus,
-  ]);
 
   const stopRecordingAndSendSTT = useCallback(() => {
     wakeWordActiveRef.current = false;
@@ -1413,8 +1342,6 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     setChatInput,
     setChatMessages,
     toggleLock,
-    toggleContinuousConversation,
-    setIsContinuousConversationEnabled,
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
