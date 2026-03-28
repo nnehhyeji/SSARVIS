@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, Lock, Unlock, Send, Square } from 'lucide-react';
 
 import CharacterScene from '../character/CharacterScene';
-
-const ACTIVE_SPEECH_COLOR = '#F7576E';
-const PENDING_TEXT_CLASS = 'text-[#D9D9D9]';
-const SIDEBAR_SAFE_PADDING = 'pl-[104px] md:pl-[120px] lg:pl-[132px]';
-const PAGE_INSET = 'px-8 pt-8 md:px-12 md:pt-12';
-const SINGLE_SPEAKER_BREAKPOINT = 1440;
+import {
+  ACTIVE_SPEECH_COLOR,
+  CONVERSATION_UI,
+  PAGE_INSET,
+  PENDING_TEXT_CLASS,
+  SIDEBAR_SAFE_PADDING,
+  SINGLE_SPEAKER_BREAKPOINT,
+} from '../../../constants/conversationUi';
 
 function CaptionLine({
   text,
@@ -65,6 +67,7 @@ interface AssistantConversationStageProps {
   userActiveLength: number;
   activeSpeaker: 'ai' | 'user' | null;
   statusText: string;
+  statusSubtext?: string;
   connectionNotice?: string;
   chatInput: string;
   onChatInputChange: (value: string) => void;
@@ -93,6 +96,7 @@ export default function AssistantConversationStage({
   userActiveLength,
   activeSpeaker,
   statusText,
+  statusSubtext,
   connectionNotice,
   chatInput,
   onChatInputChange,
@@ -254,14 +258,25 @@ export default function AssistantConversationStage({
           )}
 
           <div className="mb-3 flex items-center justify-center">
-            <div
-              className={`rounded-full px-4 py-2 text-sm font-bold shadow-sm ${
-                isLockMode
-                  ? 'border border-white/10 bg-white/5 text-white/70'
-                  : 'border border-[#E7E7E7] bg-white text-[#707070]'
-              }`}
-            >
-              {statusText}
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={`rounded-full px-4 py-2 text-sm font-bold shadow-sm ${
+                  isLockMode
+                    ? 'border border-white/10 bg-white/5 text-white/70'
+                    : 'border border-[#E7E7E7] bg-white text-[#707070]'
+                }`}
+              >
+                {statusText}
+              </div>
+              {statusSubtext ? (
+                <div
+                  className={`text-xs font-semibold tracking-[-0.02em] ${
+                    isLockMode ? 'text-white/50' : 'text-[#8A8A8A]'
+                  }`}
+                >
+                  {statusSubtext}
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -300,7 +315,7 @@ export default function AssistantConversationStage({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') onSendText();
                   }}
-                  placeholder="메시지를 입력해 대화를 이어가세요"
+                  placeholder={CONVERSATION_UI.placeholder.chatInput}
                   className={`min-w-0 flex-1 bg-transparent text-[15px] font-medium outline-none placeholder:text-[#B7B7B7] ${
                     isLockMode ? 'text-white' : 'text-black'
                   }`}
@@ -321,8 +336,8 @@ export default function AssistantConversationStage({
 
             <button
               onClick={onCancel}
-              aria-label="중단"
-              title="중단"
+              aria-label={CONVERSATION_UI.controls.cancel}
+              title={CONVERSATION_UI.controls.cancel}
               className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
                 isLockMode
                   ? 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10'
@@ -341,7 +356,7 @@ export default function AssistantConversationStage({
               }`}
             >
               {isLockMode ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-              {isLockMode ? '시크릿 모드' : '일반 모드'}
+              {isLockMode ? CONVERSATION_UI.controls.lock : CONVERSATION_UI.controls.unlock}
             </button>
           </div>
         </footer>

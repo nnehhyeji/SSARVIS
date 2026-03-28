@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getApiOrigin } from '../config/api';
+
 import type { ChatMessage } from '../types';
+import { useChatAudioPlayback } from './useChatAudioPlayback';
+import { useChatSocket } from './useChatSocket';
 
 interface WebSpeechRecognitionResultItem {
   transcript: string;
@@ -43,11 +45,19 @@ interface RecordingOptions {
   targetUserId: number | null;
 }
 
+interface ChatSocketMessage {
+  type: string;
+  payload?: {
+    text?: string;
+    code?: string | number;
+  };
+}
+
+const DEFAULT_GREETING = '서비스와 대화할 준비가 되었어요.';
 const WAKE_WORD = '싸비스';
+const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '서비서', '서비스', '싸비서'];
 const SPEECH_SILENCE_MS = 2000;
 const TRANSCRIPT_VISIBLE_MS = 3000;
-
-const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '서비스', '싸비스야', '사비서', '싸비스'];
 
 function normalizeWakeTranscript(text: string) {
   return text.replace(/\s+/g, '').toLowerCase();
@@ -61,29 +71,33 @@ function containsWakeWord(text: string) {
 export function useChat() {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { sender: 'ai', text: '안녕하세요. 무엇을 도와드릴까요?' },
+    { sender: 'ai', text: DEFAULT_GREETING },
   ]);
   const [backupMessages, setBackupMessages] = useState<ChatMessage[] | null>(null);
   const [isLockMode, setIsLockMode] = useState(false);
   const [sttText, setSttText] = useState('');
-  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
-  const [aiSpeechProgress, setAiSpeechProgress] = useState(0);
-  const [latestAiText, setLatestAiText] = useState('안녕하세요. 무엇을 도와드릴까요?');
-  const [voiceStatus, setVoiceStatus] = useState('마이크 버튼을 눌러 웨이크 워드를 활성화하세요.');
+  const [latestAiText, setLatestAiText] = useState(DEFAULT_GREETING);
+  const [voiceStatus, setVoiceStatus] = useState(
+    `"${WAKE_WORD}"라고 말하면 음성 대화를 시작할 수 있어요.`,
+  );
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [connectionNotice, setConnectionNotice] = useState('');
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const mediaSourceRef = useRef<MediaSource | null>(null);
-  const sourceBufferRef = useRef<SourceBuffer | null>(null);
-  const audioQueueRef = useRef<ArrayBuffer[]>([]);
-  const audioElemRef = useRef<HTMLAudioElement | null>(null);
-  const typeWriterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const aiPlaybackFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const aiSpeechProgressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const {
+    audioElemRef,
+    isAiSpeaking,
+    aiSpeechProgress,
+    aiPlaybackActiveRef,
+    enqueueAudioChunk,
+    startAudioPlayback,
+    finalizeAudioStream,
+    cleanupAudioPlayback,
+    clearAiPlaybackFallbackTimer,
+  } = useChatAudioPlayback();
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const typeWriterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recognitionRef = useRef<WebSpeechRecognition | null>(null);
   const recognitionModeRef = useRef<RecognitionMode>('idle');
   const isRecognizingRef = useRef(false);
@@ -100,18 +114,13 @@ export function useChat() {
   const isSpeechRecognitionSupported = useRef(true);
   const awaitingResponseRef = useRef(false);
   const resumeWakeWordRef = useRef<(() => void) | null>(null);
-  const aiPlaybackActiveRef = useRef(false);
   const pendingWakeResumeRef = useRef(false);
+  const isSubmittingSpeechTurnRef = useRef(false);
 
-  const processAudioQueue = useCallback(() => {
-    const sourceBuffer = sourceBufferRef.current;
-    if (!sourceBuffer || sourceBuffer.updating || audioQueueRef.current.length === 0) return;
-
-    try {
-      const chunk = audioQueueRef.current.shift();
-      if (chunk) sourceBuffer.appendBuffer(chunk);
-    } catch (error) {
-      console.error('오디오 버퍼 추가 중 오류:', error);
+  const clearTypeWriter = useCallback(() => {
+    if (typeWriterIntervalRef.current) {
+      clearInterval(typeWriterIntervalRef.current);
+      typeWriterIntervalRef.current = null;
     }
   }, []);
 
@@ -136,21 +145,7 @@ export function useChat() {
     }
   }, []);
 
-  const clearAiPlaybackFallbackTimer = useCallback(() => {
-    if (aiPlaybackFallbackTimerRef.current) {
-      clearTimeout(aiPlaybackFallbackTimerRef.current);
-      aiPlaybackFallbackTimerRef.current = null;
-    }
-  }, []);
-
-  const clearAiSpeechProgressTimer = useCallback(() => {
-    if (aiSpeechProgressTimerRef.current) {
-      clearInterval(aiSpeechProgressTimerRef.current);
-      aiSpeechProgressTimerRef.current = null;
-    }
-  }, []);
-
-  const beginAwaitingResponse = useCallback((message = '응답 생성 중...') => {
+  const beginAwaitingResponse = useCallback((message = 'AI 응답을 기다리는 중...') => {
     awaitingResponseRef.current = true;
     setIsAwaitingResponse(true);
     setVoiceStatus(message);
@@ -165,17 +160,6 @@ export function useChat() {
     }
   }, []);
 
-  const resumeWakeWordWhenReady = useCallback(() => {
-    if (!wakeWordActiveRef.current) return;
-    if (awaitingResponseRef.current || aiPlaybackActiveRef.current) {
-      pendingWakeResumeRef.current = true;
-      return;
-    }
-
-    pendingWakeResumeRef.current = false;
-    resumeWakeWordRef.current?.();
-  }, []);
-
   const updateVoiceStatus = useCallback((message: string) => {
     setVoiceStatus(message);
     if (recognitionModeRef.current !== 'speech' && !awaitingResponseRef.current) {
@@ -183,114 +167,20 @@ export function useChat() {
     }
   }, []);
 
-  const cleanupAudioPlayback = useCallback(
-    (resetSpeaking: boolean = true) => {
-      clearAiPlaybackFallbackTimer();
-      clearAiSpeechProgressTimer();
-
-      const audio = audioElemRef.current;
-      if (audio) {
-        audio.onplay = null;
-        audio.onpause = null;
-        audio.onended = null;
-        audio.onerror = null;
-        audio.pause();
-        if (audio.src.startsWith('blob:')) {
-          URL.revokeObjectURL(audio.src);
-        }
-      }
-
-      const sourceBuffer = sourceBufferRef.current;
-      if (sourceBuffer) {
-        sourceBuffer.removeEventListener('updateend', processAudioQueue);
-      }
-
-      const mediaSource = mediaSourceRef.current;
-      if (mediaSource && mediaSource.readyState === 'open') {
-        try {
-          mediaSource.endOfStream();
-        } catch {
-          // ignore MediaSource finalization errors
-        }
-      }
-
-      audioElemRef.current = null;
-      mediaSourceRef.current = null;
-      sourceBufferRef.current = null;
-      audioQueueRef.current = [];
-      aiPlaybackActiveRef.current = false;
-      setAiSpeechProgress(0);
-
-      if (resetSpeaking) {
-        setIsAiSpeaking(false);
-      }
-    },
-    [clearAiPlaybackFallbackTimer, clearAiSpeechProgressTimer, processAudioQueue],
-  );
-
-  const finalizeAudioStream = useCallback(() => {
-    clearAiPlaybackFallbackTimer();
-
-    const mediaSource = mediaSourceRef.current;
-    const sourceBuffer = sourceBufferRef.current;
-
-    const scheduleFallbackCleanup = () => {
-      clearAiPlaybackFallbackTimer();
-      aiPlaybackFallbackTimerRef.current = setTimeout(() => {
-        const audio = audioElemRef.current;
-        if (!audio || audio.ended || audio.paused || !aiPlaybackActiveRef.current) {
-          cleanupAudioPlayback(true);
-        }
-      }, 1200);
-    };
-
-    const closeMediaSource = () => {
-      if (mediaSource && mediaSource.readyState === 'open') {
-        try {
-          mediaSource.endOfStream();
-        } catch {
-          // ignore and rely on fallback cleanup
-        }
-      }
-
-      scheduleFallbackCleanup();
-    };
-
-    if (sourceBuffer?.updating) {
-      const handleUpdateEnd = () => {
-        sourceBuffer.removeEventListener('updateend', handleUpdateEnd);
-        closeMediaSource();
-      };
-      sourceBuffer.addEventListener('updateend', handleUpdateEnd);
+  const resumeWakeWordWhenReady = useCallback(() => {
+    if (!wakeWordActiveRef.current) return;
+    if (
+      awaitingResponseRef.current ||
+      aiPlaybackActiveRef.current ||
+      isSubmittingSpeechTurnRef.current
+    ) {
+      pendingWakeResumeRef.current = true;
       return;
     }
 
-    closeMediaSource();
-  }, [cleanupAudioPlayback, clearAiPlaybackFallbackTimer]);
-
-  const startAiSpeechProgressTracking = useCallback(() => {
-    clearAiSpeechProgressTimer();
-
-    aiSpeechProgressTimerRef.current = setInterval(() => {
-      const audio = audioElemRef.current;
-      if (!audio) return;
-
-      const currentTime = audio.currentTime || 0;
-      let estimatedDuration = 0;
-
-      if (Number.isFinite(audio.duration) && audio.duration > 0) {
-        estimatedDuration = audio.duration;
-      } else if (audio.buffered.length > 0) {
-        estimatedDuration = audio.buffered.end(audio.buffered.length - 1);
-      }
-
-      if (estimatedDuration <= 0) return;
-
-      const rawProgress = currentTime / estimatedDuration;
-      const clampedProgress = Math.max(0, Math.min(rawProgress, audio.ended ? 1 : 0.98));
-      setAiSpeechProgress((prev) => (clampedProgress > prev ? clampedProgress : prev));
-    }, 80);
-  }, [clearAiSpeechProgressTimer]);
+    pendingWakeResumeRef.current = false;
+    resumeWakeWordRef.current?.();
+  }, [aiPlaybackActiveRef]);
 
   const stopMediaRecorder = useCallback(() => {
     const mediaRecorder = mediaRecorderRef.current;
@@ -320,90 +210,62 @@ export function useChat() {
     }
   }, [clearRestartTimer]);
 
-  const scheduleSpeechFinalize = useCallback(() => {
-    clearSpeechSilenceTimer();
-    speechSilenceTimerRef.current = setTimeout(() => {
-      finalizeSpeechOnEndRef.current = true;
-      stopRecognition();
-    }, SPEECH_SILENCE_MS);
-  }, [clearSpeechSilenceTimer, stopRecognition]);
+  const safeStartRecognition = useCallback(() => {
+    if (!recognitionRef.current || isRecognizingRef.current) return;
 
-  const connectSocket = useCallback(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    try {
+      manualStopRef.current = false;
+      recognitionRef.current.start();
+    } catch (error) {
+      const message = String((error as Error).message || error);
+      if (!message.includes('already started')) {
+        updateVoiceStatus(`음성 인식을 시작하지 못했어요: ${message}`);
+      }
+    }
+  }, [updateVoiceStatus]);
+
+  const handleConnectionUnavailable = useCallback((hasToken: boolean) => {
+    setConnectionNotice(
+      hasToken ? '서버 연결이 끊어졌습니다. 다시 시도해주세요.' : '로그인이 만료되었습니다. 다시 로그인해주세요.',
+    );
+  }, []);
+
+  const handleSocketOpen = useCallback(() => {
+    setConnectionNotice('');
+  }, []);
+
+  const handleSocketClose = useCallback(({ hadToken }: { hadToken: boolean }) => {
+    if (!hadToken) {
       setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
-      return null;
+    } else if (awaitingResponseRef.current || isSubmittingSpeechTurnRef.current) {
+      setConnectionNotice('서버 연결이 끊어졌습니다. 다시 시도해주세요.');
     }
+  }, []);
 
-    if (
-      wsRef.current &&
-      (wsRef.current.readyState === WebSocket.OPEN ||
-        wsRef.current.readyState === WebSocket.CONNECTING)
-    ) {
-      return wsRef.current;
-    }
-
-    const apiOrigin = getApiOrigin();
-    const protocol = apiOrigin.startsWith('https://') ? 'wss:' : 'ws:';
-    const host = apiOrigin.replace(/^https?:\/\//, '');
-    const socket = new WebSocket(`${protocol}//${host}/ws/chat?token=${token}`);
-    socket.binaryType = 'arraybuffer';
-
-    socket.onopen = () => console.log('웹소켓 연결 성공');
-    socket.onclose = () => {
-      console.log('웹소켓 연결 종료');
-      if (wsRef.current === socket) {
-        wsRef.current = null;
-      }
-    };
-
-    socket.onopen = () => {
-      setConnectionNotice('');
-      console.log('WebSocket connected');
-    };
-
-    socket.onclose = () => {
-      console.log('WebSocket closed');
-      const hasToken = !!localStorage.getItem('token');
-      if (!hasToken) {
-        setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
-      } else if (awaitingResponseRef.current) {
-        setConnectionNotice('서버 연결이 끊어졌습니다. 다시 시도해주세요.');
-      }
-
-      if (wsRef.current === socket) {
-        wsRef.current = null;
-      }
-    };
-
-    socket.onmessage = async (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        audioQueueRef.current.push(event.data);
-        processAudioQueue();
-        return;
-      }
-
-      if (typeof event.data !== 'string') return;
-
-      const message = JSON.parse(event.data);
+  const handleSocketMessage = useCallback(
+    async (message: ChatSocketMessage) => {
       if (message.type === 'ACK') return;
+
       if (message.type === 'END_OF_STREAM') {
+        isSubmittingSpeechTurnRef.current = false;
         setConnectionNotice('');
         endAwaitingResponse();
         finalizeAudioStream();
         resumeWakeWordWhenReady();
-        console.debug('WebSocket stream ended:', message.type);
         return;
       }
+
       if (message.type === 'CANCELLED') {
+        isSubmittingSpeechTurnRef.current = false;
         setConnectionNotice('');
         endAwaitingResponse();
         cleanupAudioPlayback(true);
         resumeWakeWordWhenReady();
-        console.warn('WebSocket request cancelled:', message.type, message.message);
         return;
       }
+
       if (message.type === 'ERROR' || message.type === 'error') {
+        isSubmittingSpeechTurnRef.current = false;
         const code = message.payload?.code;
         if (code === 'TOKEN_EXPIRED' || code === 'UNAUTHORIZED' || code === 401) {
           setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
@@ -413,18 +275,12 @@ export function useChat() {
         endAwaitingResponse(false);
         cleanupAudioPlayback(true);
         resumeWakeWordWhenReady();
-        console.error('WebSocket state:', message.type, {
-          message: message.message,
-          detail: message.detail,
-          code: message.payload?.code,
-          errors: message.payload?.errors,
-        });
         return;
       }
 
       switch (message.type) {
         case 'text.start':
-          if (typeWriterIntervalRef.current) clearInterval(typeWriterIntervalRef.current);
+          clearTypeWriter();
           setChatMessages((prev) => [...prev, { sender: 'ai', text: '' }]);
           break;
 
@@ -444,188 +300,47 @@ export function useChat() {
             });
 
             index += 1;
-            if (index >= aiResponseText.length && typeWriterIntervalRef.current) {
-              clearInterval(typeWriterIntervalRef.current);
+            if (index >= aiResponseText.length) {
+              clearTypeWriter();
             }
           }, 50);
           break;
         }
 
-        case 'voice.start': {
-          cleanupAudioPlayback(false);
-          audioQueueRef.current = [];
-          const mediaSource = new MediaSource();
-          const audio = new Audio();
-          mediaSourceRef.current = mediaSource;
-          audio.src = URL.createObjectURL(mediaSource);
-          audio.onplay = () => {
-            clearAiPlaybackFallbackTimer();
-            aiPlaybackActiveRef.current = true;
-            setIsAiSpeaking(true);
-            startAiSpeechProgressTracking();
-          };
-          audio.onpause = () => {
-            aiPlaybackActiveRef.current = false;
-            setIsAiSpeaking(false);
-          };
-          audio.onended = () => {
-            aiPlaybackActiveRef.current = false;
-            setAiSpeechProgress(1);
-            cleanupAudioPlayback(true);
+        case 'voice.start':
+          startAudioPlayback(() => {
             if (pendingWakeResumeRef.current) {
               resumeWakeWordWhenReady();
             }
-          };
-          audio.onerror = () => {
-            cleanupAudioPlayback(true);
-          };
-          audio.play().catch((error) => console.warn('오디오 자동재생 대기:', error));
-
-          mediaSource.addEventListener('sourceopen', () => {
-            try {
-              const sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
-              sourceBuffer.addEventListener('updateend', processAudioQueue);
-              sourceBufferRef.current = sourceBuffer;
-            } catch (error) {
-              console.warn('SourceBuffer 초기화 실패:', error);
-            }
           });
-
-          audioElemRef.current = audio;
           break;
-        }
 
-        case 'ERROR':
-        case 'error':
-        case 'CANCELLED':
-        case 'END_OF_STREAM':
-          console.error('웹소켓 상태:', message.type, message.message);
+        default:
           break;
       }
-    };
-
-    wsRef.current = socket;
-    return socket;
-  }, [
-    cleanupAudioPlayback,
-    clearAiPlaybackFallbackTimer,
-    startAiSpeechProgressTracking,
-    endAwaitingResponse,
-    finalizeAudioStream,
-    processAudioQueue,
-    resumeWakeWordWhenReady,
-  ]);
-
-  const ensureSocketReady = useCallback(async () => {
-    const socket = connectSocket();
-    if (!socket) return false;
-
-    if (socket.readyState === WebSocket.OPEN) {
-      setConnectionNotice('');
-      return true;
-    }
-    if (socket.readyState !== WebSocket.CONNECTING) {
-      setConnectionNotice('서버 연결이 끊어졌습니다. 다시 시도해주세요.');
-      return false;
-    }
-
-    return await new Promise<boolean>((resolve) => {
-      let resolved = false;
-
-      const cleanup = (result: boolean) => {
-        if (resolved) return;
-        resolved = true;
-        socket.removeEventListener('open', handleOpen);
-        socket.removeEventListener('error', handleError);
-        socket.removeEventListener('close', handleClose);
-        clearTimeout(timeoutId);
-        if (!result) {
-          const hasToken = !!localStorage.getItem('token');
-          setConnectionNotice(
-            hasToken
-              ? '서버 연결이 끊어졌습니다. 다시 시도해주세요.'
-              : '로그인이 만료되었습니다. 다시 로그인해주세요.',
-          );
-        }
-        resolve(result);
-      };
-
-      const handleOpen = () => cleanup(true);
-      const handleError = () => cleanup(false);
-      const handleClose = () => cleanup(false);
-      const timeoutId = setTimeout(() => cleanup(false), 3000);
-
-      socket.addEventListener('open', handleOpen);
-      socket.addEventListener('error', handleError);
-      socket.addEventListener('close', handleClose);
-    });
-  }, [connectSocket]);
-
-  const safeStartRecognition = useCallback(() => {
-    if (!recognitionRef.current || isRecognizingRef.current) return;
-
-    try {
-      manualStopRef.current = false;
-      recognitionRef.current.start();
-    } catch (error) {
-      const message = String((error as Error).message || error);
-      if (!message.includes('recognition has already started')) {
-        updateVoiceStatus(`마이크 시작 실패: ${message}`);
-      }
-    }
-  }, [updateVoiceStatus]);
-
-  const finalizeSpeechTurn = useCallback(
-    (shouldSendText: boolean) => {
-      if (speechTurnCompletedRef.current) return;
-      speechTurnCompletedRef.current = true;
-
-      const finalText = sttTextRef.current.trim();
-      clearSpeechSilenceTimer();
-      finalizeSpeechOnEndRef.current = false;
-      stopMediaRecorder();
-
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'AUDIO_END' }));
-
-        if (shouldSendText && finalText) {
-          wsRef.current.send(JSON.stringify({ type: 'TEXT', text: finalText }));
-        } else {
-          wsRef.current.send(JSON.stringify({ type: 'CANCEL' }));
-        }
-      }
-
-      if (shouldSendText && finalText) {
-        recognitionModeRef.current = 'idle';
-        beginAwaitingResponse();
-        setChatMessages((prev) => [...prev, { sender: 'me', text: finalText }]);
-        updateVoiceStatus(`입력 완료: "${finalText}"`);
-        clearTranscriptTimer();
-        transcriptClearTimerRef.current = setTimeout(() => {
-          if (awaitingResponseRef.current) {
-            setSttText('응답 생성 중...');
-          } else {
-            setSttText('');
-          }
-        }, TRANSCRIPT_VISIBLE_MS);
-      } else if (recognitionModeRef.current === 'speech') {
-        updateVoiceStatus(`웨이크 워드 대기 중... "${WAKE_WORD}"라고 말해보세요.`);
-        setSttText(`웨이크 워드 대기 중... "${WAKE_WORD}"라고 말해보세요.`);
-      }
-
-      sttTextRef.current = '';
     },
     [
-      beginAwaitingResponse,
-      clearSpeechSilenceTimer,
-      clearTranscriptTimer,
-      stopMediaRecorder,
-      updateVoiceStatus,
+      cleanupAudioPlayback,
+      clearTypeWriter,
+      endAwaitingResponse,
+      finalizeAudioStream,
+      resumeWakeWordWhenReady,
+      startAudioPlayback,
     ],
   );
 
+  const { wsRef, connectSocket, ensureSocketReady, closeSocket } = useChatSocket<ChatSocketMessage>({
+    onOpen: handleSocketOpen,
+    onClose: handleSocketClose,
+    onMessage: handleSocketMessage,
+    onBinaryChunk: enqueueAudioChunk,
+    onConnectionUnavailable: handleConnectionUnavailable,
+  });
+
   const startWakeMode = useCallback(() => {
-    if (!recognitionRef.current || !wakeWordActiveRef.current) return;
+    if (!recognitionRef.current || !wakeWordActiveRef.current || isSubmittingSpeechTurnRef.current) {
+      return;
+    }
 
     recognitionModeRef.current = 'wake';
     pendingSpeechCaptureRef.current = false;
@@ -638,11 +353,11 @@ export function useChat() {
 
       setSttText(heardText);
       sttTextRef.current = heardText;
-      updateVoiceStatus(`들음: "${heardText}"`);
+      updateVoiceStatus(`들린 문장: "${heardText}"`);
 
       if (containsWakeWord(heardText)) {
-        updateVoiceStatus('웨이크 워드 감지! 음성을 듣고 있어요.');
-        setSttText('음성을 듣고 있어요...');
+        updateVoiceStatus('호출어를 들었어요. 지금부터 말해 주세요.');
+        setSttText('지금부터 말해 주세요...');
         pendingSpeechCaptureRef.current = true;
         stopRecognition();
       }
@@ -653,22 +368,122 @@ export function useChat() {
 
   useEffect(() => {
     resumeWakeWordRef.current = () => {
-      if (!wakeWordActiveRef.current || awaitingResponseRef.current) return;
+      if (
+        !wakeWordActiveRef.current ||
+        awaitingResponseRef.current ||
+        isSubmittingSpeechTurnRef.current
+      ) {
+        return;
+      }
       startWakeMode();
     };
   }, [startWakeMode]);
 
+  const finalizeSpeechTurn = useCallback(
+    async (shouldSendText: boolean) => {
+      if (speechTurnCompletedRef.current || isSubmittingSpeechTurnRef.current) return;
+      speechTurnCompletedRef.current = true;
+      isSubmittingSpeechTurnRef.current = true;
+
+      const finalText = sttTextRef.current.trim();
+      clearSpeechSilenceTimer();
+      finalizeSpeechOnEndRef.current = false;
+      stopMediaRecorder();
+
+      if (shouldSendText && finalText) {
+        const options = currentRecordingOptionsRef.current;
+        const socketReady = await ensureSocketReady();
+        const socket = wsRef.current;
+
+        if (!options || !socketReady || !socket || socket.readyState !== WebSocket.OPEN) {
+          isSubmittingSpeechTurnRef.current = false;
+          endAwaitingResponse();
+          updateVoiceStatus('서버와 연결되지 않아 방금 말한 내용을 보내지 못했어요.');
+          setConnectionNotice('서버 연결이 끊어졌습니다. 다시 시도해주세요.');
+          setSttText('');
+          sttTextRef.current = '';
+          speechTurnCompletedRef.current = false;
+          resumeWakeWordWhenReady();
+          return;
+        }
+
+        socket.send(
+          JSON.stringify({
+            type: 'CHAT_START',
+            sessionId: options.sessionId,
+            assistantType: options.assistantType,
+            memoryPolicy: options.memoryPolicy,
+            chatSessionType: options.chatSessionType,
+            targetUserId: options.targetUserId,
+          }),
+        );
+        socket.send(JSON.stringify({ type: 'AUDIO_END' }));
+        socket.send(JSON.stringify({ type: 'TEXT', text: finalText }));
+
+        recognitionModeRef.current = 'idle';
+        beginAwaitingResponse();
+        setChatMessages((prev) => [...prev, { sender: 'me', text: finalText }]);
+        updateVoiceStatus(`내가 말한 내용: "${finalText}"`);
+        clearTranscriptTimer();
+        transcriptClearTimerRef.current = setTimeout(() => {
+          if (awaitingResponseRef.current) {
+            setSttText('AI 응답을 기다리는 중...');
+          } else {
+            setSttText('');
+          }
+        }, TRANSCRIPT_VISIBLE_MS);
+      } else if (recognitionModeRef.current === 'speech') {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'AUDIO_END' }));
+          wsRef.current.send(JSON.stringify({ type: 'CANCEL' }));
+        }
+
+        isSubmittingSpeechTurnRef.current = false;
+        updateVoiceStatus(`"${WAKE_WORD}"라고 부르면 다시 들을 수 있어요.`);
+        setSttText(`"${WAKE_WORD}"라고 부르면 다시 들을 수 있어요.`);
+      }
+
+      sttTextRef.current = '';
+    },
+    [
+      beginAwaitingResponse,
+      clearSpeechSilenceTimer,
+      clearTranscriptTimer,
+      endAwaitingResponse,
+      ensureSocketReady,
+      resumeWakeWordWhenReady,
+      stopMediaRecorder,
+      updateVoiceStatus,
+      wsRef,
+    ],
+  );
+
+  const scheduleSpeechFinalize = useCallback(() => {
+    clearSpeechSilenceTimer();
+    speechSilenceTimerRef.current = setTimeout(() => {
+      finalizeSpeechOnEndRef.current = true;
+      stopRecognition();
+    }, SPEECH_SILENCE_MS);
+  }, [clearSpeechSilenceTimer, stopRecognition]);
+
   const startSpeechCapture = useCallback(async () => {
-    if (!recognitionRef.current || !currentRecordingOptionsRef.current) return;
+    if (
+      !recognitionRef.current ||
+      !currentRecordingOptionsRef.current ||
+      isSubmittingSpeechTurnRef.current
+    ) {
+      return;
+    }
 
     const socketReady = await ensureSocketReady();
     if (!socketReady || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      updateVoiceStatus('채팅 서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      updateVoiceStatus('서버와 연결되지 않아 음성 대화를 시작하지 못했어요.');
       return;
     }
 
     const { sessionId, assistantType, memoryPolicy, chatSessionType, targetUserId } =
       currentRecordingOptionsRef.current;
+
     wsRef.current.send(
       JSON.stringify({
         type: 'CHAT_START',
@@ -691,7 +506,7 @@ export function useChat() {
       mediaRecorder.start(250);
       mediaRecorderRef.current = mediaRecorder;
     } catch (error) {
-      updateVoiceStatus(`마이크 시작 실패: ${String((error as Error).message || error)}`);
+      updateVoiceStatus(`마이크를 사용할 수 없어요: ${String((error as Error).message || error)}`);
       return;
     }
 
@@ -700,15 +515,15 @@ export function useChat() {
     recognitionModeRef.current = 'speech';
     clearTranscriptTimer();
     clearSpeechSilenceTimer();
-    setSttText('음성을 듣고 있어요...');
+    setSttText('지금부터 말해 주세요...');
     sttTextRef.current = '';
     recognitionRef.current.continuous = true;
     recognitionRef.current.interimResults = true;
     recognitionRef.current.onresult = (event: WebSpeechRecognitionEvent) => {
       let transcript = '';
 
-      for (let i = 0; i < event.results.length; i += 1) {
-        transcript += event.results[i]?.[0]?.transcript || '';
+      for (let index = 0; index < event.results.length; index += 1) {
+        transcript += event.results[index]?.[0]?.transcript || '';
       }
 
       const normalizedText = transcript.trim();
@@ -716,7 +531,7 @@ export function useChat() {
 
       setSttText(normalizedText);
       sttTextRef.current = normalizedText;
-      updateVoiceStatus(`입력 중: "${normalizedText}"`);
+      updateVoiceStatus(`인식된 문장: "${normalizedText}"`);
       scheduleSpeechFinalize();
     };
 
@@ -728,6 +543,7 @@ export function useChat() {
     safeStartRecognition,
     scheduleSpeechFinalize,
     updateVoiceStatus,
+    wsRef,
   ]);
 
   useEffect(() => {
@@ -751,8 +567,8 @@ export function useChat() {
       isRecognizingRef.current = true;
       updateVoiceStatus(
         recognitionModeRef.current === 'wake'
-          ? `웨이크 워드 대기 중... "${WAKE_WORD}"라고 말해보세요.`
-          : '음성 인식 중...',
+          ? `"${WAKE_WORD}"라고 부르면 음성 대화를 시작해요.`
+          : '지금부터 말해 주세요...',
       );
     };
 
@@ -766,13 +582,13 @@ export function useChat() {
 
       if (recognitionModeRef.current === 'wake') {
         if (event.error !== 'aborted') {
-          updateVoiceStatus(`웨이크 워드 대기 중... "${WAKE_WORD}"라고 말해보세요.`);
+          updateVoiceStatus(`"${WAKE_WORD}"라고 부르면 음성 대화를 시작해요.`);
         }
         return;
       }
 
       if (recognitionModeRef.current === 'speech') {
-        updateVoiceStatus(`음성 인식 오류: ${event.error}`);
+        updateVoiceStatus(`음성 인식 중 오류가 발생했어요: ${event.error}`);
       }
     };
 
@@ -783,18 +599,15 @@ export function useChat() {
       if (pendingSpeechCaptureRef.current && recognitionModeRef.current === 'wake') {
         manualStopRef.current = false;
         pendingSpeechCaptureRef.current = false;
-        void startSpeechCapture();
+        if (!isSubmittingSpeechTurnRef.current) {
+          void startSpeechCapture();
+        }
         return;
       }
 
       if (recognitionModeRef.current === 'speech' && finalizeSpeechOnEndRef.current) {
         manualStopRef.current = false;
-        const hasFinalText = !!sttTextRef.current.trim();
-        finalizeSpeechTurn(hasFinalText);
-
-        if (wakeWordActiveRef.current && !awaitingResponseRef.current) {
-          startWakeMode();
-        }
+        void finalizeSpeechTurn(!!sttTextRef.current.trim());
         return;
       }
 
@@ -804,7 +617,7 @@ export function useChat() {
       }
 
       if (recognitionModeRef.current === 'wake') {
-        if (wakeWordActiveRef.current) {
+        if (wakeWordActiveRef.current && !isSubmittingSpeechTurnRef.current) {
           restartTimerRef.current = setTimeout(() => {
             safeStartRecognition();
           }, 250);
@@ -815,16 +628,13 @@ export function useChat() {
       if (recognitionModeRef.current === 'speech') {
         if (sttTextRef.current.trim()) {
           scheduleSpeechFinalize();
-          safeStartRecognition();
+          if (!isSubmittingSpeechTurnRef.current) {
+            safeStartRecognition();
+          }
           return;
         }
 
-        const hasFinalText = !!sttTextRef.current.trim();
-        finalizeSpeechTurn(hasFinalText);
-
-        if (wakeWordActiveRef.current && !awaitingResponseRef.current) {
-          startWakeMode();
-        }
+        void finalizeSpeechTurn(false);
       }
     };
 
@@ -835,6 +645,7 @@ export function useChat() {
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
       clearAiPlaybackFallbackTimer();
+      clearTypeWriter();
       cleanupAudioPlayback(true);
       recognitionRef.current = null;
     };
@@ -844,11 +655,11 @@ export function useChat() {
     clearRestartTimer,
     clearSpeechSilenceTimer,
     clearTranscriptTimer,
+    clearTypeWriter,
     finalizeSpeechTurn,
     safeStartRecognition,
     scheduleSpeechFinalize,
     startSpeechCapture,
-    startWakeMode,
     updateVoiceStatus,
   ]);
 
@@ -860,10 +671,11 @@ export function useChat() {
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
       clearAiPlaybackFallbackTimer();
+      clearTypeWriter();
       cleanupAudioPlayback(true);
       stopMediaRecorder();
       stopRecognition();
-      wsRef.current?.close();
+      closeSocket(true);
     };
   }, [
     cleanupAudioPlayback,
@@ -871,6 +683,8 @@ export function useChat() {
     clearRestartTimer,
     clearSpeechSilenceTimer,
     clearTranscriptTimer,
+    clearTypeWriter,
+    closeSocket,
     connectSocket,
     stopMediaRecorder,
     stopRecognition,
@@ -883,7 +697,7 @@ export function useChat() {
     let frameIndex = 0;
 
     const intervalId = setInterval(() => {
-      setSttText(`응답 생성 중... ${frames[frameIndex]}`);
+      setSttText(`AI 응답을 기다리는 중... ${frames[frameIndex]}`);
       frameIndex = (frameIndex + 1) % frames.length;
     }, 180);
 
@@ -896,13 +710,13 @@ export function useChat() {
     if (!isLockMode) {
       setBackupMessages(chatMessages);
       setChatMessages([
-        { sender: 'ai', text: '시크릿 모드가 활성화되었습니다. 대화 내용은 저장되지 않습니다.' },
+        { sender: 'ai', text: '시크릿 모드가 켜졌어요. 이 모드에서는 새로운 대화만 보여드릴게요.' },
       ]);
     } else if (backupMessages) {
       setChatMessages(backupMessages);
       setBackupMessages(null);
     } else {
-      setChatMessages([{ sender: 'ai', text: '안녕하세요. 무엇을 도와드릴까요?' }]);
+      setChatMessages([{ sender: 'ai', text: DEFAULT_GREETING }]);
     }
 
     setIsLockMode((prev) => !prev);
@@ -917,7 +731,7 @@ export function useChat() {
       targetUserId: number | null = null,
     ) => {
       if (!isSpeechRecognitionSupported.current) {
-        updateVoiceStatus('이 브라우저는 음성 인식을 지원하지 않습니다.');
+        updateVoiceStatus('이 브라우저에서는 음성 인식을 지원하지 않아요.');
         return;
       }
 
@@ -933,7 +747,7 @@ export function useChat() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach((track) => track.stop());
       } catch (error) {
-        updateVoiceStatus(`마이크 권한이 필요합니다: ${String((error as Error).message || error)}`);
+        updateVoiceStatus(`마이크 권한을 확인해주세요: ${String((error as Error).message || error)}`);
         return;
       }
 
@@ -941,9 +755,9 @@ export function useChat() {
       setIsWakeWordActive(true);
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
-      setSttText(`웨이크 워드 대기 중... "${WAKE_WORD}"라고 말해보세요.`);
+      setSttText(`"${WAKE_WORD}"라고 부르면 음성 대화를 시작해요.`);
       sttTextRef.current = '';
-      updateVoiceStatus(`웨이크 워드 대기 중... "${WAKE_WORD}"라고 말해보세요.`);
+      updateVoiceStatus(`"${WAKE_WORD}"라고 부르면 음성 대화를 시작해요.`);
       startWakeMode();
     },
     [clearSpeechSilenceTimer, clearTranscriptTimer, startWakeMode, updateVoiceStatus],
@@ -957,9 +771,10 @@ export function useChat() {
     pendingSpeechCaptureRef.current = false;
     clearSpeechSilenceTimer();
     finalizeSpeechOnEndRef.current = false;
+    isSubmittingSpeechTurnRef.current = false;
 
     if (recognitionModeRef.current === 'speech') {
-      finalizeSpeechTurn(!!sttTextRef.current.trim());
+      void finalizeSpeechTurn(!!sttTextRef.current.trim());
     } else {
       stopMediaRecorder();
     }
@@ -968,7 +783,7 @@ export function useChat() {
     stopRecognition();
     setSttText('');
     sttTextRef.current = '';
-    updateVoiceStatus('웨이크 워드 대기가 중지되었습니다.');
+    updateVoiceStatus('음성 대기를 종료했어요.');
   }, [
     cleanupAudioPlayback,
     clearSpeechSilenceTimer,
@@ -987,6 +802,7 @@ export function useChat() {
     clearSpeechSilenceTimer();
     finalizeSpeechOnEndRef.current = false;
     speechTurnCompletedRef.current = true;
+    isSubmittingSpeechTurnRef.current = false;
     stopMediaRecorder();
     stopRecognition();
 
@@ -994,16 +810,15 @@ export function useChat() {
       wsRef.current.send(JSON.stringify({ type: 'CANCEL' }));
     }
 
-    if (wakeWordActiveRef.current) {
-      startWakeMode();
-    }
+    resumeWakeWordWhenReady();
   }, [
     cleanupAudioPlayback,
     clearSpeechSilenceTimer,
     endAwaitingResponse,
-    startWakeMode,
+    resumeWakeWordWhenReady,
     stopMediaRecorder,
     stopRecognition,
+    wsRef,
   ]);
 
   const sendMessage = useCallback(
@@ -1015,14 +830,16 @@ export function useChat() {
       chatSessionType: string = 'USER_AI',
       targetUserId: number | null = null,
     ) => {
-      if (!text.trim()) return;
+      const normalized = text.trim();
+      if (!normalized) return;
+
       if (!localStorage.getItem('token')) {
         setConnectionNotice('로그인이 만료되었습니다. 다시 로그인해주세요.');
         return;
       }
 
       setChatInput('');
-      setChatMessages((prev) => [...prev, { sender: 'me', text }]);
+      setChatMessages((prev) => [...prev, { sender: 'me', text: normalized }]);
       beginAwaitingResponse();
 
       if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -1038,13 +855,13 @@ export function useChat() {
           }),
         );
         wsRef.current.send(JSON.stringify({ type: 'AUDIO_END' }));
-        wsRef.current.send(JSON.stringify({ type: 'TEXT', text }));
-      } else {
-        console.warn('웹소켓 서버가 연결되어 있지 않습니다. 재연결을 시도합니다.');
-        connectSocket();
+        wsRef.current.send(JSON.stringify({ type: 'TEXT', text: normalized }));
+        return;
       }
+
+      connectSocket();
     },
-    [beginAwaitingResponse, connectSocket],
+    [beginAwaitingResponse, connectSocket, wsRef],
   );
 
   return {
