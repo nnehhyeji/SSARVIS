@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { PATHS } from '../../routes/paths';
 import { useUserStore } from '../../store/useUserStore';
 
@@ -13,7 +13,6 @@ import { useUserStore } from '../../store/useUserStore';
  */
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isLoggedIn, userInfo } = useUserStore();
 
   useEffect(() => {
     const SpeechRecognitionApi =
@@ -37,7 +36,12 @@ const LandingPage: React.FC = () => {
           const transcript = event.results[i][0].transcript.replace(/\s+/g, '');
           if (transcript.includes('로그인')) {
             recognition.stop();
-            navigate(PATHS.LOGIN);
+            const { isLoggedIn, userInfo } = useUserStore.getState();
+            if (isLoggedIn && userInfo?.id) {
+              navigate(PATHS.USER_HOME(userInfo.id));
+            } else {
+              navigate(PATHS.LOGIN);
+            }
             return;
           }
         }
@@ -65,9 +69,7 @@ const LandingPage: React.FC = () => {
     };
   }, [navigate]);
 
-  if (isLoggedIn && userInfo?.id) {
-    return <Navigate to={PATHS.USER_HOME(userInfo.id)} replace />;
-  }
+
 
   // 배경 부유 애니메이션 (배경 전체가 아주 천천히 움직임)
   const floatingVariant: Variants = {

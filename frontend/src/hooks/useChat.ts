@@ -1,8 +1,9 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ChatMessage } from '../types';
 import { useChatAudioPlayback } from './useChatAudioPlayback';
 import { useChatSocket } from './useChatSocket';
+import { useVoiceLockStore } from '../store/useVoiceLockStore';
 
 interface WebSpeechRecognitionResultItem {
   transcript: string;
@@ -386,6 +387,15 @@ export function useChat() {
       const heardText = lastResult?.[0]?.transcript?.trim() || '';
       if (!heardText) return;
 
+      const noSpaceText = heardText.replace(/\s+/g, '').toLowerCase();
+      if (noSpaceText.includes('대기모드')) {
+        const voiceLockStore = useVoiceLockStore.getState();
+        if (voiceLockStore.isVoiceLockEnabled) {
+          voiceLockStore.setIsLocked(true);
+          return;
+        }
+      }
+
       setSttText(heardText);
       sttTextRef.current = heardText;
       updateVoiceStatus(heardText);
@@ -526,6 +536,16 @@ export function useChat() {
 
       const normalizedText = transcript.trim();
       if (!normalizedText) return;
+
+      const noSpaceText = normalizedText.replace(/\s+/g, '').toLowerCase();
+      if (noSpaceText.includes('대기모드')) {
+        const voiceLockStore = useVoiceLockStore.getState();
+        if (voiceLockStore.isVoiceLockEnabled) {
+          voiceLockStore.setIsLocked(true);
+          stopRecognition();
+          return;
+        }
+      }
 
       setSttText(normalizedText);
       sttTextRef.current = normalizedText;
