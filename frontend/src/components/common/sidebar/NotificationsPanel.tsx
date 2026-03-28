@@ -40,7 +40,6 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
             onClick={() => onAlarmClick(alarm)}
             className="flex items-center gap-4 py-3 px-4 group/alarm transition-all hover:bg-black/5 rounded-2xl cursor-pointer relative"
           >
-            {/* 읽지 않은 알림 표시 (빨간 점) */}
             <div
               className={`w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 ${
                 alarm.isRead ? 'opacity-0' : 'opacity-100'
@@ -49,7 +48,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
             <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-gray-100 shadow-sm bg-gray-50">
               <img
                 src={
-                  (alarm.payload as { senderProfileImage?: string })?.senderProfileImage ||
+                  (alarm.payload as { senderProfileImage?: string } | undefined)?.senderProfileImage ||
                   `https://api.dicebear.com/7.x/avataaars/svg?seed=Alarm${alarm.id}`
                 }
                 alt="profile"
@@ -61,7 +60,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
               <p className="text-[11px] text-gray-400 font-bold mt-1 tracking-tight uppercase italic">
                 {alarm.time}
               </p>
-              {alarm.type === 'follow' &&
+              {alarm.type === 'FOLLOW_REQUEST' &&
                 alarm.payload &&
                 !!(alarm.payload as { followRequestId?: number }).followRequestId && (
                   <div className="flex gap-2 mt-2">
@@ -72,6 +71,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                         onAccept(
                           payload.followRequestId as number,
                           (payload.senderCustomId as string) ||
+                            (payload.senderNickname as string) ||
                             (payload.senderName as string) ||
                             '사용자',
                         );
@@ -85,7 +85,10 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                 )}
             </div>
             <button
-              onClick={() => onRemoveAlarm(alarm.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveAlarm(alarm.id);
+              }}
               className="opacity-0 group-hover/alarm:opacity-100 p-1 hover:bg-gray-100 rounded-full transition-all"
             >
               <X className="w-4 h-4 text-gray-400" />

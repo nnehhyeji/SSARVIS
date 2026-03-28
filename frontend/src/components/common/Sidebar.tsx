@@ -316,12 +316,23 @@ export default function Sidebar({
   const handleNotificationClick = (alarm: Alarm) => {
     onAlarmClick(alarm);
 
-    // Redirect logic based on notification type
     if (alarm.type === 'FOLLOW_REQUEST') {
+      if (selectedChatId) {
+        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+      }
+
       setActiveTertiary('friends');
       setFriendView('requests');
+      setFriendTab('following');
+    } else if (alarm.type === 'FOLLOW_CREATED') {
+      if (selectedChatId) {
+        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+      }
+
+      setActiveTertiary('friends');
+      setFriendView('main');
+      setFriendTab('following');
     } else if (alarm.type === 'FOLLOW_ACCEPT') {
-      // Navigate to the person who accepted the request
       const senderId = (alarm.payload as any)?.senderId || (alarm.payload as any)?.senderUserId;
       if (senderId) {
         navigate(PATHS.USER_HOME(senderId));
