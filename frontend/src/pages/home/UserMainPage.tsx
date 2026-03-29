@@ -17,7 +17,6 @@ import VisitorConversationStage from '../../components/features/home/VisitorConv
 import { WAKE_WORD } from '../../constants/voice';
 import { PATHS } from '../../routes/paths';
 import followApi from '../../apis/followApi';
-import followApi from '../../apis/followApi';
 import userApi from '../../apis/userApi';
 import type { UserResponse } from '../../apis/userApi';
 import { toast } from '../../store/useToastStore';
@@ -130,7 +129,6 @@ export default function UserMainPage() {
   const { follows, isVisitorMode, visitedFollowName, visitFollow, leaveFollow } = useFollow();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
-  const [guestOwnerName, setGuestOwnerName] = useState('');
   const [isTextInputMode, setIsTextInputMode] = useState(false);
   const [isAiTopicModalOpen, setIsAiTopicModalOpen] = useState(false);
   const [visitorFollowStatus, setVisitorFollowStatus] = useState<
@@ -200,33 +198,6 @@ export default function UserMainPage() {
       leaveFollow();
     };
   }, [isLoggedIn, isMyHome, leaveFollow, targetId, visitFollow]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    if (isMyHome || !targetId || isLoggedIn) {
-      setGuestOwnerName('');
-      return;
-    }
-
-    const loadGuestOwnerName = async () => {
-      try {
-        const data = await followApi.getFollowAi(targetId);
-        if (!isMounted) return;
-        setGuestOwnerName(data.name.split('_')[0]?.trim() || '');
-      } catch (error) {
-        if (!isMounted) return;
-        console.error('Failed to load guest owner name:', error);
-        setGuestOwnerName('');
-      }
-    };
-
-    void loadGuestOwnerName();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isLoggedIn, isMyHome, targetId]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? userInfo?.nickname || 'User' : visitedFollowName || 'Visitor';
