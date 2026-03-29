@@ -31,4 +31,6 @@ public interface UserService {
 
     boolean verifyEmailCode(String email, String code);
 
+    void deleteProfileImage(Long userId);
+
 }

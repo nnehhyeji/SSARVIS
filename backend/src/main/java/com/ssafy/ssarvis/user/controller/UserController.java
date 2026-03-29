@@ -138,4 +138,12 @@ public class UserController {
         return ResponseEntity.ok(BaseResponse.success("프로필 이미지 수정 성공", imageUrl));
     }
 
+    @DeleteMapping("/profile-image")
+    public ResponseEntity<BaseResponse<Void>> deleteProfileImage(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        userService.deleteProfileImage(customUserDetails.getUserId());
+        return ResponseEntity.ok(BaseResponse.success("프로필 이미지 삭제 성공"));
+    }
+
 }
