@@ -212,7 +212,7 @@ export function useAIToAIChat() {
     setTurnCount(turnCountRef.current);
     setStatusMessage(`${turnCountRef.current}턴째 대화를 이어가는 중입니다.`);
     sendTurn(pending.to, pending.text);
-  }, [sendTurn, stopBattle]);
+  }, [sendTurn]);
 
   const handleStreamFinished = useCallback(
     (from: Side) => {

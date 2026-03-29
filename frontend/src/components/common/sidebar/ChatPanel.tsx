@@ -140,7 +140,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                             ${isActive ? 'bg-black/5 shadow-inner' : 'hover:bg-black/5'}
                           `}
                         >
-                          {!isAiSection && <SidebarAvatar name={session.title || 'Friend'} sizeClassName="w-14 h-14" />}
+                          {!isAiSection && (
+                            <SidebarAvatar
+                              name={session.title || 'Friend'}
+                              sizeClassName="w-14 h-14"
+                            />
+                          )}
 
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-center">

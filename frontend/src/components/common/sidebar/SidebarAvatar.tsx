@@ -19,11 +19,7 @@ export default function SidebarAvatar({
     <div
       className={`${sizeClassName} overflow-hidden rounded-full border border-black/5 shadow-sm shrink-0 ${className}`.trim()}
     >
-      <img
-        src={resolvedImageUrl}
-        alt={name || 'profile'}
-        className="w-full h-full object-cover"
-      />
+      <img src={resolvedImageUrl} alt={name || 'profile'} className="w-full h-full object-cover" />
     </div>
   );
 }

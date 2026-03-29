@@ -386,9 +386,7 @@ export default function NamnaConversationStage({
             <div className="flex flex-col items-center gap-1">
               <div
                 className={`rounded-full border px-4 py-2 text-sm font-bold ${
-                  isLockMode
-                    ? 'border-white/10 text-white/70'
-                    : 'border-[#E7E7E7] text-[#707070]'
+                  isLockMode ? 'border-white/10 text-white/70' : 'border-[#E7E7E7] text-[#707070]'
                 }`}
               >
                 {statusText}

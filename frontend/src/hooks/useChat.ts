@@ -116,7 +116,7 @@ function extractSpeechAfterWakeWord(text: string): string {
   return '';
 }
 
-function matchRouteCommand(_text: string): string | null {
+function matchRouteCommand(): string | null {
   return null;
 }
 
@@ -839,11 +839,11 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
           const text = sttTextRef.current.trim();
           console.log(
             '[silence] ★★★ silence detected! elapsed=' +
-            elapsed +
-            'ms, threshold=' +
-            silenceThreshold +
-            'ms, text=' +
-            JSON.stringify(text),
+              elapsed +
+              'ms, threshold=' +
+              silenceThreshold +
+              'ms, text=' +
+              JSON.stringify(text),
           );
           stopSilenceMonitor();
           // Call via ref — always the latest version, never stale
@@ -1351,7 +1351,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
     recognitionModeRef.current = 'idle';
     setVoicePhase('idle');
-      setVoicePhase('idle');
+    setVoicePhase('idle');
     stopRecognition();
     setSttText('');
     sttTextRef.current = '';

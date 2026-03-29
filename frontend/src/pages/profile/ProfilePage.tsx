@@ -192,7 +192,9 @@ const ProfilePage: React.FC = () => {
               <img
                 src={
                   profile?.userProfileImageUrl ||
-                  initialsAvatarFallback(profile?.nickname || userInfo?.nickname || TEXT.defaultUser)
+                  initialsAvatarFallback(
+                    profile?.nickname || userInfo?.nickname || TEXT.defaultUser,
+                  )
                 }
                 alt={TEXT.profileAlt}
                 className="h-full w-full object-cover"

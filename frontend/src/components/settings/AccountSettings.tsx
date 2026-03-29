@@ -44,8 +44,7 @@ const TEXT = {
   saveError: '설정 저장 중 오류가 발생했습니다.',
   visibilityFailed: '공개 범위를 변경하지 못했습니다.',
   promptFailed: '프롬프트 수집 설정을 변경하지 못했습니다.',
-  withdrawConfirm:
-    '정말 회원 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+  withdrawConfirm: '정말 회원 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
   withdrawSuccess: '회원 탈퇴가 완료되었습니다.',
   withdrawFailed: '회원 탈퇴에 실패했습니다.',
   withdrawError: '회원 탈퇴 중 오류가 발생했습니다.',
@@ -429,7 +428,9 @@ export default function AccountSettings({
               className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
             >
               <motion.div
-                animate={{ backgroundColor: profile?.isProfilePublic ? 'var(--color-primary)' : '#e5e7eb' }}
+                animate={{
+                  backgroundColor: profile?.isProfilePublic ? 'var(--color-primary)' : '#e5e7eb',
+                }}
                 className="absolute inset-0"
               />
               <motion.div
@@ -455,7 +456,9 @@ export default function AccountSettings({
               className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
             >
               <motion.div
-                animate={{ backgroundColor: profile?.isAcceptPrompt ? 'var(--color-primary)' : '#e5e7eb' }}
+                animate={{
+                  backgroundColor: profile?.isAcceptPrompt ? 'var(--color-primary)' : '#e5e7eb',
+                }}
                 className="absolute inset-0"
               />
               <motion.div
