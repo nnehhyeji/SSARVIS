@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Follow, FollowRequest } from '../types';
 import followApi from '../apis/followApi';
 import { useUserStore } from '../store/useUserStore';
+import { toast } from '../store/useToastStore';
 
 function mergeFollowRelations(followingData: Follow[], followerData: Follow[]): Follow[] {
   const merged = new Map<number, Follow>();
@@ -141,7 +142,7 @@ export function useFollow() {
       setVisitorVisibility(visibility);
 
       if (!isReturn) {
-        alert(`${user.name}님의 방으로 방문합니다. (${visibility} 모드)`);
+        toast.info(`${user.name}님의 방으로 이동해요.`, `${visibility} 모드로 방문합니다.`);
       }
 
       return `${user.name}: 브리지에 다녀왔어요.`;
@@ -169,10 +170,10 @@ export function useFollow() {
             : user,
         ),
       );
-      alert(`${name}님에게 친구 요청을 보냈습니다.`);
+      toast.success(`${name}님에게 친구 요청을 보냈어요.`);
     } catch (error) {
       console.error('친구 요청 실패:', error);
-      alert('친구 요청에 실패했습니다.');
+      toast.error('친구 요청에 실패했어요.');
     }
   }, []);
 
@@ -181,14 +182,14 @@ export function useFollow() {
       try {
         if (follow.followId) {
           await followApi.deleteFollow(follow.followId);
-          alert(`${follow.name}님과의 관계를 해제했습니다.`);
+          toast.success(`${follow.name}님과의 관계를 해제했어요.`);
           fetchFollows();
           return;
         }
-        alert('아직 해제할 수 없는 관계입니다.');
+        toast.error('아직 해제할 수 없는 관계예요.');
       } catch (error) {
         console.error('친구 해제 실패:', error);
-        alert('친구 해제에 실패했습니다.');
+        toast.error('친구 해제에 실패했어요.');
       }
     },
     [fetchFollows],
@@ -199,11 +200,11 @@ export function useFollow() {
       try {
         await followApi.acceptFollow({ followRequestId: id });
         setFollowRequests((prev) => prev.filter((req) => req.id !== id));
-        alert(`${name}님의 친구 요청을 수락했습니다.`);
+        toast.success(`${name}님의 친구 요청을 수락했어요.`);
         fetchFollows();
       } catch (error) {
         console.error('친구 요청 수락 실패:', error);
-        alert('친구 요청 수락에 실패했습니다.');
+        toast.error('친구 요청 수락에 실패했어요.');
       }
     },
     [fetchFollows],
@@ -213,10 +214,10 @@ export function useFollow() {
     try {
       await followApi.rejectFollow({ followRequestId: id });
       setFollowRequests((prev) => prev.filter((req) => req.id !== id));
-      alert('친구 요청을 거절했습니다.');
+      toast.success('친구 요청을 거절했어요.');
     } catch (error) {
       console.error('친구 요청 거절 실패:', error);
-      alert('친구 요청 거절에 실패했습니다.');
+      toast.error('친구 요청 거절에 실패했어요.');
     }
   }, []);
 

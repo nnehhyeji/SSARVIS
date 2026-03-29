@@ -5,16 +5,17 @@ import { useToastStore, type ToastItem } from '../../store/useToastStore';
 
 function ToastCard({ toast }: { toast: ToastItem }) {
   const dismiss = useToastStore((state) => state.dismiss);
+  const duration = toast.duration ?? 0;
 
   useEffect(() => {
-    if (toast.duration <= 0) return undefined;
+    if (duration <= 0) return undefined;
 
     const timeout = window.setTimeout(() => {
       dismiss(toast.id);
-    }, toast.duration);
+    }, duration);
 
     return () => window.clearTimeout(timeout);
-  }, [dismiss, toast.duration, toast.id]);
+  }, [dismiss, duration, toast.id]);
 
   const icon =
     toast.variant === 'success' ? (
