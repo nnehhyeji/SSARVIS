@@ -626,30 +626,30 @@ export default function Sidebar({
           >
             <div className="flex min-h-[88px] items-center justify-between px-6 pb-2 pt-6">
               <div className="flex min-h-[44px] items-center gap-3">
-                  {activeTertiary === 'chat' &&
-                    (selectedChatId || (chatTab === 'archive' && chatView === 'list')) && (
-                      <button
-                        onClick={selectedChatId ? returnToChatList : returnToChatCategories}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-[0px] text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800"
-                        aria-label="이전"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        이전으로
-                      </button>
-                    )}
-                  <h2 className="text-3xl font-black leading-none text-gray-800">
-                    {activeTertiary === 'friends'
-                      ? '팔로우 목록'
-                      : activeTertiary === 'chat'
-                        ? '대화 보관함'
-                        : activeTertiary === 'assistant'
-                          ? 'Ai 비서'
-                          : activeTertiary === 'persona'
-                            ? '남이 보는 나'
-                            : activeTertiary === 'search'
-                              ? '검색'
-                              : '알림'}
-                  </h2>
+                {activeTertiary === 'chat' &&
+                  (selectedChatId || (chatTab === 'archive' && chatView === 'list')) && (
+                    <button
+                      onClick={selectedChatId ? returnToChatList : returnToChatCategories}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-[0px] text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800"
+                      aria-label="이전"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      이전으로
+                    </button>
+                  )}
+                <h2 className="text-3xl font-black leading-none text-gray-800">
+                  {activeTertiary === 'friends'
+                    ? '팔로우 목록'
+                    : activeTertiary === 'chat'
+                      ? '대화 보관함'
+                      : activeTertiary === 'assistant'
+                        ? 'Ai 비서'
+                        : activeTertiary === 'persona'
+                          ? '남이 보는 나'
+                          : activeTertiary === 'search'
+                            ? '검색'
+                            : '알림'}
+                </h2>
               </div>
               <button
                 onClick={() => {

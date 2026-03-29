@@ -405,7 +405,9 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={sendEmailCode}
-                  disabled={emailStatus === 'sending' || emailStatus === 'verified' || isEmailFromOAuth}
+                  disabled={
+                    emailStatus === 'sending' || emailStatus === 'verified' || isEmailFromOAuth
+                  }
                   className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-[11px] font-bold text-[#11141D] shadow-sm transition-all hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50"
                 >
                   {isEmailFromOAuth
@@ -440,7 +442,11 @@ export default function SignupPage() {
                       disabled={isVerifying || emailStatus === 'verified' || isEmailFromOAuth}
                       className="rounded-2xl bg-[#11141D] px-5 py-3 text-[11px] font-bold text-white shadow-sm transition-all hover:bg-[#1a1e2b] active:scale-[0.98] disabled:opacity-50"
                     >
-                      {isEmailFromOAuth ? TEXT.verified : isVerifying ? TEXT.customIdChecking : TEXT.verify}
+                      {isEmailFromOAuth
+                        ? TEXT.verified
+                        : isVerifying
+                          ? TEXT.customIdChecking
+                          : TEXT.verify}
                     </button>
                   </div>
                   {emailStatus === 'sent' && (

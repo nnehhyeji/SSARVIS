@@ -17,7 +17,10 @@ interface AudioPlayerBarProps {
 
 function getWaveSeed(message?: ChatMessageData, currentTrackIdx?: number) {
   const seedSource =
-    message?.id || message?.audio?.audioUrl || message?.createdAt || `track-${currentTrackIdx ?? -1}`;
+    message?.id ||
+    message?.audio?.audioUrl ||
+    message?.createdAt ||
+    `track-${currentTrackIdx ?? -1}`;
 
   let hash = 0;
   for (let i = 0; i < seedSource.length; i += 1) {

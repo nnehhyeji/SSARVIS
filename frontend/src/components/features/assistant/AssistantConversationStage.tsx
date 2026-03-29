@@ -288,7 +288,9 @@ export default function AssistantConversationStage({
                     ? 'top-[6%] w-[50%]'
                     : 'top-[8%] w-[68%] max-xl:w-[74%] max-lg:w-[80%]'
                 } ${
-                  showAiSection ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+                  showAiSection
+                    ? 'pointer-events-auto opacity-100'
+                    : 'pointer-events-none opacity-0'
                 }`}
                 aria-hidden={!showAiSection}
               >
@@ -311,7 +313,11 @@ export default function AssistantConversationStage({
                   </div>
                 </div>
 
-                <div className={aiCaptionText.trim().length >= longCaptionThreshold ? 'pt-16' : 'pt-10'}>
+                <div
+                  className={
+                    aiCaptionText.trim().length >= longCaptionThreshold ? 'pt-16' : 'pt-10'
+                  }
+                >
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={`ai-${title}-${aiCaptionText}`}
@@ -345,7 +351,9 @@ export default function AssistantConversationStage({
                 }`}
                 aria-hidden={!showUserSection}
               >
-                <div className={`max-w-[min(28vw,24rem)] ${userCaptionText.trim().length >= longCaptionThreshold ? 'pt-6' : 'pt-3'}`}>
+                <div
+                  className={`max-w-[min(28vw,24rem)] ${userCaptionText.trim().length >= longCaptionThreshold ? 'pt-6' : 'pt-3'}`}
+                >
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={`user-${title}-${userCaptionText}`}
@@ -413,9 +421,7 @@ export default function AssistantConversationStage({
             <div className="flex flex-col items-center gap-1">
               <div
                 className={`rounded-full border px-4 py-2 text-sm font-bold ${
-                  isLockMode
-                    ? 'border-white/10 text-white/70'
-                    : 'border-[#E7E7E7] text-[#707070]'
+                  isLockMode ? 'border-white/10 text-white/70' : 'border-[#E7E7E7] text-[#707070]'
                 }`}
               >
                 {statusText}
@@ -448,10 +454,10 @@ export default function AssistantConversationStage({
                     ? 'cursor-not-allowed border-white/10 bg-white/5 text-white/30'
                     : 'cursor-not-allowed border-[#E5E5E5] bg-[#F5F5F5] text-[#B5B5B5]'
                   : isMicOn
-                  ? 'border-[#F7576E]/25 bg-[#F7576E]/10 text-[#F7576E]'
-                  : isLockMode
-                    ? 'border-white/10 bg-white/5 text-white/70'
-                    : 'border-[#DADADA] bg-[#F8F8F8] text-[#666666]'
+                    ? 'border-[#F7576E]/25 bg-[#F7576E]/10 text-[#F7576E]'
+                    : isLockMode
+                      ? 'border-white/10 bg-white/5 text-white/70'
+                      : 'border-[#DADADA] bg-[#F8F8F8] text-[#666666]'
               }`}
             >
               {isMicOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}

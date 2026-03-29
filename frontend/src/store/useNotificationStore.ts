@@ -211,37 +211,21 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
       };
 
     addCustomSseListener(eventSource, 'connect', (event: unknown) => {
-        const dataText = getMessageEventData(event);
-        if (!dataText) return;
+      const dataText = getMessageEventData(event);
+      if (!dataText) return;
 
-        try {
-          const data = JSON.parse(dataText) as SseConnectPayload;
-          console.log('SSE Connect API 응답:', data.message);
-        } catch (e) {
-          console.debug('JSON Parse skip for connect event:', e);
-        }
-      });
+      try {
+        const data = JSON.parse(dataText) as SseConnectPayload;
+        console.log('SSE Connect API 응답:', data.message);
+      } catch (e) {
+        console.debug('JSON Parse skip for connect event:', e);
+      }
+    });
 
-    addCustomSseListener(
-      eventSource,
-      'FOLLOW_REQUEST',
-      handleCustomEvent('FOLLOW_REQUEST'),
-    );
-    addCustomSseListener(
-      eventSource,
-      'FOLLOW_ACCEPT',
-      handleCustomEvent('FOLLOW_ACCEPT'),
-    );
-    addCustomSseListener(
-      eventSource,
-      'FOLLOW_CREATED',
-      handleCustomEvent('FOLLOW_CREATED'),
-    );
-    addCustomSseListener(
-      eventSource,
-      'NOTIFICATION',
-      handleCustomEvent('NOTIFICATION'),
-    );
+    addCustomSseListener(eventSource, 'FOLLOW_REQUEST', handleCustomEvent('FOLLOW_REQUEST'));
+    addCustomSseListener(eventSource, 'FOLLOW_ACCEPT', handleCustomEvent('FOLLOW_ACCEPT'));
+    addCustomSseListener(eventSource, 'FOLLOW_CREATED', handleCustomEvent('FOLLOW_CREATED'));
+    addCustomSseListener(eventSource, 'NOTIFICATION', handleCustomEvent('NOTIFICATION'));
 
     eventSource.onerror = function onSseError(error) {
       set({ isSseConnected: false });

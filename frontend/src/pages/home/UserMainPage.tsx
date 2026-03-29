@@ -34,9 +34,7 @@ export default function UserMainPage() {
   const visitorGreetingAppliedRef = useRef(false);
   const [visitorListeningStatus, setVisitorListeningStatus] = useState<
     (typeof VISITOR_LISTENING_STATUS_OPTIONS)[number]
-  >(
-    VISITOR_LISTENING_STATUS_OPTIONS[0],
-  );
+  >(VISITOR_LISTENING_STATUS_OPTIONS[0]);
   const [visitorIdleMessageIndex, setVisitorIdleMessageIndex] = useState(0);
 
   const currentUserId = userInfo?.id ?? null;
@@ -99,7 +97,7 @@ export default function UserMainPage() {
     () =>
       shouldUseGuestChat
         ? guestChat
-          : {
+        : {
             chatInput,
             chatMessages,
             isLockMode,
@@ -223,9 +221,12 @@ export default function UserMainPage() {
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? userInfo?.nickname || 'User' : visitedFollowName || 'Visitor';
   const visitorFollow = follows.find((follow) => follow.id === targetId) ?? null;
-  const visitorDescription =
-    visitorFollow?.description?.trim() || '';
-  const visitorIntroText = visitorDescription || '\uC5B4\uC11C \uC640, ' + ownerName + ' AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
+  const visitorDescription = visitorFollow?.description?.trim() || '';
+  const visitorIntroText =
+    visitorDescription ||
+    '\uC5B4\uC11C \uC640, ' +
+      ownerName +
+      ' AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
 
   const refreshVisitorFollowStatus = useCallback(
@@ -379,7 +380,10 @@ export default function UserMainPage() {
   const visitorStageCaptionText = aiToAiChat.isBattling
     ? battleCaptionText
     : visitorBaseCaptionText;
-  const visitorWakeWordGuide = '"' + WAKE_WORD + '"\uB77C\uACE0 \uB9D0\uD55C \uB4A4 \uCE5C\uAD6C AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
+  const visitorWakeWordGuide =
+    '"' +
+    WAKE_WORD +
+    '"\uB77C\uACE0 \uB9D0\uD55C \uB4A4 \uCE5C\uAD6C AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
   const visitorRotatingCaptionText =
     visitorIdleMessageIndex === 0 ? visitorIntroText : visitorWakeWordGuide;
   const visitorCaptionText = shouldRotateVisitorIdleMessages
@@ -405,11 +409,11 @@ export default function UserMainPage() {
       ? '\uC751\uB2F5 \uC911'
       : visitorWakeDetected
         ? '\uB4E4\uC5C8\uC5B4\uC694'
-      : visitorIsListening
-        ? visitorListeningStatus
-        : visitorNeedsWakeWordGuide
-          ? ''
-          : visitorStageStatusText;
+        : visitorIsListening
+          ? visitorListeningStatus
+          : visitorNeedsWakeWordGuide
+            ? ''
+            : visitorStageStatusText;
   const isVisitorDualAiSceneOpen =
     !isMyHome && (isVisitorDualAiMode || aiToAiChat.isBattling || Boolean(aiToAiChat.topic));
   const visitorDualLeftCaptionText = aiToAiChat.targetLatestText || triggerText;
@@ -816,7 +820,10 @@ export default function UserMainPage() {
   if (!isMyHome && isLoggedIn && (!isVisitorMode || !visitedFollowName)) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-[#FDFCFB]">
-        <p className="font-bold text-gray-500">\uBC29\uBB38 \uC911\uC778 \uCE5C\uAD6C \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4.</p>
+        <p className="font-bold text-gray-500">
+          \uBC29\uBB38 \uC911\uC778 \uCE5C\uAD6C \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294
+          \uC911\uC785\uB2C8\uB2E4.
+        </p>
       </div>
     );
   }
@@ -866,7 +873,9 @@ export default function UserMainPage() {
           isLockMode={activeChat.isLockMode}
           isMicOn={isMicOn}
           isTextInputMode={isTextInputMode}
-          headerCenterLabel={aiToAiChat.topic ? `주제: ${aiToAiChat.topic}` : '주제를 입력해주세요!'}
+          headerCenterLabel={
+            aiToAiChat.topic ? `주제: ${aiToAiChat.topic}` : '주제를 입력해주세요!'
+          }
           onHeaderCenterAction={() => setIsAiTopicModalOpen(true)}
           onHeaderCenterClear={
             aiToAiChat.topic || aiToAiChat.isBattling

@@ -56,9 +56,7 @@ export default function AssistantPage() {
   } = useChat();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
-  const [modeHistories, setModeHistories] = useState<
-    Record<string, { sender: 'ai' | 'me'; text: string }[]>
-  >({
+  const modeHistoriesRef = useRef<Record<string, { sender: 'ai' | 'me'; text: string }[]>>({
     normal: [],
     study: [],
     counseling: [],
@@ -122,14 +120,12 @@ export default function AssistantPage() {
 
     const nextMemoryPolicy = isLockMode ? 'SECRET' : 'GENERAL';
 
-    setModeHistories((prev) => {
-      const nextHistories = {
-        ...prev,
-        [prevMode]: chatMessages,
-      };
-      setChatMessages(nextHistories[currentMode] || []);
-      return nextHistories;
-    });
+    const nextHistories = {
+      ...modeHistoriesRef.current,
+      [prevMode]: chatMessages,
+    };
+    modeHistoriesRef.current = nextHistories;
+    setChatMessages(nextHistories[currentMode] || []);
 
     resetConversationRuntime();
     updateRecordingContext(null, assistantType, nextMemoryPolicy, 'USER_AI', null);

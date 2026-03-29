@@ -427,8 +427,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const startWakeMode = useCallback(() => {
     if (!recognitionRef.current) return;
 
-      recognitionModeRef.current = 'wake';
-      setVoicePhase('wake');
+    recognitionModeRef.current = 'wake';
+    setVoicePhase('wake');
     pendingSpeechCaptureRef.current = false;
     recognitionRef.current.continuous = true;
     recognitionRef.current.interimResults = false;
@@ -458,8 +458,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     if (!recognitionRef.current || !currentRecordingOptionsRef.current) return;
 
     speechFinalizedRef.current = false;
-      recognitionModeRef.current = 'speech';
-      setVoicePhase('speech');
+    recognitionModeRef.current = 'speech';
+    setVoicePhase('speech');
     clearSpeechSilenceTimer();
     setSttText('음성을 듣고 있어요...');
     sttTextRef.current = '';
@@ -690,11 +690,11 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   return {
     chatInput,
     chatMessages,
-      isLockMode: false,
-      sttText,
-      voicePhase,
-      wakeWordDetectedAt,
-      isAiSpeaking,
+    isLockMode: false,
+    sttText,
+    voicePhase,
+    wakeWordDetectedAt,
+    isAiSpeaking,
     isAwaitingResponse,
     setChatInput,
     toggleLock,

@@ -143,7 +143,9 @@ export default function SecuritySettings({
                   className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
                 >
                   <motion.div
-                    animate={{ backgroundColor: isVoiceLockEnabled ? 'var(--color-primary)' : '#e5e7eb' }}
+                    animate={{
+                      backgroundColor: isVoiceLockEnabled ? 'var(--color-primary)' : '#e5e7eb',
+                    }}
                     className="absolute inset-0"
                   />
                   <motion.div
@@ -172,7 +174,9 @@ export default function SecuritySettings({
                           onChange={(event) => setLockPhrase(event.target.value)}
                           placeholder={TEXT.phrasePlaceholder}
                           className="w-full rounded-2xl border-2 bg-gray-50 px-6 py-5 text-base font-bold text-gray-900 outline-none transition-colors focus:border-[var(--color-primary)]"
-                          style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 10%, white)' }}
+                          style={{
+                            borderColor: 'color-mix(in srgb, var(--color-primary) 10%, white)',
+                          }}
                         />
                         <div className="absolute right-5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-sm">
                           <Mic className="h-5 w-5 text-[var(--color-primary)]" />
