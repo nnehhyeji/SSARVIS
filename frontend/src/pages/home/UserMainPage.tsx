@@ -7,6 +7,7 @@ import { useGuestChat } from '../../hooks/useGuestChat';
 import { useFollow } from '../../hooks/useFollow';
 import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
+import { useMicStore } from '../../store/useMicStore';
 import { useUserStore } from '../../store/useUserStore';
 
 import AiTopicModal from '../../components/features/assistant/AiTopicModal';
@@ -35,14 +36,17 @@ export default function UserMainPage() {
 
   const {
     isMicOn,
+    micPreferenceEnabled,
     mouthOpenRadius,
     faceType,
-    toggleMic,
     isSpeaking,
     setIsSpeaking,
     triggerText,
     setTriggerText,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
   } = useAICharacter({ enableDefaultTriggerText: isMyHome });
+  const micStoreHydrated = useMicStore((state) => state.hasHydrated);
 
   const {
     chatInput,
@@ -290,8 +294,9 @@ export default function UserMainPage() {
 
   useEffect(() => {
     if (
+      !micStoreHydrated ||
+      !micPreferenceEnabled ||
       !hasHydrated ||
-      !hasUserInteracted ||
       didAutoStartRef.current ||
       isMicOn ||
       !targetId ||
@@ -312,23 +317,36 @@ export default function UserMainPage() {
     const memoryPolicy = isMyHome && isLockMode ? 'SECRET' : 'GENERAL';
     const category = isMyHome ? 'USER_AI' : 'AVATAR_AI';
     const recordingTargetId = category === 'USER_AI' ? null : targetId;
-
-    setIsTextInputMode(false);
-    toggleMic();
-    activeChat.startRecording(null, assistantType, memoryPolicy, category, recordingTargetId);
     didAutoStartRef.current = true;
+
+    void (async () => {
+      setIsTextInputMode(false);
+      const started = await activeChat.startRecording(
+        null,
+        assistantType,
+        memoryPolicy,
+        category,
+        recordingTargetId,
+      );
+      setMicRuntimeActive(Boolean(started));
+      if (!started) {
+        setIsTextInputMode(true);
+        return;
+      }
+    })();
   }, [
     activeChat,
     currentMode,
-    hasUserInteracted,
     hasHydrated,
     isLockMode,
     isMicOn,
     isMyHome,
     isPersonaShared,
+    micPreferenceEnabled,
+    micStoreHydrated,
+    setMicRuntimeActive,
     showEmptyPersonaMessage,
     targetId,
-    toggleMic,
   ]);
 
   const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
@@ -364,22 +382,31 @@ export default function UserMainPage() {
     const assistantType = getAssistantType();
     const memoryPolicy = getMemoryPolicy();
 
-    toggleMic();
     if (!isMicOn) {
-      setIsTextInputMode(false);
-      startRecording(null, assistantType, memoryPolicy, 'USER_AI');
+      void (async () => {
+        setMicPreferenceEnabled(true);
+        setIsTextInputMode(false);
+        const started = await startRecording(null, assistantType, memoryPolicy, 'USER_AI');
+        setMicRuntimeActive(Boolean(started));
+        if (!started) {
+          setIsTextInputMode(true);
+        }
+      })();
       return;
     }
 
+    setMicPreferenceEnabled(false);
+    setMicRuntimeActive(false);
     setIsTextInputMode(true);
     stopRecordingAndSendSTT();
   }, [
     getAssistantType,
     getMemoryPolicy,
     isMicOn,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
     startRecording,
     stopRecordingAndSendSTT,
-    toggleMic,
   ]);
 
   const handleHomeSendText = useCallback(() => {
@@ -394,13 +421,27 @@ export default function UserMainPage() {
     const category = getSessionCategory();
     const recordingTargetId = category === 'USER_AI' ? null : targetId;
 
-    toggleMic();
     if (!isMicOn) {
-      setIsTextInputMode(false);
-      activeChat.startRecording(null, assistantType, memoryPolicy, category, recordingTargetId);
+      void (async () => {
+        setMicPreferenceEnabled(true);
+        setIsTextInputMode(false);
+        const started = await activeChat.startRecording(
+          null,
+          assistantType,
+          memoryPolicy,
+          category,
+          recordingTargetId,
+        );
+        setMicRuntimeActive(Boolean(started));
+        if (!started) {
+          setIsTextInputMode(true);
+        }
+      })();
       return;
     }
 
+    setMicPreferenceEnabled(false);
+    setMicRuntimeActive(false);
     setIsTextInputMode(true);
     activeChat.stopRecordingAndSendSTT();
   }, [
@@ -409,8 +450,9 @@ export default function UserMainPage() {
     getMemoryPolicy,
     getSessionCategory,
     isMicOn,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
     targetId,
-    toggleMic,
   ]);
 
   const handleVisitorSendChat = useCallback(() => {
@@ -477,6 +519,12 @@ export default function UserMainPage() {
     },
     [aiToAiChat, currentUserId, setTriggerText, targetId],
   );
+
+  useEffect(() => {
+    return () => {
+      setMicRuntimeActive(false);
+    };
+  }, [setMicRuntimeActive]);
 
   if (!isMyHome && isLoggedIn && (!isVisitorMode || !visitedFollowName)) {
     return (

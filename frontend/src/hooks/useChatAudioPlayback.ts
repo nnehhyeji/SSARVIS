@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAudioUnlockStore } from '../store/useAudioUnlockStore';
 
 let globalAudioContext: AudioContext | null = null;
 let audioUnlockListenersBound = false;
+let htmlMediaPlaybackPrimed = false;
 const AUDIO_PLAYBACK_MAX_WAIT_MS = 30000;
+const SILENT_AUDIO_DATA_URI =
+  'data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAFAAAGhgD///////////////////////////////8AAAA5TEFNRTMuMTAwA8MAAAAAAAAAABQgJAUHQQABmgAABoaa5QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
 function getOrCreateAudioContext(): AudioContext {
   if (!globalAudioContext || globalAudioContext.state === 'closed') {
@@ -30,6 +34,25 @@ function primeAudioContext() {
   src.start();
 }
 
+async function primeHtmlMediaPlayback(): Promise<void> {
+  if (htmlMediaPlaybackPrimed) return;
+
+  const audio = new Audio(SILENT_AUDIO_DATA_URI);
+  audio.preload = 'auto';
+  audio.muted = true;
+  audio.volume = 0;
+  audio.setAttribute('playsinline', 'true');
+
+  try {
+    await audio.play();
+    audio.pause();
+    audio.currentTime = 0;
+    htmlMediaPlaybackPrimed = true;
+  } catch {
+    // ignore; a later user gesture will retry
+  }
+}
+
 export function useChatAudioPlayback() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [aiSpeechProgress, setAiSpeechProgress] = useState(0);
@@ -51,6 +74,11 @@ export function useChatAudioPlayback() {
   const pendingFinalizeAfterCaptureRef = useRef(false);
   const finalizeAudioStreamRef = useRef<(() => void) | null>(null);
   const largestObservedChunkRef = useRef<ArrayBuffer | null>(null);
+  const webAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const webAudioStartedAtRef = useRef<number | null>(null);
+  const webAudioDurationRef = useRef(0);
+  const playbackModeRef = useRef<'html' | 'webaudio' | null>(null);
+  const pendingManualUnlockActionRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     if (audioUnlockListenersBound) {
@@ -61,6 +89,7 @@ export function useChatAudioPlayback() {
       resumeGlobalAudioContext()
         .then(() => {
           primeAudioContext();
+          return primeHtmlMediaPlayback();
         })
         .catch(() => {
           // ignore; next gesture will retry
@@ -98,15 +127,29 @@ export function useChatAudioPlayback() {
     clearAiSpeechProgressTimer();
 
     aiSpeechProgressTimerRef.current = setInterval(() => {
-      const audio = audioElemRef.current;
-      if (!audio) return;
+      let currentTime = 0;
+      let duration = 0;
 
-      const currentTime = audio.currentTime || 0;
-      const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+      if (playbackModeRef.current === 'webaudio') {
+        const ctx = globalAudioContext;
+        if (!ctx || webAudioStartedAtRef.current === null) return;
+        currentTime = Math.max(0, ctx.currentTime - webAudioStartedAtRef.current);
+        duration = webAudioDurationRef.current;
+      } else {
+        const audio = audioElemRef.current;
+        if (!audio) return;
+        currentTime = audio.currentTime || 0;
+        duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+      }
+
       if (duration <= 0) return;
 
       const rawProgress = currentTime / duration;
-      const clampedProgress = Math.max(0, Math.min(rawProgress, audio.ended ? 1 : 0.98));
+      const isPlaybackComplete =
+        playbackModeRef.current === 'webaudio'
+          ? currentTime >= duration
+          : !!audioElemRef.current?.ended;
+      const clampedProgress = Math.max(0, Math.min(rawProgress, isPlaybackComplete ? 1 : 0.98));
       setAiSpeechProgress((prev) => (clampedProgress > prev ? clampedProgress : prev));
     }, 80);
   }, [clearAiSpeechProgressTimer]);
@@ -160,11 +203,28 @@ export function useChatAudioPlayback() {
         objectUrlRef.current = null;
       }
 
+      const source = webAudioSourceRef.current;
+      if (source) {
+        source.onended = null;
+        try {
+          source.stop();
+        } catch {
+          // ignore
+        }
+        source.disconnect();
+      }
+      webAudioSourceRef.current = null;
+      webAudioStartedAtRef.current = null;
+      webAudioDurationRef.current = 0;
+      playbackModeRef.current = null;
+
       if (playRetryCleanupRef.current) {
         playRetryCleanupRef.current();
         playRetryCleanupRef.current = null;
       }
 
+      useAudioUnlockStore.getState().dismissUnlock();
+      pendingManualUnlockActionRef.current = null;
       playbackEndedCallbackRef.current = null;
       playbackStartedCallbackRef.current = null;
       finalAudioCaptureArmedRef.current = false;
@@ -310,57 +370,29 @@ export function useChatAudioPlayback() {
       bytes: audioBlob.size,
     });
 
-    const schedulePlayRetryOnGesture = () => {
-      if (playRetryCleanupRef.current) {
-        playRetryCleanupRef.current();
-      }
-
-      const retryPlay = () => {
-        if (sessionId !== playbackSessionIdRef.current) return;
-        if (playbackStartedSessionRef.current === sessionId) return;
-        resumeGlobalAudioContext()
-          .catch(() => {
-            // ignore and still attempt media playback
-          })
-          .finally(() => {
-            void audio.play().catch(() => {
-              // if it still fails, wait for the next gesture
-            });
-          });
-      };
-
-      const cleanup = () => {
-        window.removeEventListener('pointerdown', handleGesture);
-        window.removeEventListener('keydown', handleGesture);
-        window.removeEventListener('touchstart', handleGesture);
-      };
-
-      const handleGesture = () => {
-        cleanup();
-        playRetryCleanupRef.current = null;
-        retryPlay();
-      };
-
-      window.addEventListener('pointerdown', handleGesture, { once: true, passive: true });
-      window.addEventListener('keydown', handleGesture, { once: true });
-      window.addEventListener('touchstart', handleGesture, { once: true, passive: true });
-      playRetryCleanupRef.current = cleanup;
-    };
-
-    const attemptPlay = () => {
-      if (playbackStartedSessionRef.current === sessionId) return;
-      console.log('[audio] audio.play() attempt', { sessionId });
-      void audio.play().catch((error) => {
-        console.warn('[audio] play() blocked; retrying on next user gesture', error);
-        schedulePlayRetryOnGesture();
+    const promptManualAudioUnlock = (retry: () => Promise<void>) => {
+      pendingManualUnlockActionRef.current = retry;
+      useAudioUnlockStore.getState().requestUnlock({
+        retryAction: async () => {
+          try {
+            await resumeGlobalAudioContext();
+            primeAudioContext();
+            await primeHtmlMediaPlayback();
+            await pendingManualUnlockActionRef.current?.();
+          } catch (error) {
+            console.warn('[audio] manual unlock retry failed', error);
+          }
+        },
       });
     };
 
-    audio.onplay = () => {
+    const markPlaybackStarted = () => {
       if (sessionId !== playbackSessionIdRef.current) return;
       if (playbackStartedSessionRef.current === sessionId) return;
-      console.log('[audio] onplay', { sessionId });
+      console.log('[audio] playback started', { sessionId, mode: playbackModeRef.current });
       playbackStartedSessionRef.current = sessionId;
+      useAudioUnlockStore.getState().dismissUnlock();
+      pendingManualUnlockActionRef.current = null;
       clearAiPlaybackFallbackTimer();
       aiPlaybackActiveRef.current = true;
       setIsAiSpeaking(true);
@@ -374,6 +406,123 @@ export function useChatAudioPlayback() {
       callback?.();
     };
 
+    const finishPlayback = () => {
+      if (sessionId !== playbackSessionIdRef.current) return;
+      console.log('[audio] playback ended', { sessionId, mode: playbackModeRef.current });
+      aiPlaybackActiveRef.current = false;
+      setAiSpeechProgress(1);
+      const callback = playbackEndedCallbackRef.current;
+      cleanupAudioPlayback(true);
+      playbackEndedCallbackRef.current = null;
+      callback?.();
+    };
+
+    const tryWebAudioPlayback = async () => {
+      if (sessionId !== playbackSessionIdRef.current) return false;
+      if (playbackStartedSessionRef.current === sessionId) return true;
+
+      try {
+        await resumeGlobalAudioContext();
+        const ctx = getOrCreateAudioContext();
+        const buffer = await audioBlob.arrayBuffer();
+        const decoded = await ctx.decodeAudioData(buffer.slice(0));
+
+        if (sessionId !== playbackSessionIdRef.current) return false;
+
+        const source = ctx.createBufferSource();
+        source.buffer = decoded;
+        source.connect(ctx.destination);
+        source.onended = () => {
+          finishPlayback();
+        };
+
+        webAudioSourceRef.current = source;
+        webAudioStartedAtRef.current = ctx.currentTime;
+        webAudioDurationRef.current = decoded.duration;
+        playbackModeRef.current = 'webaudio';
+
+        source.start(0);
+        markPlaybackStarted();
+        return true;
+      } catch (error) {
+        console.warn('[audio] WebAudio fallback failed', error);
+        return false;
+      }
+    };
+
+    const schedulePlayRetryOnGesture = () => {
+      if (playRetryCleanupRef.current) {
+        playRetryCleanupRef.current();
+      }
+
+      const retryPlay = async () => {
+        if (sessionId !== playbackSessionIdRef.current) return;
+        if (playbackStartedSessionRef.current === sessionId) return;
+        try {
+          await resumeGlobalAudioContext();
+        } catch {
+          // ignore and still attempt media playback
+        }
+
+        try {
+          playbackModeRef.current = 'html';
+          await audio.play();
+        } catch {
+          const webAudioStarted = await tryWebAudioPlayback();
+          if (!webAudioStarted) {
+            promptManualAudioUnlock(retryPlay);
+            schedulePlayRetryOnGesture();
+          }
+        }
+      };
+
+      const cleanup = () => {
+        window.removeEventListener('pointerdown', handleGesture);
+        window.removeEventListener('keydown', handleGesture);
+        window.removeEventListener('touchstart', handleGesture);
+      };
+
+      const handleGesture = () => {
+        cleanup();
+        playRetryCleanupRef.current = null;
+        void retryPlay();
+      };
+
+      window.addEventListener('pointerdown', handleGesture, { once: true, passive: true });
+      window.addEventListener('keydown', handleGesture, { once: true });
+      window.addEventListener('touchstart', handleGesture, { once: true, passive: true });
+      playRetryCleanupRef.current = cleanup;
+    };
+
+    const attemptPlay = () => {
+      if (playbackStartedSessionRef.current === sessionId) return;
+      console.log('[audio] audio.play() attempt', { sessionId });
+      playbackModeRef.current = 'html';
+      void audio.play().catch((error) => {
+        console.warn('[audio] play() blocked; trying WebAudio fallback', error);
+        void tryWebAudioPlayback().then((started) => {
+          if (!started) {
+            promptManualAudioUnlock(async () => {
+              playbackModeRef.current = 'html';
+              try {
+                await audio.play();
+              } catch {
+                await tryWebAudioPlayback();
+              }
+            });
+            console.warn('[audio] retrying on next user gesture');
+            schedulePlayRetryOnGesture();
+          }
+        });
+      });
+    };
+
+    audio.onplay = () => {
+      if (sessionId !== playbackSessionIdRef.current) return;
+      playbackModeRef.current = 'html';
+      markPlaybackStarted();
+    };
+
     audio.onpause = () => {
       if (sessionId !== playbackSessionIdRef.current) return;
       console.log('[audio] onpause', { sessionId });
@@ -382,14 +531,7 @@ export function useChatAudioPlayback() {
     };
 
     audio.onended = () => {
-      if (sessionId !== playbackSessionIdRef.current) return;
-      console.log('[audio] onended', { sessionId });
-      aiPlaybackActiveRef.current = false;
-      setAiSpeechProgress(1);
-      const callback = playbackEndedCallbackRef.current;
-      cleanupAudioPlayback(true);
-      playbackEndedCallbackRef.current = null;
-      callback?.();
+      finishPlayback();
     };
 
     audio.onerror = () => {

@@ -106,6 +106,38 @@ function extractSpeechAfterWakeWord(text: string): string {
   return '';
 }
 
+function matchRouteCommand(text: string): string | null {
+  const normalized = normalizeText(text);
+
+  if (normalized === '내정보' || normalized === '마이페이지') {
+    return PATHS.PROFILE;
+  }
+  if (normalized === 'ai비서' || normalized === '에이아이비서') {
+    return PATHS.ASSISTANT;
+  }
+  if (normalized === '남이보는나' || normalized === '나의페르소나') {
+    return PATHS.NAMNA;
+  }
+  if (normalized === '대화보관함' || normalized === '보관함') {
+    return PATHS.CHAT;
+  }
+  if (normalized === '설정') {
+    return PATHS.SETTINGS_PARAM.replace(':tab', 'account');
+  }
+
+  return null;
+}
+
+function matchHomeRouteCommand(text: string, userId?: number | null): string | null {
+  const normalized = normalizeText(text);
+
+  if (normalized === '홈' || normalized === '홈으로' || normalized === '메인화면') {
+    return userId ? PATHS.USER_HOME(userId) : PATHS.HOME;
+  }
+
+  return null;
+}
+
 export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions = {}) {
   const navigate = useNavigate();
   const userInfo = useUserStore((state) => state.userInfo);
@@ -856,6 +888,34 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
           transcript += event.results[i]?.[0]?.transcript || '';
         }
 
+        if (containsWakeWord(transcript)) {
+          const commandText = extractSpeechAfterWakeWord(transcript);
+          const routeAfterWakeWord =
+            matchRouteCommand(commandText) || matchHomeRouteCommand(commandText, userInfo?.id);
+
+          pendingSpeechSeedRef.current = '';
+          hasDetectedSpeechRef.current = false;
+          sttTextRef.current = '';
+
+          if (routeAfterWakeWord) {
+            stopSilenceMonitor();
+            clearSpeechSilenceTimer();
+            setSttText('');
+            updateVoiceStatus(WAKE_DETECTED_TEXT);
+            stopRecognition();
+            navigate(routeAfterWakeWord);
+            return;
+          }
+
+          const restartedText = commandText.trim();
+          hasDetectedSpeechRef.current = !!restartedText;
+          sttTextRef.current = restartedText;
+          setSttText(restartedText || SPEECH_LISTENING_TEXT);
+          updateVoiceStatus(restartedText || WAKE_DETECTED_TEXT);
+          lastSpeechTimeRef.current = Date.now();
+          return;
+        }
+
         const seedText = pendingSpeechSeedRef.current.trim();
         const normalizedText = [seedText, transcript.trim()].filter(Boolean).join(' ').trim();
         if (!normalizedText) return;
@@ -879,10 +939,12 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       clearSpeechSilenceTimer,
       clearTranscriptTimer,
       ensureSocketReady,
+      navigate,
       safeStartRecognition,
       startSilenceMonitor,
       stopSilenceMonitor,
       updateVoiceStatus,
+      userInfo,
     ],
   );
 
@@ -907,8 +969,17 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       if (!heardText) return;
 
       const noSpaceText = normalizeText(heardText);
+      const routeAfterWakeWord = matchRouteCommand(extractSpeechAfterWakeWord(heardText));
+      const standaloneRoute = matchRouteCommand(heardText);
 
-      // Priority 1: Wake word -> transition to speech capture
+      // Priority 1: Wake word + routing command
+      if (containsWakeWord(heardText) && routeAfterWakeWord) {
+        stopRecognition();
+        navigate(routeAfterWakeWord);
+        return;
+      }
+
+      // Priority 2: Wake word -> transition to speech capture
       if (containsWakeWord(heardText)) {
         const seededText = extractSpeechAfterWakeWord(heardText);
         console.log('[useChat] Wake Word Detected', { heardText, seededText });
@@ -920,7 +991,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
         return;
       }
 
-      // Priority 2: Standalone commands (only when NO wake word present)
+      // Priority 3: Standalone commands
       if (noSpaceText === '대기모드' || noSpaceText === '잠금' || noSpaceText === '화면잠금') {
         const voiceLockStore = useVoiceLockStore.getState();
         if (voiceLockStore.isVoiceLockEnabled) {
@@ -929,34 +1000,15 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
           return;
         }
       }
-      if (noSpaceText === '내정보' || noSpaceText === '마이페이지') {
+      if (standaloneRoute) {
         stopRecognition();
-        navigate(PATHS.PROFILE);
+        navigate(standaloneRoute);
         return;
       }
-      if (noSpaceText === 'ai비서' || noSpaceText === '에이아이비서') {
+      const standaloneHomeRoute = matchHomeRouteCommand(heardText, userInfo?.id);
+      if (standaloneHomeRoute) {
         stopRecognition();
-        navigate(PATHS.ASSISTANT);
-        return;
-      }
-      if (noSpaceText === '남이보는나' || noSpaceText === '나의페르소나') {
-        stopRecognition();
-        navigate(PATHS.NAMNA);
-        return;
-      }
-      if (noSpaceText === '대화보관함' || noSpaceText === '보관함') {
-        stopRecognition();
-        navigate(PATHS.CHAT);
-        return;
-      }
-      if (noSpaceText === '설정') {
-        stopRecognition();
-        navigate(PATHS.SETTINGS_PARAM.replace(':tab', 'account'));
-        return;
-      }
-      if (noSpaceText === '홈' || noSpaceText === '홈으로' || noSpaceText === '메인화면') {
-        stopRecognition();
-        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+        navigate(standaloneHomeRoute);
         return;
       }
 
@@ -1186,17 +1238,17 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     ) => {
       if (isLocked) {
         updateVoiceStatus('화면이 잠겨있어요. 잠금을 해제하고 다시 시도해주세요.');
-        return;
+        return false;
       }
 
       if (!isSpeechRecognitionSupported.current) {
         updateVoiceStatus('이 브라우저에서는 음성 인식을 지원하지 않아요.');
-        return;
+        return false;
       }
 
       const isVoiceModelReady = await ensureVoiceModelReady();
       if (!isVoiceModelReady) {
-        return;
+        return false;
       }
 
       currentRecordingOptionsRef.current = {
@@ -1213,7 +1265,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       } catch (error) {
         void error;
         updateVoiceStatus('마이크 권한을 확인할 수 없어요');
-        return;
+        return false;
       }
 
       wakeWordActiveRef.current = true;
@@ -1230,6 +1282,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       setSttText(WAKE_GUIDE_TEXT);
       updateVoiceStatus(WAKE_GUIDE_TEXT);
       startWakeMode();
+      return true;
     },
     [
       clearSpeechSilenceTimer,

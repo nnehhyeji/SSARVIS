@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useMicStore } from '../store/useMicStore';
 
 interface UseAICharacterOptions {
   enableDefaultTriggerText?: boolean;
 }
 
 export function useAICharacter({ enableDefaultTriggerText = true }: UseAICharacterOptions = {}) {
-  const [isMicOn, setIsMicOn] = useState(false);
+  const isMicOn = useMicStore((state) => state.micRuntimeActive);
+  const micPreferenceEnabled = useMicStore((state) => state.micPreferenceEnabled);
+  const setMicPreferenceEnabled = useMicStore((state) => state.setMicPreferenceEnabled);
+  const setMicRuntimeActive = useMicStore((state) => state.setMicRuntimeActive);
+  const syncMicState = useMicStore((state) => state.syncMicState);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [mouthOpenRadius, setMouthOpenRadius] = useState(2);
   const [triggerText, setTriggerText] = useState('');
@@ -16,8 +21,8 @@ export function useAICharacter({ enableDefaultTriggerText = true }: UseAICharact
   const [myTriggerText, setMyTriggerText] = useState('');
 
   const toggleMic = useCallback(() => {
-    setIsMicOn((prev) => !prev);
-  }, []);
+    syncMicState(!isMicOn);
+  }, [isMicOn, syncMicState]);
 
   const changeFace = useCallback(() => {
     setFaceType((prev) => (prev + 1) % 6);
@@ -61,6 +66,7 @@ export function useAICharacter({ enableDefaultTriggerText = true }: UseAICharact
 
   return {
     isMicOn,
+    micPreferenceEnabled,
     isSpeaking,
     mouthOpenRadius,
     triggerText,
@@ -74,7 +80,9 @@ export function useAICharacter({ enableDefaultTriggerText = true }: UseAICharact
     setMyTriggerText,
     setIsSpeaking,
     setIsMyAiSpeaking,
-    setIsMicOn,
+    setIsMicOn: setMicRuntimeActive,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
     setMouthOpenRadius,
     setMyMouthOpenRadius,
   };

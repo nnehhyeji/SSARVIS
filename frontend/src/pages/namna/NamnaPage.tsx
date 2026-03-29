@@ -14,6 +14,7 @@ import CharacterScene from '../../components/features/character/CharacterScene';
 import ChatWindow from '../../components/features/chat/ChatWindow';
 import AiTopicModal from '../../components/features/assistant/AiTopicModal';
 import { useAIToAIChat } from '../../hooks/useAIToAIChat';
+import { useMicStore } from '../../store/useMicStore';
 
 export default function NamnaPage() {
   const { userInfo } = useUserStore();
@@ -23,9 +24,9 @@ export default function NamnaPage() {
   // interaction hooks
   const {
     isMicOn,
+    micPreferenceEnabled,
     mouthOpenRadius,
     faceType,
-    toggleMic,
     isSpeaking,
     setIsSpeaking,
     triggerText,
@@ -35,7 +36,10 @@ export default function NamnaPage() {
     myMouthOpenRadius,
     myTriggerText,
     setMyTriggerText,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
   } = useAICharacter();
+  const micStoreHydrated = useMicStore((state) => state.hasHydrated);
 
   const {
     chatInput,
@@ -55,6 +59,7 @@ export default function NamnaPage() {
   const [isDualAiMode, setIsDualAiMode] = useState(false);
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
   const hasStartedDualBattleRef = useRef(false);
+  const didAutoStartRef = useRef(false);
 
   // URL 파라미터 감지 (With Mine 연동)
   useEffect(() => {
@@ -72,6 +77,34 @@ export default function NamnaPage() {
   useEffect(() => {
     setIsChatHistoryOpen(!isMicOn);
   }, [isMicOn]);
+
+  useEffect(() => {
+    if (!micStoreHydrated || !micPreferenceEnabled || didAutoStartRef.current || isMicOn) return;
+
+    void (async () => {
+      const started = await startRecording(
+        null,
+        'PERSONA',
+        isLockMode ? 'SECRET' : 'GENERAL',
+        'USER_AI',
+      );
+      setMicRuntimeActive(Boolean(started));
+      didAutoStartRef.current = true;
+    })();
+  }, [
+    isLockMode,
+    isMicOn,
+    micPreferenceEnabled,
+    micStoreHydrated,
+    setMicRuntimeActive,
+    startRecording,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      setMicRuntimeActive(false);
+    };
+  }, [setMicRuntimeActive]);
 
   const lastAiMessage = useMemo(() => {
     return (
@@ -170,12 +203,23 @@ export default function NamnaPage() {
           <div className="absolute left-[-110px] top-1/2 -translate-y-1/2 z-40">
             <button
               onClick={() => {
-                toggleMic();
-                if (!isMicOn) {
-                  startRecording(null, 'PERSONA', isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
-                } else {
+                if (isMicOn) {
+                  setMicPreferenceEnabled(false);
+                  setMicRuntimeActive(false);
                   stopRecordingAndSendSTT();
+                  return;
                 }
+
+                void (async () => {
+                  setMicPreferenceEnabled(true);
+                  const started = await startRecording(
+                    null,
+                    'PERSONA',
+                    isLockMode ? 'SECRET' : 'GENERAL',
+                    'USER_AI',
+                  );
+                  setMicRuntimeActive(Boolean(started));
+                })();
               }}
               className={`p-5 rounded-full backdrop-blur-md shadow-2xl border transition-all duration-300 ${isMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
             >
