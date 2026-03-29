@@ -7,11 +7,12 @@ function ToastCard({ toast }: { toast: ToastItem }) {
   const dismiss = useToastStore((state) => state.dismiss);
 
   useEffect(() => {
-    if (toast.duration <= 0) return undefined;
+    const duration = toast.duration ?? 0;
+    if (duration <= 0) return undefined;
 
     const timeout = window.setTimeout(() => {
       dismiss(toast.id);
-    }, toast.duration);
+    }, duration);
 
     return () => window.clearTimeout(timeout);
   }, [dismiss, toast.duration, toast.id]);

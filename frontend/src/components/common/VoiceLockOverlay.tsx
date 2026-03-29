@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Lock, Keyboard, ArrowRight } from 'lucide-react';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
+import { useMicrophonePermission } from '../../hooks/useMicrophonePermission';
 import CharacterScene from '../features/character/CharacterScene';
 import { useAICharacter } from '../../hooks/useAICharacter';
 import authApi from '../../apis/authApi';
@@ -20,6 +21,7 @@ type CustomWindow = Window & {
 const VoiceLockOverlay: React.FC = () => {
   const { isLocked, setIsLocked } = useVoiceLockStore();
   const { faceType, mouthOpenRadius } = useAICharacter();
+  const { getStream } = useMicrophonePermission();
 
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
@@ -33,10 +35,12 @@ const VoiceLockOverlay: React.FC = () => {
 
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
   const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isVerifyingRef = useRef(false);
 
   const handleVerify = React.useCallback(
     async (phrase: string) => {
-      if (isVerifying) return;
+      if (isVerifyingRef.current) return;
+      isVerifyingRef.current = true;
       setIsVerifying(true);
       setErrorMsg('');
 
@@ -61,10 +65,11 @@ const VoiceLockOverlay: React.FC = () => {
         console.error('Lock verification failed:', error);
         setErrorMsg('서버와 통신 중 오류가 발생했습니다.');
       } finally {
+        isVerifyingRef.current = false;
         setIsVerifying(false);
       }
     },
-    [isVerifying, setIsLocked, setUseTextInput],
+    [setIsLocked, setUseTextInput],
   );
 
   useEffect(() => {
@@ -87,7 +92,8 @@ const VoiceLockOverlay: React.FC = () => {
 
     const startAudio = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await getStream();
+        if (!stream) return;
         const Win = window as unknown as CustomWindow;
         audioContext = new (window.AudioContext || Win.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
@@ -116,7 +122,7 @@ const VoiceLockOverlay: React.FC = () => {
       stream?.getTracks().forEach((t) => t.stop());
       audioContext?.close();
     };
-  }, [isLocked, useTextInput]);
+  }, [getStream, isLocked, useTextInput]);
 
   useEffect(() => {
     if (!isLocked || useTextInput) return;
