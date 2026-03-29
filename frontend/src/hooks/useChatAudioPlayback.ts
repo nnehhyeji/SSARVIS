@@ -238,7 +238,9 @@ export function useChatAudioPlayback() {
       aiPlaybackActiveRef.current = false;
       setIsAiSpeaking(false);
       setAiSpeechProgress(0);
-      console.log('[audio] startAudioPlayback reset', { sessionId: playbackSessionIdRef.current + 1 });
+      console.log('[audio] startAudioPlayback reset', {
+        sessionId: playbackSessionIdRef.current + 1,
+      });
     },
     [cleanupAudioPlayback],
   );
@@ -254,7 +256,9 @@ export function useChatAudioPlayback() {
     const chunks = audioChunksRef.current.slice();
     if (chunks.length === 0) {
       if (finalAudioCaptureArmedRef.current) {
-        console.log('[audio] finalizeAudioStream deferred: waiting for final audio blob', { sessionId });
+        console.log('[audio] finalizeAudioStream deferred: waiting for final audio blob', {
+          sessionId,
+        });
         pendingFinalizeAfterCaptureRef.current = true;
         return;
       }
@@ -288,7 +292,7 @@ export function useChatAudioPlayback() {
 
     const audio = new Audio();
     audio.autoplay = false;
-    audio.playsInline = true;
+    audio.setAttribute('playsinline', 'true');
     audio.preload = 'auto';
 
     if (objectUrlRef.current) {
@@ -390,7 +394,10 @@ export function useChatAudioPlayback() {
 
     audio.onerror = () => {
       if (sessionId !== playbackSessionIdRef.current) return;
-      console.warn('[audio] onerror', { sessionId, error: audio.error?.message ?? audio.error?.code ?? 'unknown' });
+      console.warn('[audio] onerror', {
+        sessionId,
+        error: audio.error?.message ?? audio.error?.code ?? 'unknown',
+      });
       const callback = playbackEndedCallbackRef.current;
       cleanupAudioPlayback(true);
       playbackEndedCallbackRef.current = null;
@@ -407,13 +414,11 @@ export function useChatAudioPlayback() {
     }, AUDIO_PLAYBACK_MAX_WAIT_MS);
 
     attemptPlay();
-  }, [
-    cleanupAudioPlayback,
-    clearAiPlaybackFallbackTimer,
-    startAiSpeechProgressTracking,
-  ]);
+  }, [cleanupAudioPlayback, clearAiPlaybackFallbackTimer, startAiSpeechProgressTracking]);
 
-  finalizeAudioStreamRef.current = finalizeAudioStream;
+  useEffect(() => {
+    finalizeAudioStreamRef.current = finalizeAudioStream;
+  }, [finalizeAudioStream]);
 
   return {
     audioElemRef,
