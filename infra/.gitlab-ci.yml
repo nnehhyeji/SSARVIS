@@ -316,6 +316,12 @@ build_and_scan_backend:
 build_and_scan_web:
   extends: .build_and_scan_template
   script:
+    - |
+      cat <<EOF > frontend/.env.production
+      VITE_API_BASE_URL=$VITE_API_BASE_URL
+      VITE_KAKAO_OAUTH_REDIRECT_URL=$VITE_KAKAO_OAUTH_REDIRECT_URL
+      VITE_KAKAO_REST_API_KEY=$VITE_KAKAO_REST_API_KEY
+      EOF
     - docker pull "$DOCKERHUB_USERNAME/ssarvis-web:buildcache" || true
     - docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from "$DOCKERHUB_USERNAME/ssarvis-web:buildcache" -t web:$CI_COMMIT_SHA -f ./infra/nginx/Dockerfile .
     - docker tag web:$CI_COMMIT_SHA "$DOCKERHUB_USERNAME/ssarvis-web:$CI_COMMIT_SHA"
