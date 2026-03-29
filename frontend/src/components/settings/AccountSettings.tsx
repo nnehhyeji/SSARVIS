@@ -36,19 +36,26 @@ const TEXT = {
   edit: '\uC218\uC815',
   customId: '\uC0AC\uC6A9\uC790 \uC544\uC774\uB514',
   email: '\uC774\uBA54\uC77C',
-  nicknameLength: '\uB2C9\uB124\uC784\uC740 2\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4.',
-  passwordLength: '\uBE44\uBC00\uBC88\uD638\uB294 8\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4.',
-  passwordMismatch: '\uBE44\uBC00\uBC88\uD638 \uD655\uC778\uC774 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.',
+  nicknameLength:
+    '\uB2C9\uB124\uC784\uC740 2\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4.',
+  passwordLength:
+    '\uBE44\uBC00\uBC88\uD638\uB294 8\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4.',
+  passwordMismatch:
+    '\uBE44\uBC00\uBC88\uD638 \uD655\uC778\uC774 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.',
   settingsSaved: '\uC124\uC815\uC774 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
   saveFailed: '\uC124\uC815\uC744 \uC800\uC7A5\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
-  saveError: '\uC124\uC815 \uC800\uC7A5 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.',
-  visibilityFailed: '\uACF5\uAC1C \uBC94\uC704\uB97C \uBCC0\uACBD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
-  promptFailed: '\uD504\uB86C\uD504\uD2B8 \uC218\uC9D1 \uC124\uC815\uC744 \uBCC0\uACBD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
+  saveError:
+    '\uC124\uC815 \uC800\uC7A5 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.',
+  visibilityFailed:
+    '\uACF5\uAC1C \uBC94\uC704\uB97C \uBCC0\uACBD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
+  promptFailed:
+    '\uD504\uB86C\uD504\uD2B8 \uC218\uC9D1 \uC124\uC815\uC744 \uBCC0\uACBD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
   withdrawConfirm:
     '\uC815\uB9D0 \uD68C\uC6D0 \uD0C8\uD1F4\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C? \uC774 \uC791\uC5C5\uC740 \uB418\uB3CC\uB9B4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.',
   withdrawSuccess: '\uD68C\uC6D0 \uD0C8\uD1F4\uAC00 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
   withdrawFailed: '\uD68C\uC6D0 \uD0C8\uD1F4\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
-  withdrawError: '\uD68C\uC6D0 \uD0C8\uD1F4 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.',
+  withdrawError:
+    '\uD68C\uC6D0 \uD0C8\uD1F4 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.',
   bioPlaceholder: '\uC9E7\uC740 \uC18C\uAC1C\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.',
   noBio: '\uC544\uC9C1 \uC18C\uAC1C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
   newPassword: '\uC0C8 \uBE44\uBC00\uBC88\uD638',
@@ -56,7 +63,8 @@ const TEXT = {
   passwordGuide: '',
   publicAccount: '\uACF5\uAC1C \uACC4\uC815',
   privateAccount: '\uBE44\uACF5\uAC1C \uACC4\uC815',
-  visibilityHelp: '\uB204\uAC00 \uB0B4 \uC9D1 \uD654\uBA74\uC5D0 \uC811\uADFC\uD560 \uC218 \uC788\uB294\uC9C0 \uC124\uC815\uD569\uB2C8\uB2E4.',
+  visibilityHelp:
+    '\uB204\uAC00 \uB0B4 \uC9D1 \uD654\uBA74\uC5D0 \uC811\uADFC\uD560 \uC218 \uC788\uB294\uC9C0 \uC124\uC815\uD569\uB2C8\uB2E4.',
   enabled: '\uBB38\uB2F5 \uC218\uC9D1',
   disabled: '\uBE44\uD65C\uC131\uD654',
   promptHelp:
@@ -264,10 +272,18 @@ export default function AccountSettings({
                   autoFocus
                 />
                 <div className="flex gap-3 text-sm font-black">
-                  <button type="button" onClick={() => void handleUpdateProfile('nickname')} className="text-rose-500">
+                  <button
+                    type="button"
+                    onClick={() => void handleUpdateProfile('nickname')}
+                    className="text-rose-500"
+                  >
                     {TEXT.save}
                   </button>
-                  <button type="button" onClick={() => setIsEditingNickname(false)} className="text-gray-400">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingNickname(false)}
+                    className="text-gray-400"
+                  >
                     {TEXT.cancel}
                   </button>
                 </div>
@@ -304,10 +320,18 @@ export default function AccountSettings({
                   </span>
                 </div>
                 <div className="flex gap-3 text-sm font-black">
-                  <button type="button" onClick={() => void handleUpdateProfile('description')} className="text-rose-500">
+                  <button
+                    type="button"
+                    onClick={() => void handleUpdateProfile('description')}
+                    className="text-rose-500"
+                  >
                     {TEXT.save}
                   </button>
-                  <button type="button" onClick={() => setIsEditingDescription(false)} className="text-gray-400">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingDescription(false)}
+                    className="text-gray-400"
+                  >
                     {TEXT.cancel}
                   </button>
                 </div>
@@ -348,10 +372,18 @@ export default function AccountSettings({
                   className="rounded-xl border-2 border-rose-100 bg-gray-50 px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-rose-500"
                 />
                 <div className="flex gap-3 text-sm font-black">
-                  <button type="button" onClick={() => void handleUpdateProfile('password')} className="text-rose-500">
+                  <button
+                    type="button"
+                    onClick={() => void handleUpdateProfile('password')}
+                    className="text-rose-500"
+                  >
                     {TEXT.save}
                   </button>
-                  <button type="button" onClick={() => setIsEditingPassword(false)} className="text-gray-400">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingPassword(false)}
+                    className="text-gray-400"
+                  >
                     {TEXT.cancel}
                   </button>
                 </div>
@@ -440,7 +472,6 @@ export default function AccountSettings({
             </button>
           </div>
         </SectionRow>
-
       </div>
 
       <div className="flex justify-center pt-8">

@@ -207,9 +207,7 @@ export default function VisitorConversationStage({
                   onClick={onSendText}
                   disabled={!chatInput.trim()}
                   className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
-                    chatInput.trim()
-                      ? 'bg-[#F7576E] text-white'
-                      : 'bg-[#ECECEC] text-[#AFAFAF]'
+                    chatInput.trim() ? 'bg-[#F7576E] text-white' : 'bg-[#ECECEC] text-[#AFAFAF]'
                   }`}
                 >
                   <Send className="h-4 w-4" />

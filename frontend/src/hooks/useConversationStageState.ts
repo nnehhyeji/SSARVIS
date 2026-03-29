@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import type { ChatMessage } from '../types';
 import { CONVERSATION_UI } from '../constants/conversationUi';
@@ -51,9 +51,6 @@ export function useConversationStageState({
   liveCaptionWindowMs = 1600,
   longCaptionThreshold = 55,
 }: UseConversationStageStateParams) {
-  const [lastUserSpeechAt, setLastUserSpeechAt] = useState(0);
-  const [awaitingStatusText, setAwaitingStatusText] = useState<string>(CONVERSATION_UI.status.awaiting);
-
   const lastAiMessage = useMemo(() => {
     return (
       chatMessages
@@ -72,29 +69,14 @@ export function useConversationStageState({
     );
   }, [chatMessages]);
 
-  useEffect(() => {
-    if (sttText.trim() && !isAiSpeaking && !isAwaitingResponse) {
-      setLastUserSpeechAt(Date.now());
-    }
-  }, [sttText, isAiSpeaking, isAwaitingResponse]);
-
-  useEffect(() => {
-    if (!isAwaitingResponse || connectionNotice) {
-      setAwaitingStatusText(CONVERSATION_UI.status.awaiting);
-      return;
-    }
-
-    const variants = CONVERSATION_UI.status.awaitingVariants;
-    const next = variants[Math.floor(Math.random() * variants.length)] ?? '';
-    setAwaitingStatusText(next || CONVERSATION_UI.status.awaiting);
-  }, [connectionNotice, isAwaitingResponse]);
-
   const isLiveUserCaption =
-    isMicOn &&
-    !isAiSpeaking &&
-    !isAwaitingResponse &&
-    sttText.trim().length > 0 &&
-    Date.now() - lastUserSpeechAt < liveCaptionWindowMs;
+    isMicOn && !isAiSpeaking && !isAwaitingResponse && sttText.trim().length > 0;
+
+  void liveCaptionWindowMs;
+
+  const awaitingStatusText = connectionNotice
+    ? CONVERSATION_UI.status.awaiting
+    : CONVERSATION_UI.status.awaitingVariants[0] || CONVERSATION_UI.status.awaiting;
 
   const userCaptionText = isLiveUserCaption ? sttText.trim() : lastUserMessage;
   const userCaptionSegments = isLiveUserCaption
@@ -122,10 +104,23 @@ export function useConversationStageState({
     }
 
     return getActiveSegment(aiCaptionText);
-  }, [aiCaptionText, aiSpeechProgress, aiStreamComplete, aiTextStreamingComplete, isAiSpeaking, isAiTextTyping, isCharacterSpeaking]);
+  }, [
+    aiCaptionText,
+    aiSpeechProgress,
+    aiStreamComplete,
+    aiTextStreamingComplete,
+    isAiSpeaking,
+    isAiTextTyping,
+    isCharacterSpeaking,
+  ]);
 
-  const activeSpeaker: 'ai' | 'user' | null = isAiSpeaking ? 'ai' : isLiveUserCaption ? 'user' : null;
-  const activeCaptionText = activeSpeaker === 'ai' ? aiCaptionText : activeSpeaker === 'user' ? userCaptionText : '';
+  const activeSpeaker: 'ai' | 'user' | null = isAiSpeaking
+    ? 'ai'
+    : isLiveUserCaption
+      ? 'user'
+      : null;
+  const activeCaptionText =
+    activeSpeaker === 'ai' ? aiCaptionText : activeSpeaker === 'user' ? userCaptionText : '';
   const isLongAiCaption = aiCaptionText.trim().length >= longCaptionThreshold;
   const isLongUserCaption = userCaptionText.trim().length >= longCaptionThreshold;
   const isLongActiveCaption = activeCaptionText.trim().length >= longCaptionThreshold;

@@ -65,7 +65,16 @@ interface UseChatOptions {
 
 const DEFAULT_GREETING = '난 너야, 만나서 반가워.';
 const WAKE_WORD = '싸비스';
-const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '싸비쓰', '서비스', '싸비스야', '비스', '싸비', '싸쓰'];
+const WAKE_WORD_ALIASES = [
+  WAKE_WORD,
+  '사비스',
+  '싸비쓰',
+  '서비스',
+  '싸비스야',
+  '비스',
+  '싸비',
+  '싸쓰',
+];
 // 1.5초 무응답 시 API 요청 전송
 const SPEECH_SILENCE_MS = 1500;
 const INITIAL_SPEECH_GRACE_MS = 3500;
@@ -289,16 +298,19 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   }, []);
 
   // --- State management ---
-  const beginAwaitingResponse = useCallback((message = WAITING_FOR_AI_TEXT) => {
-    awaitingResponseRef.current = true;
-    setIsAwaitingResponse(true);
-    setAiTextStreamingComplete(false);
-    setAiStreamComplete(false);
-    clearEndOfStreamFallbackTimer();
-    clearTextEndFallbackTimer();
-    setVoiceStatus(message);
-    setSttText(message);
-  }, [clearEndOfStreamFallbackTimer, clearTextEndFallbackTimer]);
+  const beginAwaitingResponse = useCallback(
+    (message = WAITING_FOR_AI_TEXT) => {
+      awaitingResponseRef.current = true;
+      setIsAwaitingResponse(true);
+      setAiTextStreamingComplete(false);
+      setAiStreamComplete(false);
+      clearEndOfStreamFallbackTimer();
+      clearTextEndFallbackTimer();
+      setVoiceStatus(message);
+      setSttText(message);
+    },
+    [clearEndOfStreamFallbackTimer, clearTextEndFallbackTimer],
+  );
 
   const endAwaitingResponse = useCallback((clearTranscript: boolean = true) => {
     awaitingResponseRef.current = false;
@@ -347,11 +359,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       updateVoiceStatus(WAKE_GUIDE_TEXT);
       resumeWakeWordRef.current?.();
     }, WAKE_RESUME_COOLDOWN_MS);
-  }, [
-    aiPlaybackActiveRef,
-    clearWakeResumeCooldownTimer,
-    updateVoiceStatus,
-  ]);
+  }, [aiPlaybackActiveRef, clearWakeResumeCooldownTimer, updateVoiceStatus]);
 
   const stopMediaRecorder = useCallback(() => {
     const mediaRecorder = mediaRecorderRef.current;
@@ -463,17 +471,20 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     return voiceModelCheckPromiseRef.current;
   }, [handleVoiceRegistrationRequired]);
 
-  const handleSocketClose = useCallback(({ hadToken, code, reason }: { hadToken: boolean; code: number; reason: string }) => {
-    if (!hadToken) {
-      setConnectionNotice(LOGIN_EXPIRED_TEXT);
-    } else if (code === 1011 && !hasVerifiedVoiceModelRef.current) {
-      handleVoiceRegistrationRequired();
-    } else if (code === 1011 && reason.includes('ASSISTANT')) {
-      handleVoiceRegistrationRequired();
-    } else if (awaitingResponseRef.current || isSubmittingSpeechTurnRef.current) {
-      setConnectionNotice(CONNECTION_ERROR_TEXT);
-    }
-  }, [handleVoiceRegistrationRequired]);
+  const handleSocketClose = useCallback(
+    ({ hadToken, code, reason }: { hadToken: boolean; code: number; reason: string }) => {
+      if (!hadToken) {
+        setConnectionNotice(LOGIN_EXPIRED_TEXT);
+      } else if (code === 1011 && !hasVerifiedVoiceModelRef.current) {
+        handleVoiceRegistrationRequired();
+      } else if (code === 1011 && reason.includes('ASSISTANT')) {
+        handleVoiceRegistrationRequired();
+      } else if (awaitingResponseRef.current || isSubmittingSpeechTurnRef.current) {
+        setConnectionNotice(CONNECTION_ERROR_TEXT);
+      }
+    },
+    [handleVoiceRegistrationRequired],
+  );
 
   const handleSocketMessage = useCallback(
     async (message: ChatSocketMessage) => {
@@ -695,7 +706,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       // ★ Immediately lock state & set mode to idle to cut off all re-entry paths
       isSubmittingSpeechTurnRef.current = true;
       speechTurnCompletedRef.current = true;
-      recognitionModeRef.current = 'idle';  // ← onend will see 'idle' and do nothing
+      recognitionModeRef.current = 'idle'; // ← onend will see 'idle' and do nothing
 
       // Capture text before any resets
       const finalText = sttTextRef.current.trim();
@@ -780,7 +791,6 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       stopRecognition,
       stopSilenceMonitor,
       updateVoiceStatus,
-      wsRef,
     ],
   );
 
@@ -789,49 +799,56 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
   // --- Silence monitor: polls every 200ms, fires when 1.5s of silence detected ---
   // Uses refs exclusively — immune to stale closure problems
-  const startSilenceMonitor = useCallback((sessionId: number) => {
-    stopSilenceMonitor();
-    lastSpeechTimeRef.current = Date.now();
-    console.log('[silence] ★ monitor started for session', sessionId);
+  const startSilenceMonitor = useCallback(
+    (sessionId: number) => {
+      stopSilenceMonitor();
+      lastSpeechTimeRef.current = Date.now();
+      console.log('[silence] ★ monitor started for session', sessionId);
 
-    silenceIntervalRef.current = setInterval(() => {
-      // Guard checks using refs (always current, never stale)
-      if (sessionId !== speechSessionIdRef.current) {
-        console.log('[silence] stale session → stopping monitor');
-        stopSilenceMonitor();
-        return;
-      }
-      if (recognitionModeRef.current !== 'speech') {
-        console.log('[silence] mode changed to', recognitionModeRef.current, '→ stopping monitor');
-        stopSilenceMonitor();
-        return;
-      }
-      if (isSubmittingSpeechTurnRef.current || speechTurnCompletedRef.current) {
-        console.log('[silence] already submitting/completed → stopping monitor');
-        stopSilenceMonitor();
-        return;
-      }
+      silenceIntervalRef.current = setInterval(() => {
+        // Guard checks using refs (always current, never stale)
+        if (sessionId !== speechSessionIdRef.current) {
+          console.log('[silence] stale session → stopping monitor');
+          stopSilenceMonitor();
+          return;
+        }
+        if (recognitionModeRef.current !== 'speech') {
+          console.log(
+            '[silence] mode changed to',
+            recognitionModeRef.current,
+            '→ stopping monitor',
+          );
+          stopSilenceMonitor();
+          return;
+        }
+        if (isSubmittingSpeechTurnRef.current || speechTurnCompletedRef.current) {
+          console.log('[silence] already submitting/completed → stopping monitor');
+          stopSilenceMonitor();
+          return;
+        }
 
-      const elapsed = Date.now() - lastSpeechTimeRef.current;
-      const silenceThreshold = hasDetectedSpeechRef.current
-        ? SPEECH_SILENCE_MS
-        : INITIAL_SPEECH_GRACE_MS;
-      if (elapsed >= silenceThreshold) {
-        const text = sttTextRef.current.trim();
-        console.log(
-          '[silence] ★★★ silence detected! elapsed=' +
-            elapsed +
-            'ms, threshold=' +
-            silenceThreshold +
-            'ms, text=' +
-            JSON.stringify(text),
-        );
-        stopSilenceMonitor();
-        // Call via ref — always the latest version, never stale
-        void finalizeSpeechTurnRef.current?.(!!text);
-      }
-    }, 200);
-  }, [stopSilenceMonitor]);
+        const elapsed = Date.now() - lastSpeechTimeRef.current;
+        const silenceThreshold = hasDetectedSpeechRef.current
+          ? SPEECH_SILENCE_MS
+          : INITIAL_SPEECH_GRACE_MS;
+        if (elapsed >= silenceThreshold) {
+          const text = sttTextRef.current.trim();
+          console.log(
+            '[silence] ★★★ silence detected! elapsed=' +
+              elapsed +
+              'ms, threshold=' +
+              silenceThreshold +
+              'ms, text=' +
+              JSON.stringify(text),
+          );
+          stopSilenceMonitor();
+          // Call via ref — always the latest version, never stale
+          void finalizeSpeechTurnRef.current?.(!!text);
+        }
+      }, 200);
+    },
+    [stopSilenceMonitor],
+  );
 
   // --- startSpeechCapture: entered after wake word is detected ---
   const startSpeechCapture = useCallback(
@@ -942,6 +959,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       navigate,
       safeStartRecognition,
       startSilenceMonitor,
+      stopRecognition,
       stopSilenceMonitor,
       updateVoiceStatus,
       userInfo,
@@ -954,7 +972,11 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
   // --- startWakeMode: listens for "싸비스" or navigation commands ---
   const startWakeMode = useCallback(() => {
-    if (!recognitionRef.current || !wakeWordActiveRef.current || isSubmittingSpeechTurnRef.current) {
+    if (
+      !recognitionRef.current ||
+      !wakeWordActiveRef.current ||
+      isSubmittingSpeechTurnRef.current
+    ) {
       return;
     }
 
@@ -1017,7 +1039,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     };
 
     safeStartRecognition();
-  }, [navigate, safeStartRecognition, stopRecognition, updateVoiceStatus, userInfo]);
+  }, [navigate, safeStartRecognition, stopRecognition, updateVoiceStatus, userInfo?.id]);
 
   useEffect(() => {
     resumeWakeWordRef.current = () => {
@@ -1085,7 +1107,9 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       manualStopRef.current = false;
 
       console.log('[onend] recognition.onend', {
-        mode, pendingCapture, manualStop,
+        mode,
+        pendingCapture,
+        manualStop,
         submitting: isSubmittingSpeechTurnRef.current,
         completed: speechTurnCompletedRef.current,
       });
@@ -1153,7 +1177,6 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       cleanupAudioPlayback(true);
       recognitionRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     cleanupAudioPlayback,
     clearAiPlaybackFallbackTimer,
@@ -1290,7 +1313,6 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       ensureSocketReady,
       ensureVoiceModelReady,
       isLocked,
-      startSpeechCapture,
       startWakeMode,
       updateVoiceStatus,
     ],
@@ -1328,6 +1350,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     finalizeSpeechTurn,
     stopMediaRecorder,
     stopRecognition,
+    stopSilenceMonitor,
     updateVoiceStatus,
   ]);
 
@@ -1347,6 +1370,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     clearSpeechSilenceTimer,
     endAwaitingResponse,
     resumeWakeWordWhenReady,
+    stopSilenceMonitor,
     wsRef,
   ]);
 
@@ -1372,7 +1396,14 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
         setChatMessages((prev) => [...prev, { sender: 'me', text: text.trim() }]);
       }
     },
-    [beginAwaitingResponse, clearEndOfStreamFallbackTimer, clearTypeWriter, endAwaitingResponse, ensureVoiceModelReady, sendTextTurn],
+    [
+      beginAwaitingResponse,
+      clearEndOfStreamFallbackTimer,
+      clearTypeWriter,
+      endAwaitingResponse,
+      ensureVoiceModelReady,
+      sendTextTurn,
+    ],
   );
 
   return {

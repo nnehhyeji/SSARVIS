@@ -98,6 +98,16 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const speechFinalizedRef = useRef(false);
   const sttTextRef = useRef('');
   const currentRecordingOptionsRef = useRef<GuestRecordingOptions | null>(null);
+  const resetGuestChatState = useCallback(() => {
+    sessionIdRef.current = null;
+    pendingTextRef.current = null;
+    sttTextRef.current = '';
+    setChatMessages([{ sender: 'ai', text: DEFAULT_GREETING }]);
+    setChatInput('');
+    setSttText('');
+    setIsAwaitingResponse(false);
+    setIsAiSpeaking(false);
+  }, []);
 
   const resetTypewriter = useCallback(() => {
     if (typeWriterIntervalRef.current) {
@@ -299,7 +309,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
     wsRef.current = socket;
     return socket;
-  }, [enabled, resetTypewriter]);
+  }, [enabled, processAudioQueue, resetTypewriter]);
 
   const ensureSocketReady = useCallback(async () => {
     const socket = connectSocket();
@@ -581,6 +591,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     [
       clearSpeechSilenceTimer,
       enabled,
+      finalizeSpeechTurn,
       resetTypewriter,
       safeStartRecognition,
       startSpeechCapture,
@@ -618,33 +629,31 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     [enabled, sendGuestText],
   );
 
-  const toggleLock = useCallback(() => { }, []);
+  const toggleLock = useCallback(() => {}, []);
 
   useEffect(() => {
     if (!enabled) {
       wsRef.current?.close();
       wsRef.current = null;
-      sessionIdRef.current = null;
-      pendingTextRef.current = null;
-      setChatInput('');
-      setChatMessages([{ sender: 'ai', text: DEFAULT_GREETING }]);
-      setSttText('');
-      sttTextRef.current = '';
-      setIsAwaitingResponse(false);
-      setIsAiSpeaking(false);
+      const timeoutId = window.setTimeout(() => {
+        resetGuestChatState();
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
     }
-  }, [enabled]);
+  }, [enabled, resetGuestChatState]);
 
   useEffect(() => {
-    sessionIdRef.current = null;
-    pendingTextRef.current = null;
-    setChatMessages([{ sender: 'ai', text: DEFAULT_GREETING }]);
-    setChatInput('');
-    setSttText('');
-    sttTextRef.current = '';
-    setIsAwaitingResponse(false);
-    setIsAiSpeaking(false);
-  }, [targetUserId]);
+    const timeoutId = window.setTimeout(() => {
+      resetGuestChatState();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [resetGuestChatState, targetUserId]);
 
   useEffect(() => {
     if (!enabled) return;

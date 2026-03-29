@@ -81,7 +81,11 @@ export default function QuestionStep({
                   className="absolute -top-6 sm:-top-8"
                 >
                   <div className="bg-white text-gray-800 px-6 py-3 rounded-full text-sm sm:text-base font-black shadow-2xl flex items-center gap-2 border border-gray-100 whitespace-nowrap tracking-tight">
-                    🎤 말하고 싶은 항목을 <span className="bg-gray-100 rounded-md px-2 py-1 mx-1 text-purple-600">"1번"</span> 처럼 이야기해보세요!
+                    🎤 말하고 싶은 항목을{' '}
+                    <span className="bg-gray-100 rounded-md px-2 py-1 mx-1 text-purple-600">
+                      "1번"
+                    </span>{' '}
+                    처럼 이야기해보세요!
                   </div>
                 </motion.div>
               </div>
@@ -112,21 +116,23 @@ export default function QuestionStep({
                           : 'bg-white/90 text-gray-600 hover:bg-white border-white/50'
                       }`}
                     >
-                  <span>{choice}</span>
-                  <div
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                      isSelected
-                        ? 'border-white bg-white/20 scale-110'
-                        : 'border-gray-200 group-hover:border-gray-300'
-                    }`}
-                  >
-                    {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white shadow-sm" />}
+                      <span>{choice}</span>
+                      <div
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'border-white bg-white/20 scale-110'
+                            : 'border-gray-200 group-hover:border-gray-300'
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-white shadow-sm" />
+                        )}
+                      </div>
+                    </button>
                   </div>
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -156,7 +162,9 @@ export default function QuestionStep({
 
       {/* Hint if not answered */}
       <div className="h-4 mt-4 relative z-20">
-        <p className={`text-center text-xs font-bold transition-opacity duration-300 ${isCurrentAnswered ? 'opacity-0' : 'text-gray-400 animate-pulse'}`}>
+        <p
+          className={`text-center text-xs font-bold transition-opacity duration-300 ${isCurrentAnswered ? 'opacity-0' : 'text-gray-400 animate-pulse'}`}
+        >
           답변을 선택하면 다음으로 넘어갈 수 있습니다.
         </p>
       </div>

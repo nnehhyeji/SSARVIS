@@ -8,7 +8,12 @@ interface UseChatSocketOptions<TMessage = unknown> {
   getToken?: () => string | null;
   connectTimeoutMs?: number;
   onOpen?: () => void;
-  onClose?: (context: { hadToken: boolean; code: number; reason: string; wasClean: boolean }) => void;
+  onClose?: (context: {
+    hadToken: boolean;
+    code: number;
+    reason: string;
+    wasClean: boolean;
+  }) => void;
   onMessage?: (message: TMessage) => void | Promise<void>;
   onBinaryChunk?: (chunk: ArrayBuffer) => void;
   onConnectionUnavailable?: (hasToken: boolean) => void;
@@ -150,7 +155,7 @@ export function useChatSocket<TMessage = unknown>({
         socket.removeEventListener('error', handleError);
         socket.removeEventListener('close', handleClose);
         clearTimeout(timeoutId);
-        
+
         console.log('[useChatSocket] ensureSocketReady result:', result);
         if (!result) onConnectionUnavailableRef.current?.(!!getTokenRef.current());
         resolve(result);
@@ -160,7 +165,7 @@ export function useChatSocket<TMessage = unknown>({
         console.log('[useChatSocket] ensureSocketReady handleOpen');
         cleanup(true);
       };
-      const handleError = (e: any) => {
+      const handleError = (e: Event) => {
         console.log('[useChatSocket] ensureSocketReady handleError', e);
         cleanup(false);
       };

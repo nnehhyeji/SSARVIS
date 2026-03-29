@@ -96,7 +96,11 @@ export default function VoiceStep({
             </motion.button>
             <div className="flex flex-col items-center text-center gap-2 mt-2">
               <p className="text-gray-700 font-bold bg-gray-100 px-5 py-3 rounded-2xl shadow-inner border border-gray-200 text-sm sm:text-base">
-                🎙️ 마이크 버튼을 누르거나 <strong className="text-purple-600 bg-purple-100 px-2 py-0.5 rounded-lg ml-1">"나에대해서 소개할게"</strong><br className="hidden sm:block" /> 라고 말씀하시면 자동으로 녹음이 시작됩니다!
+                🎙️ 마이크 버튼을 누르거나{' '}
+                <strong className="text-purple-600 bg-purple-100 px-2 py-0.5 rounded-lg ml-1">
+                  "나에대해서 소개할게"
+                </strong>
+                <br className="hidden sm:block" /> 라고 말씀하시면 자동으로 녹음이 시작됩니다!
               </p>
             </div>
           </motion.div>

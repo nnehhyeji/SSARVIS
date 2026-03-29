@@ -367,9 +367,25 @@ export default function TutorialPage() {
   };
 
   // ── Hands-Free Logic ─────────────────────────────────────────────────────
-  const stateRef = useRef({ step, currentIndex, answers, manualIndices, isVoiceAnimating, voicePhase, lastProcessedAt: 0 });
+  const stateRef = useRef({
+    step,
+    currentIndex,
+    answers,
+    manualIndices,
+    isVoiceAnimating,
+    voicePhase,
+    lastProcessedAt: 0,
+  });
   useEffect(() => {
-    stateRef.current = { step, currentIndex, answers, manualIndices, isVoiceAnimating, voicePhase, lastProcessedAt: stateRef.current.lastProcessedAt };
+    stateRef.current = {
+      step,
+      currentIndex,
+      answers,
+      manualIndices,
+      isVoiceAnimating,
+      voicePhase,
+      lastProcessedAt: stateRef.current.lastProcessedAt,
+    };
   });
 
   useEffect(() => {
@@ -388,7 +404,14 @@ export default function TutorialPage() {
       recognition.interimResults = true;
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const { step: curStep, currentIndex: curIdx, manualIndices: curManual, isVoiceAnimating: curAnim, lastProcessedAt, voicePhase: curPhase } = stateRef.current;
+        const {
+          step: curStep,
+          currentIndex: curIdx,
+          manualIndices: curManual,
+          isVoiceAnimating: curAnim,
+          lastProcessedAt,
+          voicePhase: curPhase,
+        } = stateRef.current;
         if (curAnim) return;
 
         const now = Date.now();
@@ -402,14 +425,38 @@ export default function TutorialPage() {
 
         if (curStep === 'mbti') {
           const mbtiMap: Record<string, string> = {
-            '이엔에프제이': 'ENFJ', '이엔에프피': 'ENFP', '이엔티제이': 'ENTJ', '이엔티피': 'ENTP',
-            '이에스에프제이': 'ESFJ', '이에스에프피': 'ESFP', '이에스티제이': 'ESTJ', '이에스티피': 'ESTP',
-            '아이엔에프제이': 'INFJ', '아이엔에프피': 'INFP', '아이엔티제이': 'INTJ', '아이엔티피': 'INTP',
-            '아이에스에프제이': 'ISFJ', '아이에스에프피': 'ISFP', '아이에스티제이': 'ISTJ', '아이에스티피': 'ISTP',
-            '엔프제': 'ENFJ', '엔프피': 'ENFP', '엔티제': 'ENTJ', '엔티피': 'ENTP',
-            '엣프제': 'ESFJ', '엣프피': 'ESFP', '엣티제': 'ESTJ', '엣티피': 'ESTP',
-            '인프제': 'INFJ', '인프피': 'INFP', '인티제': 'INTJ', '인티피': 'INTP',
-            '잇프제': 'ISFJ', '잇프피': 'ISFP', '잇티제': 'ISTJ', '잇티피': 'ISTP'
+            이엔에프제이: 'ENFJ',
+            이엔에프피: 'ENFP',
+            이엔티제이: 'ENTJ',
+            이엔티피: 'ENTP',
+            이에스에프제이: 'ESFJ',
+            이에스에프피: 'ESFP',
+            이에스티제이: 'ESTJ',
+            이에스티피: 'ESTP',
+            아이엔에프제이: 'INFJ',
+            아이엔에프피: 'INFP',
+            아이엔티제이: 'INTJ',
+            아이엔티피: 'INTP',
+            아이에스에프제이: 'ISFJ',
+            아이에스에프피: 'ISFP',
+            아이에스티제이: 'ISTJ',
+            아이에스티피: 'ISTP',
+            엔프제: 'ENFJ',
+            엔프피: 'ENFP',
+            엔티제: 'ENTJ',
+            엔티피: 'ENTP',
+            엣프제: 'ESFJ',
+            엣프피: 'ESFP',
+            엣티제: 'ESTJ',
+            엣티피: 'ESTP',
+            인프제: 'INFJ',
+            인프피: 'INFP',
+            인티제: 'INTJ',
+            인티피: 'INTP',
+            잇프제: 'ISFJ',
+            잇프피: 'ISFP',
+            잇티제: 'ISTJ',
+            잇티피: 'ISTP',
           };
           let matchedMbti = '';
           for (const [kr, en] of Object.entries(mbtiMap)) {
@@ -419,8 +466,8 @@ export default function TutorialPage() {
             }
           }
           if (!matchedMbti) {
-             const match = text.toUpperCase().match(/[E|I][S|N][T|F][J|P]/);
-             if (match) matchedMbti = match[0];
+            const match = text.toUpperCase().match(/[E|I][S|N][T|F][J|P]/);
+            if (match) matchedMbti = match[0];
           }
 
           if (matchedMbti) {
@@ -429,7 +476,7 @@ export default function TutorialPage() {
             const chars = matchedMbti.split('');
             const delays = [0, 300, 600, 900];
             const keys = ['e_i', 's_n', 't_f', 'j_p'] as const;
-            
+
             chars.forEach((char, idx) => {
               setTimeout(() => {
                 setIsMbtiSkipped(false);
@@ -443,7 +490,7 @@ export default function TutorialPage() {
               setCurrentIndex(0);
               setStep('questions');
               setIsVoiceAnimating(false);
-            }, 1400); 
+            }, 1400);
           }
         } else if (curStep === 'questions') {
           const qIdx = curManual[curIdx] ?? 0;
@@ -455,7 +502,7 @@ export default function TutorialPage() {
               stateRef.current.lastProcessedAt = Date.now();
               setIsVoiceAnimating(true);
               setTimeout(() => {
-                setCurrentIndex(p => p - 1);
+                setCurrentIndex((p) => p - 1);
                 setIsVoiceAnimating(false);
               }, 500);
             }
@@ -475,8 +522,8 @@ export default function TutorialPage() {
             stateRef.current.lastProcessedAt = Date.now();
             setIsVoiceAnimating(true);
             const ans = currentQuestion.choices[chosenIndex];
-            
-            setAnswers(prev => {
+
+            setAnswers((prev) => {
               const updated = [...prev];
               updated[qIdx] = ans;
               return updated;
@@ -486,10 +533,10 @@ export default function TutorialPage() {
               const latestAnswers = stateRef.current.answers;
               const newAnswers = [...latestAnswers];
               newAnswers[qIdx] = ans;
-              const newAnsweredCount = curManual.filter(idx => !!newAnswers[idx]).length;
+              const newAnsweredCount = curManual.filter((idx) => !!newAnswers[idx]).length;
 
               if (curIdx < curManual.length - 1) {
-                setCurrentIndex(p => p + 1);
+                setCurrentIndex((p) => p + 1);
               } else if (newAnsweredCount === curManual.length) {
                 setStep('voice');
               }
@@ -504,8 +551,15 @@ export default function TutorialPage() {
       };
 
       recognition.onend = () => {
-        if (!isUnmounted && (step === 'mbti' || step === 'questions' || (step === 'voice' && voicePhase === 'idle'))) {
-          try { recognition?.start(); } catch (e) {}
+        if (
+          !isUnmounted &&
+          (step === 'mbti' || step === 'questions' || (step === 'voice' && voicePhase === 'idle'))
+        ) {
+          try {
+            recognition?.start();
+          } catch {
+            // ignore repeated start attempts
+          }
         }
       };
 

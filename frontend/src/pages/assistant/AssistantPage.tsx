@@ -13,8 +13,8 @@ import { useUserStore } from '../../store/useUserStore';
 export default function AssistantPage() {
   const { userInfo, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
-  const [pageNotice, setPageNotice] = useState('');
   const [isTextInputMode, setIsTextInputMode] = useState(false);
+  const [showMigrationNotice] = useState(!sessionStorage.getItem('assistant-mode-migrated-notice'));
 
   const {
     isMicOn,
@@ -84,12 +84,16 @@ export default function AssistantPage() {
   useEffect(() => {
     if (currentMode === 'normal') {
       setCurrentMode('study');
-      if (!sessionStorage.getItem('assistant-mode-migrated-notice')) {
-        setPageNotice('일상 모드는 홈으로 이동되었어요. AI 비서에서는 학습 모드로 이어집니다.');
+      if (showMigrationNotice) {
         sessionStorage.setItem('assistant-mode-migrated-notice', '1');
       }
     }
-  }, [currentMode, setCurrentMode]);
+  }, [currentMode, setCurrentMode, showMigrationNotice]);
+
+  const pageNotice =
+    currentMode === 'normal' || showMigrationNotice
+      ? '일상 모드는 홈으로 이동되었어요. AI 비서에서는 학습 모드로 이어집니다.'
+      : '';
 
   useEffect(() => {
     const prevMode = prevModeRef.current;
@@ -201,7 +205,13 @@ export default function AssistantPage() {
     if (!micStoreHydrated || !micPreferenceEnabled || didAutoStartRef.current || isMicOn) return;
 
     didAutoStartRef.current = true;
-    void enableMic();
+    const timeoutId = window.setTimeout(() => {
+      void enableMic();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [enableMic, isMicOn, micPreferenceEnabled, micStoreHydrated]);
 
   useEffect(() => {

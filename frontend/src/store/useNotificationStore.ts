@@ -5,6 +5,10 @@ import { getApiHttpBaseUrl } from '../config/api';
 import type { NotificationDTO, RealtimeNotificationDTO } from '../apis/notificationApi';
 import type { Alarm } from '../types';
 
+interface SseConnectPayload {
+  message?: string;
+}
+
 const timeAgo = (dateStr: string) => {
   const date = new Date(dateStr);
   const now = new Date();
@@ -136,7 +140,7 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
 
     const handleCustomEvent =
       (eventName: string) =>
-      (event: any): void => {
+      (event: MessageEvent<string>): void => {
         if (!event.data) return;
 
         try {
@@ -148,11 +152,11 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
         }
       };
 
-    eventSource.addEventListener('connect', (event: any) => {
+    eventSource.addEventListener('connect', (event: MessageEvent<string>) => {
       if (!event.data) return;
 
       try {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(event.data) as SseConnectPayload;
         console.log('SSE Connect API 응답:', data.message);
       } catch (e) {
         console.debug('JSON Parse skip for connect event:', e);
@@ -164,7 +168,7 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
     eventSource.addEventListener('FOLLOW_CREATED', handleCustomEvent('FOLLOW_CREATED'));
     eventSource.addEventListener('NOTIFICATION', handleCustomEvent('NOTIFICATION'));
 
-    eventSource.onerror = (error: any) => {
+    eventSource.onerror = (error: Event) => {
       set({ isSseConnected: false });
       console.error('SSE 연결 에러 (연결 유실 혹은 토큰 만료 등):', error);
     };

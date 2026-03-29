@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useAICharacter } from '../../hooks/useAICharacter';
@@ -25,7 +25,6 @@ export default function UserMainPage() {
   const { hasHydrated, userInfo, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
   const visitorGreetingAppliedRef = useRef(false);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   const currentUserId = userInfo?.id ?? null;
   const targetId = userId ? Number(userId) : currentUserId;
@@ -75,21 +74,39 @@ export default function UserMainPage() {
   const aiToAiChat = useAIToAIChat();
   const shouldUseGuestChat = hasHydrated && !isLoggedIn && !isMyHome;
 
-  const activeChat = shouldUseGuestChat
-    ? guestChat
-    : {
-        chatInput,
-        chatMessages,
-        isLockMode,
-        sttText,
-        isAiSpeaking,
-        isAwaitingResponse,
-        setChatInput,
-        toggleLock,
-        sendMessage,
-        startRecording,
-        stopRecordingAndSendSTT,
-      };
+  const activeChat = useMemo(
+    () =>
+      shouldUseGuestChat
+        ? guestChat
+        : {
+            chatInput,
+            chatMessages,
+            isLockMode,
+            sttText,
+            isAiSpeaking,
+            isAwaitingResponse,
+            setChatInput,
+            toggleLock,
+            sendMessage,
+            startRecording,
+            stopRecordingAndSendSTT,
+          },
+    [
+      chatInput,
+      chatMessages,
+      guestChat,
+      isAiSpeaking,
+      isAwaitingResponse,
+      isLockMode,
+      sendMessage,
+      setChatInput,
+      shouldUseGuestChat,
+      startRecording,
+      stopRecordingAndSendSTT,
+      sttText,
+      toggleLock,
+    ],
+  );
 
   const { follows, isVisitorMode, visitedFollowName, visitFollow, leaveFollow } = useFollow();
 
@@ -264,8 +281,12 @@ export default function UserMainPage() {
       ? 1
       : 0
     : visitorBaseActiveLength;
-  const visitorStageCaptionText = aiToAiChat.isBattling ? battleCaptionText : visitorBaseCaptionText;
-  const visitorStageStatus = aiToAiChat.isBattling ? aiToAiChat.statusMessage : visitorStageStatusText;
+  const visitorStageCaptionText = aiToAiChat.isBattling
+    ? battleCaptionText
+    : visitorBaseCaptionText;
+  const visitorStageStatus = aiToAiChat.isBattling
+    ? aiToAiChat.statusMessage
+    : visitorStageStatusText;
 
   const homeProfileImage =
     profile?.userProfileImageUrl ||
@@ -275,22 +296,6 @@ export default function UserMainPage() {
 
   const homeAssistantDisplayName = `${userInfo?.nickname || profile?.nickname || 'User'} AI`;
   const homeUserDisplayName = profile?.nickname || userInfo?.nickname || 'User';
-
-  useEffect(() => {
-    const markInteracted = () => {
-      setHasUserInteracted(true);
-    };
-
-    window.addEventListener('pointerdown', markInteracted, { once: true, passive: true });
-    window.addEventListener('keydown', markInteracted, { once: true });
-    window.addEventListener('touchstart', markInteracted, { once: true, passive: true });
-
-    return () => {
-      window.removeEventListener('pointerdown', markInteracted);
-      window.removeEventListener('keydown', markInteracted);
-      window.removeEventListener('touchstart', markInteracted);
-    };
-  }, []);
 
   useEffect(() => {
     if (

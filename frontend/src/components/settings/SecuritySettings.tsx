@@ -18,10 +18,13 @@ const TEXT = {
   phrase: '\uBB38\uAD6C',
   timeout: '\uC7A0\uAE08 \uC2DC\uAC04',
   enterPhrase: '\uC7A0\uAE08 \uBB38\uAD6C\uB97C \uBA3C\uC800 \uC785\uB825\uD574\uC8FC\uC138\uC694.',
-  saveSuccess: '\uC74C\uC131 \uC7A0\uAE08 \uC124\uC815\uC774 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
-  saveFailed: '\uC74C\uC131 \uC7A0\uAE08 \uC124\uC815 \uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
+  saveSuccess:
+    '\uC74C\uC131 \uC7A0\uAE08 \uC124\uC815\uC774 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
+  saveFailed:
+    '\uC74C\uC131 \uC7A0\uAE08 \uC124\uC815 \uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
   registerTitle: '\uC74C\uC131 \uC7A0\uAE08 \uB4F1\uB85D',
-  registerDesc: '\uB098\uB9CC\uC758 \uC74C\uC131 \uC7A0\uAE08 \uBB38\uAD6C\uB97C \uB4F1\uB85D\uD574 AI \uC811\uADFC\uC744 \uBCF4\uD638\uD558\uC138\uC694.',
+  registerDesc:
+    '\uB098\uB9CC\uC758 \uC74C\uC131 \uC7A0\uAE08 \uBB38\uAD6C\uB97C \uB4F1\uB85D\uD574 AI \uC811\uADFC\uC744 \uBCF4\uD638\uD558\uC138\uC694.',
   register: '\uB4F1\uB85D\uD558\uAE30',
   enabledTitle: '\uC74C\uC131 \uC7A0\uAE08 \uC0AC\uC6A9 \uC911',
   currentTimeout: '\uD604\uC7AC \uC7A0\uAE08 \uC2DC\uAC04',
@@ -29,15 +32,19 @@ const TEXT = {
   disabled: '\uBE44\uD65C\uC131\uD654',
   voiceLockState: '\uC74C\uC131 \uC7A0\uAE08',
   phrasePlaceholder: '\uC7A0\uAE08 \uBB38\uAD6C\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694',
-  phraseHelp: '\uC774 \uBB38\uAD6C\uB294 \uC74C\uC131 \uC7A0\uAE08 \uD574\uC81C \uC2DC \uC0AC\uC6A9\uB429\uB2C8\uB2E4.',
+  phraseHelp:
+    '\uC774 \uBB38\uAD6C\uB294 \uC74C\uC131 \uC7A0\uAE08 \uD574\uC81C \uC2DC \uC0AC\uC6A9\uB429\uB2C8\uB2E4.',
   currentSetting: '\uD604\uC7AC \uC124\uC815',
   hour: '\uC2DC\uAC04',
   minute: '\uBD84',
   saving: '\uC800\uC7A5 \uC911...',
   saveSettings: '\uC124\uC815 \uC800\uC7A5',
-  resetConfirm: '\uB4F1\uB85D\uB41C \uC74C\uC131 \uC7A0\uAE08 \uC815\uBCF4\uB97C \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?',
-  resetSuccess: '\uC74C\uC131 \uC7A0\uAE08 \uC815\uBCF4\uAC00 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
-  resetFailed: '\uC74C\uC131 \uC7A0\uAE08 \uC815\uBCF4 \uC0AD\uC81C\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
+  resetConfirm:
+    '\uB4F1\uB85D\uB41C \uC74C\uC131 \uC7A0\uAE08 \uC815\uBCF4\uB97C \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?',
+  resetSuccess:
+    '\uC74C\uC131 \uC7A0\uAE08 \uC815\uBCF4\uAC00 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
+  resetFailed:
+    '\uC74C\uC131 \uC7A0\uAE08 \uC815\uBCF4 \uC0AD\uC81C\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
   reset: '\uC74C\uC131 \uC7A0\uAE08 \uCD08\uAE30\uD654',
 };
 
@@ -203,7 +210,9 @@ export default function SecuritySettings({
                       </div>
                       <p className="text-sm font-medium text-gray-400">
                         {TEXT.currentSetting}:{' '}
-                        <span className="font-black text-rose-500">{formatTime(timeoutDuration)}</span>
+                        <span className="font-black text-rose-500">
+                          {formatTime(timeoutDuration)}
+                        </span>
                       </p>
                     </div>
                   </VoiceRow>

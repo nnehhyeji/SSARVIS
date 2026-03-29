@@ -20,6 +20,7 @@ export default function NamnaPage() {
   const { userInfo } = useUserStore();
   const [searchParams] = useSearchParams();
   const aiToAiChat = useAIToAIChat();
+  const isDualParamEnabled = searchParams.get('dual') === 'true';
 
   // interaction hooks
   const {
@@ -56,26 +57,38 @@ export default function NamnaPage() {
   } = useChat();
 
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(!isMicOn);
-  const [isDualAiMode, setIsDualAiMode] = useState(false);
-  const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
+  const [isDualAiMode, setIsDualAiMode] = useState(isDualParamEnabled);
+  const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(isDualParamEnabled);
   const hasStartedDualBattleRef = useRef(false);
   const didAutoStartRef = useRef(false);
 
   // URL 파라미터 감지 (With Mine 연동)
   useEffect(() => {
-    if (searchParams.get('dual') === 'true') {
-      setIsDualAiMode(true);
-      setIsInteractionModalOpen(true);
-      hasStartedDualBattleRef.current = false;
-    } else {
-      setIsDualAiMode(false);
-      hasStartedDualBattleRef.current = false;
-    }
-  }, [searchParams]);
+    const timeoutId = window.setTimeout(() => {
+      if (isDualParamEnabled) {
+        setIsDualAiMode(true);
+        setIsInteractionModalOpen(true);
+        hasStartedDualBattleRef.current = false;
+      } else {
+        setIsDualAiMode(false);
+        hasStartedDualBattleRef.current = false;
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isDualParamEnabled]);
 
   // Sync: Default behavior when mic state changes
   useEffect(() => {
-    setIsChatHistoryOpen(!isMicOn);
+    const timeoutId = window.setTimeout(() => {
+      setIsChatHistoryOpen(!isMicOn);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [isMicOn]);
 
   useEffect(() => {
@@ -148,7 +161,7 @@ export default function NamnaPage() {
       setTriggerText('');
       setIsChatHistoryOpen(true);
     },
-    [aiToAiChat, setMyTriggerText, setTriggerText, userInfo?.id],
+    [aiToAiChat, setMyTriggerText, setTriggerText, userInfo],
   );
 
   const stopDualAiConversation = useCallback(() => {
@@ -179,7 +192,14 @@ export default function NamnaPage() {
   useEffect(() => {
     if (!isDualAiMode || !hasStartedDualBattleRef.current || aiToAiChat.isBattling) return;
     hasStartedDualBattleRef.current = false;
-    setIsDualAiMode(false);
+
+    const timeoutId = window.setTimeout(() => {
+      setIsDualAiMode(false);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [aiToAiChat.isBattling, isDualAiMode]);
 
   return (

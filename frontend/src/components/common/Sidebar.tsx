@@ -68,6 +68,11 @@ interface SidebarProps {
   viewCount?: number;
 }
 
+interface AlarmPayload {
+  senderId?: number;
+  senderUserId?: number;
+}
+
 const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
 const RECENT_SEARCH_LIMIT = 5;
 
@@ -132,7 +137,7 @@ export default function Sidebar({
         }
       }
     }
-  }, [location.pathname, selectedChatId]);
+  }, [activeTertiary, location.pathname, selectedChatId]);
 
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
@@ -214,7 +219,13 @@ export default function Sidebar({
   }
 
   const menuItems: MenuItem[] = [
-    { id: 'home', icon: Home, label: '홈', path: userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME, color: 'text-rose-500' },
+    {
+      id: 'home',
+      icon: Home,
+      label: '홈',
+      path: userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME,
+      color: 'text-rose-500',
+    },
     { id: 'myinfo', icon: User, label: '내 정보', action: onMyCardClick, color: 'text-rose-500' },
     {
       id: 'ai_assistant',
@@ -333,7 +344,8 @@ export default function Sidebar({
       setFriendView('main');
       setFriendTab('following');
     } else if (alarm.type === 'FOLLOW_ACCEPT') {
-      const senderId = (alarm.payload as any)?.senderId || (alarm.payload as any)?.senderUserId;
+      const payload = alarm.payload as AlarmPayload | undefined;
+      const senderId = payload?.senderId || payload?.senderUserId;
       if (senderId) {
         navigate(PATHS.USER_HOME(senderId));
         setActiveTertiary(null);
@@ -525,7 +537,8 @@ export default function Sidebar({
               <button
                 onClick={() => {
                   setActiveTertiary(null);
-                  if (selectedChatId) navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+                  if (selectedChatId)
+                    navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
                 }}
                 className="p-2 hover:bg-black/5 rounded-full transition-colors mt-2"
               >
