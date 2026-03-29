@@ -12,11 +12,11 @@ import SecuritySettings from '../../components/settings/SecuritySettings';
 import ProfileImageModal from '../../components/settings/ProfileImageModal';
 
 const TEXT = {
-  settings: '\uC124\uC815',
-  account: '\uACC4\uC815 \uC124\uC815',
-  voiceLock: '\uC74C\uC131 \uC7A0\uAE08',
-  notSet: '\uBBF8\uC124\uC815',
-  minute: '\uBD84',
+  settings: '설정',
+  account: '계정 설정',
+  voiceLock: '음성 잠금',
+  notSet: '미설정',
+  minute: '분',
 };
 
 const MENU_ITEMS = [
@@ -140,9 +140,8 @@ export default function SettingsPage() {
           isOpen={isImageModalOpen}
           profile={profile}
           onClose={() => setIsImageModalOpen(false)}
-          onSuccess={async (newUrl) => {
+          onSuccess={(newUrl) => {
             setProfile((prev) => (prev ? { ...prev, userProfileImageUrl: newUrl ?? '' } : prev));
-            await loadProfile();
           }}
         />
       )}
