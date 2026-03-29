@@ -81,6 +81,7 @@ export default function LoginPage() {
       });
 
       await useVoiceLockStore.getState().fetchVoiceLockStatus();
+      toast.success('로그인되었어요.', `${profile.nickname}님 환영해요.`);
       navigate(PATHS.USER_HOME(profile.id));
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {

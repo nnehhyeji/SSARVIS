@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { PATHS } from '../../../routes/paths';
 import authApi from '../../../apis/authApi';
 import { useUserStore } from '../../../store/useUserStore';
+import { toast } from '../../../store/useToastStore';
 
 interface UserMenuModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface UserMenuModalProps {
 }
 
 export default function UserMenuModal({ isOpen, onClose, user }: UserMenuModalProps) {
+  const LOGOUT_CONFIRM_TOAST_ID = 'logout-confirm-toast';
   const navigate = useNavigate();
 
   const handleMenuClick = (tab: string) => {
@@ -26,15 +28,27 @@ export default function UserMenuModal({ isOpen, onClose, user }: UserMenuModalPr
   const logout = useUserStore((state) => state.logout);
 
   const handleLogout = async () => {
-    try {
-      await authApi.logout();
-    } catch (error) {
-      console.error('로그아웃 중 오류:', error);
-    } finally {
-      logout(); // Zustand 스토어 및 localStorage의 토큰 초기화
-      onClose();
-      navigate(PATHS.LOGIN, { replace: true });
-    }
+    onClose();
+    toast.dismiss(LOGOUT_CONFIRM_TOAST_ID);
+    toast.show({
+      id: LOGOUT_CONFIRM_TOAST_ID,
+      title: '로그아웃 하시겠습니까?',
+      description: '확인을 누르면 현재 세션이 종료돼요.',
+      variant: 'info',
+      duration: 7000,
+      actionLabel: '로그아웃',
+      onAction: async () => {
+        try {
+          await authApi.logout();
+        } catch (error) {
+          console.error('로그아웃 중 오류:', error);
+        } finally {
+          logout(); // Zustand 스토어 및 localStorage의 토큰 초기화
+          toast.info('로그아웃되었어요.');
+          navigate(PATHS.LOGIN, { replace: true });
+        }
+      },
+    });
   };
 
   return (
