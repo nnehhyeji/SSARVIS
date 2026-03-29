@@ -58,6 +58,7 @@ export default function NamnaPage() {
     stopRecordingAndSendSTT,
     toggleLock,
     cancelTurn,
+    discardCurrentTurn,
   } = useChat();
 
   const [isDualAiMode, setIsDualAiMode] = useState(isDualParamEnabled);
@@ -67,6 +68,7 @@ export default function NamnaPage() {
   const [isSharePersonaModalOpen, setIsSharePersonaModalOpen] = useState(false);
   const hasStartedDualBattleRef = useRef(false);
   const didAutoStartRef = useRef(false);
+  const isDualAiSceneOpen = isDualAiMode || aiToAiChat.isBattling || Boolean(aiToAiChat.topic);
 
   const isNamnaReady = evaluationCount >= NAMNA_PROMPT_THRESHOLD;
   const namnaLevel = isNamnaReady ? Math.floor(evaluationCount / NAMNA_PROMPT_THRESHOLD) : 0;
@@ -99,6 +101,19 @@ export default function NamnaPage() {
   }, [isDualParamEnabled]);
 
   useEffect(() => {
+    if (!isNamnaReady) {
+      setIsInteractionModalOpen(false);
+    }
+  }, [isNamnaReady]);
+
+  useEffect(() => {
+    if (!isDualAiSceneOpen) return;
+
+    discardCurrentTurn();
+    setMicRuntimeActive(false);
+  }, [discardCurrentTurn, isDualAiSceneOpen, setMicRuntimeActive]);
+
+  useEffect(() => {
     if (!userInfo?.id) return;
 
     void (async () => {
@@ -110,6 +125,10 @@ export default function NamnaPage() {
       }
     })();
   }, [userInfo?.id]);
+
+  useEffect(() => {
+    setIsTextInputMode(!isMicOn);
+  }, [isMicOn]);
 
   useEffect(() => {
     if (
@@ -320,8 +339,6 @@ export default function NamnaPage() {
 
   const profileImage = initialsAvatarFallback(userInfo?.nickname || 'User');
   const namnaDisplayName = `남이 본 ${userInfo?.nickname || '나'}`;
-  const shouldShowInteractionModal = isNamnaReady && isInteractionModalOpen;
-  const isTextInputActive = !isMicOn || isTextInputMode;
 
   if (!isNamnaReady) {
     return (
@@ -391,12 +408,12 @@ export default function NamnaPage() {
 
   return (
     <>
-      {isDualAiMode ? (
+      {isDualAiSceneOpen ? (
         <NamnaConversationStage
           title="남이 보는 나"
           isLockMode={isLockMode}
           isMicOn={isMicOn}
-          isTextInputMode={isTextInputActive}
+          isTextInputMode={isTextInputMode}
           headerRightActionLabel="링크 공유"
           onHeaderRightAction={() => setIsSharePersonaModalOpen(true)}
           headerCenterLabel={
@@ -444,7 +461,7 @@ export default function NamnaPage() {
           currentMode="persona"
           isLockMode={isLockMode}
           isMicOn={isMicOn}
-          isTextInputMode={isTextInputActive}
+          isTextInputMode={isTextInputMode}
           headerRightActionLabel="링크 공유"
           onHeaderRightAction={() => setIsSharePersonaModalOpen(true)}
           headerCenterLabel={namnaHeaderLabel}
@@ -478,7 +495,7 @@ export default function NamnaPage() {
       {isNamnaReady ? (
         <>
           <AiTopicModal
-            isOpen={shouldShowInteractionModal}
+            isOpen={isInteractionModalOpen}
             onClose={() => setIsInteractionModalOpen(false)}
             onSubmit={handleDualAiTopicSubmit}
           />
