@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -29,6 +29,7 @@ import ChatPanel from './sidebar/ChatPanel';
 import AssistantPanel from './sidebar/AssistantPanel';
 import PersonaPanel from './sidebar/PersonaPanel';
 import ChatArchiveView from './ChatArchiveView';
+import SidebarAvatar from './sidebar/SidebarAvatar';
 
 interface SidebarProps {
   // User Info & Basic Actions
@@ -68,10 +69,18 @@ interface SidebarProps {
   viewCount?: number;
 }
 
+interface AlarmPayload {
+  senderId?: number;
+  senderUserId?: number;
+}
+
 const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
 const RECENT_SEARCH_LIMIT = 5;
+const STICKY_TERTIARY_IDS = new Set(['friends', 'chat', 'notifications', 'search']);
+const HOVER_LOCK_TERTIARY_IDS = new Set(['assistant', 'persona']);
 
 export default function Sidebar({
+  userInfo,
   onLogout,
   onMyCardClick,
   currentMode,
@@ -101,16 +110,46 @@ export default function Sidebar({
   const [activeTertiary, setActiveTertiary] = useState<
     'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null
   >(null);
+  const isStickyTertiary = activeTertiary ? STICKY_TERTIARY_IDS.has(activeTertiary) : false;
+  const closeHoverPanelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sidebarWidth = isExpanded ? 240 : 80;
+  const tertiaryPanelWidth = 320;
+  const tertiaryLeft =
+    activeTertiary === 'notifications' || activeTertiary === 'search' ? 0 : sidebarWidth;
+  const detailPanelLeft = activeTertiary ? sidebarWidth + tertiaryPanelWidth : sidebarWidth;
+  const isHoverLockTertiary = activeTertiary ? HOVER_LOCK_TERTIARY_IDS.has(activeTertiary) : false;
+
+  const clearHoverPanelCloseTimer = useCallback(() => {
+    if (closeHoverPanelTimerRef.current) {
+      clearTimeout(closeHoverPanelTimerRef.current);
+      closeHoverPanelTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleHoverPanelClose = useCallback(() => {
+    clearHoverPanelCloseTimer();
+    closeHoverPanelTimerRef.current = setTimeout(() => {
+      setIsExpanded(false);
+      setActiveTertiary((current) => {
+        if (current && HOVER_LOCK_TERTIARY_IDS.has(current)) {
+          return null;
+        }
+        return current;
+      });
+    }, 120);
+  }, [clearHoverPanelCloseTimer]);
+
+  useEffect(() => {
+    return () => {
+      clearHoverPanelCloseTimer();
+    };
+  }, [clearHoverPanelCloseTimer]);
 
   // Sync activeTertiary with URL path
   useEffect(() => {
     const path = location.pathname;
     if (path.startsWith('/chat') || path.startsWith('/chat-archive')) {
       setActiveTertiary('chat');
-    } else if (path === PATHS.ASSISTANT) {
-      setActiveTertiary('assistant');
-    } else if (path === PATHS.NAMNA) {
-      setActiveTertiary('persona');
     } else if (selectedChatId) {
       setActiveTertiary('chat');
     } else {
@@ -131,7 +170,7 @@ export default function Sidebar({
         }
       }
     }
-  }, [location.pathname, selectedChatId]);
+  }, [activeTertiary, location.pathname, selectedChatId]);
 
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
@@ -155,6 +194,26 @@ export default function Sidebar({
 
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
+
+  const returnToChatList = () => {
+    navigate(PATHS.CHAT);
+  };
+
+  const returnToChatCategories = () => {
+    setChatTab('archive');
+    setChatView('categories');
+    setChatCategory('assistant');
+    setAssistantFilters([]);
+    navigate(PATHS.CHAT);
+  };
+
+  const openGuestbookRoot = () => {
+    setChatTab('guestbook');
+    setChatView('categories');
+    setChatCategory('assistant');
+    setAssistantFilters([]);
+    navigate(PATHS.CHAT);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -213,7 +272,13 @@ export default function Sidebar({
   }
 
   const menuItems: MenuItem[] = [
-    { id: 'home', icon: Home, label: '홈', path: PATHS.HOME, color: 'text-rose-500' },
+    {
+      id: 'home',
+      icon: Home,
+      label: '홈',
+      path: userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME,
+      color: 'text-rose-500',
+    },
     { id: 'myinfo', icon: User, label: '내 정보', action: onMyCardClick, color: 'text-rose-500' },
     {
       id: 'ai_assistant',
@@ -315,13 +380,25 @@ export default function Sidebar({
   const handleNotificationClick = (alarm: Alarm) => {
     onAlarmClick(alarm);
 
-    // Redirect logic based on notification type
     if (alarm.type === 'FOLLOW_REQUEST') {
+      if (selectedChatId) {
+        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+      }
+
       setActiveTertiary('friends');
       setFriendView('requests');
+      setFriendTab('following');
+    } else if (alarm.type === 'FOLLOW_CREATED') {
+      if (selectedChatId) {
+        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+      }
+
+      setActiveTertiary('friends');
+      setFriendView('main');
+      setFriendTab('following');
     } else if (alarm.type === 'FOLLOW_ACCEPT') {
-      // Navigate to the person who accepted the request
-      const senderId = (alarm.payload as any)?.senderId || (alarm.payload as any)?.senderUserId;
+      const payload = alarm.payload as AlarmPayload | undefined;
+      const senderId = payload?.senderId || payload?.senderUserId;
       if (senderId) {
         navigate(PATHS.USER_HOME(senderId));
         setActiveTertiary(null);
@@ -356,9 +433,17 @@ export default function Sidebar({
         setFriendTab('following');
       }
       if (item.tertiaryId !== 'chat' && selectedChatId) {
-        navigate(PATHS.HOME);
+        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
       }
     }
+  };
+
+  const handleItemHover = (item: MenuItem) => {
+    if (!item.tertiaryId || !HOVER_LOCK_TERTIARY_IDS.has(item.tertiaryId)) {
+      return;
+    }
+    clearHoverPanelCloseTimer();
+    setActiveTertiary(item.tertiaryId);
   };
 
   return (
@@ -372,12 +457,6 @@ export default function Sidebar({
               exit={{ opacity: 0 }}
               onClick={() => {
                 setActiveTertiary(null);
-
-                const isAssistantPage = location.pathname.startsWith(PATHS.ASSISTANT);
-                const isNamnaPage = location.pathname.startsWith(PATHS.NAMNA);
-                if (isAssistantPage || isNamnaPage) {
-                  navigate(PATHS.HOME);
-                }
               }}
               className="fixed inset-0 bg-transparent pointer-events-auto z-[115]"
             />
@@ -385,8 +464,20 @@ export default function Sidebar({
       </AnimatePresence>
 
       <motion.aside
-        onMouseEnter={() => setIsExpanded(true)}
-        onMouseLeave={() => setIsExpanded(false)}
+        onMouseEnter={() => {
+          clearHoverPanelCloseTimer();
+          setIsExpanded(true);
+        }}
+        onMouseLeave={() => {
+          if (isHoverLockTertiary) {
+            scheduleHoverPanelClose();
+            return;
+          }
+          setIsExpanded(false);
+          if (!isStickyTertiary) {
+            setActiveTertiary(null);
+          }
+        }}
         animate={{
           width: isExpanded ? 240 : 80,
           opacity:
@@ -398,8 +489,21 @@ export default function Sidebar({
         className="h-full bg-[#eee5df] border-r border-gray-200 pointer-events-auto flex flex-col items-center py-6 z-[130]"
       >
         <div className="mb-6 flex flex-col items-center gap-2">
-          <div className="w-10 h-10 bg-white flex items-center justify-center rounded-lg shadow-sm">
-            <span className="font-bold text-gray-800 text-[10px]">로고</span>
+          <div className="flex items-center justify-center overflow-hidden">
+            <div
+              aria-label="Logo"
+              className="h-11 w-11 bg-stone-400"
+              style={{
+                WebkitMaskImage: "url('/logo.svg')",
+                WebkitMaskRepeat: 'no-repeat',
+                WebkitMaskPosition: 'center',
+                WebkitMaskSize: 'contain',
+                maskImage: "url('/logo.svg')",
+                maskRepeat: 'no-repeat',
+                maskPosition: 'center',
+                maskSize: 'contain',
+              }}
+            />
           </div>
         </div>
 
@@ -428,6 +532,7 @@ export default function Sidebar({
             return (
               <div key={item.id} className="relative group/item">
                 <button
+                  onMouseEnter={() => handleItemHover(item)}
                   onClick={() => handleItemClick(item)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 hover:bg-black/5`}
                 >
@@ -488,40 +593,61 @@ export default function Sidebar({
       </motion.aside>
 
       <AnimatePresence>
-        {activeTertiary && (
+        {activeTertiary && (isExpanded || isStickyTertiary) && (
           <motion.div
+            onMouseEnter={() => {
+              if (!isHoverLockTertiary) return;
+              clearHoverPanelCloseTimer();
+              setIsExpanded(true);
+            }}
+            onMouseLeave={() => {
+              if (!isHoverLockTertiary) return;
+              scheduleHoverPanelClose();
+            }}
             initial={{ opacity: 0 }}
             animate={{
               x: 0,
               opacity: 1,
-              left: activeTertiary === 'notifications' || activeTertiary === 'search' ? 0 : 80,
+              left: tertiaryLeft,
             }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className={`fixed top-0 h-full w-[320px] bg-white border-r border-gray-200 pointer-events-auto overflow-hidden flex flex-col ${activeTertiary === 'notifications' || activeTertiary === 'search' ? 'z-[140]' : 'z-[120]'}`}
           >
-            <div className="p-6 pb-2 flex items-flex-start justify-between">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-3xl font-black text-gray-800">
-                  {activeTertiary === 'friends'
-                    ? '팔로우 목록'
-                    : activeTertiary === 'chat'
-                      ? '대화 보관함'
-                      : activeTertiary === 'assistant'
-                        ? 'Ai 비서'
-                        : activeTertiary === 'persona'
-                          ? '남이 보는 나'
-                          : activeTertiary === 'search'
-                            ? '검색'
-                            : '알림'}
-                </h2>
+            <div className="flex min-h-[88px] items-center justify-between px-6 pb-2 pt-6">
+              <div className="flex min-h-[44px] items-center gap-3">
+                  {activeTertiary === 'chat' &&
+                    (selectedChatId || (chatTab === 'archive' && chatView === 'list')) && (
+                      <button
+                        onClick={selectedChatId ? returnToChatList : returnToChatCategories}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-[0px] text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800"
+                        aria-label="이전"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        이전으로
+                      </button>
+                    )}
+                  <h2 className="text-3xl font-black leading-none text-gray-800">
+                    {activeTertiary === 'friends'
+                      ? '팔로우 목록'
+                      : activeTertiary === 'chat'
+                        ? '대화 보관함'
+                        : activeTertiary === 'assistant'
+                          ? 'Ai 비서'
+                          : activeTertiary === 'persona'
+                            ? '남이 보는 나'
+                            : activeTertiary === 'search'
+                              ? '검색'
+                              : '알림'}
+                  </h2>
               </div>
               <button
                 onClick={() => {
                   setActiveTertiary(null);
-                  if (selectedChatId) navigate(PATHS.HOME);
+                  if (selectedChatId)
+                    navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
                 }}
-                className="p-2 hover:bg-black/5 rounded-full transition-colors mt-2"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full p-2 transition-colors hover:bg-black/5"
               >
                 <X className="w-8 h-8 text-gray-800" />
               </button>
@@ -580,7 +706,6 @@ export default function Sidebar({
               {activeTertiary === 'chat' && (
                 <ChatPanel
                   chatTab={chatTab}
-                  setChatTab={setChatTab}
                   chatView={chatView}
                   setChatView={setChatView}
                   chatCategory={chatCategory}
@@ -594,25 +719,32 @@ export default function Sidebar({
                     if (id) {
                       navigate(PATHS.CHAT_ARCHIVE(id));
                     } else {
-                      navigate(PATHS.CHAT);
+                      returnToChatList();
                     }
                   }}
+                  onSelectArchiveTab={returnToChatCategories}
+                  onSelectGuestbookTab={openGuestbookRoot}
                 />
               )}
               {activeTertiary === 'assistant' && (
                 <AssistantPanel
                   currentMode={currentMode}
                   onModeChange={(m) => {
+                    clearHoverPanelCloseTimer();
                     onModeChange(m);
+                    navigate(PATHS.ASSISTANT);
                     setActiveTertiary(null);
+                    setIsExpanded(false);
                   }}
                 />
               )}
               {activeTertiary === 'persona' && (
                 <PersonaPanel
                   onModeChange={(m) => {
+                    clearHoverPanelCloseTimer();
                     onModeChange(m);
                     setActiveTertiary(null);
+                    setIsExpanded(false);
                   }}
                 />
               )}
@@ -626,12 +758,13 @@ export default function Sidebar({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className={`fixed top-0 bottom-0 right-0 ${activeTertiary ? 'left-[400px]' : 'left-[80px]'} bg-white pointer-events-auto border-l border-gray-200 overflow-hidden flex flex-col z-[110] transition-all duration-200`}
+            style={{ left: `${detailPanelLeft}px` }}
+            className="fixed top-0 bottom-0 right-0 bg-white pointer-events-auto border-l border-gray-200 overflow-hidden flex flex-col z-[110] transition-all duration-200"
           >
             {/* Top Header / Back Button */}
             <div className="h-20 shrink-0 px-8 flex items-center justify-between border-b border-gray-50 z-20">
               <button
-                onClick={() => navigate(PATHS.HOME)}
+                onClick={returnToChatList}
                 className="group flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors"
               >
                 <div className="w-10 h-10 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-gray-50 transition">
@@ -639,12 +772,11 @@ export default function Sidebar({
                 </div>
                 <span className="font-bold text-sm tracking-tight">닫기</span>
               </button>
-              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-lg">
-                <img
-                  src="https://api.dicebear.com/7.x/avataaars/svg?seed=MainUser"
-                  alt="Main User"
-                />
-              </div>
+              <SidebarAvatar
+                name={userInfo?.nickname || 'User'}
+                sizeClassName="w-12 h-12"
+                className="border-2 border-white shadow-lg"
+              />
             </div>
 
             <div className="flex-1 min-h-0 bg-white flex flex-col">

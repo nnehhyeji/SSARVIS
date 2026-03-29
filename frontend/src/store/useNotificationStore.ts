@@ -5,6 +5,31 @@ import { getApiHttpBaseUrl } from '../config/api';
 import type { NotificationDTO, RealtimeNotificationDTO } from '../apis/notificationApi';
 import type { Alarm } from '../types';
 
+interface SseConnectPayload {
+  message?: string;
+}
+
+function getMessageEventData(event: unknown): string | null {
+  if (typeof MessageEvent !== 'undefined' && event instanceof MessageEvent) {
+    return typeof event.data === 'string' ? event.data : null;
+  }
+
+  const data = (event as { data?: unknown } | null | undefined)?.data;
+  return typeof data === 'string' ? data : null;
+}
+
+function addCustomSseListener(
+  source: EventSourcePolyfill,
+  type: string,
+  listener: (event: unknown) => void,
+) {
+  (
+    source as unknown as {
+      addEventListener: (eventType: string, eventListener: (event: unknown) => void) => void;
+    }
+  ).addEventListener(type, listener);
+}
+
 const timeAgo = (dateStr: string) => {
   const date = new Date(dateStr);
   const now = new Date();
@@ -19,14 +44,50 @@ const timeAgo = (dateStr: string) => {
   return `${diffInDays}일 전`;
 };
 
-const mapNotificationToAlarm = (dto: NotificationDTO): Alarm => ({
-  id: dto.notificationId,
-  message: dto.message,
-  isRead: dto.isRead,
-  time: timeAgo(dto.createdAt),
-  type: dto.eventName || 'system',
-  payload: dto.payload || {},
-});
+const extractSenderNameFromMessage = (message: string) => {
+  const trimmedMessage = message.trim();
+  if (!trimmedMessage) return '';
+
+  const honorificIndex = trimmedMessage.indexOf('님');
+  if (honorificIndex > 0) {
+    return trimmedMessage.slice(0, honorificIndex).trim();
+  }
+
+  return trimmedMessage.split(/\s+/)[0]?.trim() || '';
+};
+
+const mapNotificationToAlarm = (dto: NotificationDTO): Alarm => {
+  const payload = (dto.payload || {}) as Record<string, unknown>;
+  const senderName =
+    (payload.senderNickname as string | undefined) ||
+    (payload.senderName as string | undefined) ||
+    (payload.senderCustomId as string | undefined) ||
+    (payload.senderEmail as string | undefined) ||
+    extractSenderNameFromMessage(dto.message);
+
+  return {
+    id: dto.notificationId,
+    message: dto.message,
+    isRead: dto.isRead,
+    time: timeAgo(dto.createdAt),
+    type: dto.eventName || 'system',
+    payload: {
+      ...payload,
+      senderNickname: senderName,
+      senderName:
+        (payload.senderName as string | undefined) ||
+        (payload.senderNickname as string | undefined) ||
+        senderName,
+      senderCustomId: (payload.senderCustomId as string | undefined) || senderName,
+      senderProfileImage:
+        (payload.senderProfileImage as string | undefined) ||
+        (payload.senderProfileImgUrl as string | undefined) ||
+        (payload.profileImageUrl as string | undefined) ||
+        (payload.profileImgUrl as string | undefined) ||
+        '',
+    },
+  };
+};
 
 const createRealtimeAlarmId = () => Date.now() + Math.floor(Math.random() * 1000);
 
@@ -43,7 +104,12 @@ const mapRealtimeNotificationToAlarm = (
     senderId: dto.senderId,
     senderEmail: dto.senderEmail,
     senderCustomId: dto.senderCustomId,
+    senderNickname: dto.senderNickname,
     senderProfileImage: dto.senderProfileImage,
+    targetUserId: dto.targetUserId,
+    followRequestId: dto.followRequestId,
+    followId: dto.followId,
+    direction: dto.direction,
   },
 });
 
@@ -131,11 +197,12 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
 
     const handleCustomEvent =
       (eventName: string) =>
-      (event: any): void => {
-        if (!event.data) return;
+      (event: unknown): void => {
+        const data = getMessageEventData(event);
+        if (!data) return;
 
         try {
-          const newNoti: RealtimeNotificationDTO = JSON.parse(event.data);
+          const newNoti: RealtimeNotificationDTO = JSON.parse(data);
           get().appendRealtimeAlarm(mapRealtimeNotificationToAlarm(newNoti, eventName));
           void get().fetchNotifications();
         } catch (e) {
@@ -143,22 +210,40 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
         }
       };
 
-    eventSource.addEventListener('connect', (event: any) => {
-      if (!event.data) return;
+    addCustomSseListener(eventSource, 'connect', (event: unknown) => {
+        const dataText = getMessageEventData(event);
+        if (!dataText) return;
 
-      try {
-        const data = JSON.parse(event.data);
-        console.log('SSE Connect API 응답:', data.message);
-      } catch (e) {
-        console.debug('JSON Parse skip for connect event:', e);
-      }
-    });
+        try {
+          const data = JSON.parse(dataText) as SseConnectPayload;
+          console.log('SSE Connect API 응답:', data.message);
+        } catch (e) {
+          console.debug('JSON Parse skip for connect event:', e);
+        }
+      });
 
-    eventSource.addEventListener('FOLLOW_REQUEST', handleCustomEvent('FOLLOW_REQUEST'));
-    eventSource.addEventListener('FOLLOW_ACCEPT', handleCustomEvent('FOLLOW_ACCEPT'));
-    eventSource.addEventListener('NOTIFICATION', handleCustomEvent('NOTIFICATION'));
+    addCustomSseListener(
+      eventSource,
+      'FOLLOW_REQUEST',
+      handleCustomEvent('FOLLOW_REQUEST'),
+    );
+    addCustomSseListener(
+      eventSource,
+      'FOLLOW_ACCEPT',
+      handleCustomEvent('FOLLOW_ACCEPT'),
+    );
+    addCustomSseListener(
+      eventSource,
+      'FOLLOW_CREATED',
+      handleCustomEvent('FOLLOW_CREATED'),
+    );
+    addCustomSseListener(
+      eventSource,
+      'NOTIFICATION',
+      handleCustomEvent('NOTIFICATION'),
+    );
 
-    eventSource.onerror = (error: any) => {
+    eventSource.onerror = function onSseError(error) {
       set({ isSseConnected: false });
       console.error('SSE 연결 에러 (연결 유실 혹은 토큰 만료 등):', error);
     };

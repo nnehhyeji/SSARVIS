@@ -11,6 +11,7 @@ from app.domains.chat.service import ChatService
 from app.domains.voice.service import VoiceService
 from app.infra.audio_transcoder import AudioTranscoder
 from app.infra.dashscope import DashScopeVoiceClient
+from app.infra.local_tts import local_tts_client
 from app.infra.openai import OpenAIClient
 from app.infra.qdrant import QdrantClient
 from app.infra.webm import WebMAudioEncoder, WebMEncodingError
@@ -57,7 +58,7 @@ def get_chat_service(
 def get_voice_service(
     dashscope_client: DashScopeVoiceClient = Depends(get_dashscope_voice_client),
 ) -> VoiceService:
-    return VoiceService(dashscope_client, audio_transcoder)
+    return VoiceService(dashscope_client, audio_transcoder, local_tts_client)
 
 
 async def _send_error(

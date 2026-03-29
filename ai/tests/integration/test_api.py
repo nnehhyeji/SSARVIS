@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import socket
 from io import BytesIO
 import sys
 import os
@@ -11,6 +12,7 @@ import tempfile
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".." )))
 
 from fastapi import UploadFile
+import pytest
 from qdrant_client import QdrantClient
 from starlette.datastructures import Headers
 from websocket import create_connection
@@ -18,6 +20,8 @@ from websocket import create_connection
 from app.domains.chat.schema import ChatRequest
 from app.domains.chat.service import ChatService
 from app.domains.voice.service import VoiceService
+from app.config.local_tts import local_tts_config
+from app.infra.local_tts import LocalTtsClient
 
 
 COMPOSE_FILE = "docker-compose.integration.yml"
@@ -443,6 +447,93 @@ def test_voice_endpoints_follow_new_contract(
     )
     assert deleted.status_code == 200
     assert deleted.json() == {"message": "음성 삭제 성공", "data": {}}
+
+
+def test_local_tts_client_fetches_real_models_when_configured() -> None:
+    if not local_tts_config.local_tts_base_url.strip():
+        pytest.skip("LOCAL_TTS_BASE_URL is not configured")
+
+    client = LocalTtsClient()
+    model_ids = asyncio.run(client.refresh_models(force=True))
+
+    assert model_ids
+    assert all(isinstance(model_id, str) and model_id.strip() for model_id in model_ids)
+
+
+def test_voice_service_routes_to_real_local_tts_when_voice_id_matches_model() -> None:
+    if not local_tts_config.local_tts_base_url.strip():
+        pytest.skip("LOCAL_TTS_BASE_URL is not configured")
+
+    class StubDashScopeVoiceClient:
+        def create_synthesis_request(self, text: str, voice_id: str):
+            raise AssertionError("DashScope should not be used for local model voices")
+
+        async def synthesize(self, request):
+            if False:
+                yield b""
+
+    local_client = LocalTtsClient()
+    model_ids = asyncio.run(local_client.refresh_models(force=True))
+    model_id = next(iter(model_ids))
+
+    service = VoiceService(
+        dashscope_client=StubDashScopeVoiceClient(),
+        audio_transcoder=None,
+        local_tts_client=local_client,
+    )
+
+    async def collect() -> list[bytes]:
+        return [chunk async for chunk in service.synthesize("안녕하세요", model_id)]
+
+    chunks = asyncio.run(collect())
+    assert chunks
+    assert all(isinstance(chunk, bytes) for chunk in chunks)
+    assert all(chunk for chunk in chunks)
+
+
+def test_voice_service_falls_back_to_dashscope_when_voice_id_is_not_local_model() -> None:
+    class StubDashScopeVoiceClient:
+        def create_synthesis_request(self, text: str, voice_id: str):
+            return {"text": text, "voice_id": voice_id}
+
+        async def synthesize(self, request):
+            assert request == {"text": "안녕하세요", "voice_id": "dashscope-voice"}
+            yield b"dashscope-pcm"
+
+    class StubLocalTtsClient:
+        async def is_model_voice_id(self, voice_id: str) -> bool:
+            return False
+
+        async def synthesize(self, text: str, model_id: str):
+            if False:
+                yield b""
+
+    service = VoiceService(
+        dashscope_client=StubDashScopeVoiceClient(),
+        audio_transcoder=None,
+        local_tts_client=StubLocalTtsClient(),
+    )
+
+    async def collect() -> list[bytes]:
+        return [chunk async for chunk in service.synthesize("안녕하세요", "dashscope-voice")]
+
+    assert asyncio.run(collect()) == [b"dashscope-pcm"]
+
+
+def test_local_tts_client_treats_models_timeout_as_unavailable() -> None:
+    client = LocalTtsClient()
+    original_fetch = client._fetch_models
+
+    def timeout_fetch() -> list[str]:
+        raise socket.timeout("timed out")
+
+    client._fetch_models = timeout_fetch
+    try:
+        model_ids = asyncio.run(client.refresh_models(force=True))
+    finally:
+        client._fetch_models = original_fetch
+
+    assert model_ids == set()
 
 
 def test_chat_websocket_persists_records_in_qdrant(

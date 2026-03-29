@@ -1,6 +1,5 @@
 import axiosInstance from './axiosInstance';
 
-// --- Types ---
 export interface CommonResponse<T = null> {
   code: string | null;
   message: string;
@@ -45,6 +44,8 @@ export interface SignupRequest {
   password: string;
   nickname: string;
   customId: string;
+  registerUUID?: string;
+  profileImageUrl?: string;
 }
 
 export interface UserResponse {
@@ -67,9 +68,7 @@ export interface UpdateUserRequest {
   description?: string;
 }
 
-// --- API Functions ---
 const userApi = {
-  // 1. 이메일 중복 확인
   checkEmail: async (data: CheckEmailRequest) => {
     const response = await axiosInstance.post<CommonResponse<CheckEmailResponse>>(
       '/users/check-email',
@@ -78,7 +77,6 @@ const userApi = {
     return response.data.data;
   },
 
-  // 2. 닉네임 중복 확인 (화면상 닉네임)
   checkNickname: async (data: CheckNicknameRequest) => {
     const response = await axiosInstance.post<CommonResponse<CheckNicknameResponse>>(
       '/users/check-nickname',
@@ -87,7 +85,6 @@ const userApi = {
     return response.data.data;
   },
 
-  // 3. 아이디 중복 확인 (로그인용 아이디)
   checkCustomId: async (data: CheckCustomIdRequest) => {
     const response = await axiosInstance.post<CommonResponse<CheckCustomIdResponse>>(
       '/users/check-customId',
@@ -96,43 +93,36 @@ const userApi = {
     return response.data.data;
   },
 
-  // 4. 이메일 인증 코드 발송
   sendVerificationCode: async (data: EmailVerificationRequest) => {
     const response = await axiosInstance.post<CommonResponse>('/users/email/verification', data);
     return response.data;
   },
 
-  // 5. 이메일 인증 코드 확인
   verifyEmailCode: async (data: EmailVerifyRequest) => {
     const response = await axiosInstance.post<CommonResponse>('/users/email/verify', data);
     return response.data;
   },
 
-  // 6. 회원 가입
   signup: async (data: SignupRequest) => {
     const response = await axiosInstance.post<CommonResponse>('/users', data);
     return response.data;
   },
 
-  // 7. 회원 탈퇴
   withdraw: async () => {
     const response = await axiosInstance.delete<CommonResponse>('/users');
     return response.data;
   },
 
-  // 8. 유저 정보 조회
   getUserProfile: async () => {
     const response = await axiosInstance.get<CommonResponse<UserResponse>>('/users');
     return response.data.data;
   },
 
-  // 9. 유저 정보 수정
   updateUserProfile: async (data: UpdateUserRequest) => {
     const response = await axiosInstance.patch<CommonResponse<{ userId: number }>>('/users', data);
     return response.data;
   },
 
-  // 10. 프로필 이미지 수정
   updateProfileImage: async (formData: FormData) => {
     const response = await axiosInstance.patch<CommonResponse<string>>(
       '/users/profile-image',
@@ -146,13 +136,16 @@ const userApi = {
     return response.data;
   },
 
-  // 11. 남나 문답 여부 토글
+  deleteProfileImage: async () => {
+    const response = await axiosInstance.delete<CommonResponse<void>>('/users/profile-image');
+    return response.data;
+  },
+
   toggleNamna: async () => {
     const response = await axiosInstance.get<CommonResponse<string>>('/users/namna/toggle');
     return response.data;
   },
 
-  // 12. 공개/비공개 계정 전환 토글
   toggleProfileVisibility: async (isPublic: boolean) => {
     const response = await axiosInstance.patch<CommonResponse<string>>('/users/profile/toggle', {
       isPublic,

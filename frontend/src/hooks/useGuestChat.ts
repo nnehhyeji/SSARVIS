@@ -76,6 +76,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     { sender: 'ai', text: DEFAULT_GREETING },
   ]);
   const [sttText, setSttText] = useState('');
+  const [voicePhase, setVoicePhase] = useState<RecognitionMode>('idle');
+  const [wakeWordDetectedAt, setWakeWordDetectedAt] = useState<number | null>(null);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
 
@@ -98,6 +100,18 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const speechFinalizedRef = useRef(false);
   const sttTextRef = useRef('');
   const currentRecordingOptionsRef = useRef<GuestRecordingOptions | null>(null);
+  const resetGuestChatState = useCallback(() => {
+    sessionIdRef.current = null;
+    pendingTextRef.current = null;
+    sttTextRef.current = '';
+    setChatMessages([{ sender: 'ai', text: DEFAULT_GREETING }]);
+    setChatInput('');
+    setSttText('');
+    setVoicePhase('idle');
+    setWakeWordDetectedAt(null);
+    setIsAwaitingResponse(false);
+    setIsAiSpeaking(false);
+  }, []);
 
   const resetTypewriter = useCallback(() => {
     if (typeWriterIntervalRef.current) {
@@ -299,7 +313,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
     wsRef.current = socket;
     return socket;
-  }, [enabled, resetTypewriter]);
+  }, [enabled, processAudioQueue, resetTypewriter]);
 
   const ensureSocketReady = useCallback(async () => {
     const socket = connectSocket();
@@ -381,6 +395,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       const normalized = finalText.trim();
       if (speechFinalizedRef.current) return;
       speechFinalizedRef.current = true;
+      setVoicePhase('idle');
 
       if (!normalized) {
         setSttText('');
@@ -412,7 +427,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const startWakeMode = useCallback(() => {
     if (!recognitionRef.current) return;
 
-    recognitionModeRef.current = 'wake';
+      recognitionModeRef.current = 'wake';
+      setVoicePhase('wake');
     pendingSpeechCaptureRef.current = false;
     recognitionRef.current.continuous = true;
     recognitionRef.current.interimResults = false;
@@ -428,6 +444,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       sttTextRef.current = heardText;
 
       if (containsWakeWord(heardText)) {
+        setWakeWordDetectedAt(Date.now());
         setSttText('웨이크 워드 감지! 음성을 듣고 있어요.');
         pendingSpeechCaptureRef.current = true;
         stopRecognition();
@@ -441,7 +458,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     if (!recognitionRef.current || !currentRecordingOptionsRef.current) return;
 
     speechFinalizedRef.current = false;
-    recognitionModeRef.current = 'speech';
+      recognitionModeRef.current = 'speech';
+      setVoicePhase('speech');
     clearSpeechSilenceTimer();
     setSttText('음성을 듣고 있어요...');
     sttTextRef.current = '';
@@ -477,7 +495,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       chatSessionType: string = 'AVATAR_AI',
       targetUserId: number | null = null,
     ) => {
-      if (!enabled) return;
+      if (!enabled) return false;
 
       const SpeechRecognition =
         (window as unknown as { SpeechRecognition?: new () => GuestSpeechRecognition })
@@ -487,7 +505,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
       if (!SpeechRecognition) {
         console.warn('SpeechRecognition is not supported.');
-        return;
+        return false;
       }
 
       try {
@@ -495,7 +513,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
         stream.getTracks().forEach((track) => track.stop());
       } catch (error) {
         console.warn('Microphone permission is required:', error);
-        return;
+        return false;
       }
 
       currentRecordingOptionsRef.current = {
@@ -576,10 +594,12 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       }
 
       startWakeMode();
+      return true;
     },
     [
       clearSpeechSilenceTimer,
       enabled,
+      finalizeSpeechTurn,
       resetTypewriter,
       safeStartRecognition,
       startSpeechCapture,
@@ -589,6 +609,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
   const stopRecordingAndSendSTT = useCallback(() => {
     recognitionModeRef.current = 'idle';
+    setVoicePhase('idle');
+    setWakeWordDetectedAt(null);
     pendingSpeechCaptureRef.current = false;
     clearSpeechSilenceTimer();
     stopRecognition();
@@ -623,27 +645,25 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     if (!enabled) {
       wsRef.current?.close();
       wsRef.current = null;
-      sessionIdRef.current = null;
-      pendingTextRef.current = null;
-      setChatInput('');
-      setChatMessages([{ sender: 'ai', text: DEFAULT_GREETING }]);
-      setSttText('');
-      sttTextRef.current = '';
-      setIsAwaitingResponse(false);
-      setIsAiSpeaking(false);
+      const timeoutId = window.setTimeout(() => {
+        resetGuestChatState();
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
     }
-  }, [enabled]);
+  }, [enabled, resetGuestChatState]);
 
   useEffect(() => {
-    sessionIdRef.current = null;
-    pendingTextRef.current = null;
-    setChatMessages([{ sender: 'ai', text: DEFAULT_GREETING }]);
-    setChatInput('');
-    setSttText('');
-    sttTextRef.current = '';
-    setIsAwaitingResponse(false);
-    setIsAiSpeaking(false);
-  }, [targetUserId]);
+    const timeoutId = window.setTimeout(() => {
+      resetGuestChatState();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [resetGuestChatState, targetUserId]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -670,9 +690,11 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   return {
     chatInput,
     chatMessages,
-    isLockMode: false,
-    sttText,
-    isAiSpeaking,
+      isLockMode: false,
+      sttText,
+      voicePhase,
+      wakeWordDetectedAt,
+      isAiSpeaking,
     isAwaitingResponse,
     setChatInput,
     toggleLock,

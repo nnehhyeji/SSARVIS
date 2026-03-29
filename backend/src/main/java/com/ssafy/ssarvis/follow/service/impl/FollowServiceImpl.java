@@ -75,7 +75,7 @@ public class FollowServiceImpl implements FollowService {
             followRepository.save(follow);
 
             // 알림 전송: "A님이 회원님을 팔로우했습니다." (즉시 완료 알림)
-            notificationService.sendFollowAcceptNotification(sender, receiver);
+            notificationService.sendFollowDirectNotification(sender, receiver, follow.getId());
         } else {
             // 비공개 계정: 기존처럼 팔로우 요청 생성
             FollowRequest followRequest = FollowRequest.builder()
@@ -85,7 +85,7 @@ public class FollowServiceImpl implements FollowService {
             followRequestRepository.save(followRequest);
 
             // 알림 전송: "A님이 팔로우 요청을 보냈습니다."
-            notificationService.sendFollowRequestNotification(sender, receiver);
+            notificationService.sendFollowRequestNotification(sender, receiver, followRequest.getId());
         }
     }
 
@@ -106,7 +106,7 @@ public class FollowServiceImpl implements FollowService {
         followRepository.save(follow);
         followRequestRepository.delete(followRequest);
 
-        notificationService.sendFollowAcceptNotification(followRequest.getSender(), followRequest.getReceiver());
+        notificationService.sendFollowAcceptNotification(followRequest.getSender(), followRequest.getReceiver(), follow.getId());
 
         log.info("친구 수락 완료 - 요청자 PK: {}, 응답자 PK: {}",
             followRequest.getSender().getId(), receiverId);

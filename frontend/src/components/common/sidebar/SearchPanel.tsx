@@ -1,6 +1,7 @@
 import React from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, UserCheck, UserPlus, X } from 'lucide-react';
 import type { Follow } from '../../../types';
+import SidebarAvatar from './SidebarAvatar';
 
 export type RecentSearchItem = {
   id: number;
@@ -42,7 +43,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
   setRecentSearches,
 }) => {
   return (
-    <div className="px-8 space-y-8 flex flex-col h-full">
+    <div className="px-6 space-y-8 flex flex-col h-full">
       <div className="relative">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
           <Search className="w-5 h-5 text-gray-400" />
@@ -82,50 +83,42 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
               searchResults.map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 shadow-sm"
+                  onClick={() => {
+                    addRecentSearch({
+                      id: user.id,
+                      name: user.name,
+                      subtitle: user.customId || 'user',
+                      profileImgUrl: user.profileImgUrl,
+                    });
+                    onVisit(user.id);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-5 py-4 shadow-sm transition hover:border-gray-200 hover:bg-white cursor-pointer"
                 >
-                  <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
-                    <img
-                      src={
-                        user.profileImgUrl ||
-                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`
-                      }
-                      alt={user.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold text-gray-800">{user.name}</p>
-                    <p className="truncate text-sm text-gray-500">@{user.customId || 'user'}</p>
+                  <SidebarAvatar
+                    name={user.name}
+                    imageUrl={user.profileImgUrl}
+                    sizeClassName="w-12 h-12"
+                  />
+                  <div className="min-w-0 flex-1 pr-2">
+                    <p className="truncate text-[15px] font-black text-gray-800">{user.name}</p>
+                    <p className="truncate text-sm font-bold text-gray-500">
+                      @{user.customId || 'user'}
+                    </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        addRecentSearch({
-                          id: user.id,
-                          name: user.name,
-                          subtitle: user.customId || 'user',
-                          profileImgUrl: user.profileImgUrl,
-                        });
-                        onVisit(user.id);
-                      }}
-                      className="rounded-lg bg-white/70 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-white"
-                    >
-                      Visit
-                    </button>
                     {user.followStatus === 'REQUESTED' ? (
-                      <span className="rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600">
-                        Requested
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 text-slate-600">
+                        <UserPlus className="h-4 w-4 opacity-60" />
                       </span>
                     ) : user.followStatus === 'FOLLOWING' || user.isFollowing ? (
-                      <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                        Following
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                        <UserCheck className="h-4 w-4" />
                       </span>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
                           addRecentSearch({
                             id: user.id,
                             name: user.name,
@@ -134,9 +127,10 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
                           });
                           onRequest(user.id, user.name);
                         }}
-                        className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-rose-600"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500 text-white transition hover:bg-rose-600"
+                        aria-label={`${user.name} 친구 추가`}
                       >
-                        Add
+                        <UserPlus className="h-4 w-4" />
                       </button>
                     )}
                   </div>
@@ -170,15 +164,11 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
             {recentSearches.length > 0 ? (
               recentSearches.map((s) => (
                 <div key={s.id} className="flex items-center gap-4 group/searchItem">
-                  <div className="w-14 h-14 rounded-full overflow-hidden bg-white shadow-sm border border-black/5">
-                    <img
-                      src={
-                        s.profileImgUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.id}`
-                      }
-                      alt={s.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  <SidebarAvatar
+                    name={s.name}
+                    imageUrl={s.profileImgUrl}
+                    sizeClassName="w-14 h-14"
+                  />
                   <button
                     type="button"
                     onClick={() => handleRecentSearchClick(s)}

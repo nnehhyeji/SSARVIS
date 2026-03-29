@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiOrigin } from '../config/api';
 import type { ChatMessage } from '../types';
 
@@ -55,6 +55,8 @@ export function useAIToAIChat() {
   const [errorMessage, setErrorMessage] = useState('');
   const [battleMessages, setBattleMessages] = useState<ChatMessage[]>([]);
   const [isPaused, setIsPaused] = useState(false);
+  const [maxTurn, setMaxTurn] = useState(MAX_TURN);
+  const [isAwaitingContinuation, setIsAwaitingContinuation] = useState(false);
 
   const socketsRef = useRef<Record<Side, WebSocket | null>>({ mine: null, target: null });
   const sessionIdsRef = useRef<Record<Side, string | null>>({ mine: null, target: null });
@@ -66,6 +68,7 @@ export function useAIToAIChat() {
   const isBattlingRef = useRef(false);
   const isPausedRef = useRef(false);
   const turnCountRef = useRef(0);
+  const maxTurnRef = useRef(MAX_TURN);
   const configRef = useRef<Record<Side, AiSocketConfig | null>>({ mine: null, target: null });
 
   const resetAudioState = useCallback((side: Side, options?: { preserveLastText?: boolean }) => {
@@ -110,8 +113,17 @@ export function useAIToAIChat() {
     isPausedRef.current = false;
     setIsBattling(false);
     setIsPaused(false);
+    setIsAwaitingContinuation(false);
+    setTurnCount(0);
+    setMaxTurn(MAX_TURN);
     setActiveSpeaker(null);
+    setTopic('');
+    setMyLatestText('');
+    setTargetLatestText('');
+    setBattleMessages([]);
     setStatusMessage('AI 대화를 멈췄습니다.');
+    turnCountRef.current = 0;
+    maxTurnRef.current = MAX_TURN;
     pendingRelayRef.current = null;
     closeSockets();
   }, [closeSockets]);
@@ -182,9 +194,11 @@ export function useAIToAIChat() {
     const pending = pendingRelayRef.current;
     if (!pending || !isBattlingRef.current || isPausedRef.current) return;
 
-    if (turnCountRef.current >= MAX_TURN) {
-      setStatusMessage(`최대 ${MAX_TURN}턴까지 대화를 진행하고 멈췄습니다.`);
-      stopBattle();
+    if (turnCountRef.current >= maxTurnRef.current) {
+      isPausedRef.current = true;
+      setIsPaused(true);
+      setIsAwaitingContinuation(true);
+      setStatusMessage(`${maxTurnRef.current}턴까지 대화를 진행했어요. 더 이어갈까요?`);
       return;
     }
 
@@ -401,11 +415,14 @@ export function useAIToAIChat() {
       setTargetLatestText('');
       setBattleMessages([{ sender: 'me', text: `주제: ${trimmedTopic}` }]);
       setTurnCount(0);
+      setMaxTurn(MAX_TURN);
       turnCountRef.current = 0;
+      maxTurnRef.current = MAX_TURN;
       isBattlingRef.current = true;
       isPausedRef.current = false;
       setIsBattling(true);
       setIsPaused(false);
+      setIsAwaitingContinuation(false);
       pendingRelayRef.current = null;
 
       configRef.current = {
@@ -461,6 +478,7 @@ export function useAIToAIChat() {
 
     isPausedRef.current = false;
     setIsPaused(false);
+    setIsAwaitingContinuation(false);
     setStatusMessage('AI 대화를 다시 이어가는 중입니다.');
 
     let resumedCurrentAudio = false;
@@ -480,6 +498,15 @@ export function useAIToAIChat() {
     }
   }, [tryRelay]);
 
+  const continueBattle = useCallback(() => {
+    if (!isBattlingRef.current) return;
+
+    maxTurnRef.current += MAX_TURN;
+    setMaxTurn(maxTurnRef.current);
+    setIsAwaitingContinuation(false);
+    resumeBattle();
+  }, [resumeBattle]);
+
   return {
     isBattling,
     isPaused,
@@ -491,10 +518,12 @@ export function useAIToAIChat() {
     topic,
     errorMessage,
     battleMessages,
-    maxTurn: MAX_TURN,
+    maxTurn,
+    isAwaitingContinuation,
     startBattle,
     pauseBattle,
     resumeBattle,
+    continueBattle,
     stopBattle,
   };
 }

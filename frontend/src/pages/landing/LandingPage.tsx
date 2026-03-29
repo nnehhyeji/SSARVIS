@@ -1,9 +1,33 @@
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { PATHS } from '../../routes/paths';
 import { useUserStore } from '../../store/useUserStore';
+
+interface LandingSpeechRecognitionResultItem {
+  transcript: string;
+}
+
+interface LandingSpeechRecognitionResult {
+  0: LandingSpeechRecognitionResultItem;
+  length: number;
+}
+
+interface LandingSpeechRecognitionEvent {
+  resultIndex: number;
+  results: ArrayLike<LandingSpeechRecognitionResult>;
+}
+
+interface LandingSpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: LandingSpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
 
 /**
  * LandingPage.tsx
@@ -13,11 +37,69 @@ import { useUserStore } from '../../store/useUserStore';
  */
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isLoggedIn, userInfo } = useUserStore();
+  const redirectToLogin = useCallback(() => {
+    const { isLoggedIn, userInfo } = useUserStore.getState();
+    if (isLoggedIn && userInfo?.id) {
+      navigate(PATHS.USER_HOME(userInfo.id));
+      return;
+    }
+    navigate(PATHS.LOGIN);
+  }, [navigate]);
 
-  if (isLoggedIn && userInfo?.id) {
-    return <Navigate to={PATHS.USER_HOME(userInfo.id)} replace />;
-  }
+  useEffect(() => {
+    const SpeechRecognitionApi =
+      (window as unknown as { SpeechRecognition?: new () => LandingSpeechRecognition })
+        .SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: new () => LandingSpeechRecognition })
+        .webkitSpeechRecognition;
+
+    if (!SpeechRecognitionApi) return;
+
+    let recognition: LandingSpeechRecognition | null = null;
+    let isUnmounted = false;
+
+    try {
+      recognition = new SpeechRecognitionApi();
+      recognition.lang = 'ko-KR';
+      // 지속적인 인식을 위해 true
+      recognition.continuous = true;
+      // 중간 마디 결과도 확인
+      recognition.interimResults = true;
+
+      recognition.onresult = (event: LandingSpeechRecognitionEvent) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript.replace(/\s+/g, '');
+          if (transcript.includes('로그인')) {
+            recognition?.stop();
+            redirectToLogin();
+            return;
+          }
+        }
+      };
+
+      recognition.onend = () => {
+        if (!isUnmounted) {
+          try {
+            recognition?.start();
+          } catch {
+            // ignore repeated start attempts
+          }
+        }
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.error('Speech recognition error:', e);
+    }
+
+    return () => {
+      isUnmounted = true;
+      if (recognition) {
+        recognition.onend = null; // onend 이벤트 해제하여 재기동 방지
+        recognition.stop();
+      }
+    };
+  }, [redirectToLogin]);
 
   // 배경 부유 애니메이션 (배경 전체가 아주 천천히 움직임)
   const floatingVariant: Variants = {
@@ -128,22 +210,42 @@ const LandingPage: React.FC = () => {
           <h1 className="text-6xl md:text-8xl font-black text-white mb-16 drop-shadow-2xl leading-[1.1] select-none">
             나를 닮은
             <br />
-            나만의 ai
+            나만의 AI
           </h1>
 
           <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
-            <button
-              onClick={() => navigate(PATHS.GUEST_EXPERIENCE)}
-              className="px-12 py-5 rounded-full border border-white/20 bg-white/5 backdrop-blur-3xl text-white font-bold text-lg hover:bg-white/10 transition-all hover:scale-105 shadow-xl min-w-[300px]"
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={redirectToLogin}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  redirectToLogin();
+                }
+              }}
+              className="flex cursor-pointer items-center justify-center px-8 py-5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40"
             >
-              유명인 싸비스 체험해보기
-            </button>
-            <button
-              onClick={() => navigate(PATHS.LOGIN)}
-              className="px-12 py-5 rounded-full bg-white text-[#6b476e] font-black text-lg hover:bg-white/95 transition-all hover:scale-105 shadow-[0_30px_60px_rgba(0,0,0,0.3)] min-w-[280px]"
-            >
-              내 싸비스 만나러가기
-            </button>
+              <motion.svg
+                animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-6 h-6 text-white mr-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                ></path>
+              </motion.svg>
+              <span className="text-white font-medium text-lg tracking-wide select-none">
+                "로그인 화면으로 이동" 이라고 말해보세요
+              </span>
+            </div>
           </div>
         </motion.div>
       </div>

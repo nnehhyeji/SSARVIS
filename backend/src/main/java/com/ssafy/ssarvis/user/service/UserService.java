@@ -2,6 +2,7 @@ package com.ssafy.ssarvis.user.service;
 
 import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserUpdateRequestDto;
+import com.ssafy.ssarvis.user.dto.response.UserProfileResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,4 +32,9 @@ public interface UserService {
 
     boolean verifyEmailCode(String email, String code);
 
+    void deleteProfileImage(Long userId);
+
+    UserProfileResponseDto getUserProfile(Long userId);
+
+    void visitUserProfile(Long userId);
 }

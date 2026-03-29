@@ -7,6 +7,7 @@ from app.domains.voice.exceptions import VoiceUpdateNotSupportedError
 from app.domains.voice.schema import VoiceUpdateRequest
 from app.infra.audio_transcoder import AudioTranscoder
 from app.infra.dashscope import DashScopeVoiceClient
+from app.infra.local_tts import LocalTtsClient
 
 
 class VoiceService:
@@ -14,9 +15,11 @@ class VoiceService:
         self,
         dashscope_client: DashScopeVoiceClient,
         audio_transcoder: AudioTranscoder,
+        local_tts_client: LocalTtsClient | None = None,
     ) -> None:
         self.dashscope_client = dashscope_client
         self.audio_transcoder = audio_transcoder
+        self.local_tts_client = local_tts_client
 
     async def create_voice(self, audio_file: UploadFile, audio_text: str) -> str:
         audio_payload = await audio_file.read()
@@ -35,9 +38,16 @@ class VoiceService:
         )
 
     async def delete_voice(self, voice_id: str) -> None:
+        if self.local_tts_client and await self.local_tts_client.is_model_voice_id(voice_id):
+            return
         await self.dashscope_client.delete_voice_async(voice_id)
 
     async def synthesize(self, text: str, voice_id: str) -> AsyncIterator[bytes]:
+        if self.local_tts_client and await self.local_tts_client.is_model_voice_id(voice_id):
+            async for chunk in self.local_tts_client.synthesize(text, voice_id):
+                yield chunk
+            return
+
         request = self.dashscope_client.create_synthesis_request(
             text=text,
             voice_id=voice_id,

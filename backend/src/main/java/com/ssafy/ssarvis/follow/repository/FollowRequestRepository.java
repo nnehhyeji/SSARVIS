@@ -22,3 +22,4 @@ public interface FollowRequestRepository extends JpaRepository<FollowRequest, Lo
     @Query("SELECT fr.receiver.id FROM FollowRequest fr WHERE fr.sender.id = :userId AND fr.receiver.id IN :targetIds")
     Set<Long> findReceiverIdsBySenderIdAndReceiverIds(@Param("userId") Long userId, @Param("targetIds") Set<Long> targetIds);
 }
+

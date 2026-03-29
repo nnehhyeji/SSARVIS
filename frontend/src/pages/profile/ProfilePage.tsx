@@ -1,35 +1,112 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUserStore } from '../../store/useUserStore';
-import userApi from '../../apis/userApi';
-import followApi from '../../apis/followApi';
-import { PATHS } from '../../routes/paths';
 import { Share2 } from 'lucide-react';
+import { useUserStore } from '../../store/useUserStore';
+import userApi, { type UserResponse } from '../../apis/userApi';
+import followApi, {
+  type FollowListResponse,
+  type FollowerListResponse,
+  type TopChatterResponse,
+} from '../../apis/followApi';
+import AvatarRow, { type AvatarRowItem } from '../../components/profile/AvatarRow';
+import { PATHS } from '../../routes/paths';
+import { toast } from '../../store/useToastStore';
+import { initialsAvatarFallback } from '../../utils/avatar';
+
+const TEXT = {
+  shareSuccess: '프로필 링크가 클립보드에 복사되었습니다.',
+  shareError: '프로필 링크를 복사하지 못했습니다.',
+  missingUser: '사용자 정보를 확인할 수 없습니다.',
+  userNotFound: '해당 사용자를 찾을 수 없습니다.',
+  privateBlocked: '비공개 계정이라 아직 이 사용자의 집에 입장할 수 없습니다.',
+  visitError: '사용자 집 정보를 확인하지 못했습니다.',
+  unknownId: 'unknown_id',
+  defaultUser: 'User',
+  profileAlt: 'Profile',
+  followers: '팔로워',
+  following: '팔로우 중',
+  edit: '편집',
+  shareTitle: '프로필 링크 공유',
+};
+
+type VisitLookup = {
+  userId: number;
+  customId: string;
+  followStatus: string;
+  isProfilePublic: boolean;
+};
+
+const sortByTopChatters = (items: AvatarRowItem[], topChatters: TopChatterResponse[]) => {
+  const ranking = new Map<number, number>();
+
+  topChatters.forEach((item, index) => {
+    ranking.set(item.userId, item.totalMessageCount ?? Math.max(topChatters.length - index, 0));
+  });
+
+  return [...items].sort((a, b) => {
+    const aCount = ranking.get(a.userId) ?? -1;
+    const bCount = ranking.get(b.userId) ?? -1;
+
+    if (aCount !== bCount) {
+      return bCount - aCount;
+    }
+
+    return a.nickname.localeCompare(b.nickname);
+  });
+};
+
+const mapFollowing = (
+  items: FollowListResponse[] = [],
+  topChatters: TopChatterResponse[] = [],
+): AvatarRowItem[] =>
+  sortByTopChatters(
+    items.map((item) => ({
+      userId: item.userId,
+      nickname: item.nickname,
+      customId: item.customId || '',
+      profileImageUrl: item.followerProfileImgUrl || '',
+    })),
+    topChatters,
+  );
+
+const mapFollowers = (items: FollowerListResponse[] = []): AvatarRowItem[] =>
+  items.map((item) => ({
+    userId: item.followerId,
+    nickname: item.nickname,
+    customId: item.customId || '',
+    profileImageUrl: item.followerProfileImgUrl || '',
+  }));
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { userInfo } = useUserStore();
-  const [profile, setProfile] = React.useState<any>(null);
-  const [followingCount, setFollowingCount] = React.useState(0);
-  const [followerCount, setFollowerCount] = React.useState(0);
+  const [profile, setProfile] = React.useState<UserResponse | null>(null);
+  const [followingUsers, setFollowingUsers] = React.useState<AvatarRowItem[]>([]);
+  const [followerUsers, setFollowerUsers] = React.useState<AvatarRowItem[]>([]);
+  const visitLookupCacheRef = React.useRef<Map<string, VisitLookup>>(new Map());
+
+  const followingCount = followingUsers.length;
+  const followerCount = followerUsers.length;
 
   React.useEffect(() => {
     const loadProfileData = async () => {
       try {
-        const [profileData, followList, followerList] = await Promise.all([
+        const [profileData, followList, followerList, topChatterList] = await Promise.all([
           userApi.getUserProfile(),
           followApi.getFollowList(),
           followApi.getFollowerList(),
+          followApi.getTopChatters(),
         ]);
 
         setProfile(profileData);
-        setFollowingCount(followList.data?.length || 0);
-        setFollowerCount(followerList.data?.length || 0);
+        setFollowingUsers(mapFollowing(followList.data || [], topChatterList.data || []));
+        setFollowerUsers(mapFollowers(followerList.data || []));
       } catch (err) {
         console.error('Failed to load profile data:', err);
       }
     };
-    loadProfileData();
+
+    void loadProfileData();
   }, []);
 
   const handleEditClick = () => {
@@ -42,93 +119,132 @@ const ProfilePage: React.FC = () => {
 
     const shareUrl = `${window.location.origin}/${myId}`;
 
-    // 클립보드 복사
     navigator.clipboard
       .writeText(shareUrl)
       .then(() => {
-        alert('내 명함 링크가 클립보드에 복사되었습니다! 🪪');
+        toast.success(TEXT.shareSuccess);
       })
       .catch((err) => {
         console.error('Failed to copy link:', err);
+        toast.error(TEXT.shareError);
       });
   };
 
+  const handleUserClick = async (item: AvatarRowItem) => {
+    try {
+      const myId = userInfo?.id;
+
+      if (myId && item.userId === myId) {
+        navigate(PATHS.USER_HOME(item.userId));
+        return;
+      }
+
+      if (!item.customId) {
+        toast.error(TEXT.missingUser);
+        return;
+      }
+
+      const cacheKey = `${item.userId}:${item.customId}`;
+      let target = visitLookupCacheRef.current.get(cacheKey);
+
+      if (!target) {
+        const response = await followApi.searchUsers(item.customId);
+        const matched = (response.data || []).find(
+          (user) => user.userId === item.userId && user.customId === item.customId,
+        );
+
+        if (matched) {
+          target = {
+            userId: matched.userId,
+            customId: matched.customId,
+            followStatus: matched.followStatus,
+            isProfilePublic: matched.isProfilePublic,
+          };
+          visitLookupCacheRef.current.set(cacheKey, target);
+        }
+      }
+
+      if (!target) {
+        toast.error(TEXT.userNotFound);
+        return;
+      }
+
+      const canVisit = target.followStatus === 'FOLLOWING' || target.isProfilePublic === true;
+
+      if (!canVisit) {
+        toast.error(TEXT.privateBlocked);
+        return;
+      }
+
+      navigate(PATHS.VISIT(target.userId));
+    } catch (error) {
+      console.error('Failed to resolve visit target:', error);
+      toast.error(TEXT.visitError);
+    }
+  };
+
   return (
-    <div className="w-full h-full bg-[#FDFCFB] overflow-y-auto">
-      <div className="max-w-7xl mx-auto px-10 py-12">
-        {/* 프로필 헤더 섹션 (배너 + 프로필 이미지 + 정보) */}
-        <div className="relative w-full rounded-[40px] overflow-hidden shadow-2xl shadow-gray-200/50 bg-[#E0D7D0] min-h-[500px] flex flex-col justify-end p-12 group">
-          {/* 정중앙 프로필 이미지 */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="w-56 h-56 rounded-full overflow-hidden border-[10px] border-white shadow-2xl bg-white/50 backdrop-blur-sm transition-transform duration-500 group-hover:scale-105">
+    <div className="h-full w-full overflow-y-auto bg-[#FDFCFB]">
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-12 px-8 py-8">
+        <div className="group relative flex min-h-[340px] w-full flex-col justify-end overflow-hidden rounded-[28px] bg-[#E0D7D0] p-7 shadow-2xl shadow-gray-200/50">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="h-36 w-36 overflow-hidden rounded-full bg-white/50 shadow-2xl backdrop-blur-sm transition-transform duration-500 group-hover:scale-105">
               <img
                 src={
                   profile?.userProfileImageUrl ||
-                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${userInfo?.nickname || 'user'}`
+                  initialsAvatarFallback(profile?.nickname || userInfo?.nickname || TEXT.defaultUser)
                 }
-                alt="Profile"
-                className="w-full h-full object-cover"
+                alt={TEXT.profileAlt}
+                className="h-full w-full object-cover"
               />
             </div>
           </div>
 
-          {/* 하단 정보 영역 */}
-          <div className="flex justify-between items-end relative z-10">
-            {/* 왼쪽: 닉네임 & 아이디 */}
+          <div className="relative z-10 flex items-end justify-between gap-8">
             <div className="flex flex-col gap-2">
-              <h1 className="text-6xl font-black text-gray-900 tracking-tighter drop-shadow-sm">
-                {userInfo?.nickname || 'nneh'}
+              <p className="text-lg font-bold tracking-tight text-gray-700/60">
+                @{userInfo?.customId || TEXT.unknownId}
+              </p>
+              <h1 className="text-4xl font-black tracking-tighter text-gray-900 drop-shadow-sm">
+                {userInfo?.nickname || TEXT.defaultUser}
               </h1>
 
-              {/* 팔로워/팔로잉 카운트 영역 */}
-              <div className="flex items-center gap-6 my-2">
-                <div className="flex items-center gap-2 group/stat cursor-default">
-                  <span className="text-2xl font-black text-gray-900">{followerCount}</span>
-                  <span className="text-lg font-bold text-gray-500/60">팔로워</span>
+              <div className="my-1 flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-gray-500/60">{TEXT.followers}</span>
+                  <span className="text-lg font-black text-gray-900">{followerCount}</span>
                 </div>
-                <div className="flex-none w-1 h-1 rounded-full bg-gray-300" />
-                <div className="flex items-center gap-2 group/stat cursor-default">
-                  <span className="text-2xl font-black text-gray-900">{followingCount}</span>
-                  <span className="text-lg font-bold text-gray-500/60">팔로잉</span>
+                <div className="h-1 w-1 flex-none rounded-full bg-gray-300" />
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-gray-500/60">{TEXT.following}</span>
+                  <span className="text-lg font-black text-gray-900">{followingCount}</span>
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-0.5">
-                <p className="text-xl font-bold text-gray-700/60 tracking-tight">
-                  @{userInfo?.customId || 'unknown_id'}
-                </p>
-                <p className="text-gray-500/80 font-bold text-lg">{userInfo?.email}</p>
               </div>
             </div>
 
-            {/* 오른쪽: 액션 버튼들 */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2.5">
               <button
                 onClick={handleEditClick}
-                className="px-8 py-3.5 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl shadow-lg shadow-rose-500/30 transition-all active:scale-95 text-lg"
+                className="flex h-8 items-center rounded-full bg-rose-500 px-5 text-sm font-bold text-white shadow-lg shadow-rose-500/30 transition-all active:scale-95 hover:bg-rose-600"
               >
-                편집
+                {TEXT.edit}
               </button>
               <button
                 onClick={handleShareClick}
-                className="w-14 h-14 flex items-center justify-center bg-white/90 hover:bg-white text-gray-800 rounded-full shadow-lg transition-all active:scale-95 group/share"
-                title="명함 공유"
+                className="group/share flex h-8 w-8 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-500/30 transition-all active:scale-95 hover:bg-rose-600"
+                title={TEXT.shareTitle}
               >
-                <Share2 className="w-6 h-6 group-hover/share:text-rose-500 transition-colors" />
+                <Share2 className="h-4 w-4 transition-colors" />
               </button>
             </div>
           </div>
 
-          {/* 배경에 은은한 텍스쳐나 그라데이션 추가 (고급화) */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-black/5 to-white/10 pointer-events-none" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-black/5 to-white/10" />
         </div>
 
-        {/* 하단 영역 (향후 구상을 위해 비워둠) */}
-        <div className="mt-16 w-full flex flex-col items-center">
-          <div className="w-full h-px bg-gray-100 mb-10" />
-          <p className="text-gray-300 font-black italic tracking-widest uppercase opacity-30">
-            Your future story continues here...
-          </p>
+        <div className="space-y-12 px-6">
+          <AvatarRow title={TEXT.following} items={followingUsers} onUserClick={handleUserClick} />
+          <AvatarRow title={TEXT.followers} items={followerUsers} onUserClick={handleUserClick} />
         </div>
       </div>
     </div>

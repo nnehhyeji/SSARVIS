@@ -1,8 +1,9 @@
-/* src/index.css */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
 @import "tailwindcss";
 
+/* src/index.css */
+
 /* 1. Noto Sans KR (구글 폰트) 가져오기 */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
 
 /* 2. 가지고 계신 Neue Haas Display 파일 등록 (모든 굵기 매핑) */
 @font-face {
@@ -43,13 +44,13 @@
 
 /* 3. 테일윈드 테마 설정 추가 */
 @theme {
-  --font-sans: "Neue Haas Grotesk", "Noto Sans KR", sans-serif;
+  --font-sans: 'Neue Haas Grotesk', 'Noto Sans KR', sans-serif;
 
   /* 포인트 컬러 지정 */
-  --color-primary: #F7576E;
-  --color-primary-sub: #D96477;
-  --color-secondary: #EBE2DB;
-  --color-secondary-sub: #C7B1A0;
+  --color-primary: #f7576e;
+  --color-primary-sub: #d96477;
+  --color-secondary: #ebe2db;
+  --color-secondary-sub: #c7b1a0;
 }
 
 /* 4. 전체 앱에 기본 폰트 적용 */

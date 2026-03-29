@@ -3,12 +3,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.router import api_router
+from app.infra.local_tts import local_tts_client
 from app.infra.qdrant import QdrantClient
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     qdrant_client = QdrantClient.get_instance()
     await qdrant_client.initialize_default_collection()
+    await local_tts_client.preload_models()
     try:
         yield
     finally:

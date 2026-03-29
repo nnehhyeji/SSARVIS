@@ -8,6 +8,7 @@ import authApi from '../../apis/authApi';
 import userApi from '../../apis/userApi';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
 import { PATHS } from '../../routes/paths';
+import { toast } from '../../store/useToastStore';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ export default function LoginPage() {
       });
 
       void useVoiceLockStore.getState().fetchVoiceLockStatus();
-      navigate(PATHS.HOME);
+      navigate(PATHS.USER_HOME(profile.id));
     } catch (error) {
       console.error('Auto login failed', error);
       localStorage.removeItem('token');
@@ -80,12 +81,13 @@ export default function LoginPage() {
       });
 
       await useVoiceLockStore.getState().fetchVoiceLockStatus();
-      navigate(PATHS.HOME);
+      toast.success('로그인되었어요.', `${profile.nickname}님 환영해요.`);
+      navigate(PATHS.USER_HOME(profile.id));
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        alert(error.response?.data?.message || '로그인 중 오류가 발생했습니다.');
+        toast.error('로그인에 실패했어요.', error.response?.data?.message);
       } else {
-        alert('로그인 중 알 수 없는 오류가 발생했습니다.');
+        toast.error('로그인 중 알 수 없는 오류가 발생했어요.');
       }
     } finally {
       setIsLoading(false);
@@ -186,6 +188,7 @@ export default function LoginPage() {
 
             {/* Remember ID & Auto Login */}
             <div className="flex items-center gap-6 px-1 py-1">
+              {/* 아이디 기억 */}
               <label className="flex items-center gap-2 cursor-pointer group">
                 <div className="relative">
                   <input
@@ -195,14 +198,20 @@ export default function LoginPage() {
                     className="peer sr-only"
                   />
                   <div className="w-5 h-5 border-2 border-gray-100 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
-                    <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                    <Check
+                      className={`w-3 h-3 text-white transition-opacity ${isRememberId ? 'opacity-100' : 'opacity-0'}`}
+                    />
                   </div>
                 </div>
-                <span className="text-xs font-bold text-gray-300 group-hover:text-gray-500 transition-colors">
+                {/* 수정된 부분: isRememberId 상태에 따라 text 색상을 다르게 줍니다. */}
+                <span
+                  className={`text-xs font-bold transition-colors group-hover:text-gray-500 ${isRememberId ? 'text-gray-500' : 'text-gray-300'}`}
+                >
                   아이디 기억
                 </span>
               </label>
 
+              {/* 자동 로그인 */}
               <label className="flex items-center gap-2 cursor-pointer group">
                 <div className="relative">
                   <input
@@ -212,10 +221,15 @@ export default function LoginPage() {
                     className="peer sr-only"
                   />
                   <div className="w-5 h-5 border-2 border-gray-100 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
-                    <Check className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                    <Check
+                      className={`w-3 h-3 text-white transition-opacity ${isAutoLogin ? 'opacity-100' : 'opacity-0'}`}
+                    />
                   </div>
                 </div>
-                <span className="text-xs font-bold text-gray-300 group-hover:text-gray-500 transition-colors">
+                {/* 수정된 부분: isAutoLogin 상태에 따라 text 색상을 다르게 줍니다. */}
+                <span
+                  className={`text-xs font-bold transition-colors group-hover:text-gray-500 ${isAutoLogin ? 'text-gray-500' : 'text-gray-300'}`}
+                >
                   자동 로그인
                 </span>
               </label>
@@ -236,6 +250,12 @@ export default function LoginPage() {
 
           <button
             type="button"
+            onClick={() => {
+              const REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY || ''; // .env 파일에 VITE_KAKAO_REST_API_KEY 추가 필요
+              const REDIRECT_URI = import.meta.env.VITE_KAKAO_OAUTH_REDIRECT_URL || '';
+              const link = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
+              window.location.href = link;
+            }}
             className="w-full py-3.5 bg-[#FEE500] text-[#11141D] rounded-2xl font-bold hover:bg-[#fada0a] transition-all active:scale-[0.99] flex items-center justify-center gap-2 shadow-sm text-sm"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">

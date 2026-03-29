@@ -8,6 +8,7 @@ import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.common.service.S3Uploader;
 import com.ssafy.ssarvis.user.dto.request.UserCreateRequestDto;
 import com.ssafy.ssarvis.user.dto.request.UserUpdateRequestDto;
+import com.ssafy.ssarvis.user.dto.response.UserProfileResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
 import com.ssafy.ssarvis.user.entity.SocialUser;
@@ -234,5 +235,34 @@ public class UserServiceImpl implements UserService {
         user.updateProfileVisibility(isPublic);
         return user.getIsPublic();
     }
+
+    @Override
+    @Transactional
+    public void deleteProfileImage(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("유저 조회 실패", ErrorCode.USER_NOT_FOUND));
+
+        if (user.getProfileImageUrl() != null) {
+            s3Uploader.delete(user.getProfileImageUrl());
+            user.deleteProfileImage();
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfileResponseDto getUserProfile(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND));
+        return UserProfileResponseDto.from(user);
+    }
+
+    @Override
+    public void visitUserProfile(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new CustomException("존재하지 않는 유저입니다.", ErrorCode.USER_NOT_FOUND));
+
+        user.increaseViewCount();
+    }
+
 
 }

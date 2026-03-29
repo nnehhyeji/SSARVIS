@@ -8,6 +8,7 @@ import com.ssafy.ssarvis.common.dto.BaseResponse;
 import com.ssafy.ssarvis.common.exception.ErrorCode;
 import com.ssafy.ssarvis.user.dto.request.*;
 import com.ssafy.ssarvis.user.dto.response.DuplicateCheckResponseDto;
+import com.ssafy.ssarvis.user.dto.response.UserProfileResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserResponseDto;
 import com.ssafy.ssarvis.user.dto.response.UserUpdateResponseDto;
 import com.ssafy.ssarvis.user.service.UserService;
@@ -138,4 +139,27 @@ public class UserController {
         return ResponseEntity.ok(BaseResponse.success("프로필 이미지 수정 성공", imageUrl));
     }
 
+    @DeleteMapping("/profile-image")
+    public ResponseEntity<BaseResponse<Void>> deleteProfileImage(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        userService.deleteProfileImage(customUserDetails.getUserId());
+        return ResponseEntity.ok(BaseResponse.success("프로필 이미지 삭제 성공"));
+    }
+
+    @GetMapping("/{userId}/profile")
+    public ResponseEntity<BaseResponse<UserProfileResponseDto>> getUserProfileById(
+        @PathVariable Long userId
+    ) {
+        UserProfileResponseDto responseDto = userService.getUserProfile(userId);
+        return ResponseEntity.ok(BaseResponse.success("유저 프로필 조회 성공", responseDto));
+    }
+
+    @GetMapping("/{userId}/visits")
+    public ResponseEntity<BaseResponse<Void>> visiteUserProfile(
+        @PathVariable Long userId
+    ){
+        userService.visitUserProfile(userId);
+        return ResponseEntity.ok(BaseResponse.success("유저 프로필 방문 성공"));
+    }
 }
