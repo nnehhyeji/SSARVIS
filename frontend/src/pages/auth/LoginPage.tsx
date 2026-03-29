@@ -120,15 +120,28 @@ export default function LoginPage() {
         <div className="w-full md:w-[45%] bg-gradient-to-br from-[#F7E0DE] via-[#E6C0BC] to-[#D5A09D] p-12 flex flex-col justify-center relative order-2 md:order-1">
           <div>
             <div className="flex items-center gap-3 mb-20">
-              <div className="w-12 h-12 bg-[#11141D] rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-base tracking-tighter">sv</span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#11141D] shadow-lg">
+                <div
+                  className="h-7 w-7 bg-white"
+                  style={{
+                    WebkitMaskImage: "url('/logo.svg')",
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    WebkitMaskSize: 'contain',
+                    maskImage: "url('/logo.svg')",
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center',
+                    maskSize: 'contain',
+                  }}
+                  aria-label="SSARVIS logo"
+                />
               </div>
               <span className="text-[#11141D] font-black text-3xl tracking-tight">SSARVIS</span>
             </div>
 
             <div className="space-y-6">
               <span className="text-[#11141D]/50 text-sm font-black tracking-[0.2em] block uppercase">
-                YOUR AI ARCHIVE
+                YOUR AI AGENT
               </span>
               <h1 className="text-[#11141D] text-5xl font-extrabold leading-[1.2] break-keep">
                 나를 닮은

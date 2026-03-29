@@ -84,6 +84,8 @@ export default function UserMainPage() {
     setChatMessages,
     toggleLock,
     sendMessage,
+    updateRecordingContext,
+    resetConversationRuntime,
     startRecording,
     stopRecordingAndSendSTT,
     cancelTurn,
@@ -151,6 +153,8 @@ export default function UserMainPage() {
     persona: [],
   });
   const prevModeRef = useRef(currentMode);
+  const pageContextKey = isMyHome ? `home:${currentMode}` : `visit:${targetId ?? 'unknown'}`;
+  const prevPageContextKeyRef = useRef(pageContextKey);
 
   useEffect(() => {
     if (isPersonaShared) {
@@ -552,6 +556,44 @@ export default function UserMainPage() {
     return isMyHome ? 'USER_AI' : 'AVATAR_AI';
   }, [isMyHome]);
 
+  useEffect(() => {
+    const prevContextKey = prevPageContextKeyRef.current;
+    if (prevContextKey === pageContextKey) return;
+
+    const wasMyHome = prevContextKey.startsWith('home:');
+    if (wasMyHome) {
+      const prevMode = prevContextKey.replace('home:', '');
+      setModeHistories((prev) => ({
+        ...prev,
+        [prevMode]: chatMessages,
+      }));
+    }
+
+    cancelTurn();
+    resetConversationRuntime();
+    setChatInput('');
+
+    if (isMyHome) {
+      setChatMessages(modeHistories[currentMode] || []);
+    } else {
+      setChatMessages([]);
+      setTriggerText('');
+    }
+
+    prevPageContextKeyRef.current = pageContextKey;
+  }, [
+    cancelTurn,
+    chatMessages,
+    currentMode,
+    isMyHome,
+    modeHistories,
+    pageContextKey,
+    resetConversationRuntime,
+    setChatInput,
+    setChatMessages,
+    setTriggerText,
+  ]);
+
   const handleHomeMicToggle = useCallback(() => {
     const assistantType = getAssistantType();
     const memoryPolicy = getMemoryPolicy();
@@ -644,6 +686,13 @@ export default function UserMainPage() {
       return;
     }
 
+    updateRecordingContext(
+      null,
+      getAssistantType(),
+      getMemoryPolicy(),
+      getSessionCategory(),
+      targetId,
+    );
     sendMessage(chatInput);
   }, [
     activeChat.chatInput,
@@ -655,6 +704,7 @@ export default function UserMainPage() {
     sendMessage,
     shouldUseGuestChat,
     targetId,
+    updateRecordingContext,
   ]);
 
   const handleOpenPersona = useCallback(() => {

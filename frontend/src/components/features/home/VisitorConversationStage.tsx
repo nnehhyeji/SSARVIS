@@ -229,10 +229,10 @@ export default function VisitorConversationStage({
           {statusText.trim() ? (
             <div className="mb-3 flex items-center justify-center">
               <div
-                className={`rounded-full px-4 py-2 text-sm font-bold shadow-sm transition-colors ${
+                className={`rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
                   isListeningStatus
-                    ? 'border border-[#F7C3CB] bg-[#FFF3F5] text-[#C84358]'
-                    : 'border border-[#E7E7E7] bg-white text-[#707070]'
+                    ? 'border-[#F7C3CB] text-[#C84358]'
+                    : 'border-[#E7E7E7] text-[#707070]'
                 }`}
               >
                 {statusText}

@@ -246,6 +246,7 @@ export default function Sidebar({
 
   const displaySessions = chatSessions.filter((session) => {
     if (chatTab === 'archive' && chatCategory === 'assistant') {
+      if (session.chatSessionType !== 'USER_AI') return false;
       if (assistantFilters.length === 0) return true;
       const typeMap: Record<string, string> = {
         daily: 'DAILY',
@@ -254,6 +255,15 @@ export default function Sidebar({
       };
       return assistantFilters.some((f) => typeMap[f] === session.assistantType);
     }
+
+    if (chatTab === 'archive' && chatCategory === 'friend') {
+      return session.chatSessionType === 'AVATAR_AI' || session.chatSessionType === 'AI_AI';
+    }
+
+    if (chatTab === 'archive' && chatCategory === 'persona') {
+      return session.chatSessionType !== 'USER_AI' ? session.assistantType === 'PERSONA' : true;
+    }
+
     return true;
   });
 
