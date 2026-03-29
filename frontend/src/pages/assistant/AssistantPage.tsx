@@ -50,6 +50,9 @@ export default function AssistantPage() {
     startRecording,
     stopRecordingAndSendSTT,
     cancelTurn,
+    updateRecordingContext,
+    discardCurrentTurn,
+    resetConversationRuntime,
   } = useChat();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
@@ -95,22 +98,6 @@ export default function AssistantPage() {
       ? '일상 모드는 홈으로 이동되었어요. AI 비서에서는 학습 모드로 이어집니다.'
       : '';
 
-  useEffect(() => {
-    const prevMode = prevModeRef.current;
-    if (prevMode !== currentMode) {
-      cancelTurn();
-
-      setModeHistories((prev) => ({
-        ...prev,
-        [prevMode]: chatMessages,
-      }));
-
-      const history = modeHistories[currentMode] || [];
-      setChatMessages(history);
-      prevModeRef.current = currentMode;
-    }
-  }, [cancelTurn, chatMessages, currentMode, modeHistories, setChatMessages]);
-
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
 
   const handleStartSpeaking = useCallback(() => setIsSpeaking(true), [setIsSpeaking]);
@@ -128,6 +115,51 @@ export default function AssistantPage() {
     if (currentMode === 'counseling') return 'COUNSEL';
     return 'STUDY';
   }, [currentMode]);
+
+  useEffect(() => {
+    const prevMode = prevModeRef.current;
+    if (prevMode === currentMode) return;
+
+    const nextMemoryPolicy = isLockMode ? 'SECRET' : 'GENERAL';
+
+    setModeHistories((prev) => {
+      const nextHistories = {
+        ...prev,
+        [prevMode]: chatMessages,
+      };
+      setChatMessages(nextHistories[currentMode] || []);
+      return nextHistories;
+    });
+
+    resetConversationRuntime();
+    updateRecordingContext(null, assistantType, nextMemoryPolicy, 'USER_AI', null);
+    prevModeRef.current = currentMode;
+
+    void (async () => {
+      if (!isMicOn) return;
+
+      discardCurrentTurn();
+      const started = await startRecording(null, assistantType, nextMemoryPolicy, 'USER_AI');
+      setMicRuntimeActive(Boolean(started));
+      if (!started) {
+        setMicPreferenceEnabled(false);
+        setIsTextInputMode(true);
+      }
+    })();
+  }, [
+    assistantType,
+    chatMessages,
+    currentMode,
+    discardCurrentTurn,
+    isLockMode,
+    isMicOn,
+    resetConversationRuntime,
+    setChatMessages,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
+    startRecording,
+    updateRecordingContext,
+  ]);
 
   const {
     aiCaptionText,
@@ -166,6 +198,7 @@ export default function AssistantPage() {
   const userDisplayName = profile?.nickname || userInfo?.nickname || 'User';
 
   const enableMic = useCallback(async () => {
+    updateRecordingContext(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI', null);
     setMicPreferenceEnabled(true);
     setIsTextInputMode(false);
     const started = await startRecording(
@@ -179,7 +212,14 @@ export default function AssistantPage() {
       setIsTextInputMode(true);
     }
     return started;
-  }, [assistantType, isLockMode, setMicPreferenceEnabled, setMicRuntimeActive, startRecording]);
+  }, [
+    assistantType,
+    isLockMode,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
+    startRecording,
+    updateRecordingContext,
+  ]);
 
   const disableMic = useCallback(() => {
     setMicPreferenceEnabled(false);

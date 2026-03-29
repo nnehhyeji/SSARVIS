@@ -46,7 +46,7 @@ const TEXT = {
   timerPrefix: '남은 시간',
   signupLoading: '가입 중...',
   signupButton: '회원가입하고 시작하기',
-  leftEyebrow: 'YOUR AI ARCHIVE',
+  leftEyebrow: 'YOUR AI AGENT',
   leftHeadingLine1: '나만의',
   leftHeadingLine2: '특별한 AI를',
   leftHeadingLine3: '만들어 보세요',
@@ -326,7 +326,20 @@ export default function SignupPage() {
           <div>
             <div className="mb-20 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#11141D] shadow-lg">
-                <span className="text-base text-2xl font-bold tracking-tighter text-white">sv</span>
+                <div
+                  className="h-7 w-7 bg-white"
+                  style={{
+                    WebkitMaskImage: "url('/logo.svg')",
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    WebkitMaskSize: 'contain',
+                    maskImage: "url('/logo.svg')",
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center',
+                    maskSize: 'contain',
+                  }}
+                  aria-label="SSARVIS logo"
+                />
               </div>
               <span className="text-3xl font-black tracking-tight text-[#11141D]">SSARVIS</span>
             </div>
