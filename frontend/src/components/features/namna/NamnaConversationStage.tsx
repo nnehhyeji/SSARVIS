@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Lock, Mic, MicOff, Send, Square, Unlock } from 'lucide-react';
+import { Link2, Lock, Mic, MicOff, Send, Square, Unlock } from 'lucide-react';
 
 import CharacterScene from '../character/CharacterScene';
 import {
@@ -39,7 +39,7 @@ function CaptionLine({
 
   return (
     <div
-      className={`max-w-[min(34vw,30rem)] whitespace-pre-wrap break-words font-black tracking-[-0.05em] ${
+      className={`max-w-[min(28vw,24rem)] whitespace-pre-wrap break-words font-black tracking-[-0.05em] ${
         size === 'compact'
           ? 'text-[clamp(1.3rem,1.9vw,2.3rem)] leading-[1.24]'
           : 'text-[clamp(1.6rem,2.3vw,3rem)] leading-[1.26]'
@@ -60,6 +60,8 @@ interface NamnaConversationStageProps {
   headerCenterLabel?: string;
   onHeaderCenterAction?: () => void;
   onHeaderCenterClear?: () => void;
+  headerRightActionLabel?: string;
+  onHeaderRightAction?: () => void;
   leftFaceType: number;
   leftMouthOpenRadius: number;
   leftMode: string;
@@ -103,6 +105,8 @@ export default function NamnaConversationStage({
   headerCenterLabel,
   onHeaderCenterAction,
   onHeaderCenterClear,
+  headerRightActionLabel,
+  onHeaderRightAction,
   leftFaceType,
   leftMouthOpenRadius,
   leftMode,
@@ -152,7 +156,7 @@ export default function NamnaConversationStage({
     return () => window.removeEventListener('resize', updateLayout);
   }, []);
 
-  const longCaptionThreshold = isNarrowLayout ? 36 : 55;
+  const longCaptionThreshold = isNarrowLayout ? 30 : 42;
   const leftIsLong = leftCaptionText.trim().length >= longCaptionThreshold;
   const rightIsLong = rightCaptionText.trim().length >= longCaptionThreshold;
   const shouldFocusActiveSpeaker =
@@ -183,6 +187,21 @@ export default function NamnaConversationStage({
           >
             {title}
           </h1>
+
+          {headerRightActionLabel && onHeaderRightAction ? (
+            <button
+              type="button"
+              onClick={onHeaderRightAction}
+              className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-all active:scale-95 ${
+                isLockMode
+                  ? 'border border-white/12 bg-white/6 text-white hover:bg-white/10'
+                  : 'border border-[#E7E7E7] bg-white text-[#555555] hover:bg-[#F8F8F8]'
+              }`}
+            >
+              <Link2 className="h-4 w-4" />
+              {headerRightActionLabel}
+            </button>
+          ) : null}
         </header>
 
         <div
@@ -238,111 +257,113 @@ export default function NamnaConversationStage({
 
         <main className="relative flex-1 overflow-hidden px-6 pb-5 md:px-10 md:pb-6">
           <div className="relative h-full min-h-[420px] md:min-h-[500px]">
-            <section
-              className={`absolute left-0 flex items-start gap-7 transition-opacity duration-200 max-xl:w-[60%] max-lg:w-[70%] ${
-                showRightSection
-                  ? 'top-[8%] w-[56%]'
-                  : 'top-[12%] w-[72%] max-xl:w-[78%] max-lg:w-[84%]'
-              } ${
-                showLeftSection
-                  ? 'pointer-events-auto opacity-100'
-                  : 'pointer-events-none opacity-0'
-              }`}
-              aria-hidden={!showLeftSection}
-            >
-              <div className="relative h-[186px] w-[186px] shrink-0 md:h-[210px] md:w-[210px]">
-                <CharacterScene
-                  faceType={leftFaceType}
-                  mouthOpenRadius={leftMouthOpenRadius}
-                  mode={leftMode}
-                  isLockMode={isLockMode}
-                  isSpeaking={leftIsSpeaking}
-                  isMicOn={isMicOn}
-                  showWaveform={false}
-                />
-                <div
-                  className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
-                    isLockMode ? 'text-white' : 'text-black'
-                  }`}
-                >
-                  {leftDisplayName}
-                </div>
-              </div>
-
-              <div className={leftIsLong ? 'pt-20' : 'pt-14'}>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`namna-left-${leftCaptionText}`}
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: leftCaptionText ? 1 : 0, y: leftCaptionText ? 0 : 14 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
+            <div className="absolute inset-0 -translate-y-3 md:-translate-y-4">
+              <section
+                className={`absolute left-0 flex items-start gap-7 transition-opacity duration-200 max-xl:w-[60%] max-lg:w-[70%] ${
+                  showRightSection
+                    ? 'top-[6%] w-[50%]'
+                    : 'top-[8%] w-[68%] max-xl:w-[74%] max-lg:w-[80%]'
+                } ${
+                  showLeftSection
+                    ? 'pointer-events-auto opacity-100'
+                    : 'pointer-events-none opacity-0'
+                }`}
+                aria-hidden={!showLeftSection}
+              >
+                <div className="relative h-[170px] w-[170px] shrink-0 md:h-[190px] md:w-[190px]">
+                  <CharacterScene
+                    faceType={leftFaceType}
+                    mouthOpenRadius={leftMouthOpenRadius}
+                    mode={leftMode}
+                    isLockMode={isLockMode}
+                    isSpeaking={leftIsSpeaking}
+                    isMicOn={isMicOn}
+                    showWaveform={false}
+                  />
+                  <div
+                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
+                      isLockMode ? 'text-white' : 'text-black'
+                    }`}
                   >
-                    <CaptionLine
-                      text={leftCaptionText}
-                      doneLength={leftDoneLength}
-                      activeLength={leftActiveLength}
-                      align="left"
-                      isLockMode={isLockMode}
-                      size={leftIsLong ? 'compact' : 'default'}
-                    />
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </section>
-
-            <section
-              className={`absolute right-0 flex items-start justify-end gap-8 transition-opacity duration-200 ${
-                showLeftSection
-                  ? 'bottom-[14%] w-[52%] max-xl:w-[58%] max-lg:w-[68%]'
-                  : 'bottom-[12%] w-[72%] max-xl:w-[78%] max-lg:w-[84%]'
-              } ${
-                showRightSection
-                  ? 'pointer-events-auto opacity-100'
-                  : 'pointer-events-none opacity-0'
-              }`}
-              aria-hidden={!showRightSection}
-            >
-              <div className={`max-w-[min(32vw,28rem)] ${rightIsLong ? 'pt-8' : 'pt-4'}`}>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`namna-right-${rightCaptionText}`}
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: rightCaptionText ? 1 : 0, y: rightCaptionText ? 0 : 14 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                  >
-                    <CaptionLine
-                      text={rightCaptionText}
-                      doneLength={rightDoneLength}
-                      activeLength={rightActiveLength}
-                      align="right"
-                      isLockMode={isLockMode}
-                      size={rightIsLong ? 'compact' : 'default'}
-                    />
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-
-              <div className="relative h-[186px] w-[186px] shrink-0 md:h-[210px] md:w-[210px]">
-                <CharacterScene
-                  faceType={rightFaceType}
-                  mouthOpenRadius={rightMouthOpenRadius}
-                  mode={rightMode}
-                  isLockMode={isLockMode}
-                  isSpeaking={rightIsSpeaking}
-                  isMicOn={isMicOn}
-                  showWaveform={false}
-                />
-                <div
-                  className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
-                    isLockMode ? 'text-white' : 'text-black'
-                  }`}
-                >
-                  {rightDisplayName}
+                    {leftDisplayName}
+                  </div>
                 </div>
-              </div>
-            </section>
+
+                <div className={leftIsLong ? 'pt-16' : 'pt-10'}>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`namna-left-${leftCaptionText}`}
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: leftCaptionText ? 1 : 0, y: leftCaptionText ? 0 : 14 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                      <CaptionLine
+                        text={leftCaptionText}
+                        doneLength={leftDoneLength}
+                        activeLength={leftActiveLength}
+                        align="left"
+                        isLockMode={isLockMode}
+                        size={leftIsLong ? 'compact' : 'default'}
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </section>
+
+              <section
+                className={`absolute right-0 flex items-start justify-end gap-8 transition-opacity duration-200 ${
+                  showLeftSection
+                    ? 'bottom-[14%] w-[48%] max-xl:w-[54%] max-lg:w-[64%]'
+                    : 'bottom-[12%] w-[68%] max-xl:w-[74%] max-lg:w-[80%]'
+                } ${
+                  showRightSection
+                    ? 'pointer-events-auto opacity-100'
+                    : 'pointer-events-none opacity-0'
+                }`}
+                aria-hidden={!showRightSection}
+              >
+                <div className={`max-w-[min(28vw,24rem)] ${rightIsLong ? 'pt-6' : 'pt-3'}`}>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`namna-right-${rightCaptionText}`}
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: rightCaptionText ? 1 : 0, y: rightCaptionText ? 0 : 14 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                      <CaptionLine
+                        text={rightCaptionText}
+                        doneLength={rightDoneLength}
+                        activeLength={rightActiveLength}
+                        align="right"
+                        isLockMode={isLockMode}
+                        size={rightIsLong ? 'compact' : 'default'}
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                <div className="relative h-[170px] w-[170px] shrink-0 md:h-[190px] md:w-[190px]">
+                  <CharacterScene
+                    faceType={rightFaceType}
+                    mouthOpenRadius={rightMouthOpenRadius}
+                    mode={rightMode}
+                    isLockMode={isLockMode}
+                    isSpeaking={rightIsSpeaking}
+                    isMicOn={isMicOn}
+                    showWaveform={false}
+                  />
+                  <div
+                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
+                      isLockMode ? 'text-white' : 'text-black'
+                    }`}
+                  >
+                    {rightDisplayName}
+                  </div>
+                </div>
+              </section>
+            </div>
           </div>
         </main>
 
@@ -364,10 +385,10 @@ export default function NamnaConversationStage({
           <div className="mb-3 flex items-center justify-center">
             <div className="flex flex-col items-center gap-1">
               <div
-                className={`rounded-full px-4 py-2 text-sm font-bold shadow-sm ${
+                className={`rounded-full border px-4 py-2 text-sm font-bold ${
                   isLockMode
-                    ? 'border border-white/10 bg-white/5 text-white/70'
-                    : 'border border-[#E7E7E7] bg-white text-[#707070]'
+                    ? 'border-white/10 text-white/70'
+                    : 'border-[#E7E7E7] text-[#707070]'
                 }`}
               >
                 {statusText}

@@ -370,6 +370,25 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     }
   }, [clearRestartTimer]);
 
+  const updateRecordingContext = useCallback(
+    (
+      sessionId: string | null,
+      assistantType: string,
+      memoryPolicy: string,
+      chatSessionType: string = 'USER_AI',
+      targetUserId: number | null = null,
+    ) => {
+      currentRecordingOptionsRef.current = {
+        sessionId,
+        assistantType,
+        memoryPolicy,
+        chatSessionType,
+        targetUserId,
+      };
+    },
+    [],
+  );
+
   const safeStartRecognition = useCallback(() => {
     if (!recognitionRef.current || isRecognizingRef.current) return;
     try {
@@ -1368,6 +1387,86 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     wsRef,
   ]);
 
+  const discardCurrentTurn = useCallback(() => {
+    wakeWordActiveRef.current = false;
+    hasCompletedInitialWakeTurnRef.current = false;
+    pendingWakeResumeRef.current = false;
+    pendingSpeechCaptureRef.current = false;
+    pendingSpeechSeedRef.current = '';
+    finalizeSpeechOnEndRef.current = false;
+    isSubmittingSpeechTurnRef.current = false;
+    speechTurnCompletedRef.current = false;
+
+    setIsWakeWordActive(false);
+    setWakeWordDetectedAt(null);
+    setConnectionNotice('');
+    setVoicePhase('idle');
+
+    recognitionModeRef.current = 'idle';
+    stopSilenceMonitor();
+    clearSpeechSilenceTimer();
+    clearTranscriptTimer();
+    clearWakeResumeCooldownTimer();
+    clearEndOfStreamFallbackTimer();
+    clearTextEndFallbackTimer();
+    clearTypeWriter();
+    endAwaitingResponse();
+    cleanupAudioPlayback(true);
+    stopMediaRecorder();
+    stopRecognition();
+    setSttText('');
+    sttTextRef.current = '';
+  }, [
+    cleanupAudioPlayback,
+    clearEndOfStreamFallbackTimer,
+    clearSpeechSilenceTimer,
+    clearTextEndFallbackTimer,
+    clearTranscriptTimer,
+    clearTypeWriter,
+    clearWakeResumeCooldownTimer,
+    endAwaitingResponse,
+    stopMediaRecorder,
+    stopRecognition,
+    stopSilenceMonitor,
+  ]);
+
+  const resetConversationRuntime = useCallback(() => {
+    pendingSpeechCaptureRef.current = false;
+    pendingSpeechSeedRef.current = '';
+    pendingWakeResumeRef.current = false;
+    finalizeSpeechOnEndRef.current = false;
+    isSubmittingSpeechTurnRef.current = false;
+    speechTurnCompletedRef.current = false;
+    pendingAiResponseTextRef.current = '';
+
+    awaitingResponseRef.current = false;
+    setIsAwaitingResponse(false);
+    setConnectionNotice('');
+    setLatestAiText('');
+    setVoiceStatus(WAKE_GUIDE_TEXT);
+    setSttText('');
+    sttTextRef.current = '';
+    setAiTextStreamingComplete(true);
+    setAiStreamComplete(true);
+    setIsAiTextTyping(false);
+
+    clearTranscriptTimer();
+    clearSpeechSilenceTimer();
+    clearEndOfStreamFallbackTimer();
+    clearTextEndFallbackTimer();
+    clearWakeResumeCooldownTimer();
+    clearTypeWriter();
+    cleanupAudioPlayback(true);
+  }, [
+    cleanupAudioPlayback,
+    clearEndOfStreamFallbackTimer,
+    clearSpeechSilenceTimer,
+    clearTextEndFallbackTimer,
+    clearTranscriptTimer,
+    clearTypeWriter,
+    clearWakeResumeCooldownTimer,
+  ]);
+
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || !currentRecordingOptionsRef.current) return;
@@ -1428,5 +1527,8 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     startRecording,
     stopRecordingAndSendSTT,
     cancelTurn,
+    updateRecordingContext,
+    discardCurrentTurn,
+    resetConversationRuntime,
   };
 }

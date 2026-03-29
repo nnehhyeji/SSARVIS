@@ -405,6 +405,8 @@ export default function NamnaPage() {
           isLockMode={isLockMode}
           isMicOn={isMicOn}
           isTextInputMode={isTextInputMode}
+          headerRightActionLabel="링크 공유"
+          onHeaderRightAction={() => setIsSharePersonaModalOpen(true)}
           headerCenterLabel={
             aiToAiChat.topic ? `주제: ${aiToAiChat.topic}` : '주제를 입력해주세요!'
           }
@@ -451,6 +453,8 @@ export default function NamnaPage() {
           isLockMode={isLockMode}
           isMicOn={isMicOn}
           isTextInputMode={isTextInputMode}
+          headerRightActionLabel="링크 공유"
+          onHeaderRightAction={() => setIsSharePersonaModalOpen(true)}
           headerCenterLabel={namnaHeaderLabel}
           headerCenterSubtext={namnaHeaderSubtext}
           headerCenterProgressCurrent={namnaProgressCurrent}
@@ -480,11 +484,17 @@ export default function NamnaPage() {
       )}
 
       {isNamnaReady ? (
-        <AiTopicModal
-          isOpen={isInteractionModalOpen}
-          onClose={() => setIsInteractionModalOpen(false)}
-          onSubmit={handleDualAiTopicSubmit}
-        />
+        <>
+          <AiTopicModal
+            isOpen={isInteractionModalOpen}
+            onClose={() => setIsInteractionModalOpen(false)}
+            onSubmit={handleDualAiTopicSubmit}
+          />
+          <SharePersonaModal
+            isOpen={isSharePersonaModalOpen}
+            onClose={() => setIsSharePersonaModalOpen(false)}
+          />
+        </>
       ) : null}
     </>
   );

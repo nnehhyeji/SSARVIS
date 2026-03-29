@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Lock, Unlock, Send, Square } from 'lucide-react';
+import { Mic, MicOff, Lock, Unlock, Send, Square, Link2 } from 'lucide-react';
 
 import CharacterScene from '../character/CharacterScene';
 import {
@@ -39,7 +39,7 @@ function CaptionLine({
 
   return (
     <div
-      className={`max-w-[min(34vw,30rem)] whitespace-pre-wrap break-words font-black tracking-[-0.05em] ${
+      className={`max-w-[min(28vw,24rem)] whitespace-pre-wrap break-words font-black tracking-[-0.05em] ${
         size === 'compact'
           ? 'text-[clamp(1.3rem,1.9vw,2.3rem)] leading-[1.24]'
           : 'text-[clamp(1.6rem,2.3vw,3rem)] leading-[1.26]'
@@ -62,6 +62,8 @@ interface AssistantConversationStageProps {
   headerCenterSubtext?: string;
   headerCenterProgressCurrent?: number;
   headerCenterProgressTotal?: number;
+  headerRightActionLabel?: string;
+  onHeaderRightAction?: () => void;
   faceType: number;
   mouthOpenRadius: number;
   isCharacterSpeaking: boolean;
@@ -104,6 +106,8 @@ export default function AssistantConversationStage({
   headerCenterSubtext,
   headerCenterProgressCurrent,
   headerCenterProgressTotal,
+  headerRightActionLabel,
+  onHeaderRightAction,
   faceType,
   mouthOpenRadius,
   isCharacterSpeaking,
@@ -155,9 +159,12 @@ export default function AssistantConversationStage({
     return () => window.removeEventListener('resize', updateLayout);
   }, []);
 
-  const longCaptionThreshold = isNarrowLayout ? 36 : 55;
+  const longCaptionThreshold = isNarrowLayout ? 30 : 42;
   const shouldFocusActiveSpeaker =
-    (isNarrowLayout && activeSpeaker !== null) || isLongActiveCaption;
+    (isNarrowLayout && activeSpeaker !== null) ||
+    isLongActiveCaption ||
+    isLongAiCaption ||
+    isLongUserCaption;
   const showAiSection = shouldFocusActiveSpeaker
     ? activeSpeaker !== 'user'
     : !isNarrowLayout || activeSpeaker !== 'user';
@@ -166,11 +173,6 @@ export default function AssistantConversationStage({
     : !isNarrowLayout || activeSpeaker !== 'ai';
   const aiCaptionSize = isLongAiCaption ? 'compact' : 'default';
   const userCaptionSize = isLongUserCaption ? 'compact' : 'default';
-  const aiCaptionOffsetClass =
-    aiCaptionText.trim().length >= longCaptionThreshold ? 'pt-20' : 'pt-14';
-  const userCaptionOffsetClass =
-    userCaptionText.trim().length >= longCaptionThreshold ? 'pt-8' : 'pt-4';
-
   return (
     <div
       className={`relative h-full w-full ${isLockMode ? 'bg-[#050505]' : 'bg-white'} ${SIDEBAR_SAFE_PADDING}`}
@@ -195,43 +197,62 @@ export default function AssistantConversationStage({
             {title}
           </h1>
 
-          {headerCenterLabel ? (
-            <div
-              className={`hidden min-w-[280px] max-w-[420px] shrink-0 flex-col gap-2 rounded-[24px] px-5 py-4 shadow-sm md:flex ${
-                isLockMode
-                  ? 'border border-white/12 bg-white/6'
-                  : 'border border-[#F2D9DE] bg-[#FFF8F9]'
-              }`}
-            >
-              <div
-                className={`text-center text-sm font-black tracking-[-0.03em] ${
-                  isLockMode ? 'text-white/88' : 'text-[#D84D66]'
-                }`}
-              >
-                {headerCenterLabel}
-              </div>
-              {typeof headerProgressPercent === 'number' ? (
+          {headerCenterLabel || (headerRightActionLabel && onHeaderRightAction) ? (
+            <div className="hidden shrink-0 items-stretch gap-3 md:flex md:ml-auto">
+              {headerRightActionLabel && onHeaderRightAction ? (
+                <button
+                  type="button"
+                  onClick={onHeaderRightAction}
+                  className={`flex shrink-0 items-center gap-2 self-center rounded-full px-4 py-2 text-sm font-bold transition-all active:scale-95 ${
+                    isLockMode
+                      ? 'border border-white/12 bg-white/6 text-white hover:bg-white/10'
+                      : 'border border-[#E7E7E7] bg-white text-[#555555] hover:bg-[#F8F8F8]'
+                  }`}
+                >
+                  <Link2 className="h-4 w-4" />
+                  {headerRightActionLabel}
+                </button>
+              ) : null}
+
+              {headerCenterLabel ? (
                 <div
-                  className={`h-2.5 overflow-hidden rounded-full ${
-                    isLockMode ? 'bg-white/10' : 'bg-[#EFE6E8]'
+                  className={`min-w-[280px] max-w-[420px] shrink-0 flex-col gap-2 rounded-[24px] px-5 py-4 shadow-sm md:flex ${
+                    isLockMode
+                      ? 'border border-white/12 bg-white/6'
+                      : 'border border-[#F2D9DE] bg-[#FFF8F9]'
                   }`}
                 >
                   <div
-                    className="h-full rounded-full transition-[width] duration-500"
-                    style={{
-                      width: `${headerProgressPercent}%`,
-                      backgroundColor: 'var(--color-primary)',
-                    }}
-                  />
-                </div>
-              ) : null}
-              {headerCenterSubtext ? (
-                <div
-                  className={`text-center text-xs font-semibold tracking-[-0.02em] ${
-                    isLockMode ? 'text-white/58' : 'text-[#7C7280]'
-                  }`}
-                >
-                  {headerCenterSubtext}
+                    className={`text-center text-sm font-black tracking-[-0.03em] ${
+                      isLockMode ? 'text-white/88' : 'text-[#D84D66]'
+                    }`}
+                  >
+                    {headerCenterLabel}
+                  </div>
+                  {typeof headerProgressPercent === 'number' ? (
+                    <div
+                      className={`h-2.5 overflow-hidden rounded-full ${
+                        isLockMode ? 'bg-white/10' : 'bg-[#EFE6E8]'
+                      }`}
+                    >
+                      <div
+                        className="h-full rounded-full transition-[width] duration-500"
+                        style={{
+                          width: `${headerProgressPercent}%`,
+                          backgroundColor: 'var(--color-primary)',
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                  {headerCenterSubtext ? (
+                    <div
+                      className={`text-center text-xs font-semibold tracking-[-0.02em] ${
+                        isLockMode ? 'text-white/58' : 'text-[#7C7280]'
+                      }`}
+                    >
+                      {headerCenterSubtext}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -260,114 +281,116 @@ export default function AssistantConversationStage({
 
         <main className="relative flex-1 overflow-hidden px-6 pb-5 pt-5 md:px-10 md:pb-6 md:pt-6">
           <div className="relative h-full min-h-[420px] md:min-h-[500px]">
-            <section
-              className={`absolute left-0 flex items-start gap-7 transition-opacity duration-200 max-xl:w-[60%] max-lg:w-[70%] ${
-                showUserSection
-                  ? 'top-[8%] w-[56%]'
-                  : 'top-[12%] w-[72%] max-xl:w-[78%] max-lg:w-[84%]'
-              } ${
-                showAiSection ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-              }`}
-              aria-hidden={!showAiSection}
-            >
-              <div className="relative h-[186px] w-[186px] shrink-0 md:h-[210px] md:w-[210px]">
-                <CharacterScene
-                  faceType={faceType}
-                  mouthOpenRadius={mouthOpenRadius}
-                  mode={currentMode}
-                  isLockMode={isLockMode}
-                  isSpeaking={isCharacterSpeaking}
-                  isMicOn={isMicOn}
-                  showWaveform={false}
-                />
-                <div
-                  className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
-                    isLockMode ? 'text-white' : 'text-black'
-                  }`}
-                >
-                  {assistantDisplayName}
-                </div>
-              </div>
-
-              <div className={aiCaptionOffsetClass}>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`ai-${title}-${aiCaptionText}`}
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                  >
-                    <CaptionLine
-                      text={aiCaptionText}
-                      doneLength={aiDoneLength}
-                      activeLength={aiActiveLength}
-                      align="left"
-                      isLockMode={isLockMode}
-                      size={aiCaptionSize}
-                    />
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </section>
-
-            <section
-              className={`absolute right-0 flex items-start justify-end gap-8 transition-opacity duration-200 ${
-                showAiSection
-                  ? 'bottom-[14%] w-[52%] max-xl:w-[58%] max-lg:w-[68%]'
-                  : 'bottom-[12%] w-[72%] max-xl:w-[78%] max-lg:w-[84%]'
-              } ${
-                showUserSection
-                  ? 'pointer-events-auto opacity-100'
-                  : 'pointer-events-none opacity-0'
-              }`}
-              aria-hidden={!showUserSection}
-            >
-              <div className={`max-w-[min(32vw,28rem)] ${userCaptionOffsetClass}`}>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`user-${title}-${userCaptionText}`}
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: userCaptionText ? 1 : 0, y: userCaptionText ? 0 : 14 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2, ease: 'easeOut' }}
-                  >
-                    <CaptionLine
-                      text={userCaptionText}
-                      doneLength={userDoneLength}
-                      activeLength={userActiveLength}
-                      align="right"
-                      isLockMode={isLockMode}
-                      size={userCaptionSize}
-                    />
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-
-              <div className="relative h-[160px] w-[160px] shrink-0 md:h-[178px] md:w-[178px]">
-                <motion.div
-                  className="h-full w-full overflow-hidden rounded-[20px] bg-[#F4F4F4]"
-                  animate={{
-                    y: activeSpeaker === 'user' ? -4 : 0,
-                    scale: activeSpeaker === 'user' ? 1.01 : 1,
-                  }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                >
-                  <img
-                    src={profileImage}
-                    alt="User profile"
-                    className="h-full w-full object-cover"
+            <div className="absolute inset-0 -translate-y-3 md:-translate-y-4">
+              <section
+                className={`absolute left-0 flex items-start gap-7 transition-opacity duration-200 max-xl:w-[60%] max-lg:w-[70%] ${
+                  showUserSection
+                    ? 'top-[6%] w-[50%]'
+                    : 'top-[8%] w-[68%] max-xl:w-[74%] max-lg:w-[80%]'
+                } ${
+                  showAiSection ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+                }`}
+                aria-hidden={!showAiSection}
+              >
+                <div className="relative h-[170px] w-[170px] shrink-0 md:h-[190px] md:w-[190px]">
+                  <CharacterScene
+                    faceType={faceType}
+                    mouthOpenRadius={mouthOpenRadius}
+                    mode={currentMode}
+                    isLockMode={isLockMode}
+                    isSpeaking={isCharacterSpeaking}
+                    isMicOn={isMicOn}
+                    showWaveform={false}
                   />
-                </motion.div>
-                <div
-                  className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
-                    isLockMode ? 'text-white' : 'text-black'
-                  }`}
-                >
-                  {userDisplayName}
+                  <div
+                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
+                      isLockMode ? 'text-white' : 'text-black'
+                    }`}
+                  >
+                    {assistantDisplayName}
+                  </div>
                 </div>
-              </div>
-            </section>
+
+                <div className={aiCaptionText.trim().length >= longCaptionThreshold ? 'pt-16' : 'pt-10'}>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`ai-${title}-${aiCaptionText}`}
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                      <CaptionLine
+                        text={aiCaptionText}
+                        doneLength={aiDoneLength}
+                        activeLength={aiActiveLength}
+                        align="left"
+                        isLockMode={isLockMode}
+                        size={aiCaptionSize}
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </section>
+
+              <section
+                className={`absolute right-0 flex items-start justify-end gap-8 transition-opacity duration-200 ${
+                  showAiSection
+                    ? 'bottom-[14%] w-[48%] max-xl:w-[54%] max-lg:w-[64%]'
+                    : 'bottom-[12%] w-[68%] max-xl:w-[74%] max-lg:w-[80%]'
+                } ${
+                  showUserSection
+                    ? 'pointer-events-auto opacity-100'
+                    : 'pointer-events-none opacity-0'
+                }`}
+                aria-hidden={!showUserSection}
+              >
+                <div className={`max-w-[min(28vw,24rem)] ${userCaptionText.trim().length >= longCaptionThreshold ? 'pt-6' : 'pt-3'}`}>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`user-${title}-${userCaptionText}`}
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: userCaptionText ? 1 : 0, y: userCaptionText ? 0 : 14 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                      <CaptionLine
+                        text={userCaptionText}
+                        doneLength={userDoneLength}
+                        activeLength={userActiveLength}
+                        align="right"
+                        isLockMode={isLockMode}
+                        size={userCaptionSize}
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                <div className="relative h-[150px] w-[150px] shrink-0 md:h-[164px] md:w-[164px]">
+                  <motion.div
+                    className="h-full w-full overflow-hidden rounded-[20px] bg-[#F4F4F4]"
+                    animate={{
+                      y: activeSpeaker === 'user' ? -4 : 0,
+                      scale: activeSpeaker === 'user' ? 1.01 : 1,
+                    }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                  >
+                    <img
+                      src={profileImage}
+                      alt="User profile"
+                      className="h-full w-full object-cover"
+                    />
+                  </motion.div>
+                  <div
+                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
+                      isLockMode ? 'text-white' : 'text-black'
+                    }`}
+                  >
+                    {userDisplayName}
+                  </div>
+                </div>
+              </section>
+            </div>
           </div>
         </main>
 
@@ -389,10 +412,10 @@ export default function AssistantConversationStage({
           <div className="mb-3 flex items-center justify-center">
             <div className="flex flex-col items-center gap-1">
               <div
-                className={`rounded-full px-4 py-2 text-sm font-bold shadow-sm ${
+                className={`rounded-full border px-4 py-2 text-sm font-bold ${
                   isLockMode
-                    ? 'border border-white/10 bg-white/5 text-white/70'
-                    : 'border border-[#E7E7E7] bg-white text-[#707070]'
+                    ? 'border-white/10 text-white/70'
+                    : 'border-[#E7E7E7] text-[#707070]'
                 }`}
               >
                 {statusText}
