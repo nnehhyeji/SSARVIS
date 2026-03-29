@@ -205,6 +205,17 @@ export default function UserMainPage() {
     };
   }, [isLoggedIn, isMyHome, leaveFollow, targetId, visitFollow]);
 
+  useEffect(() => {
+    setIsVisitorDualAiMode(false);
+    setIsAiTopicModalOpen(false);
+    setMyTriggerText('');
+    aiToAiChat.stopBattle();
+    // targetId가 바뀔 때만 방문 듀얼 AI 상태를 초기화한다.
+    // aiToAiChat 객체 전체를 의존성에 넣으면 렌더마다 effect가 다시 돌아
+    // "둘이 대화" 진입 직후 모드가 바로 꺼질 수 있다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setMyTriggerText, targetId]);
+
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? userInfo?.nickname || 'User' : visitedFollowName || 'Visitor';
   const visitorFollow = follows.find((follow) => follow.id === targetId) ?? null;
@@ -659,11 +670,17 @@ export default function UserMainPage() {
       return;
     }
 
+    if (isVisitorDualAiMode) {
+      setIsVisitorDualAiMode(false);
+      setIsAiTopicModalOpen(false);
+      return;
+    }
+
     if (!isLoggedIn || !currentUserId || !targetId) return;
 
     setIsVisitorDualAiMode(true);
     setIsAiTopicModalOpen(false);
-  }, [aiToAiChat, currentUserId, isLoggedIn, targetId]);
+  }, [aiToAiChat, currentUserId, isLoggedIn, isVisitorDualAiMode, targetId]);
 
   const handleVisitorFollow = useCallback(async () => {
     if (!isLoggedIn || isMyHome || !targetId || visitorFollowStatus === 'FOLLOWING') return;
@@ -805,7 +822,7 @@ export default function UserMainPage() {
             aiToAiChat.topic || aiToAiChat.isBattling
               ? () => {
                   aiToAiChat.stopBattle();
-                  setIsVisitorDualAiMode(false);
+                  setIsVisitorDualAiMode(true);
                   setIsAiTopicModalOpen(false);
                 }
               : undefined
@@ -837,7 +854,7 @@ export default function UserMainPage() {
           onContinueConversation={aiToAiChat.continueBattle}
           onStopConversation={() => {
             aiToAiChat.stopBattle();
-            setIsVisitorDualAiMode(false);
+            setIsVisitorDualAiMode(true);
             setIsAiTopicModalOpen(false);
           }}
           chatInput={activeChat.chatInput}
@@ -846,7 +863,7 @@ export default function UserMainPage() {
           onSendText={handleVisitorSendChat}
           onCancel={() => {
             aiToAiChat.stopBattle();
-            setIsVisitorDualAiMode(false);
+            setIsVisitorDualAiMode(true);
             setIsAiTopicModalOpen(false);
           }}
           onToggleLock={toggleLock}
