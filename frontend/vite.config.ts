@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    envPrefix: ['VITE_', 'KAKAO_'],
     server: {
       proxy: {
         '/api/v1': {

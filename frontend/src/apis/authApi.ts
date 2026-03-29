@@ -38,6 +38,12 @@ const authApi = {
     return response.data; // CommonResponse 리턴 (헤더 처리는 인터셉터나 호출부에서 가능)
   },
 
+  // 카카오 로그인 인증 코드 전송
+  kakaoLogin: async (code: string) => {
+    const response = await axiosInstance.get<CommonResponse<any>>(`/auth/kakao/callback?code=${code}`);
+    return response.data;
+  },
+
   // 2. 로그아웃
   logout: async () => {
     const response = await axiosInstance.post<CommonResponse>('/auth/logout');
