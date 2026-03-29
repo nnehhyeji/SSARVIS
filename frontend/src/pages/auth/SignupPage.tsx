@@ -11,6 +11,69 @@ import { useUserStore } from '../../store/useUserStore';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
 import { toast } from '../../store/useToastStore';
 
+const TEXT = {
+  invalidCustomIdCheck: '아이디 중복 확인을 먼저 완료해주세요.',
+  invalidEmailVerification: '이메일 인증을 완료해주세요.',
+  invalidPassword: '비밀번호 형식을 다시 확인해주세요.',
+  signupSuccess: '회원가입이 완료되었습니다.',
+  signupFailed: '회원가입에 실패했습니다.',
+  signupError: '회원가입 중 오류가 발생했습니다.',
+  invalidEmail: '올바른 이메일 주소를 입력해주세요.',
+  duplicateEmail: '이미 사용 중인 이메일입니다.',
+  sendCodeTitle: '인증번호를 보냈어요.',
+  sendCodeDescription: '3분 안에 이메일에서 인증번호를 확인해주세요.',
+  sendCodeFailed: '인증번호 발송에 실패했습니다.',
+  sendCodeError: '인증번호 발송 중 오류가 발생했습니다.',
+  expiredCode: '인증 시간이 만료되었습니다.',
+  resendCode: '인증번호를 다시 요청해주세요.',
+  emptyCode: '인증번호를 입력해주세요.',
+  verifySuccess: '이메일 인증이 완료되었습니다.',
+  verifyFailed: '이메일 인증에 실패했습니다.',
+  verifyError: '인증번호 확인 중 오류가 발생했습니다.',
+  invalidCustomIdLength: '아이디는 4자 이상 입력해주세요.',
+  customIdCheckError: '아이디 중복 확인 중 오류가 발생했습니다.',
+  customIdAvailable: '사용 가능한 아이디입니다.',
+  customIdDuplicate: '이미 사용 중인 아이디입니다.',
+  customIdChecking: '확인 중',
+  customIdCheck: '중복 확인',
+  socialVerified: '소셜 인증 완료',
+  sending: '전송 중',
+  verified: '인증 완료',
+  sendVerification: '인증 요청',
+  codePlaceholder: '이메일 인증번호 6자리',
+  verify: '인증',
+  timerExpired: '인증 시간 만료',
+  timerPrefix: '남은 시간',
+  signupLoading: '가입 중...',
+  signupButton: '회원가입하고 시작하기',
+  leftEyebrow: 'YOUR AI ARCHIVE',
+  leftHeadingLine1: '나만의',
+  leftHeadingLine2: '특별한 AI를',
+  leftHeadingLine3: '만들어 보세요',
+  title: '회원가입',
+  subtitle: '몇 가지 정보만 입력하면 AI와의 여정이 시작됩니다.',
+  emailLabel: 'Email',
+  passwordLabel: 'Password',
+  idLabel: 'ID',
+  nicknameLabel: 'Nickname',
+  emailPlaceholder: '이메일',
+  passwordPlaceholder: '비밀번호 입력 (8~20자)',
+  customIdPlaceholder: '아이디',
+  nicknamePlaceholder: '사용할 이름',
+  passwordHelper: '영문과 숫자를 포함한 8~20자',
+  kakaoSignup: '카카오로 회원가입',
+  alreadyHaveAccount: '이미 계정이 있으신가요?',
+  login: '로그인',
+};
+
+type LocationState = {
+  isNewUser?: boolean;
+  registerUUID?: string;
+  profileImageUrl?: string;
+  email?: string;
+  nickname?: string;
+};
+
 export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,34 +87,12 @@ export default function SignupPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
 
-  // OAuth states
   const [registerUUID, setRegisterUUID] = useState('');
   const [profileImageUrl, setProfileImageUrl] = useState('');
   const [isOAuthUser, setIsOAuthUser] = useState(false);
   const [isEmailFromOAuth, setIsEmailFromOAuth] = useState(false);
   const [isNicknameFromOAuth, setIsNicknameFromOAuth] = useState(false);
 
-  useEffect(() => {
-    if (location.state && location.state.isNewUser) {
-      const { registerUUID, profileImageUrl, email, nickname } = location.state;
-      if (registerUUID) {
-        setIsOAuthUser(true);
-        setRegisterUUID(registerUUID);
-        if (profileImageUrl) setProfileImageUrl(profileImageUrl);
-        if (email) {
-          setEmail(email);
-          setEmailStatus('verified');
-          setIsEmailFromOAuth(true);
-        }
-        if (nickname) {
-          setNickname(nickname);
-          setIsNicknameFromOAuth(true);
-        }
-      }
-    }
-  }, [location.state]);
-
-  // Status states
   const [emailStatus, setEmailStatus] = useState<'none' | 'sending' | 'sent' | 'verified'>('none');
   const [customIdStatus, setCustomIdStatus] = useState<
     'none' | 'checking' | 'available' | 'duplicate'
@@ -64,9 +105,31 @@ export default function SignupPage() {
   const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d$@$!%*#?&]{8,20}$/;
   const isPasswordValid = passwordRegex.test(password);
 
-  // Timer logic
+  useEffect(() => {
+    const state = location.state as LocationState | null;
+    if (!state?.isNewUser) return;
+
+    if (state.registerUUID) {
+      setIsOAuthUser(true);
+      setRegisterUUID(state.registerUUID);
+      if (state.profileImageUrl) setProfileImageUrl(state.profileImageUrl);
+
+      if (state.email) {
+        setEmail(state.email);
+        setEmailStatus('verified');
+        setIsEmailFromOAuth(true);
+      }
+
+      if (state.nickname) {
+        setNickname(state.nickname);
+        setIsNicknameFromOAuth(true);
+      }
+    }
+  }, [location.state]);
+
   useEffect(() => {
     let timer: number | undefined;
+
     if (isTimerActive && timeLeft > 0) {
       timer = window.setInterval(() => {
         setTimeLeft((prev) => prev - 1);
@@ -74,46 +137,47 @@ export default function SignupPage() {
     } else if (timeLeft === 0) {
       setIsTimerActive(false);
     }
+
     return () => {
       if (timer) clearInterval(timer);
     };
   }, [isTimerActive, timeLeft]);
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignup = async (event: React.FormEvent) => {
+    event.preventDefault();
 
     const normalizedCustomId = customId.trim();
 
     if (customIdStatus !== 'available' || checkedCustomId !== normalizedCustomId) {
-      toast.error('아이디 중복 확인을 해주세요.');
+      toast.error(TEXT.invalidCustomIdCheck);
       return;
     }
+
     if (emailStatus !== 'verified') {
-      toast.error('이메일 인증을 완료해주세요.');
+      toast.error(TEXT.invalidEmailVerification);
       return;
     }
+
     if (!isPasswordValid) {
-      toast.error('비밀번호 형식을 확인해주세요.');
+      toast.error(TEXT.invalidPassword);
       return;
     }
 
     try {
       setIsSubmitting(true);
-      // 1. 전송할 데이터 객체 구성
+
       const signupData: SignupRequest = {
         email,
         password,
         nickname,
-        customId: normalizedCustomId, // 기존 upstream의 변수명 반영
+        customId: normalizedCustomId,
       };
 
-      // 2. OAuth 사용자일 경우에만 추가 정보 주입
       if (isOAuthUser) {
         signupData.registerUUID = registerUUID;
         signupData.profileImageUrl = profileImageUrl;
       }
 
-      // 3. 통합된 데이터로 API 호출
       const response = await userApi.signup(signupData);
 
       const loginResponse = await authApi.login({ email, password });
@@ -132,13 +196,13 @@ export default function SignupPage() {
         customId: profile.customId,
       });
 
-      toast.success(response.message || '회원가입이 완료되었어요.');
+      toast.success(response.message || TEXT.signupSuccess);
       navigate(PATHS.TUTORIAL);
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        toast.error('회원가입에 실패했어요.', error.response?.data?.message);
+        toast.error(TEXT.signupFailed, error.response?.data?.message);
       } else {
-        toast.error('회원가입 중 알 수 없는 오류가 발생했어요.');
+        toast.error(TEXT.signupError);
       }
     } finally {
       setIsSubmitting(false);
@@ -146,82 +210,65 @@ export default function SignupPage() {
   };
 
   const sendEmailCode = async () => {
+    if (isEmailFromOAuth) return;
+
     if (!email || !email.includes('@')) {
-      toast.error('올바른 이메일 형식을 입력해 주세요.');
+      toast.error(TEXT.invalidEmail);
       return;
     }
-<<<<<<< Updated upstream
-    setEmailStatus('sent');
-    setTimeLeft(180);
-    setIsTimerActive(true);
-    toast.info('인증 코드를 발송했어요.', '잠시 후 메일함을 확인해 주세요.');
-
-    userApi
-      .sendVerificationCode({ email })
-      .then(() => {
-        console.log('실제 이메일 발송 완료됨');
-      })
-      .catch((error: unknown) => {
-        setEmailStatus('none');
-        setIsTimerActive(false);
-        setTimeLeft(0);
-
-        if (axios.isAxiosError(error)) {
-          toast.error('인증 코드 발송에 실패했어요.', error.response?.data?.message);
-        } else {
-          toast.error('인증 코드 발송 중 알 수 없는 오류가 발생했어요.');
-        }
-      });
-=======
 
     try {
+      setEmailStatus('sending');
+
       const duplicateCheck = await userApi.checkEmail({ email });
       if (duplicateCheck.isDuplicate) {
-        alert('이미 사용중인 이메일입니다.');
+        setEmailStatus('none');
+        toast.error(TEXT.duplicateEmail);
         return;
       }
 
+      await userApi.sendVerificationCode({ email });
       setEmailStatus('sent');
       setTimeLeft(180);
       setIsTimerActive(true);
-      alert('인증 코드 발송을 요청했습니다. 잠시 후 메일함을 확인해 주세요.');
-
-      await userApi.sendVerificationCode({ email });
-      console.log('실제 이메일 발송 완료됨');
+      toast.info(TEXT.sendCodeTitle, TEXT.sendCodeDescription);
     } catch (error: unknown) {
       setEmailStatus('none');
       setIsTimerActive(false);
       setTimeLeft(0);
 
       if (axios.isAxiosError(error)) {
-        alert(error.response?.data?.message || '처리 중 오류가 발생했습니다.');
+        toast.error(TEXT.sendCodeFailed, error.response?.data?.message);
       } else {
-        alert('알 수 없는 오류가 발생했습니다.');
+        toast.error(TEXT.sendCodeError);
       }
     }
->>>>>>> Stashed changes
   };
 
   const verifyEmailCode = async () => {
+    if (isEmailFromOAuth) return;
+
     if (timeLeft === 0) {
-      toast.error('인증 시간이 만료되었어요.', '다시 요청해 주세요.');
+      toast.error(TEXT.expiredCode, TEXT.resendCode);
       return;
     }
+
     if (!verificationCode) {
-      toast.error('인증 코드를 입력해 주세요.');
+      toast.error(TEXT.emptyCode);
       return;
     }
+
     try {
       setIsVerifying(true);
       await userApi.verifyEmailCode({ email, code: verificationCode });
       setEmailStatus('verified');
       setIsTimerActive(false);
-      toast.success('이메일 인증에 성공했어요.');
+      toast.success(TEXT.verifySuccess);
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        toast.error('이메일 인증에 실패했어요.', error.response?.data?.message);
+        toast.error(TEXT.verifyFailed, error.response?.data?.message);
       } else {
-        toast.error('인증 번호 확인 중 오류가 발생했어요.');
+        toast.error(TEXT.verifyError);
       }
     } finally {
       setIsVerifying(false);
@@ -232,7 +279,7 @@ export default function SignupPage() {
     const normalizedCustomId = customId.trim();
 
     if (!normalizedCustomId || normalizedCustomId.length < 4) {
-      toast.error('아이디는 4자 이상이어야 해요.');
+      toast.error(TEXT.invalidCustomIdLength);
       return;
     }
 
@@ -260,54 +307,56 @@ export default function SignupPage() {
 
       setCustomIdStatus('none');
       setCheckedCustomId('');
-      toast.error('아이디 확인 중 오류가 발생했어요.');
+      toast.error(TEXT.customIdCheckError);
     }
   };
 
+  const remainingTime = `${Math.floor(timeLeft / 60)}:${(timeLeft % 60)
+    .toString()
+    .padStart(2, '0')}`;
+
   return (
-    <div className="min-h-screen bg-[#F0F2F5] flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#F0F2F5] p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-6xl bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row min-h-[720px]"
+        className="flex min-h-[720px] w-full max-w-6xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.1)] md:flex-row"
       >
-        {/* Left Side Panel */}
-        <div className="w-full md:w-[45%] bg-gradient-to-br from-[#F7E0DE] via-[#E6C0BC] to-[#D5A09D] p-12 flex flex-col justify-center relative order-2 md:order-1">
+        <div className="relative order-2 flex w-full flex-col justify-center bg-gradient-to-br from-[#F7E0DE] via-[#E6C0BC] to-[#D5A09D] p-12 md:order-1 md:w-[45%]">
           <div>
-            <div className="flex items-center gap-3 mb-20">
-              <div className="w-12 h-12 bg-[#11141D] rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white text-2xl font-bold text-base tracking-tighter">sv</span>
+            <div className="mb-20 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#11141D] shadow-lg">
+                <span className="text-base text-2xl font-bold tracking-tighter text-white">sv</span>
               </div>
-              <span className="text-[#11141D] font-black text-3xl tracking-tight">SSARVIS</span>
+              <span className="text-3xl font-black tracking-tight text-[#11141D]">SSARVIS</span>
             </div>
 
             <div className="space-y-6">
-              <span className="text-[#11141D]/50 text-sm font-black tracking-[0.2em] block uppercase">
-                YOUR AI ARCHIVE
+              <span className="block text-sm font-black uppercase tracking-[0.2em] text-[#11141D]/50">
+                {TEXT.leftEyebrow}
               </span>
-              <h1 className="text-[#11141D] text-5xl font-extrabold leading-[1.2] break-keep">
-                나를 닮은
+              <h1 className="break-keep text-5xl font-extrabold leading-[1.2] text-[#11141D]">
+                {TEXT.leftHeadingLine1}
                 <br />
-                나만의 AI가
+                {TEXT.leftHeadingLine2}
                 <br />
-                시작되는 곳
+                {TEXT.leftHeadingLine3}
               </h1>
             </div>
           </div>
         </div>
 
-        {/* Right Side Form */}
-        <div className="w-full md:w-[55%] p-8 md:p-12 flex flex-col relative order-1 md:order-2 self-center">
+        <div className="relative order-1 flex w-full flex-col self-center p-8 md:order-2 md:w-[55%] md:p-12">
           <button
             onClick={() => navigate(-1)}
-            className="absolute top-6 left-8 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute left-8 top-6 text-gray-400 transition-colors hover:text-gray-600"
           >
             <ChevronLeft size={24} />
           </button>
 
           <div className="mb-6 mt-4">
-            <h2 className="text-[#11141D] text-3xl font-bold mb-1.5 leading-tight">Get Started</h2>
-            <p className="text-gray-400 text-sm">당신을 닮은 AI를 만들어보세요.</p>
+            <h2 className="mb-1.5 text-3xl font-bold leading-tight text-[#11141D]">{TEXT.title}</h2>
+            <p className="text-sm text-gray-400">{TEXT.subtitle}</p>
           </div>
 
           <form onSubmit={handleSignup} className="space-y-3">
@@ -318,241 +367,156 @@ export default function SignupPage() {
               </>
             )}
 
-            {/* Email Field */}
             <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
-                Email
+              <label className="ml-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                {TEXT.emailLabel}
               </label>
               <div className="flex gap-2">
                 <input
                   type="email"
-                  placeholder="이메일"
+                  placeholder={TEXT.emailPlaceholder}
                   value={email}
                   disabled={emailStatus === 'verified' || isEmailFromOAuth}
                   readOnly={isEmailFromOAuth}
-                  onChange={(e) => {
+                  onChange={(event) => {
                     if (isEmailFromOAuth) return;
-                    setEmail(e.target.value);
+                    setEmail(event.target.value);
                     setEmailStatus('none');
+                    setVerificationCode('');
                   }}
-                  className={`flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 disabled:opacity-50 text-sm ${isEmailFromOAuth ? 'opacity-70 cursor-not-allowed text-gray-500' : ''}`}
+                  className={`flex-1 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm transition-all placeholder:text-gray-300 focus:border-[#D5A09D] focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 disabled:opacity-50 ${
+                    isEmailFromOAuth ? 'cursor-not-allowed text-gray-500 opacity-70' : ''
+                  }`}
                   required
                 />
                 <button
                   type="button"
                   onClick={sendEmailCode}
                   disabled={emailStatus === 'sending' || emailStatus === 'verified' || isEmailFromOAuth}
-                  className="px-5 py-3 bg-white border border-gray-200 text-[#11141D] rounded-2xl font-bold text-[11px] hover:bg-gray-50 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
+                  className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-[11px] font-bold text-[#11141D] shadow-sm transition-all hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50"
                 >
                   {isEmailFromOAuth
-                    ? '카카오 인증됨'
+                    ? TEXT.socialVerified
                     : emailStatus === 'sending'
-                      ? '발송 중'
+                      ? TEXT.sending
                       : emailStatus === 'verified'
-                        ? '인증됨'
-                        : '인증요청'}
+                        ? TEXT.verified
+                        : TEXT.sendVerification}
                 </button>
               </div>
 
-              {(emailStatus === 'sent' || emailStatus === 'verified') && (
+              {(emailStatus === 'sent' || emailStatus === 'verified' || isEmailFromOAuth) && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="space-y-2 mt-2"
+                  className="mt-2 space-y-2"
                 >
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder={isEmailFromOAuth ? '카카오 인증됨' : '인증코드 6자리'}
+                      placeholder={isEmailFromOAuth ? TEXT.socialVerified : TEXT.codePlaceholder}
                       value={isEmailFromOAuth ? '' : verificationCode}
                       disabled={emailStatus === 'verified' || isEmailFromOAuth}
                       readOnly={isEmailFromOAuth}
-                      onChange={(e) => setVerificationCode(e.target.value)}
-                      className="flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 transition-all text-sm disabled:opacity-50"
+                      onChange={(event) => setVerificationCode(event.target.value)}
+                      className="flex-1 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 disabled:opacity-50"
                     />
                     <button
                       type="button"
                       onClick={verifyEmailCode}
                       disabled={isVerifying || emailStatus === 'verified' || isEmailFromOAuth}
-                      className="px-5 py-3 bg-[#11141D] text-white rounded-2xl font-bold text-[11px] hover:bg-[#1a1e2b] transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
+                      className="rounded-2xl bg-[#11141D] px-5 py-3 text-[11px] font-bold text-white shadow-sm transition-all hover:bg-[#1a1e2b] active:scale-[0.98] disabled:opacity-50"
                     >
-                      {isEmailFromOAuth ? '완료' : isVerifying ? '확인 중' : '확인'}
+                      {isEmailFromOAuth ? TEXT.verified : isVerifying ? TEXT.customIdChecking : TEXT.verify}
                     </button>
                   </div>
                   {emailStatus === 'sent' && (
                     <p
-                      className={`text-[9px] font-bold ml-1 ${timeLeft < 30 ? 'text-red-500' : 'text-[#D5A09D]'}`}
+                      className={`ml-1 text-[9px] font-bold ${
+                        timeLeft < 30 ? 'text-red-500' : 'text-[#D5A09D]'
+                      }`}
                     >
-                      {timeLeft > 0
-                        ? `남은 시간 ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`
-                        : '인증 만료'}
+                      {timeLeft > 0 ? `${TEXT.timerPrefix} ${remainingTime}` : TEXT.timerExpired}
                     </p>
                   )}
                 </motion.div>
               )}
             </div>
 
-            {/* Password Field */}
             <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
-                Password
+              <label className="ml-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                {TEXT.passwordLabel}
               </label>
               <input
                 type="password"
-                placeholder="비밀번호 입력 (8~20자)"
+                placeholder={TEXT.passwordPlaceholder}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${password && !isPasswordValid ? 'border-red-200' : ''
-                  }`}
+                onChange={(event) => setPassword(event.target.value)}
+                className={`w-full rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm transition-all placeholder:text-gray-300 focus:border-[#D5A09D] focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 ${
+                  password && !isPasswordValid ? 'border-red-200' : ''
+                }`}
                 required
               />
+              {password && !isPasswordValid && (
+                <p className="ml-1 text-[9px] font-bold text-red-500">{TEXT.passwordHelper}</p>
+              )}
             </div>
 
-            {/* ID Field */}
             <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
-                ID
+              <label className="ml-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                {TEXT.idLabel}
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="아이디"
+                  placeholder={TEXT.customIdPlaceholder}
                   value={customId}
-                  onChange={(e) => {
-                    setCustomId(e.target.value);
+                  onChange={(event) => {
+                    setCustomId(event.target.value);
                     customIdCheckRequestIdRef.current += 1;
                     setCustomIdStatus('none');
                     setCheckedCustomId('');
                   }}
-                  className="flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm"
+                  className="flex-1 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm transition-all placeholder:text-gray-300 focus:border-[#D5A09D] focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20"
                   required
                 />
                 <button
                   type="button"
                   onClick={checkCustomIdDuplicate}
                   disabled={customIdStatus === 'checking'}
-                  className="px-5 py-3 bg-white border border-gray-200 text-[#11141D] rounded-2xl font-bold text-[11px] hover:bg-gray-50 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
+                  className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-[11px] font-bold text-[#11141D] shadow-sm transition-all hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50"
                 >
-                  {customIdStatus === 'checking' ? '확인 중' : '중복확인'}
+                  {customIdStatus === 'checking' ? TEXT.customIdChecking : TEXT.customIdCheck}
                 </button>
               </div>
               {customIdStatus === 'available' && (
-                <p className="text-[9px] text-green-600 font-bold ml-1 flex items-center gap-1">
-                  <Check className="w-3 h-3" /> 사용 가능한 아이디입니다.
+                <p className="ml-1 flex items-center gap-1 text-[9px] font-bold text-green-600">
+                  <Check className="h-3 w-3" /> {TEXT.customIdAvailable}
                 </p>
               )}
               {customIdStatus === 'duplicate' && (
-                <p className="text-[9px] text-red-500 font-bold ml-1 flex items-center gap-1">
-                  <X className="w-3 h-3" /> 이미 사용중인 아이디입니다.
+                <p className="ml-1 flex items-center gap-1 text-[9px] font-bold text-red-500">
+                  <X className="h-3 w-3" /> {TEXT.customIdDuplicate}
                 </p>
               )}
             </div>
 
-<<<<<<< Updated upstream
-            {/* Email Field */}
             <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
-                Email
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  placeholder="이메일"
-                  value={email}
-                  disabled={emailStatus === 'verified' || isOAuthUser}
-                  readOnly={isOAuthUser}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setEmailStatus('none');
-                  }}
-                  className="flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 disabled:opacity-50 text-sm"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={sendEmailCode}
-                  disabled={emailStatus === 'sending' || emailStatus === 'verified'}
-                  className="px-5 py-3 bg-white border border-gray-200 text-[#11141D] rounded-2xl font-bold text-[11px] hover:bg-gray-50 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
-                >
-                  {emailStatus === 'sending'
-                    ? '발송 중'
-                    : emailStatus === 'verified'
-                      ? '인증됨'
-                      : '인증요청'}
-                </button>
-              </div>
-
-              {(emailStatus === 'sent' || emailStatus === 'verified') && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="space-y-2 mt-2"
-                >
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="인증코드 6자리"
-                      value={verificationCode}
-                      disabled={emailStatus === 'verified'}
-                      onChange={(e) => setVerificationCode(e.target.value)}
-                      className="flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 transition-all text-sm disabled:opacity-50"
-                    />
-                    <button
-                      type="button"
-                      onClick={verifyEmailCode}
-                      disabled={isVerifying || emailStatus === 'verified'}
-                      className="px-5 py-3 bg-[#11141D] text-white rounded-2xl font-bold text-[11px] hover:bg-[#1a1e2b] transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
-                    >
-                      {isVerifying ? '확인 중' : '확인'}
-                    </button>
-                  </div>
-                  {emailStatus === 'sent' && (
-                    <p
-                      className={`text-[9px] font-bold ml-1 ${timeLeft < 30 ? 'text-red-500' : 'text-[#D5A09D]'}`}
-                    >
-                      {timeLeft > 0
-                        ? `남은 시간 ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`
-                        : '인증 만료'}
-                    </p>
-                  )}
-                </motion.div>
-              )}
-            </div>
-
-            {/* Password Field */}
-            <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
-                Password
-              </label>
-              <input
-                type="password"
-                placeholder="비밀번호 입력 (8~20자)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${
-                  password && !isPasswordValid ? 'border-red-200' : ''
-                }`}
-                required
-              />
-            </div>
-
-=======
->>>>>>> Stashed changes
-            {/* Nickname Field */}
-            <div className="space-y-1 text-left">
-              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
-                Nickname
+              <label className="ml-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                {TEXT.nicknameLabel}
               </label>
               <input
                 type="text"
-                placeholder="활동할 닉네임"
+                placeholder={TEXT.nicknamePlaceholder}
                 value={nickname}
                 readOnly={isNicknameFromOAuth}
-                onChange={(e) => {
+                onChange={(event) => {
                   if (isNicknameFromOAuth) return;
-                  setNickname(e.target.value);
+                  setNickname(event.target.value);
                 }}
-                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${isNicknameFromOAuth ? 'opacity-70 cursor-not-allowed text-gray-500' : ''}`}
+                className={`w-full rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm transition-all placeholder:text-gray-300 focus:border-[#D5A09D] focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 ${
+                  isNicknameFromOAuth ? 'cursor-not-allowed text-gray-500 opacity-70' : ''
+                }`}
                 required
               />
             </div>
@@ -560,43 +524,43 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 bg-[#11141D] text-white rounded-2xl font-bold hover:bg-[#1a1e2b] transition-all active:scale-[0.99] disabled:opacity-50 shadow-lg mt-2 text-base"
+              className="mt-2 w-full rounded-2xl bg-[#11141D] py-4 text-base font-bold text-white shadow-lg transition-all hover:bg-[#1a1e2b] active:scale-[0.99] disabled:opacity-50"
             >
-              {isSubmitting ? '처리 중...' : '가입하고 시작하기'}
+              {isSubmitting ? TEXT.signupLoading : TEXT.signupButton}
             </button>
           </form>
 
           {!isOAuthUser && (
             <>
-              <div className="flex items-center w-full my-4">
-                <div className="flex-1 h-[1px] bg-gray-100"></div>
+              <div className="my-4 flex w-full items-center">
+                <div className="h-[1px] flex-1 bg-gray-100" />
               </div>
 
               <button
                 type="button"
                 onClick={() => {
-                  const REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY || ''; // .env 파일에 VITE_KAKAO_REST_API_KEY 추가 필요
-                  const REDIRECT_URI = import.meta.env.VITE_KAKAO_OAUTH_REDIRECT_URL || '';
-                  const link = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
+                  const restApiKey = import.meta.env.VITE_KAKAO_REST_API_KEY || '';
+                  const redirectUri = import.meta.env.VITE_KAKAO_OAUTH_REDIRECT_URL || '';
+                  const link = `https://kauth.kakao.com/oauth/authorize?client_id=${restApiKey}&redirect_uri=${redirectUri}&response_type=code`;
                   window.location.href = link;
                 }}
-                className="w-full py-3.5 bg-[#FEE500] text-[#11141D] rounded-2xl font-bold hover:bg-[#fada0a] transition-all active:scale-[0.99] flex items-center justify-center gap-2 shadow-sm text-sm"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FEE500] py-3.5 text-sm font-bold text-[#11141D] shadow-sm transition-all hover:bg-[#fada0a] active:scale-[0.99]"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 3c-4.97 0-9 3.037-9 6.784 0 2.455 1.705 4.607 4.29 5.86l-.88 3.256c-.05.184.058.376.24.428.055.016.113.018.17.006l3.83-2.541c.43.06.877.091 1.35.091 4.97 0 9-3.037 9-6.784S16.97 3 12 3z" />
                 </svg>
-                카카오 간편 통합 가입
+                {TEXT.kakaoSignup}
               </button>
             </>
           )}
 
           <div className="mt-6 text-center">
-            <span className="text-gray-400 text-xs">이미 계정이 있나요? </span>
+            <span className="text-xs text-gray-400">{TEXT.alreadyHaveAccount} </span>
             <button
               onClick={() => navigate(PATHS.LOGIN)}
-              className="text-[#D5A09D] text-xs font-bold hover:underline underline-offset-4"
+              className="text-xs font-bold text-[#D5A09D] underline-offset-4 hover:underline"
             >
-              로그인
+              {TEXT.login}
             </button>
           </div>
         </div>
