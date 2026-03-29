@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronRight, MoreHorizontal } from 'lucide-react';
 import type { ChatSession } from '../../../apis/chatApi';
+import SidebarAvatar from './SidebarAvatar';
 
 interface ChatPanelProps {
   chatTab: 'archive' | 'guestbook';
@@ -141,14 +142,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                             ${isActive ? 'bg-black/5 shadow-inner' : 'hover:bg-black/5'}
                           `}
                         >
-                          {!isAiSection && (
-                            <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 bg-white border border-gray-100 shadow-sm">
-                              <img
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session.id}`}
-                                alt="profile"
-                              />
-                            </div>
-                          )}
+                          {!isAiSection && <SidebarAvatar name={session.title || 'Friend'} sizeClassName="w-14 h-14" />}
 
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-center">
@@ -217,12 +211,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 className="flex items-center gap-4 p-4 bg-white/40 rounded-[24px] border border-white/50 hover:bg-white/60 transition-all cursor-pointer shadow-sm"
                 onClick={() => setSelectedChatId(session.id)}
               >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-green-100 to-teal-100 shadow-inner overflow-hidden">
-                  <img
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session.userId}`}
-                    alt="visitor"
-                  />
-                </div>
+                <SidebarAvatar
+                  name={session.title || 'Visitor'}
+                  sizeClassName="w-12 h-12"
+                  className="shadow-inner"
+                />
                 <div className="flex-1">
                   <p className="font-black text-gray-800 text-sm">
                     {session.title || '알 수 없는 방문자'}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bell, X } from 'lucide-react';
 import type { Alarm } from '../../../types';
+import SidebarAvatar from './SidebarAvatar';
 
 interface NotificationsPanelProps {
   alarms: Alarm[];
@@ -45,16 +46,18 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                 alarm.isRead ? 'opacity-0' : 'opacity-100'
               }`}
             />
-            <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-gray-100 shadow-sm bg-gray-50">
-              <img
-                src={
-                  (alarm.payload as { senderProfileImage?: string } | undefined)?.senderProfileImage ||
-                  `https://api.dicebear.com/7.x/avataaars/svg?seed=Alarm${alarm.id}`
-                }
-                alt="profile"
-                className="w-full h-full object-cover"
-              />
-            </div>
+            <SidebarAvatar
+              name={
+                ((alarm.payload as { senderNickname?: string; senderName?: string } | undefined)
+                  ?.senderNickname ||
+                  (alarm.payload as { senderNickname?: string; senderName?: string } | undefined)
+                    ?.senderName ||
+                  'A')
+              }
+              imageUrl={
+                (alarm.payload as { senderProfileImage?: string } | undefined)?.senderProfileImage
+              }
+            />
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-800 leading-snug">{alarm.message}</p>
               <p className="text-[11px] text-gray-400 font-bold mt-1 tracking-tight uppercase italic">

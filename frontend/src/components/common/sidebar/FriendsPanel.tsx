@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronRight, X, Users, Search } from 'lucide-react';
 import type { Follow, FollowRequest } from '../../../types';
+import SidebarAvatar from './SidebarAvatar';
 
 interface FriendsPanelProps {
   friendView: 'main' | 'requests';
@@ -74,16 +75,7 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
                   className="flex items-center gap-4 p-4 hover:bg-white/40 rounded-[20px] transition-all cursor-pointer group/friend"
                   onClick={() => onVisit(f.id)}
                 >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-gray-100 to-gray-200 border border-white shadow-sm overflow-hidden shrink-0">
-                    <img
-                      src={
-                        f.profileImgUrl ||
-                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${f.name}`
-                      }
-                      alt={f.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  <SidebarAvatar name={f.name} imageUrl={f.profileImgUrl} />
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-[17px] text-gray-800 leading-tight truncate">
                       {f.name}
@@ -131,13 +123,7 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
                   key={req.id}
                   className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm"
                 >
-                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0">
-                    <img
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${req.name}`}
-                      alt={req.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  <SidebarAvatar name={req.name} />
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-gray-800 text-[15px] truncate">{req.name}</p>
                     <p className="text-[11px] text-gray-400 font-bold mt-0.5">팔로우 요청</p>
