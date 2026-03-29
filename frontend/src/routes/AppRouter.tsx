@@ -4,6 +4,7 @@ import CardPage from '../pages/card/CardPage';
 import LoginPage from '../pages/auth/LoginPage';
 import SettingsPage from '../pages/settings/SettingsPage';
 import SignupPage from '../pages/auth/SignupPage';
+import KakaoCallbackPage from '../pages/auth/KakaoCallbackPage';
 import TutorialPage from '../pages/auth/TutorialPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import PersonaSurveyPage from '../pages/persona/PersonaSurveyPage';
@@ -116,6 +117,10 @@ export const router = createBrowserRouter([
   {
     path: PATHS.SIGNUP,
     element: <SignupPage />,
+  },
+  {
+    path: PATHS.KAKAO_CALLBACK,
+    element: <KakaoCallbackPage />,
   },
   {
     path: PATHS.TUTORIAL,

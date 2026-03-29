@@ -15,6 +15,7 @@ export const PATHS = {
   LOGIN: '/login',
   SIGNUP: '/signup',
   TUTORIAL: '/tutorial',
+  KAKAO_CALLBACK: '/auth/kakao/callback',
 
   // 기능별 독립 페이지
   ASSISTANT: '/assistant',
