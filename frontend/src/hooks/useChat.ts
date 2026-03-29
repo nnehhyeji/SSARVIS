@@ -1209,14 +1209,8 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
         targetUserId,
       };
 
-      try {
-        const granted = await requestPermission();
-        if (!granted) {
-          updateVoiceStatus('마이크 권한을 확인할 수 없어요');
-          return;
-        }
-      } catch (error) {
-        void error;
+      const granted = await requestPermission();
+      if (!granted) {
         updateVoiceStatus('마이크 권한을 확인할 수 없어요');
         return;
       }

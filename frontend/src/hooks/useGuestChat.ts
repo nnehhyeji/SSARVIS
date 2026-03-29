@@ -492,14 +492,9 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
         return;
       }
 
-      try {
-        const granted = await requestPermission();
-        if (!granted) {
-          console.warn('Microphone permission is required.');
-          return;
-        }
-      } catch (error) {
-        console.warn('Microphone permission is required:', error);
+      const granted = await requestPermission();
+      if (!granted) {
+        console.warn('Microphone permission is required.');
         return;
       }
 

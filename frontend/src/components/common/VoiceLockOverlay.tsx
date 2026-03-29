@@ -35,10 +35,12 @@ const VoiceLockOverlay: React.FC = () => {
 
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
   const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isVerifyingRef = useRef(false);
 
   const handleVerify = React.useCallback(
     async (phrase: string) => {
-      if (isVerifying) return;
+      if (isVerifyingRef.current) return;
+      isVerifyingRef.current = true;
       setIsVerifying(true);
       setErrorMsg('');
 
@@ -63,10 +65,11 @@ const VoiceLockOverlay: React.FC = () => {
         console.error('Lock verification failed:', error);
         setErrorMsg('서버와 통신 중 오류가 발생했습니다.');
       } finally {
+        isVerifyingRef.current = false;
         setIsVerifying(false);
       }
     },
-    [isVerifying, setIsLocked, setUseTextInput],
+    [setIsLocked, setUseTextInput],
   );
 
   useEffect(() => {

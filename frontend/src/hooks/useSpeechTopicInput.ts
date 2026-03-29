@@ -139,17 +139,12 @@ export function useSpeechTopicInput(): TopicInputState {
 
     setIsSupported(true);
 
-    try {
-      const stream = await getStream();
-      if (!stream) {
-        setErrorMessage('마이크 권한이 필요합니다.');
-        return;
-      }
-      streamRef.current = stream;
-    } catch {
+    const stream = await getStream();
+    if (!stream) {
       setErrorMessage('마이크 권한이 필요합니다.');
       return;
     }
+    streamRef.current = stream;
 
     finalTranscriptRef.current = '';
     interimTranscriptRef.current = '';
