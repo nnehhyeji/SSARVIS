@@ -177,7 +177,7 @@ wait_for_container_health redis 24
 wait_for_container_health backend 24
 
 log "Seeding notification_types"
-"${DOCKER_CMD[@]}" exec mysql mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "INSERT IGNORE INTO notification_types (name) VALUES ('FOLLOW_REQUEST'), ('FOLLOW_ACCEPT'), ('FOLLOW_CREATED');"
+"${DOCKER_CMD[@]}" exec mysql mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "INSERT IGNORE INTO notification_types (id, name) VALUES (1, 'FOLLOW_REQUEST'), (2,'FOLLOW_ACCEPT'), (10, 'FOLLOW_CREATED');"
 
 
 trap - ERR

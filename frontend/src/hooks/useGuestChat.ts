@@ -76,6 +76,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     { sender: 'ai', text: DEFAULT_GREETING },
   ]);
   const [sttText, setSttText] = useState('');
+  const [voicePhase, setVoicePhase] = useState<RecognitionMode>('idle');
+  const [wakeWordDetectedAt, setWakeWordDetectedAt] = useState<number | null>(null);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
 
@@ -105,6 +107,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     setChatMessages([{ sender: 'ai', text: DEFAULT_GREETING }]);
     setChatInput('');
     setSttText('');
+    setVoicePhase('idle');
+    setWakeWordDetectedAt(null);
     setIsAwaitingResponse(false);
     setIsAiSpeaking(false);
   }, []);
@@ -391,6 +395,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       const normalized = finalText.trim();
       if (speechFinalizedRef.current) return;
       speechFinalizedRef.current = true;
+      setVoicePhase('idle');
 
       if (!normalized) {
         setSttText('');
@@ -422,7 +427,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const startWakeMode = useCallback(() => {
     if (!recognitionRef.current) return;
 
-    recognitionModeRef.current = 'wake';
+      recognitionModeRef.current = 'wake';
+      setVoicePhase('wake');
     pendingSpeechCaptureRef.current = false;
     recognitionRef.current.continuous = true;
     recognitionRef.current.interimResults = false;
@@ -438,6 +444,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       sttTextRef.current = heardText;
 
       if (containsWakeWord(heardText)) {
+        setWakeWordDetectedAt(Date.now());
         setSttText('웨이크 워드 감지! 음성을 듣고 있어요.');
         pendingSpeechCaptureRef.current = true;
         stopRecognition();
@@ -451,7 +458,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     if (!recognitionRef.current || !currentRecordingOptionsRef.current) return;
 
     speechFinalizedRef.current = false;
-    recognitionModeRef.current = 'speech';
+      recognitionModeRef.current = 'speech';
+      setVoicePhase('speech');
     clearSpeechSilenceTimer();
     setSttText('음성을 듣고 있어요...');
     sttTextRef.current = '';
@@ -601,6 +609,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
   const stopRecordingAndSendSTT = useCallback(() => {
     recognitionModeRef.current = 'idle';
+    setVoicePhase('idle');
+    setWakeWordDetectedAt(null);
     pendingSpeechCaptureRef.current = false;
     clearSpeechSilenceTimer();
     stopRecognition();
@@ -680,9 +690,11 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   return {
     chatInput,
     chatMessages,
-    isLockMode: false,
-    sttText,
-    isAiSpeaking,
+      isLockMode: false,
+      sttText,
+      voicePhase,
+      wakeWordDetectedAt,
+      isAiSpeaking,
     isAwaitingResponse,
     setChatInput,
     toggleLock,
