@@ -5,7 +5,6 @@ import SidebarAvatar from './SidebarAvatar';
 
 interface ChatPanelProps {
   chatTab: 'archive' | 'guestbook';
-  setChatTab: (val: 'archive' | 'guestbook') => void;
   chatView: 'categories' | 'list';
   setChatView: (val: 'categories' | 'list') => void;
   chatCategory: 'assistant' | 'persona' | 'friend';
@@ -22,7 +21,6 @@ interface ChatPanelProps {
 
 const ChatPanel: React.FC<ChatPanelProps> = ({
   chatTab,
-  setChatTab,
   chatView,
   setChatView,
   chatCategory,

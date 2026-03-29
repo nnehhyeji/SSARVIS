@@ -1,13 +1,10 @@
+import { initialsAvatarFallback } from '../../../utils/avatar';
+
 interface SidebarAvatarProps {
   name?: string | null;
   imageUrl?: string | null;
   sizeClassName?: string;
   className?: string;
-}
-
-function getFallbackAvatarUrl(name?: string | null) {
-  const seed = encodeURIComponent((name || 'User').trim() || 'User');
-  return `https://api.dicebear.com/7.x/initials/svg?seed=${seed}`;
 }
 
 export default function SidebarAvatar({
@@ -16,7 +13,7 @@ export default function SidebarAvatar({
   sizeClassName = 'w-12 h-12',
   className = '',
 }: SidebarAvatarProps) {
-  const resolvedImageUrl = imageUrl || getFallbackAvatarUrl(name);
+  const resolvedImageUrl = imageUrl || initialsAvatarFallback((name || 'User').trim() || 'User');
 
   return (
     <div

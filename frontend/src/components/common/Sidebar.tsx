@@ -706,7 +706,6 @@ export default function Sidebar({
               {activeTertiary === 'chat' && (
                 <ChatPanel
                   chatTab={chatTab}
-                  setChatTab={setChatTab}
                   chatView={chatView}
                   setChatView={setChatView}
                   chatCategory={chatCategory}
