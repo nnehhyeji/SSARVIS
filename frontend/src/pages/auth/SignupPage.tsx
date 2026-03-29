@@ -8,6 +8,8 @@ import userApi from '../../apis/userApi';
 import authApi from '../../apis/authApi';
 import { useUserStore } from '../../store/useUserStore';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
+import { toast } from '../../store/useToastStore';
+
 export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -76,15 +78,15 @@ export default function SignupPage() {
     const normalizedCustomId = customId.trim();
 
     if (customIdStatus !== 'available' || checkedCustomId !== normalizedCustomId) {
-      alert('아이디 중복 확인을 해주세요.');
+      toast.error('아이디 중복 확인을 해주세요.');
       return;
     }
     if (emailStatus !== 'verified') {
-      alert('이메일 인증을 완료해주세요.');
+      toast.error('이메일 인증을 완료해주세요.');
       return;
     }
     if (!isPasswordValid) {
-      alert('비밀번호 형식을 확인해주세요.');
+      toast.error('비밀번호 형식을 확인해주세요.');
       return;
     }
 
@@ -123,13 +125,13 @@ export default function SignupPage() {
         customId: profile.customId,
       });
 
-      alert(response.message || '회원가입이 완료되었습니다!');
+      toast.success(response.message || '회원가입이 완료되었어요.');
       navigate(PATHS.TUTORIAL);
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        alert(error.response?.data?.message || '회원가입 중 오류가 발생했습니다.');
+        toast.error('회원가입에 실패했어요.', error.response?.data?.message);
       } else {
-        alert('회원가입 중 알 수 없는 오류가 발생했습니다.');
+        toast.error('회원가입 중 알 수 없는 오류가 발생했어요.');
       }
     } finally {
       setIsSubmitting(false);
@@ -138,13 +140,13 @@ export default function SignupPage() {
 
   const sendEmailCode = () => {
     if (!email || !email.includes('@')) {
-      alert('올바른 이메일 형식을 입력해 주세요.');
+      toast.error('올바른 이메일 형식을 입력해 주세요.');
       return;
     }
     setEmailStatus('sent');
     setTimeLeft(180);
     setIsTimerActive(true);
-    alert('인증 코드 발송을 요청했습니다. 잠시 후 메일함을 확인해 주세요.');
+    toast.info('인증 코드를 발송했어요.', '잠시 후 메일함을 확인해 주세요.');
 
     userApi.sendVerificationCode({ email })
       .then(() => {
@@ -156,20 +158,20 @@ export default function SignupPage() {
         setTimeLeft(0);
 
         if (axios.isAxiosError(error)) {
-          alert(error.response?.data?.message || '인증 코드 발송 중 오류가 발생했습니다.');
+          toast.error('인증 코드 발송에 실패했어요.', error.response?.data?.message);
         } else {
-          alert('인증 코드 발송 중 알 수 없는 오류가 발생했습니다.');
+          toast.error('인증 코드 발송 중 알 수 없는 오류가 발생했어요.');
         }
       });
   };
 
   const verifyEmailCode = async () => {
     if (timeLeft === 0) {
-      alert('인증 시간이 만료되었습니다. 다시 요청해 주세요.');
+      toast.error('인증 시간이 만료되었어요.', '다시 요청해 주세요.');
       return;
     }
     if (!verificationCode) {
-      alert('인증 코드를 입력해 주세요.');
+      toast.error('인증 코드를 입력해 주세요.');
       return;
     }
     try {
@@ -177,12 +179,12 @@ export default function SignupPage() {
       await userApi.verifyEmailCode({ email, code: verificationCode });
       setEmailStatus('verified');
       setIsTimerActive(false);
-      alert('이메일 인증에 성공했습니다.');
+      toast.success('이메일 인증에 성공했어요.');
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        alert(error.response?.data?.message || '인증 번호가 일치하지 않습니다.');
+        toast.error('이메일 인증에 실패했어요.', error.response?.data?.message);
       } else {
-        alert('인증 번호 확인 중 오류가 발생했습니다.');
+        toast.error('인증 번호 확인 중 오류가 발생했어요.');
       }
     } finally {
       setIsVerifying(false);
@@ -193,7 +195,7 @@ export default function SignupPage() {
     const normalizedCustomId = customId.trim();
 
     if (!normalizedCustomId || normalizedCustomId.length < 4) {
-      alert('아이디는 4자 이상이어야 합니다.');
+      toast.error('아이디는 4자 이상이어야 해요.');
       return;
     }
 
@@ -221,7 +223,7 @@ export default function SignupPage() {
 
       setCustomIdStatus('none');
       setCheckedCustomId('');
-      alert('아이디 확인 중 오류가 발생했습니다.');
+      toast.error('아이디 확인 중 오류가 발생했어요.');
     }
   };
 

@@ -4,9 +4,13 @@ import { RouterProvider } from 'react-router-dom';
 import './index.css';
 import './App.css';
 import { router } from './routes/AppRouter';
+import ToastViewport from './components/common/ToastViewport';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <>
+      <RouterProvider router={router} />
+      <ToastViewport />
+    </>
   </StrictMode>,
 );

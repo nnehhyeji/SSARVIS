@@ -6,6 +6,7 @@ import type { UserResponse, UpdateUserRequest } from '../../apis/userApi';
 import { useUserStore } from '../../store/useUserStore';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '../../routes/paths';
+import { toast } from '../../store/useToastStore';
 
 interface Props {
   profile: UserResponse | null;
@@ -48,7 +49,7 @@ export default function AccountSettings({
 
         if (type === 'nickname') {
           if (newNickname.length < 2) {
-            alert('닉네임은 2자 이상이어야 합니다.');
+            toast.error('닉네임은 2자 이상이어야 해요.');
             return;
           }
           updateData.nickname = newNickname;
@@ -56,18 +57,18 @@ export default function AccountSettings({
           updateData.description = newDescription;
         } else if (type === 'password') {
           if (newPassword.length < 8) {
-            alert('비밀번호는 8자 이상이어야 합니다.');
+            toast.error('비밀번호는 8자 이상이어야 해요.');
             return;
           }
           if (newPassword !== confirmPassword) {
-            alert('비밀번호가 일치하지 않습니다.');
+            toast.error('비밀번호가 일치하지 않아요.');
             return;
           }
           updateData.password = newPassword;
         }
 
         await userApi.updateUserProfile(updateData);
-        alert('변경 사항이 저장되었습니다.');
+        toast.success('변경 사항이 저장되었어요.');
         setIsEditingNickname(false);
         setIsEditingDescription(false);
         setIsEditingPassword(false);
@@ -76,9 +77,9 @@ export default function AccountSettings({
         loadProfile();
       } catch (error: unknown) {
         if (axios.isAxiosError(error)) {
-          alert(error.response?.data?.message || '수정 중 오류가 발생했습니다.');
+          toast.error('프로필 수정에 실패했어요.', error.response?.data?.message);
         } else {
-          alert('수정 중 오류가 발생했습니다.');
+          toast.error('수정 중 오류가 발생했어요.');
         }
       } finally {
         setIsSaving(false);
@@ -123,17 +124,17 @@ export default function AccountSettings({
       window.confirm(
         '정말로 탈퇴하시겠습니까?\n탈퇴 시 모든 데이터가 삭제되며, 동일한 이메일로의 재가입이 불가능합니다.',
       )
-    ) {
+      ) {
       try {
         await userApi.withdraw();
-        alert('회원 탈퇴가 완료되었습니다.');
+        toast.success('회원 탈퇴가 완료되었어요.');
         logout();
         navigate(PATHS.LOGIN);
       } catch (error: unknown) {
         if (axios.isAxiosError(error)) {
-          alert(error.response?.data?.message || '탈퇴 처리 중 오류가 발생했습니다.');
+          toast.error('회원 탈퇴 처리에 실패했어요.', error.response?.data?.message);
         } else {
-          alert('탈퇴 처리 중 알 수 없는 오류가 발생했습니다.');
+          toast.error('탈퇴 처리 중 알 수 없는 오류가 발생했어요.');
         }
       }
     }

@@ -11,6 +11,7 @@ import followApi, {
 import AvatarRow, { type AvatarRowItem } from '../../components/profile/AvatarRow';
 import { PATHS } from '../../routes/paths';
 import { avatarFallback } from '../../utils/avatar';
+import { toast } from '../../store/useToastStore';
 
 const sortByTopChatters = (items: AvatarRowItem[], topChatters: TopChatterResponse[]) => {
   const ranking = new Map<number, number>();
@@ -95,10 +96,11 @@ const ProfilePage: React.FC = () => {
     navigator.clipboard
       .writeText(shareUrl)
       .then(() => {
-        alert('프로필 링크가 클립보드에 복사되었습니다.');
+        toast.success('프로필 링크를 복사했어요.');
       })
       .catch((err) => {
         console.error('Failed to copy link:', err);
+        toast.error('프로필 링크 복사에 실패했어요.');
       });
   };
 
