@@ -7,6 +7,7 @@ import { CONVERSATION_UI } from '../../constants/conversationUi';
 import { useAICharacter } from '../../hooks/useAICharacter';
 import { useChat } from '../../hooks/useChat';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
+import { useMicStore } from '../../store/useMicStore';
 import { useUserStore } from '../../store/useUserStore';
 
 export default function AssistantPage() {
@@ -15,8 +16,18 @@ export default function AssistantPage() {
   const [pageNotice, setPageNotice] = useState('');
   const [isTextInputMode, setIsTextInputMode] = useState(false);
 
-  const { isMicOn, mouthOpenRadius, faceType, toggleMic, isSpeaking, setIsSpeaking, triggerText } =
-    useAICharacter();
+  const {
+    isMicOn,
+    micPreferenceEnabled,
+    mouthOpenRadius,
+    faceType,
+    isSpeaking,
+    setIsSpeaking,
+    triggerText,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
+  } = useAICharacter();
+  const micStoreHydrated = useMicStore((state) => state.hasHydrated);
 
   const {
     chatInput,
@@ -150,16 +161,36 @@ export default function AssistantPage() {
   const assistantDisplayName = `${userInfo?.nickname || profile?.nickname || 'User'} AI`;
   const userDisplayName = profile?.nickname || userInfo?.nickname || 'User';
 
-  const handleMicToggle = () => {
-    toggleMic();
-    if (!isMicOn) {
-      setIsTextInputMode(false);
-      startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
-    } else {
+  const enableMic = useCallback(async () => {
+    setMicPreferenceEnabled(true);
+    setIsTextInputMode(false);
+    const started = await startRecording(
+      null,
+      assistantType,
+      isLockMode ? 'SECRET' : 'GENERAL',
+      'USER_AI',
+    );
+    setMicRuntimeActive(started);
+    if (!started) {
       setIsTextInputMode(true);
-      stopRecordingAndSendSTT();
     }
-  };
+    return started;
+  }, [assistantType, isLockMode, setMicPreferenceEnabled, setMicRuntimeActive, startRecording]);
+
+  const disableMic = useCallback(() => {
+    setMicPreferenceEnabled(false);
+    setMicRuntimeActive(false);
+    setIsTextInputMode(true);
+    stopRecordingAndSendSTT();
+  }, [setMicPreferenceEnabled, setMicRuntimeActive, stopRecordingAndSendSTT]);
+
+  const handleMicToggle = useCallback(() => {
+    if (isMicOn) {
+      disableMic();
+      return;
+    }
+    void enableMic();
+  }, [disableMic, enableMic, isMicOn]);
 
   const handleSendText = () => {
     if (!chatInput.trim()) return;
@@ -167,13 +198,17 @@ export default function AssistantPage() {
   };
 
   useEffect(() => {
-    if (didAutoStartRef.current || isMicOn) return;
+    if (!micStoreHydrated || !micPreferenceEnabled || didAutoStartRef.current || isMicOn) return;
 
     didAutoStartRef.current = true;
-    setIsTextInputMode(false);
-    toggleMic();
-    startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
-  }, [assistantType, isLockMode, isMicOn, startRecording, toggleMic]);
+    void enableMic();
+  }, [enableMic, isMicOn, micPreferenceEnabled, micStoreHydrated]);
+
+  useEffect(() => {
+    return () => {
+      setMicRuntimeActive(false);
+    };
+  }, [setMicRuntimeActive]);
 
   return (
     <AssistantConversationStage

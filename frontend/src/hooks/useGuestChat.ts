@@ -477,7 +477,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       chatSessionType: string = 'AVATAR_AI',
       targetUserId: number | null = null,
     ) => {
-      if (!enabled) return;
+      if (!enabled) return false;
 
       const SpeechRecognition =
         (window as unknown as { SpeechRecognition?: new () => GuestSpeechRecognition })
@@ -487,7 +487,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
       if (!SpeechRecognition) {
         console.warn('SpeechRecognition is not supported.');
-        return;
+        return false;
       }
 
       try {
@@ -495,7 +495,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
         stream.getTracks().forEach((track) => track.stop());
       } catch (error) {
         console.warn('Microphone permission is required:', error);
-        return;
+        return false;
       }
 
       currentRecordingOptionsRef.current = {
@@ -576,6 +576,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       }
 
       startWakeMode();
+      return true;
     },
     [
       clearSpeechSilenceTimer,
