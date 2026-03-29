@@ -45,6 +45,8 @@ export interface SignupRequest {
   password: string;
   nickname: string;
   customId: string;
+  registerUUID?: string;
+  profileImageUrl?: string;
 }
 
 export interface UserResponse {

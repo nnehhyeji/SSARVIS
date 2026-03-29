@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Check } from 'lucide-react';
+import { ChevronLeft, Check, X } from 'lucide-react';
 import { PATHS } from '../../routes/paths';
 import userApi from '../../apis/userApi';
 import authApi from '../../apis/authApi';
 import { useUserStore } from '../../store/useUserStore';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
-
 export default function SignupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useUserStore();
 
   const [email, setEmail] = useState('');
@@ -20,6 +20,27 @@ export default function SignupPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [timeLeft, setTimeLeft] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
+
+  // OAuth states
+  const [registerUUID, setRegisterUUID] = useState('');
+  const [profileImageUrl, setProfileImageUrl] = useState('');
+  const [isOAuthUser, setIsOAuthUser] = useState(false);
+
+  useEffect(() => {
+    if (location.state && location.state.isNewUser) {
+      const { registerUUID, profileImageUrl, email, nickName } = location.state;
+      if (registerUUID) {
+        setIsOAuthUser(true);
+        setRegisterUUID(registerUUID);
+        if (profileImageUrl) setProfileImageUrl(profileImageUrl);
+        if (email) {
+          setEmail(email);
+          setEmailStatus('verified');
+        }
+        if (nickName) setNickname(nickName);
+      }
+    }
+  }, [location.state]);
 
   // Status states
   const [emailStatus, setEmailStatus] = useState<'none' | 'sending' | 'sent' | 'verified'>('none');
@@ -69,12 +90,22 @@ export default function SignupPage() {
 
     try {
       setIsSubmitting(true);
-      const response = await userApi.signup({
+      // 1. 전송할 데이터 객체 구성
+      const signupData: any = {
         email,
         password,
         nickname,
-        customId: normalizedCustomId,
-      });
+        customId: normalizedCustomId, // 기존 upstream의 변수명 반영
+      };
+
+      // 2. OAuth 사용자일 경우에만 추가 정보 주입
+      if (isOAuthUser) {
+        signupData.registerUUID = registerUUID;
+        signupData.profileImageUrl = profileImageUrl;
+      }
+
+      // 3. 통합된 데이터로 API 호출
+      const response = await userApi.signup(signupData);
 
       const loginResponse = await authApi.login({ email, password });
       const { accessToken, timeout } = loginResponse.data;
@@ -105,26 +136,31 @@ export default function SignupPage() {
     }
   };
 
-  const sendEmailCode = async () => {
+  const sendEmailCode = () => {
     if (!email || !email.includes('@')) {
       alert('올바른 이메일 형식을 입력해 주세요.');
       return;
     }
-    try {
-      setEmailStatus('sending');
-      await userApi.sendVerificationCode({ email });
-      setEmailStatus('sent');
-      setTimeLeft(180);
-      setIsTimerActive(true);
-      alert('인증 코드가 발송되었습니다.');
-    } catch (error: unknown) {
-      setEmailStatus('none');
-      if (axios.isAxiosError(error)) {
-        alert(error.response?.data?.message || '인증 코드 발송 중 오류가 발생했습니다.');
-      } else {
-        alert('인증 코드 발송 중 알 수 없는 오류가 발생했습니다.');
-      }
-    }
+    setEmailStatus('sent');
+    setTimeLeft(180);
+    setIsTimerActive(true);
+    alert('인증 코드 발송을 요청했습니다. 잠시 후 메일함을 확인해 주세요.');
+
+    userApi.sendVerificationCode({ email })
+      .then(() => {
+        console.log('실제 이메일 발송 완료됨');
+      })
+      .catch((error: unknown) => {
+        setEmailStatus('none');
+        setIsTimerActive(false);
+        setTimeLeft(0);
+
+        if (axios.isAxiosError(error)) {
+          alert(error.response?.data?.message || '인증 코드 발송 중 오류가 발생했습니다.');
+        } else {
+          alert('인증 코드 발송 중 알 수 없는 오류가 발생했습니다.');
+        }
+      });
   };
 
   const verifyEmailCode = async () => {
@@ -201,7 +237,7 @@ export default function SignupPage() {
           <div>
             <div className="flex items-center gap-3 mb-20">
               <div className="w-12 h-12 bg-[#11141D] rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-base tracking-tighter">sv</span>
+                <span className="text-white text-2xl font-bold text-base tracking-tighter">sv</span>
               </div>
               <span className="text-[#11141D] font-black text-3xl tracking-tight">SSARVIS</span>
             </div>
@@ -224,7 +260,7 @@ export default function SignupPage() {
         {/* Right Side Form */}
         <div className="w-full md:w-[55%] p-8 md:p-12 flex flex-col relative order-1 md:order-2 self-center">
           <button
-            onClick={() => navigate(PATHS.HOME)}
+            onClick={() => navigate(-1)}
             className="absolute top-6 left-8 text-gray-400 hover:text-gray-600 transition-colors"
           >
             <ChevronLeft size={24} />
@@ -236,6 +272,12 @@ export default function SignupPage() {
           </div>
 
           <form onSubmit={handleSignup} className="space-y-3">
+            {isOAuthUser && (
+              <>
+                <input type="hidden" name="registerUUID" value={registerUUID} />
+                <input type="hidden" name="profileImageUrl" value={profileImageUrl} />
+              </>
+            )}
             {/* ID Field */}
             <div className="space-y-1 text-left">
               <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
@@ -270,7 +312,10 @@ export default function SignupPage() {
                 </p>
               )}
               {customIdStatus === 'duplicate' && (
-                <p className="text-[9px] text-red-500 font-bold ml-1">이미 사용 중인 아이디입니다.</p>
+
+                <p className="text-[9px] text-red-500 font-bold ml-1 flex items-center gap-1">
+                  <X className="w-3 h-3" /> 이미 사용중인 아이디입니다.
+                </p>
               )}
             </div>
 
@@ -284,7 +329,8 @@ export default function SignupPage() {
                   type="email"
                   placeholder="이메일"
                   value={email}
-                  disabled={emailStatus === 'verified'}
+                  disabled={emailStatus === 'verified' || isOAuthUser}
+                  readOnly={isOAuthUser}
                   onChange={(e) => {
                     setEmail(e.target.value);
                     setEmailStatus('none');
@@ -353,9 +399,8 @@ export default function SignupPage() {
                 placeholder="비밀번호 입력 (8~20자)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${
-                  password && !isPasswordValid ? 'border-red-200' : ''
-                }`}
+                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${password && !isPasswordValid ? 'border-red-200' : ''
+                  }`}
                 required
               />
             </div>
@@ -369,8 +414,9 @@ export default function SignupPage() {
                 type="text"
                 placeholder="활동할 닉네임"
                 value={nickname}
+                readOnly={isOAuthUser}
                 onChange={(e) => setNickname(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm"
+                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${isOAuthUser ? 'opacity-70 cursor-not-allowed text-gray-500' : ''}`}
                 required
               />
             </div>
@@ -390,6 +436,12 @@ export default function SignupPage() {
 
           <button
             type="button"
+            onClick={() => {
+              const REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY || ''; // .env 파일에 VITE_KAKAO_REST_API_KEY 추가 필요
+              const REDIRECT_URI = import.meta.env.VITE_KAKAO_OAUTH_REDIRECT_URL || '';
+              const link = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
+              window.location.href = link;
+            }}
             className="w-full py-3.5 bg-[#FEE500] text-[#11141D] rounded-2xl font-bold hover:bg-[#fada0a] transition-all active:scale-[0.99] flex items-center justify-center gap-2 shadow-sm text-sm"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
