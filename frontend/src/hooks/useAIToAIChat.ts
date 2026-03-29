@@ -25,6 +25,8 @@ type SideAudioState = {
   streamHandled: boolean;
   lastText: string;
   requestId: number;
+  voiceStarted: boolean;
+  hasAudioData: boolean;
 };
 
 const MAX_TURN = 20;
@@ -41,6 +43,8 @@ function createSideAudioState(): SideAudioState {
     streamHandled: false,
     lastText: '',
     requestId: 0,
+    voiceStarted: false,
+    hasAudioData: false,
   };
 }
 
@@ -81,6 +85,8 @@ export function useAIToAIChat() {
       current.lastText = '';
     }
     current.streamHandled = false;
+    current.voiceStarted = false;
+    current.hasAudioData = false;
 
     if (current.audio) {
       current.audio.pause();
@@ -212,7 +218,7 @@ export function useAIToAIChat() {
     setTurnCount(turnCountRef.current);
     setStatusMessage(`${turnCountRef.current}턴째 대화를 이어가는 중입니다.`);
     sendTurn(pending.to, pending.text);
-  }, [sendTurn]);
+  }, [sendTurn, stopBattle]);
 
   const handleStreamFinished = useCallback(
     (from: Side) => {
@@ -288,6 +294,7 @@ export function useAIToAIChat() {
       socket.onmessage = (event) => {
         if (event.data instanceof ArrayBuffer) {
           const state = sideAudioRef.current[side];
+          state.hasAudioData = true;
           state.queue.push(event.data);
           processAudioQueue(side);
           return;
@@ -324,15 +331,25 @@ export function useAIToAIChat() {
         }
 
         if (message.type === 'voice.start') {
+          sideAudioRef.current[side].voiceStarted = true;
           setupAudioForSide(side);
           return;
         }
 
         if (message.type === 'voice.delta') {
-          const audio = sideAudioRef.current[side].audio;
+          const state = sideAudioRef.current[side];
+          const audio = state.audio;
           if (audio && audio.paused) {
+            state.isPlaying = true;
+            setActiveSpeaker(side);
             audio.play().catch((error) => {
+              state.isPlaying = false;
+              setActiveSpeaker((current) => (current === side ? null : current));
               console.warn('AI 대화 오디오 자동재생 실패:', error);
+
+              if (state.streamEnded) {
+                handleStreamFinished(side);
+              }
             });
           }
           return;
@@ -343,7 +360,7 @@ export function useAIToAIChat() {
           state.streamEnded = true;
           processAudioQueue(side);
 
-          if (!state.isPlaying) {
+          if (!state.voiceStarted && !state.hasAudioData && !state.isPlaying) {
             handleStreamFinished(side);
           }
         }
