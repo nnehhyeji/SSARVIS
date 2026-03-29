@@ -9,6 +9,7 @@ import { useUserStore } from '../store/useUserStore';
 import { PATHS } from '../routes/paths';
 import { getUserVoiceModel } from '../apis/aiApi';
 import { toast } from '../store/useToastStore';
+import { useMicrophonePermission } from './useMicrophonePermission';
 
 interface WebSpeechRecognitionResultItem {
   transcript: string;
@@ -110,6 +111,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   const navigate = useNavigate();
   const userInfo = useUserStore((state) => state.userInfo);
   const { isLocked } = useVoiceLockStore();
+  const { requestPermission } = useMicrophonePermission();
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(
     initialGreeting ? [{ sender: 'ai', text: initialGreeting }] : [],
@@ -1208,8 +1210,11 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       };
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
+        const granted = await requestPermission();
+        if (!granted) {
+          updateVoiceStatus('마이크 권한을 확인할 수 없어요');
+          return;
+        }
       } catch (error) {
         void error;
         updateVoiceStatus('마이크 권한을 확인할 수 없어요');
@@ -1237,6 +1242,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       ensureSocketReady,
       ensureVoiceModelReady,
       isLocked,
+      requestPermission,
       startSpeechCapture,
       startWakeMode,
       updateVoiceStatus,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMicrophonePermission } from './useMicrophonePermission';
 
 interface SpeechRecognitionResultItem {
   transcript: string;
@@ -56,6 +57,7 @@ export function useSpeechTopicInput(): TopicInputState {
   const [editableTranscript, setEditableTranscript] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSupported, setIsSupported] = useState(true);
+  const { getStream } = useMicrophonePermission();
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -138,10 +140,14 @@ export function useSpeechTopicInput(): TopicInputState {
     setIsSupported(true);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await getStream();
+      if (!stream) {
+        setErrorMessage('마이크 권한이 필요합니다.');
+        return;
+      }
       streamRef.current = stream;
-    } catch (error) {
-      setErrorMessage(`마이크 권한이 필요합니다: ${String((error as Error).message || error)}`);
+    } catch {
+      setErrorMessage('마이크 권한이 필요합니다.');
       return;
     }
 
@@ -213,7 +219,7 @@ export function useSpeechTopicInput(): TopicInputState {
         return next;
       });
     }, 1000);
-  }, [cleanupMedia, clearTimer, stopRecognition]);
+  }, [cleanupMedia, clearTimer, getStream, stopRecognition]);
 
   useEffect(() => {
     return () => {

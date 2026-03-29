@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Lock, Keyboard, ArrowRight } from 'lucide-react';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
+import { useMicrophonePermission } from '../../hooks/useMicrophonePermission';
 import CharacterScene from '../features/character/CharacterScene';
 import { useAICharacter } from '../../hooks/useAICharacter';
 import authApi from '../../apis/authApi';
@@ -20,6 +21,7 @@ type CustomWindow = Window & {
 const VoiceLockOverlay: React.FC = () => {
   const { isLocked, setIsLocked } = useVoiceLockStore();
   const { faceType, mouthOpenRadius } = useAICharacter();
+  const { getStream } = useMicrophonePermission();
 
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
@@ -87,7 +89,8 @@ const VoiceLockOverlay: React.FC = () => {
 
     const startAudio = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await getStream();
+        if (!stream) return;
         const Win = window as unknown as CustomWindow;
         audioContext = new (window.AudioContext || Win.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
@@ -116,7 +119,7 @@ const VoiceLockOverlay: React.FC = () => {
       stream?.getTracks().forEach((t) => t.stop());
       audioContext?.close();
     };
-  }, [isLocked, useTextInput]);
+  }, [getStream, isLocked, useTextInput]);
 
   useEffect(() => {
     if (!isLocked || useTextInput) return;

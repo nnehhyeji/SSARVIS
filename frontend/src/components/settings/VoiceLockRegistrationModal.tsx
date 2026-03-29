@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, X, ChevronRight, Check, RefreshCw, Edit2, ShieldCheck, Keyboard } from 'lucide-react';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
+import { useMicrophonePermission } from '../../hooks/useMicrophonePermission';
 import VoiceVisualizer from '../common/VoiceVisualizer';
 import CharacterScene from '../features/character/CharacterScene';
 import { useAICharacter } from '../../hooks/useAICharacter';
@@ -25,6 +26,7 @@ type CustomWindow = Window & {
 const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({ onClose }) => {
   const { setIsVoiceLockRegistered, setVoiceLockEnabled, timeoutDuration } = useVoiceLockStore();
   const { faceType, mouthOpenRadius } = useAICharacter();
+  const { getStream } = useMicrophonePermission();
 
   const [step, setStep] = useState<Step>('intro');
   const [transcript, setTranscript] = useState('');
@@ -61,7 +63,12 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
 
     try {
       // 1. Setup Audio Volume Visualizer
-      streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await getStream();
+      if (!stream) {
+        setErrorMsg('마이크 권한이 필요합니다.');
+        return;
+      }
+      streamRef.current = stream;
       const Win2 = window as unknown as CustomWindow;
       audioContextRef.current = new (window.AudioContext || Win2.webkitAudioContext)();
       const analyser = audioContextRef.current.createAnalyser();

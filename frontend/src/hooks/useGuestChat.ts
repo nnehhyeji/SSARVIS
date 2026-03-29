@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiOrigin } from '../config/api';
 import type { ChatMessage } from '../types';
+import { useMicrophonePermission } from './useMicrophonePermission';
 
 interface GuestSpeechRecognitionResultItem {
   transcript: string;
@@ -78,6 +79,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const [sttText, setSttText] = useState('');
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const { requestPermission } = useMicrophonePermission();
 
   const wsRef = useRef<WebSocket | null>(null);
   const mediaSourceRef = useRef<MediaSource | null>(null);
@@ -491,8 +493,11 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       }
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
+        const granted = await requestPermission();
+        if (!granted) {
+          console.warn('Microphone permission is required.');
+          return;
+        }
       } catch (error) {
         console.warn('Microphone permission is required:', error);
         return;
@@ -580,6 +585,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     [
       clearSpeechSilenceTimer,
       enabled,
+      requestPermission,
       resetTypewriter,
       safeStartRecognition,
       startSpeechCapture,
