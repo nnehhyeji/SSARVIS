@@ -32,13 +32,16 @@ export default function KakaoCallbackPage() {
 
         // 백엔드 응답이 제공한 JSON 형태를 바로 활용
         // { "message": "...", "data": { "isNewUser": true, "registerUUID": "...", ... } }
-        const { isNewUser, accessToken } = response.data || {};
+        const { isNewUser, isLinked, accessToken } = response.data || {};
 
         if (isNewUser) {
           // 신규 유저인 경우 회원가입 페이지로 이동하며 data 객체 전달
           navigate(PATHS.SIGNUP, { state: response.data });
         } else {
           // 기존 유저인 경우 로그인 처리
+          if (isLinked) {
+            alert('기존 가입된 계정이 존재합니다. 계정 연동에 성공했습니다!');
+          }
           if (accessToken) {
             localStorage.setItem('token', accessToken);
             const profile = await userApi.getUserProfile();
@@ -48,7 +51,7 @@ export default function KakaoCallbackPage() {
               nickname: profile.nickname,
               customId: profile.customId,
             });
-            navigate(PATHS.HOME);
+            navigate(PATHS.USER_HOME(profile.id));
           } else {
             console.error('No access token received for existing user');
             navigate(PATHS.LOGIN);
