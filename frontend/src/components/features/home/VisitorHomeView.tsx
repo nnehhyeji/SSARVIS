@@ -232,7 +232,9 @@ export default function VisitorHomeView({
               onSend={onSendChat}
               onClose={onCloseChatHistory}
               inputPlaceholder={
-                isDualAiMode ? 'AI끼리 대화 중에는 직접 입력할 수 없습니다.' : '메시지를 입력하세요.'
+                isDualAiMode
+                  ? 'AI끼리 대화 중에는 직접 입력할 수 없습니다.'
+                  : '메시지를 입력하세요.'
               }
               isInputDisabled={isDualAiMode}
             />

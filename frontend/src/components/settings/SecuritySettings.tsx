@@ -203,7 +203,9 @@ export default function SecuritySettings({
                       </div>
                       <p className="text-sm font-medium text-gray-400">
                         {TEXT.currentSetting}:{' '}
-                        <span className="font-black text-rose-500">{formatTime(timeoutDuration)}</span>
+                        <span className="font-black text-rose-500">
+                          {formatTime(timeoutDuration)}
+                        </span>
                       </p>
                     </div>
                   </VoiceRow>

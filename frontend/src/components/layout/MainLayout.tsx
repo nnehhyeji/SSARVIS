@@ -14,7 +14,46 @@ import { toast } from '../../store/useToastStore';
 import { useMicStore } from '../../store/useMicStore';
 
 const WAKE_WORD = '싸비스';
-const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '싸비쓰', '서비스', '싸비스야', '비스', '싸비', '싸쓰'];
+const WAKE_WORD_ALIASES = [
+  WAKE_WORD,
+  '사비스',
+  '싸비쓰',
+  '서비스',
+  '싸비스야',
+  '비스',
+  '싸비',
+  '싸쓰',
+];
+
+interface LayoutSpeechRecognitionResultItem {
+  transcript: string;
+}
+
+interface LayoutSpeechRecognitionResult {
+  0: LayoutSpeechRecognitionResultItem;
+  length: number;
+}
+
+interface LayoutSpeechRecognitionEvent {
+  resultIndex: number;
+  results: ArrayLike<LayoutSpeechRecognitionResult>;
+}
+
+interface LayoutSpeechRecognitionErrorEvent {
+  error: string;
+}
+
+interface LayoutSpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: LayoutSpeechRecognitionEvent) => void) | null;
+  onerror: ((event: LayoutSpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
 
 function normalizeText(text: string) {
   return text.replace(/\s+/g, '').toLowerCase();
@@ -176,14 +215,17 @@ const MainLayout: React.FC = () => {
     }
 
     const SpeechRecognitionApi =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      (window as unknown as { SpeechRecognition?: new () => LayoutSpeechRecognition })
+        .SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: new () => LayoutSpeechRecognition })
+        .webkitSpeechRecognition;
 
     if (!SpeechRecognitionApi) {
       setMicRuntimeActive(false);
       return;
     }
 
-    let recognition: any = null;
+    let recognition: LayoutSpeechRecognition | null = null;
     let isUnmounted = false;
 
     const safeStart = () => {
@@ -208,7 +250,7 @@ const MainLayout: React.FC = () => {
         setMicRuntimeActive(true);
       };
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: LayoutSpeechRecognitionEvent) => {
         const lastResult = event.results[event.results.length - 1];
         const heardText = lastResult?.[0]?.transcript?.trim() || '';
         if (!heardText) return;
@@ -223,7 +265,7 @@ const MainLayout: React.FC = () => {
         }
       };
 
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: LayoutSpeechRecognitionErrorEvent) => {
         if (event.error !== 'aborted') {
           console.warn('Remote voice control error:', event.error);
         }
@@ -249,7 +291,14 @@ const MainLayout: React.FC = () => {
         recognition.stop();
       }
     };
-  }, [isLoggedIn, location.pathname, micPreferenceEnabled, navigate, setMicRuntimeActive, userInfo?.id]);
+  }, [
+    isLoggedIn,
+    location.pathname,
+    micPreferenceEnabled,
+    navigate,
+    setMicRuntimeActive,
+    userInfo?.id,
+  ]);
 
   const handleLogout = async () => {
     toast.dismiss(LOGOUT_CONFIRM_TOAST_ID);

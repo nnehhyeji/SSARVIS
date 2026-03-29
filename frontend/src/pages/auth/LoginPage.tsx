@@ -198,11 +198,15 @@ export default function LoginPage() {
                     className="peer sr-only"
                   />
                   <div className="w-5 h-5 border-2 border-gray-100 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
-                    <Check className={`w-3 h-3 text-white transition-opacity ${isRememberId ? 'opacity-100' : 'opacity-0'}`} />
+                    <Check
+                      className={`w-3 h-3 text-white transition-opacity ${isRememberId ? 'opacity-100' : 'opacity-0'}`}
+                    />
                   </div>
                 </div>
                 {/* 수정된 부분: isRememberId 상태에 따라 text 색상을 다르게 줍니다. */}
-                <span className={`text-xs font-bold transition-colors group-hover:text-gray-500 ${isRememberId ? 'text-gray-500' : 'text-gray-300'}`}>
+                <span
+                  className={`text-xs font-bold transition-colors group-hover:text-gray-500 ${isRememberId ? 'text-gray-500' : 'text-gray-300'}`}
+                >
                   아이디 기억
                 </span>
               </label>
@@ -217,11 +221,15 @@ export default function LoginPage() {
                     className="peer sr-only"
                   />
                   <div className="w-5 h-5 border-2 border-gray-100 rounded-md peer-checked:bg-[#D5A09D] peer-checked:border-[#D5A09D] transition-all flex items-center justify-center">
-                    <Check className={`w-3 h-3 text-white transition-opacity ${isAutoLogin ? 'opacity-100' : 'opacity-0'}`} />
+                    <Check
+                      className={`w-3 h-3 text-white transition-opacity ${isAutoLogin ? 'opacity-100' : 'opacity-0'}`}
+                    />
                   </div>
                 </div>
                 {/* 수정된 부분: isAutoLogin 상태에 따라 text 색상을 다르게 줍니다. */}
-                <span className={`text-xs font-bold transition-colors group-hover:text-gray-500 ${isAutoLogin ? 'text-gray-500' : 'text-gray-300'}`}>
+                <span
+                  className={`text-xs font-bold transition-colors group-hover:text-gray-500 ${isAutoLogin ? 'text-gray-500' : 'text-gray-300'}`}
+                >
                   자동 로그인
                 </span>
               </label>
@@ -244,7 +252,7 @@ export default function LoginPage() {
             type="button"
             onClick={() => {
               const REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY || ''; // .env 파일에 VITE_KAKAO_REST_API_KEY 추가 필요
-              const REDIRECT_URI = import.meta.env.VITE_KAKAO_OAUTH_REDIRECT_URL || ''; 
+              const REDIRECT_URI = import.meta.env.VITE_KAKAO_OAUTH_REDIRECT_URL || '';
               const link = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
               window.location.href = link;
             }}

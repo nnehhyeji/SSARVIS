@@ -1,9 +1,33 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '../../routes/paths';
 import { useUserStore } from '../../store/useUserStore';
+
+interface LandingSpeechRecognitionResultItem {
+  transcript: string;
+}
+
+interface LandingSpeechRecognitionResult {
+  0: LandingSpeechRecognitionResultItem;
+  length: number;
+}
+
+interface LandingSpeechRecognitionEvent {
+  resultIndex: number;
+  results: ArrayLike<LandingSpeechRecognitionResult>;
+}
+
+interface LandingSpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: LandingSpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
 
 /**
  * LandingPage.tsx
@@ -13,22 +37,25 @@ import { useUserStore } from '../../store/useUserStore';
  */
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const redirectToLogin = () => {
+  const redirectToLogin = useCallback(() => {
     const { isLoggedIn, userInfo } = useUserStore.getState();
     if (isLoggedIn && userInfo?.id) {
       navigate(PATHS.USER_HOME(userInfo.id));
       return;
     }
     navigate(PATHS.LOGIN);
-  };
+  }, [navigate]);
 
   useEffect(() => {
     const SpeechRecognitionApi =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      (window as unknown as { SpeechRecognition?: new () => LandingSpeechRecognition })
+        .SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: new () => LandingSpeechRecognition })
+        .webkitSpeechRecognition;
 
     if (!SpeechRecognitionApi) return;
 
-    let recognition: any = null;
+    let recognition: LandingSpeechRecognition | null = null;
     let isUnmounted = false;
 
     try {
@@ -39,11 +66,11 @@ const LandingPage: React.FC = () => {
       // 중간 마디 결과도 확인
       recognition.interimResults = true;
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: LandingSpeechRecognitionEvent) => {
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript.replace(/\s+/g, '');
           if (transcript.includes('로그인')) {
-            recognition.stop();
+            recognition?.stop();
             redirectToLogin();
             return;
           }
@@ -53,8 +80,10 @@ const LandingPage: React.FC = () => {
       recognition.onend = () => {
         if (!isUnmounted) {
           try {
-            recognition.start();
-          } catch(e) {}
+            recognition?.start();
+          } catch {
+            // ignore repeated start attempts
+          }
         }
       };
 
@@ -70,9 +99,7 @@ const LandingPage: React.FC = () => {
         recognition.stop();
       }
     };
-  }, [navigate]);
-
-
+  }, [redirectToLogin]);
 
   // 배경 부유 애니메이션 (배경 전체가 아주 천천히 움직임)
   const floatingVariant: Variants = {
@@ -187,7 +214,6 @@ const LandingPage: React.FC = () => {
           </h1>
 
           <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
-
             <div
               role="button"
               tabIndex={0}
@@ -209,7 +235,12 @@ const LandingPage: React.FC = () => {
                 viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                ></path>
               </motion.svg>
               <span className="text-white font-medium text-lg tracking-wide select-none">
                 "로그인 화면으로 이동" 이라고 말해보세요

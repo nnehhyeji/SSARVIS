@@ -43,9 +43,7 @@ function CaptionLine({
         size === 'compact'
           ? 'text-[clamp(1.3rem,1.9vw,2.3rem)] leading-[1.24]'
           : 'text-[clamp(1.6rem,2.3vw,3rem)] leading-[1.26]'
-      } ${
-        align === 'right' ? 'text-right' : 'text-left'
-      }`}
+      } ${align === 'right' ? 'text-right' : 'text-left'}`}
     >
       {doneText ? <span className={doneClassName}>{doneText}</span> : null}
       {activeText ? <span style={{ color: ACTIVE_SPEECH_COLOR }}>{activeText}</span> : null}
@@ -141,10 +139,12 @@ export default function AssistantConversationStage({
   const longCaptionThreshold = isNarrowLayout ? 36 : 55;
   const shouldFocusActiveSpeaker =
     (isNarrowLayout && activeSpeaker !== null) || isLongActiveCaption;
-  const showAiSection =
-    shouldFocusActiveSpeaker ? activeSpeaker !== 'user' : !isNarrowLayout || activeSpeaker !== 'user';
-  const showUserSection =
-    shouldFocusActiveSpeaker ? activeSpeaker !== 'ai' : !isNarrowLayout || activeSpeaker !== 'ai';
+  const showAiSection = shouldFocusActiveSpeaker
+    ? activeSpeaker !== 'user'
+    : !isNarrowLayout || activeSpeaker !== 'user';
+  const showUserSection = shouldFocusActiveSpeaker
+    ? activeSpeaker !== 'ai'
+    : !isNarrowLayout || activeSpeaker !== 'ai';
   const aiCaptionSize = isLongAiCaption ? 'compact' : 'default';
   const userCaptionSize = isLongUserCaption ? 'compact' : 'default';
   const aiCaptionOffsetClass =
@@ -201,51 +201,53 @@ export default function AssistantConversationStage({
           <div className="relative h-full min-h-[420px] md:min-h-[500px]">
             <section
               className={`absolute left-0 flex items-start gap-7 transition-opacity duration-200 max-xl:w-[60%] max-lg:w-[70%] ${
-                showUserSection ? 'top-[8%] w-[56%]' : 'top-[12%] w-[72%] max-xl:w-[78%] max-lg:w-[84%]'
+                showUserSection
+                  ? 'top-[8%] w-[56%]'
+                  : 'top-[12%] w-[72%] max-xl:w-[78%] max-lg:w-[84%]'
               } ${
                 showAiSection ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
               }`}
               aria-hidden={!showAiSection}
             >
-                <div className="relative h-[186px] w-[186px] shrink-0 md:h-[210px] md:w-[210px]">
-                  <CharacterScene
-                    faceType={faceType}
-                    mouthOpenRadius={mouthOpenRadius}
-                    mode={currentMode}
-                    isLockMode={isLockMode}
-                    isSpeaking={isCharacterSpeaking}
-                    isMicOn={isMicOn}
-                    showWaveform={false}
-                  />
-                  <div
-                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
-                      isLockMode ? 'text-white' : 'text-black'
-                    }`}
-                  >
-                    {assistantDisplayName}
-                  </div>
+              <div className="relative h-[186px] w-[186px] shrink-0 md:h-[210px] md:w-[210px]">
+                <CharacterScene
+                  faceType={faceType}
+                  mouthOpenRadius={mouthOpenRadius}
+                  mode={currentMode}
+                  isLockMode={isLockMode}
+                  isSpeaking={isCharacterSpeaking}
+                  isMicOn={isMicOn}
+                  showWaveform={false}
+                />
+                <div
+                  className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
+                    isLockMode ? 'text-white' : 'text-black'
+                  }`}
+                >
+                  {assistantDisplayName}
                 </div>
+              </div>
 
-                <div className={aiCaptionOffsetClass}>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={`ai-${title}-${aiCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
-                      animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
-                    >
-                      <CaptionLine
-                        text={aiCaptionText}
-                        doneLength={aiDoneLength}
-                        activeLength={aiActiveLength}
-                        align="left"
-                        isLockMode={isLockMode}
-                        size={aiCaptionSize}
-                      />
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
+              <div className={aiCaptionOffsetClass}>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`ai-${title}-${aiCaptionText}`}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                  >
+                    <CaptionLine
+                      text={aiCaptionText}
+                      doneLength={aiDoneLength}
+                      activeLength={aiActiveLength}
+                      align="left"
+                      isLockMode={isLockMode}
+                      size={aiCaptionSize}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </section>
 
             <section
@@ -254,50 +256,56 @@ export default function AssistantConversationStage({
                   ? 'bottom-[14%] w-[52%] max-xl:w-[58%] max-lg:w-[68%]'
                   : 'bottom-[12%] w-[72%] max-xl:w-[78%] max-lg:w-[84%]'
               } ${
-                showUserSection ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+                showUserSection
+                  ? 'pointer-events-auto opacity-100'
+                  : 'pointer-events-none opacity-0'
               }`}
               aria-hidden={!showUserSection}
             >
-                <div className={`max-w-[min(32vw,28rem)] ${userCaptionOffsetClass}`}>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={`user-${title}-${userCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
-                      animate={{ opacity: userCaptionText ? 1 : 0, y: userCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
-                    >
-                      <CaptionLine
-                        text={userCaptionText}
-                        doneLength={userDoneLength}
-                        activeLength={userActiveLength}
-                        align="right"
-                        isLockMode={isLockMode}
-                        size={userCaptionSize}
-                      />
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                <div className="relative h-[160px] w-[160px] shrink-0 md:h-[178px] md:w-[178px]">
+              <div className={`max-w-[min(32vw,28rem)] ${userCaptionOffsetClass}`}>
+                <AnimatePresence mode="wait">
                   <motion.div
-                    className="h-full w-full overflow-hidden rounded-[20px] bg-[#F4F4F4]"
-                    animate={{
-                      y: activeSpeaker === 'user' ? -4 : 0,
-                      scale: activeSpeaker === 'user' ? 1.01 : 1,
-                    }}
+                    key={`user-${title}-${userCaptionText}`}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: userCaptionText ? 1 : 0, y: userCaptionText ? 0 : 14 }}
+                    exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                   >
-                    <img src={profileImage} alt="User profile" className="h-full w-full object-cover" />
+                    <CaptionLine
+                      text={userCaptionText}
+                      doneLength={userDoneLength}
+                      activeLength={userActiveLength}
+                      align="right"
+                      isLockMode={isLockMode}
+                      size={userCaptionSize}
+                    />
                   </motion.div>
-                  <div
-                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
-                      isLockMode ? 'text-white' : 'text-black'
-                    }`}
-                  >
-                    {userDisplayName}
-                  </div>
+                </AnimatePresence>
+              </div>
+
+              <div className="relative h-[160px] w-[160px] shrink-0 md:h-[178px] md:w-[178px]">
+                <motion.div
+                  className="h-full w-full overflow-hidden rounded-[20px] bg-[#F4F4F4]"
+                  animate={{
+                    y: activeSpeaker === 'user' ? -4 : 0,
+                    scale: activeSpeaker === 'user' ? 1.01 : 1,
+                  }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                  <img
+                    src={profileImage}
+                    alt="User profile"
+                    className="h-full w-full object-cover"
+                  />
+                </motion.div>
+                <div
+                  className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
+                    isLockMode ? 'text-white' : 'text-black'
+                  }`}
+                >
+                  {userDisplayName}
                 </div>
+              </div>
             </section>
           </div>
         </main>
@@ -384,9 +392,7 @@ export default function AssistantConversationStage({
                   onClick={onSendText}
                   disabled={!chatInput.trim()}
                   className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
-                    chatInput.trim()
-                      ? 'bg-[#F7576E] text-white'
-                      : 'bg-[#ECECEC] text-[#AFAFAF]'
+                    chatInput.trim() ? 'bg-[#F7576E] text-white' : 'bg-[#ECECEC] text-[#AFAFAF]'
                   }`}
                 >
                   <Send className="h-4 w-4" />

@@ -263,10 +263,18 @@ export default function AccountSettings({
                   autoFocus
                 />
                 <div className="flex gap-3 text-sm font-black">
-                  <button type="button" onClick={() => void handleUpdateProfile('nickname')} className="text-rose-500">
+                  <button
+                    type="button"
+                    onClick={() => void handleUpdateProfile('nickname')}
+                    className="text-rose-500"
+                  >
                     {TEXT.save}
                   </button>
-                  <button type="button" onClick={() => setIsEditingNickname(false)} className="text-gray-400">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingNickname(false)}
+                    className="text-gray-400"
+                  >
                     {TEXT.cancel}
                   </button>
                 </div>
@@ -303,10 +311,18 @@ export default function AccountSettings({
                   </span>
                 </div>
                 <div className="flex gap-3 text-sm font-black">
-                  <button type="button" onClick={() => void handleUpdateProfile('description')} className="text-rose-500">
+                  <button
+                    type="button"
+                    onClick={() => void handleUpdateProfile('description')}
+                    className="text-rose-500"
+                  >
                     {TEXT.save}
                   </button>
-                  <button type="button" onClick={() => setIsEditingDescription(false)} className="text-gray-400">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingDescription(false)}
+                    className="text-gray-400"
+                  >
                     {TEXT.cancel}
                   </button>
                 </div>
@@ -347,10 +363,18 @@ export default function AccountSettings({
                   className="rounded-xl border-2 border-rose-100 bg-gray-50 px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-rose-500"
                 />
                 <div className="flex gap-3 text-sm font-black">
-                  <button type="button" onClick={() => void handleUpdateProfile('password')} className="text-rose-500">
+                  <button
+                    type="button"
+                    onClick={() => void handleUpdateProfile('password')}
+                    className="text-rose-500"
+                  >
                     {TEXT.save}
                   </button>
-                  <button type="button" onClick={() => setIsEditingPassword(false)} className="text-gray-400">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingPassword(false)}
+                    className="text-gray-400"
+                  >
                     {TEXT.cancel}
                   </button>
                 </div>
@@ -439,7 +463,6 @@ export default function AccountSettings({
             </button>
           </div>
         </SectionRow>
-
       </div>
 
       <div className="flex justify-center pt-8">

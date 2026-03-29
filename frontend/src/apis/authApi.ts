@@ -30,6 +30,15 @@ export interface VoiceLockSetupRequest {
   timeout: number;
 }
 
+export interface KakaoLoginPayload {
+  isNewUser?: boolean;
+  accessToken?: string;
+  registerUUID?: string;
+  profileImageUrl?: string;
+  email?: string;
+  nickName?: string;
+}
+
 // --- API Functions ---
 const authApi = {
   // 1. 로그인
@@ -40,7 +49,9 @@ const authApi = {
 
   // 카카오 로그인 인증 코드 전송
   kakaoLogin: async (code: string) => {
-    const response = await axiosInstance.get<CommonResponse<any>>(`/auth/kakao/callback?code=${code}`);
+    const response = await axiosInstance.get<CommonResponse<KakaoLoginPayload>>(
+      `/auth/kakao/callback?code=${code}`,
+    );
     return response.data;
   },
 
