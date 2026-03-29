@@ -234,7 +234,13 @@ export default function Sidebar({
   }
 
   const menuItems: MenuItem[] = [
-    { id: 'home', icon: Home, label: '홈', path: userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME, color: 'text-rose-500' },
+    {
+      id: 'home',
+      icon: Home,
+      label: '홈',
+      path: userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME,
+      color: 'text-rose-500',
+    },
     { id: 'myinfo', icon: User, label: '내 정보', action: onMyCardClick, color: 'text-rose-500' },
     {
       id: 'ai_assistant',
@@ -424,8 +430,21 @@ export default function Sidebar({
         className="h-full bg-[#eee5df] border-r border-gray-200 pointer-events-auto flex flex-col items-center py-6 z-[130]"
       >
         <div className="mb-6 flex flex-col items-center gap-2">
-          <div className="w-10 h-10 bg-white flex items-center justify-center rounded-lg shadow-sm">
-            <span className="font-bold text-gray-800 text-[10px]">로고</span>
+          <div className="flex items-center justify-center overflow-hidden">
+            <div
+              aria-label="Logo"
+              className="h-11 w-11 bg-stone-400"
+              style={{
+                WebkitMaskImage: "url('/logo.svg')",
+                WebkitMaskRepeat: 'no-repeat',
+                WebkitMaskPosition: 'center',
+                WebkitMaskSize: 'contain',
+                maskImage: "url('/logo.svg')",
+                maskRepeat: 'no-repeat',
+                maskPosition: 'center',
+                maskSize: 'contain',
+              }}
+            />
           </div>
         </div>
 
@@ -531,34 +550,35 @@ export default function Sidebar({
                 <div className="flex items-center gap-3">
                   {activeTertiary === 'chat' &&
                     (selectedChatId || (chatTab === 'archive' && chatView === 'list')) && (
-                    <button
-                      onClick={selectedChatId ? returnToChatList : returnToChatCategories}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-[0px] text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800"
-                      aria-label="이전"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      이전으로
-                    </button>
+                      <button
+                        onClick={selectedChatId ? returnToChatList : returnToChatCategories}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-[0px] text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800"
+                        aria-label="이전"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        이전으로
+                      </button>
                     )}
-                <h2 className="text-3xl font-black text-gray-800">
-                  {activeTertiary === 'friends'
-                    ? '팔로우 목록'
-                    : activeTertiary === 'chat'
-                      ? '대화 보관함'
-                      : activeTertiary === 'assistant'
-                        ? 'Ai 비서'
-                        : activeTertiary === 'persona'
-                          ? '남이 보는 나'
-                          : activeTertiary === 'search'
-                            ? '검색'
-                            : '알림'}
-                </h2>
+                  <h2 className="text-3xl font-black text-gray-800">
+                    {activeTertiary === 'friends'
+                      ? '팔로우 목록'
+                      : activeTertiary === 'chat'
+                        ? '대화 보관함'
+                        : activeTertiary === 'assistant'
+                          ? 'Ai 비서'
+                          : activeTertiary === 'persona'
+                            ? '남이 보는 나'
+                            : activeTertiary === 'search'
+                              ? '검색'
+                              : '알림'}
+                  </h2>
                 </div>
               </div>
               <button
                 onClick={() => {
                   setActiveTertiary(null);
-                  if (selectedChatId) navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+                  if (selectedChatId)
+                    navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
                 }}
                 className="p-2 hover:bg-black/5 rounded-full transition-colors mt-2"
               >
