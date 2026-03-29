@@ -115,9 +115,7 @@ function extractSpeechAfterWakeWord(text: string): string {
   return '';
 }
 
-function matchRouteCommand(text: string): string | null {
-  const normalized = normalizeText(text);
-
+function matchRouteCommand(_text: string): string | null {
   return null;
 }
 
