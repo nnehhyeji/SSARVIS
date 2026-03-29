@@ -9,6 +9,7 @@ import { useUserStore } from '../store/useUserStore';
 import { PATHS } from '../routes/paths';
 import { getUserVoiceModel } from '../apis/aiApi';
 import { toast } from '../store/useToastStore';
+import { WAKE_WORD as WAKE_WORD_CONSTANT } from '../constants/voice';
 
 interface WebSpeechRecognitionResultItem {
   transcript: string;
@@ -64,7 +65,7 @@ interface UseChatOptions {
 }
 
 const DEFAULT_GREETING = '난 너야, 만나서 반가워.';
-const WAKE_WORD = '싸비스';
+const WAKE_WORD = WAKE_WORD_CONSTANT;
 const WAKE_WORD_ALIASES = [
   WAKE_WORD,
   '사비스',
@@ -160,6 +161,8 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   const [sttText, setSttText] = useState('');
   const [latestAiText, setLatestAiText] = useState(initialGreeting);
   const [voiceStatus, setVoiceStatus] = useState(WAKE_GUIDE_TEXT);
+  const [voicePhase, setVoicePhase] = useState<RecognitionMode>('idle');
+  const [wakeWordDetectedAt, setWakeWordDetectedAt] = useState<number | null>(null);
   const [isWakeWordActive, setIsWakeWordActive] = useState(false);
   const [isAwaitingResponse, setIsAwaitingResponse] = useState(false);
   const [isContinuousConversationEnabled] = useState(true);
@@ -867,6 +870,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       speechSessionIdRef.current = sessionId;
 
       recognitionModeRef.current = 'speech';
+      setVoicePhase('speech');
       speechTurnCompletedRef.current = false;
       finalizeSpeechOnEndRef.current = false;
 
@@ -981,6 +985,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     }
 
     recognitionModeRef.current = 'wake';
+    setVoicePhase('wake');
     pendingSpeechCaptureRef.current = false;
     pendingSpeechSeedRef.current = '';
     recognitionRef.current.continuous = true;
@@ -996,6 +1001,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
       // Priority 1: Wake word + routing command
       if (containsWakeWord(heardText) && routeAfterWakeWord) {
+        setWakeWordDetectedAt(Date.now());
         stopRecognition();
         navigate(routeAfterWakeWord);
         return;
@@ -1005,6 +1011,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       if (containsWakeWord(heardText)) {
         const seededText = extractSpeechAfterWakeWord(heardText);
         console.log('[useChat] Wake Word Detected', { heardText, seededText });
+        setWakeWordDetectedAt(Date.now());
         updateVoiceStatus(WAKE_DETECTED_TEXT);
         setSttText(SPEECH_LISTENING_TEXT);
         pendingSpeechCaptureRef.current = true;
@@ -1294,6 +1301,8 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       wakeWordActiveRef.current = true;
       hasCompletedInitialWakeTurnRef.current = false;
       setIsWakeWordActive(true);
+      setVoicePhase('wake');
+      setWakeWordDetectedAt(null);
 
       clearTranscriptTimer();
       clearSpeechSilenceTimer();
@@ -1322,6 +1331,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     wakeWordActiveRef.current = false;
     hasCompletedInitialWakeTurnRef.current = false;
     setIsWakeWordActive(false);
+    setWakeWordDetectedAt(null);
     endAwaitingResponse();
     cleanupAudioPlayback(true);
     pendingSpeechCaptureRef.current = false;
@@ -1339,6 +1349,8 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     }
 
     recognitionModeRef.current = 'idle';
+    setVoicePhase('idle');
+      setVoicePhase('idle');
     stopRecognition();
     setSttText('');
     sttTextRef.current = '';
@@ -1377,10 +1389,12 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || !currentRecordingOptionsRef.current) return;
+      const normalizedText = text.trim();
       const isVoiceModelReady = await ensureVoiceModelReady();
       if (!isVoiceModelReady) {
         return;
       }
+      setChatInput('');
       setAiTextStreamingComplete(false);
       setAiStreamComplete(false);
       pendingAiResponseTextRef.current = '';
@@ -1388,12 +1402,12 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       clearTypeWriter();
       const options = currentRecordingOptionsRef.current;
       beginAwaitingResponse();
-      const ok = await sendTextTurn(options, text.trim());
+      const ok = await sendTextTurn(options, normalizedText);
       if (!ok) {
         endAwaitingResponse();
         setConnectionNotice(CONNECTION_ERROR_TEXT);
       } else {
-        setChatMessages((prev) => [...prev, { sender: 'me', text: text.trim() }]);
+        setChatMessages((prev) => [...prev, { sender: 'me', text: normalizedText }]);
       }
     },
     [
@@ -1415,6 +1429,8 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     isLockMode,
     sttText,
     voiceStatus,
+    voicePhase,
+    wakeWordDetectedAt,
     isAiSpeaking,
     isWakeWordActive,
     isAwaitingResponse,

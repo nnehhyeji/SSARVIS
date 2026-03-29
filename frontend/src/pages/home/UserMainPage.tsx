@@ -14,9 +14,15 @@ import AiTopicModal from '../../components/features/assistant/AiTopicModal';
 import MyHomeConversationView from '../../components/features/home/MyHomeConversationView';
 import VisitorConversationStage from '../../components/features/home/VisitorConversationStage';
 
+import { WAKE_WORD } from '../../constants/voice';
 import { PATHS } from '../../routes/paths';
+import followApi from '../../apis/followApi';
 import userApi from '../../apis/userApi';
 import type { UserResponse } from '../../apis/userApi';
+import { toast } from '../../store/useToastStore';
+
+const VISITOR_LISTENING_STATUS_OPTIONS = ['\uB4E3\uB294 \uC911', '\uACBD\uCCAD \uC911'] as const;
+const VISITOR_ROTATING_MESSAGE_INTERVAL_MS = 2200;
 
 export default function UserMainPage() {
   const { userId } = useParams();
@@ -25,6 +31,12 @@ export default function UserMainPage() {
   const { hasHydrated, userInfo, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
   const visitorGreetingAppliedRef = useRef(false);
+  const [visitorListeningStatus, setVisitorListeningStatus] = useState<
+    (typeof VISITOR_LISTENING_STATUS_OPTIONS)[number]
+  >(
+    VISITOR_LISTENING_STATUS_OPTIONS[0],
+  );
+  const [visitorIdleMessageIndex, setVisitorIdleMessageIndex] = useState(0);
 
   const currentUserId = userInfo?.id ?? null;
   const targetId = userId ? Number(userId) : currentUserId;
@@ -54,6 +66,8 @@ export default function UserMainPage() {
     aiSpeechProgress,
     isLockMode,
     sttText,
+    voicePhase,
+    wakeWordDetectedAt,
     isAiSpeaking,
     isAwaitingResponse,
     isContinuousConversationEnabled,
@@ -78,11 +92,13 @@ export default function UserMainPage() {
     () =>
       shouldUseGuestChat
         ? guestChat
-        : {
+          : {
             chatInput,
             chatMessages,
             isLockMode,
             sttText,
+            voicePhase,
+            wakeWordDetectedAt,
             isAiSpeaking,
             isAwaitingResponse,
             setChatInput,
@@ -104,6 +120,8 @@ export default function UserMainPage() {
       startRecording,
       stopRecordingAndSendSTT,
       sttText,
+      voicePhase,
+      wakeWordDetectedAt,
       toggleLock,
     ],
   );
@@ -113,6 +131,11 @@ export default function UserMainPage() {
   const [profile, setProfile] = useState<UserResponse | null>(null);
   const [isTextInputMode, setIsTextInputMode] = useState(false);
   const [isAiTopicModalOpen, setIsAiTopicModalOpen] = useState(false);
+  const [visitorFollowStatus, setVisitorFollowStatus] = useState<
+    'NONE' | 'REQUESTED' | 'FOLLOWING' | null
+  >(null);
+  const [isVisitorFollowLoading, setIsVisitorFollowLoading] = useState(false);
+  const [visitorFollowCustomId, setVisitorFollowCustomId] = useState('');
   const [modeHistories, setModeHistories] = useState<
     Record<string, { sender: 'ai' | 'me'; text: string }[]>
   >({
@@ -178,10 +201,60 @@ export default function UserMainPage() {
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? userInfo?.nickname || 'User' : visitedFollowName || 'Visitor';
+  const visitorFollow = follows.find((follow) => follow.id === targetId) ?? null;
   const visitorDescription =
-    follows.find((follow) => follow.id === targetId)?.description?.trim() || '';
-  const visitorIntroText = visitorDescription || `어서와, ${ownerName} ai한테 말을 걸어봐`;
+    visitorFollow?.description?.trim() || '';
+  const visitorIntroText = visitorDescription || '\uC5B4\uC11C \uC640, ' + ownerName + ' AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
+
+  const refreshVisitorFollowStatus = useCallback(
+    async (customId: string) => {
+      if (!targetId || !customId) return null;
+
+      const response = await followApi.searchUsers(customId);
+      const matchedUser = (response.data || []).find(
+        (user) => user.userId === targetId && user.customId === customId,
+      );
+
+      return matchedUser?.followStatus ?? null;
+    },
+    [targetId],
+  );
+
+  useEffect(() => {
+    if (isMyHome || !isLoggedIn || !targetId) {
+      setVisitorFollowStatus(null);
+      setVisitorFollowCustomId('');
+      return;
+    }
+
+    const initialCustomId = visitorFollow?.customId || '';
+    setVisitorFollowCustomId(initialCustomId);
+
+    if (visitorFollow?.followId) {
+      setVisitorFollowStatus('FOLLOWING');
+    } else {
+      setVisitorFollowStatus('NONE');
+    }
+
+    if (!initialCustomId) return;
+
+    let isMounted = true;
+
+    void (async () => {
+      try {
+        const status = await refreshVisitorFollowStatus(initialCustomId);
+        if (!isMounted || !status) return;
+        setVisitorFollowStatus(status);
+      } catch (error) {
+        console.error('Failed to load visitor follow status:', error);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn, isMyHome, refreshVisitorFollowStatus, targetId, visitorFollow]);
 
   useEffect(() => {
     if (isMyHome) {
@@ -251,7 +324,18 @@ export default function UserMainPage() {
     activeChat.chatMessages.some((message) => message.sender === 'me') ||
     activeChat.isAwaitingResponse ||
     activeChat.isAiSpeaking ||
-    activeChat.sttText.trim().length > 0;
+    (activeChat.voicePhase === 'speech' && activeChat.sttText.trim().length > 0);
+  const visitorIsListening = activeChat.voicePhase === 'speech';
+  const visitorNeedsWakeWordGuide =
+    !isMyHome &&
+    !aiToAiChat.isBattling &&
+    !hasVisitorConversationStarted &&
+    !visitorConnectionNotice &&
+    isMicOn &&
+    activeChat.voicePhase === 'wake';
+  const visitorWakeDetected =
+    activeChat.wakeWordDetectedAt !== null && Date.now() - activeChat.wakeWordDetectedAt < 1000;
+  const shouldRotateVisitorIdleMessages = visitorNeedsWakeWordGuide;
   const visitorBaseCaptionText =
     !hasVisitorConversationStarted && triggerText.trim().length > 0
       ? triggerText
@@ -271,22 +355,60 @@ export default function UserMainPage() {
       : visitorBaseCaptionText;
   const battleIsTargetSpeaking =
     aiToAiChat.activeSpeaker === 'target' && battleCaptionText.trim().length > 0;
+  const visitorStageCaptionText = aiToAiChat.isBattling
+    ? battleCaptionText
+    : visitorBaseCaptionText;
+  const visitorWakeWordGuide = '"' + WAKE_WORD + '"\uB77C\uACE0 \uB9D0\uD55C \uB4A4 \uCE5C\uAD6C AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
+  const visitorRotatingCaptionText =
+    visitorIdleMessageIndex === 0 ? visitorIntroText : visitorWakeWordGuide;
+  const visitorCaptionText = shouldRotateVisitorIdleMessages
+    ? visitorRotatingCaptionText
+    : visitorStageCaptionText;
   const visitorCaptionDoneLength = aiToAiChat.isBattling
     ? battleIsTargetSpeaking
       ? Math.max(0, battleCaptionText.length - 1)
       : battleCaptionText.length
-    : visitorBaseDoneLength;
+    : shouldRotateVisitorIdleMessages
+      ? visitorCaptionText.length
+      : visitorBaseDoneLength;
   const visitorCaptionActiveLength = aiToAiChat.isBattling
     ? battleIsTargetSpeaking
       ? 1
       : 0
-    : visitorBaseActiveLength;
-  const visitorStageCaptionText = aiToAiChat.isBattling
-    ? battleCaptionText
-    : visitorBaseCaptionText;
+    : shouldRotateVisitorIdleMessages
+      ? 0
+      : visitorBaseActiveLength;
   const visitorStageStatus = aiToAiChat.isBattling
     ? aiToAiChat.statusMessage
-    : visitorStageStatusText;
+    : activeChat.isAwaitingResponse
+      ? '\uC751\uB2F5 \uC911'
+      : visitorWakeDetected
+        ? '\uB4E4\uC5C8\uC5B4\uC694'
+      : visitorIsListening
+        ? visitorListeningStatus
+        : visitorNeedsWakeWordGuide
+          ? ''
+          : visitorStageStatusText;
+
+  useEffect(() => {
+    if (!visitorIsListening) return;
+
+    const randomIndex = Math.floor(Math.random() * VISITOR_LISTENING_STATUS_OPTIONS.length);
+    setVisitorListeningStatus(VISITOR_LISTENING_STATUS_OPTIONS[randomIndex]);
+  }, [visitorIsListening]);
+
+  useEffect(() => {
+    if (!shouldRotateVisitorIdleMessages) {
+      setVisitorIdleMessageIndex(0);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setVisitorIdleMessageIndex((prev) => (prev === 0 ? 1 : 0));
+    }, VISITOR_ROTATING_MESSAGE_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [shouldRotateVisitorIdleMessages]);
 
   const homeProfileImage =
     profile?.userProfileImageUrl ||
@@ -504,6 +626,58 @@ export default function UserMainPage() {
     setIsAiTopicModalOpen(true);
   }, [aiToAiChat, currentUserId, isLoggedIn, targetId]);
 
+  const handleVisitorFollow = useCallback(async () => {
+    if (!isLoggedIn || isMyHome || !targetId || visitorFollowStatus === 'FOLLOWING') return;
+    if (visitorFollowStatus === 'REQUESTED') return;
+
+    setIsVisitorFollowLoading(true);
+
+    try {
+      await followApi.requestFollow({ receiverId: targetId });
+
+      let nextStatus: 'NONE' | 'REQUESTED' | 'FOLLOWING' = 'REQUESTED';
+      if (visitorFollowCustomId) {
+        const refreshedStatus = await refreshVisitorFollowStatus(visitorFollowCustomId);
+        if (refreshedStatus) {
+          nextStatus = refreshedStatus;
+        }
+      }
+
+      setVisitorFollowStatus(nextStatus);
+      toast.success(
+        nextStatus === 'FOLLOWING'
+          ? `${ownerName}님을 팔로우했어요.`
+          : `${ownerName}님에게 팔로우 요청을 보냈어요.`,
+      );
+    } catch (error) {
+      console.error('Failed to request follow from visitor page:', error);
+      toast.error('팔로우 요청에 실패했어요.');
+    } finally {
+      setIsVisitorFollowLoading(false);
+    }
+  }, [
+    isLoggedIn,
+    isMyHome,
+    ownerName,
+    refreshVisitorFollowStatus,
+    targetId,
+    visitorFollowCustomId,
+    visitorFollowStatus,
+  ]);
+
+  const visitorFollowButtonLabel =
+    !isMyHome && isLoggedIn
+      ? visitorFollowStatus === 'FOLLOWING'
+        ? '팔로우중'
+        : visitorFollowStatus === 'REQUESTED'
+          ? '요청중'
+          : '팔로우'
+      : null;
+  const isVisitorFollowButtonDisabled =
+    isVisitorFollowLoading ||
+    visitorFollowStatus === 'FOLLOWING' ||
+    visitorFollowStatus === 'REQUESTED';
+
   const handleDualAiTopicSubmit = useCallback(
     async (topic: string) => {
       if (!currentUserId || !targetId) return;
@@ -534,7 +708,7 @@ export default function UserMainPage() {
   if (!isMyHome && isLoggedIn && (!isVisitorMode || !visitedFollowName)) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-[#FDFCFB]">
-        <p className="font-bold text-gray-500">방문 중인 친구 정보를 불러오는 중입니다.</p>
+        <p className="font-bold text-gray-500">\uBC29\uBB38 \uC911\uC778 \uCE5C\uAD6C \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4.</p>
       </div>
     );
   }
@@ -587,13 +761,20 @@ export default function UserMainPage() {
         mouthOpenRadius={mouthOpenRadius}
         isCharacterSpeaking={battleIsTargetSpeaking || activeChat.isAiSpeaking || isSpeaking}
         assistantDisplayName={`${ownerName} AI`}
-        aiCaptionText={visitorStageCaptionText}
+        aiCaptionText={visitorCaptionText}
         aiDoneLength={visitorCaptionDoneLength}
         aiActiveLength={visitorCaptionActiveLength}
         statusText={visitorStageStatus}
+        isListeningStatus={visitorIsListening}
+        showWakeCue={visitorWakeDetected}
+        liveUserTranscript={activeChat.sttText}
+        showLiveTranscript={activeChat.voicePhase === 'speech'}
         connectionNotice={visitorConnectionNotice}
         isDualAiRunning={aiToAiChat.isBattling}
         canStartDualAi={Boolean(isLoggedIn && currentUserId && targetId)}
+        followButtonLabel={visitorFollowButtonLabel}
+        isFollowButtonDisabled={isVisitorFollowButtonDisabled}
+        isFollowButtonLoading={isVisitorFollowLoading}
         chatInput={activeChat.chatInput}
         onChatInputChange={activeChat.setChatInput}
         onMicToggle={handleVisitorMicToggle}
@@ -611,6 +792,7 @@ export default function UserMainPage() {
         }}
         onOpenPersona={handleOpenPersona}
         onToggleDualAi={handleToggleDualAi}
+        onFollowClick={handleVisitorFollow}
       />
 
       <AiTopicModal

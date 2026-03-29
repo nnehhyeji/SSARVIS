@@ -96,7 +96,7 @@ export default function SecuritySettings({
       {!isVoiceLockRegistered ? (
         <div className="flex flex-col items-center gap-6 rounded-[32px] border-2 border-dashed border-gray-200 bg-gray-50 py-8 text-center">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-lg shadow-gray-200/50">
-            <Mic className="h-8 w-8 text-rose-500" />
+            <Mic className="h-8 w-8 text-[var(--color-primary)]" />
           </div>
           <div className="flex flex-col gap-2">
             <h3 className="text-2xl font-black text-gray-900">{TEXT.registerTitle}</h3>
@@ -107,7 +107,7 @@ export default function SecuritySettings({
           <button
             type="button"
             onClick={onOpenRegistrationModal}
-            className="group flex items-center gap-2 rounded-2xl bg-rose-500 px-8 py-4 text-lg font-black text-white shadow-lg shadow-rose-500/20 transition-all hover:bg-rose-600"
+            className="group flex items-center gap-2 rounded-2xl bg-[var(--color-primary)] px-8 py-4 text-lg font-black text-white shadow-lg transition-all hover:bg-[var(--color-primary-sub)]"
           >
             {TEXT.register}
             <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -115,7 +115,7 @@ export default function SecuritySettings({
         </div>
       ) : (
         <div className="flex items-center gap-5">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-500 shadow-lg shadow-rose-500/20">
+          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--color-primary)] shadow-lg">
             <Lock className="h-8 w-8 text-white" />
           </div>
           <div className="flex flex-col">
@@ -143,7 +143,7 @@ export default function SecuritySettings({
                   className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
                 >
                   <motion.div
-                    animate={{ backgroundColor: isVoiceLockEnabled ? '#f43f5e' : '#e5e7eb' }}
+                    animate={{ backgroundColor: isVoiceLockEnabled ? 'var(--color-primary)' : '#e5e7eb' }}
                     className="absolute inset-0"
                   />
                   <motion.div
@@ -171,10 +171,11 @@ export default function SecuritySettings({
                           value={lockPhrase}
                           onChange={(event) => setLockPhrase(event.target.value)}
                           placeholder={TEXT.phrasePlaceholder}
-                          className="w-full rounded-2xl border-2 border-rose-50 bg-gray-50 px-6 py-5 text-base font-bold text-gray-900 outline-none transition-colors focus:border-rose-500"
+                          className="w-full rounded-2xl border-2 bg-gray-50 px-6 py-5 text-base font-bold text-gray-900 outline-none transition-colors focus:border-[var(--color-primary)]"
+                          style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 10%, white)' }}
                         />
                         <div className="absolute right-5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-sm">
-                          <Mic className="h-5 w-5 text-rose-500" />
+                          <Mic className="h-5 w-5 text-[var(--color-primary)]" />
                         </div>
                       </div>
                       <p className="text-sm font-medium text-gray-400">{TEXT.phraseHelp}</p>
@@ -191,7 +192,7 @@ export default function SecuritySettings({
                             onClick={() => setTimeoutDuration(minutes * 60)}
                             className={`rounded-2xl px-8 py-4 text-lg font-black transition-all ${
                               timeoutDuration === minutes * 60
-                                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20'
+                                ? 'bg-[var(--color-primary)] text-white shadow-lg'
                                 : 'border border-gray-200 bg-gray-50 text-gray-400 hover:border-gray-300'
                             }`}
                           >
@@ -203,7 +204,7 @@ export default function SecuritySettings({
                       </div>
                       <p className="text-sm font-medium text-gray-400">
                         {TEXT.currentSetting}:{' '}
-                        <span className="font-black text-rose-500">
+                        <span className="font-black text-[var(--color-primary)]">
                           {formatTime(timeoutDuration)}
                         </span>
                       </p>
@@ -215,7 +216,7 @@ export default function SecuritySettings({
                       type="button"
                       onClick={handleSaveSecuritySettings}
                       disabled={isSaving || !lockPhrase.trim()}
-                      className="flex items-center gap-2 rounded-2xl bg-rose-500 px-8 py-4 text-lg font-black text-white shadow-lg shadow-rose-500/20 transition-all hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
+                      className="flex items-center gap-2 rounded-2xl bg-[var(--color-primary)] px-8 py-4 text-lg font-black text-white shadow-lg transition-all hover:bg-[var(--color-primary-sub)] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
                     >
                       <ShieldCheck className="h-5 w-5" />
                       {isSaving ? TEXT.saving : TEXT.saveSettings}
@@ -241,7 +242,7 @@ export default function SecuritySettings({
                   toast.error(TEXT.resetFailed);
                 }
               }}
-              className="flex items-center gap-2 text-sm font-black text-rose-500 hover:underline"
+              className="flex items-center gap-2 text-sm font-black text-[var(--color-primary)] hover:text-[var(--color-primary-sub)] hover:underline"
             >
               <XCircle className="h-4 w-4" />
               {TEXT.reset}

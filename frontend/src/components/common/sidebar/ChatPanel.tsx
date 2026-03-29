@@ -22,7 +22,6 @@ interface ChatPanelProps {
 
 const ChatPanel: React.FC<ChatPanelProps> = ({
   chatTab,
-  setChatTab,
   chatView,
   setChatView,
   chatCategory,
