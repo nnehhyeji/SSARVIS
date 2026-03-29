@@ -83,7 +83,9 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => handleTabChange(item.id)}
                   className={`text-left text-2xl font-black transition-colors ${
-                    tab === item.id ? 'text-rose-500' : 'text-gray-400 hover:text-gray-600'
+                    tab === item.id
+                      ? 'text-[var(--color-primary)]'
+                      : 'text-gray-400 hover:text-[var(--color-primary-sub)]'
                   }`}
                 >
                   {item.label}

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { MessageSquare, Mic, MicOff, Send, Sparkles, Square } from 'lucide-react';
+import { MessageSquare, Mic, MicOff, Send, Square } from 'lucide-react';
 
 import CharacterScene from '../character/CharacterScene';
 import {
@@ -28,7 +28,7 @@ function CaptionLine({
   const pendingText = text.slice(safeDoneLength + safeActiveLength);
 
   return (
-    <div className="max-w-[min(32vw,28rem)] whitespace-pre-wrap break-words text-left text-[clamp(1.5rem,2.2vw,3rem)] font-black leading-[1.26] tracking-[-0.05em] text-black">
+    <div className="w-full whitespace-pre-wrap break-words text-left text-[clamp(1.5rem,2.2vw,3rem)] font-black leading-[1.26] tracking-[-0.05em] text-black">
       {doneText ? <span className="text-black">{doneText}</span> : null}
       {activeText ? <span style={{ color: ACTIVE_SPEECH_COLOR }}>{activeText}</span> : null}
       {pendingText ? <span className={PENDING_TEXT_CLASS}>{pendingText}</span> : null}
@@ -49,9 +49,16 @@ interface VisitorConversationStageProps {
   aiDoneLength: number;
   aiActiveLength: number;
   statusText: string;
+  isListeningStatus?: boolean;
+  showWakeCue?: boolean;
+  liveUserTranscript?: string;
+  showLiveTranscript?: boolean;
   connectionNotice?: string;
   isDualAiRunning?: boolean;
   canStartDualAi?: boolean;
+  followButtonLabel?: string | null;
+  isFollowButtonDisabled?: boolean;
+  isFollowButtonLoading?: boolean;
   chatInput: string;
   onChatInputChange: (value: string) => void;
   onMicToggle: () => void;
@@ -59,6 +66,7 @@ interface VisitorConversationStageProps {
   onCancel: () => void;
   onOpenPersona: () => void;
   onToggleDualAi: () => void;
+  onFollowClick?: () => void;
 }
 
 export default function VisitorConversationStage({
@@ -74,9 +82,16 @@ export default function VisitorConversationStage({
   aiDoneLength,
   aiActiveLength,
   statusText,
+  isListeningStatus = false,
+  showWakeCue = false,
+  liveUserTranscript = '',
+  showLiveTranscript = false,
   connectionNotice,
   isDualAiRunning = false,
   canStartDualAi = true,
+  followButtonLabel = null,
+  isFollowButtonDisabled = false,
+  isFollowButtonLoading = false,
   chatInput,
   onChatInputChange,
   onMicToggle,
@@ -84,6 +99,7 @@ export default function VisitorConversationStage({
   onCancel,
   onOpenPersona,
   onToggleDualAi,
+  onFollowClick,
 }: VisitorConversationStageProps) {
   const showTextInput = isTextInputMode || !isMicOn;
 
@@ -96,24 +112,37 @@ export default function VisitorConversationStage({
           </h1>
 
           <div className="flex items-center gap-3">
+            {followButtonLabel ? (
+              <button
+                type="button"
+                onClick={onFollowClick}
+                disabled={isFollowButtonDisabled || isFollowButtonLoading}
+                className={`flex h-9 items-center rounded-full px-5 text-sm font-bold transition-all active:scale-95 ${
+                  isFollowButtonDisabled || isFollowButtonLoading
+                    ? 'bg-[#F3F3F3] text-[#7B7B7B]'
+                    : 'bg-rose-500 text-white hover:bg-rose-600'
+                }`}
+              >
+                {isFollowButtonLoading ? '확인 중...' : followButtonLabel}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onOpenPersona}
-              className="inline-flex h-12 items-center gap-2 rounded-full border border-[#F5C7CF] bg-[#FFF4F6] px-5 text-sm font-black text-[#D84D66] transition-colors hover:bg-[#FFEDEF]"
+              className="flex h-9 items-center rounded-full bg-rose-500 px-5 text-sm font-bold text-white transition-all hover:bg-rose-600 active:scale-95"
             >
-              <Sparkles className="h-4 w-4" />
               페르소나 문답
             </button>
             <button
               type="button"
               onClick={onToggleDualAi}
               disabled={!canStartDualAi && !isDualAiRunning}
-              className={`inline-flex h-12 items-center gap-2 rounded-full px-5 text-sm font-black transition-colors ${
+              className={`flex h-9 items-center gap-2 rounded-full px-5 text-sm font-bold text-white transition-all active:scale-95 ${
                 isDualAiRunning
-                  ? 'bg-[#F7576E] text-white hover:bg-[#EB4A61]'
+                  ? 'bg-rose-500 hover:bg-rose-600'
                   : canStartDualAi
-                    ? 'border border-[#E7E7E7] bg-white text-[#555555] hover:bg-[#F7F7F7]'
-                    : 'border border-[#EFEFEF] bg-[#F7F7F7] text-[#B0B0B0]'
+                    ? 'bg-rose-500 hover:bg-rose-600'
+                    : 'bg-rose-200 text-white/80'
               }`}
             >
               <MessageSquare className="h-4 w-4" />
@@ -126,20 +155,46 @@ export default function VisitorConversationStage({
 
         <main className="relative flex-1 overflow-hidden px-6 pb-5 pt-5 md:px-10 md:pb-6 md:pt-6">
           <div className="flex h-full min-h-[420px] items-center justify-center md:min-h-[500px]">
-            <div className="flex items-center justify-center gap-7">
-              <div className="relative flex h-[250px] w-[250px] items-center justify-center md:h-[310px] md:w-[310px]">
-                <CharacterScene
-                  faceType={(faceType + 2) % 6}
-                  mouthOpenRadius={mouthOpenRadius}
-                  mode={currentMode}
-                  isLockMode={false}
-                  isSpeaking={isCharacterSpeaking}
-                  isMicOn={isMicOn}
-                  label=""
-                />
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] text-black backdrop-blur-sm">
+            <div className="flex w-full max-w-[1100px] items-center justify-center gap-7">
+              <div className="flex flex-col items-center justify-center">
+                <div className="relative flex h-[250px] w-[250px] items-center justify-center md:h-[310px] md:w-[310px]">
+                  <AnimatePresence>
+                    {showWakeCue ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.82 }}
+                        animate={{ opacity: 0.9, scale: 1.06 }}
+                        exit={{ opacity: 0, scale: 1.16 }}
+                        transition={{ duration: 0.45, ease: 'easeOut' }}
+                        className="pointer-events-none absolute inset-4 rounded-full border-2 border-[#F6B7C2] bg-[radial-gradient(circle,_rgba(247,87,110,0.18)_0%,_rgba(247,87,110,0.08)_45%,_rgba(247,87,110,0)_75%)]"
+                      />
+                    ) : null}
+                  </AnimatePresence>
+                  <CharacterScene
+                    faceType={(faceType + 2) % 6}
+                    mouthOpenRadius={mouthOpenRadius}
+                    mode={currentMode}
+                    isLockMode={false}
+                    isSpeaking={isCharacterSpeaking}
+                    isMicOn={isMicOn}
+                    label=""
+                  />
+                </div>
+                <div className="mt-0.5 text-center text-sm font-normal tracking-[-0.03em] text-black/70">
                   {assistantDisplayName}
                 </div>
+                <AnimatePresence>
+                  {showWakeCue ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      className="mt-1 text-center text-sm font-bold text-[#C84358]"
+                    >
+                      들었어요
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
               </div>
 
               <AnimatePresence mode="wait">
@@ -149,7 +204,7 @@ export default function VisitorConversationStage({
                   animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2, ease: 'easeOut' }}
-                  className="min-h-[4.5rem] self-center"
+                  className="min-h-[4.5rem] w-[min(32vw,28rem)] flex-none self-center"
                 >
                   <CaptionLine
                     text={aiCaptionText}
@@ -171,11 +226,19 @@ export default function VisitorConversationStage({
             </div>
           ) : null}
 
-          <div className="mb-3 flex items-center justify-center">
-            <div className="rounded-full border border-[#E7E7E7] bg-white px-4 py-2 text-sm font-bold text-[#707070] shadow-sm">
-              {statusText}
+          {statusText.trim() ? (
+            <div className="mb-3 flex items-center justify-center">
+              <div
+                className={`rounded-full px-4 py-2 text-sm font-bold shadow-sm transition-colors ${
+                  isListeningStatus
+                    ? 'border border-[#F7C3CB] bg-[#FFF3F5] text-[#C84358]'
+                    : 'border border-[#E7E7E7] bg-white text-[#707070]'
+                }`}
+              >
+                {statusText}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="mx-auto flex max-w-[860px] items-center gap-3 rounded-[24px] border border-[#E7E7E7] bg-white px-4 py-3 shadow-[0_12px_32px_rgba(0,0,0,0.06)]">
             <button
@@ -212,6 +275,20 @@ export default function VisitorConversationStage({
                 >
                   <Send className="h-4 w-4" />
                 </button>
+              </div>
+            ) : showLiveTranscript ? (
+              <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[18px] border border-[#F3D4DA] bg-[#FFF7F8] px-4 py-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F7576E]/12 text-[#F7576E]">
+                  <Mic className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 text-[11px] font-bold tracking-[0.08em] text-[#C56A78]">
+                    실시간 자막
+                  </div>
+                  <p className="max-h-[3.6rem] overflow-hidden whitespace-pre-wrap break-words text-sm font-medium leading-6 text-[#444444]">
+                    {liveUserTranscript.trim() || '말을 듣는 중...'}
+                  </p>
+                </div>
               </div>
             ) : null}
 

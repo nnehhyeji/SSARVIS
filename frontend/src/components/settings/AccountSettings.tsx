@@ -242,7 +242,7 @@ export default function AccountSettings({
         <button
           type="button"
           onClick={onOpenImageModal}
-          className="rounded-xl bg-rose-500 px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-rose-500/20 transition-all hover:bg-rose-600 active:scale-95"
+          className="rounded-xl bg-[var(--color-primary)] px-6 py-2.5 text-sm font-black text-white shadow-lg transition-all hover:bg-[var(--color-primary-sub)] active:scale-95"
         >
           {TEXT.managePhoto}
         </button>
@@ -259,14 +259,15 @@ export default function AccountSettings({
                   type="text"
                   value={newNickname}
                   onChange={(event) => setNewNickname(event.target.value)}
-                  className="rounded-xl border-2 border-rose-100 bg-gray-50 px-4 py-3 text-base font-bold text-gray-900 outline-none transition-colors focus:border-rose-500"
+                  className="rounded-xl border-2 bg-gray-50 px-4 py-3 text-base font-bold text-gray-900 outline-none transition-colors focus:border-[var(--color-primary)]"
+                  style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 16%, white)' }}
                   autoFocus
                 />
                 <div className="flex gap-3 text-sm font-black">
                   <button
                     type="button"
                     onClick={() => void handleUpdateProfile('nickname')}
-                    className="text-rose-500"
+                    className="text-[var(--color-primary)]"
                   >
                     {TEXT.save}
                   </button>
@@ -285,7 +286,7 @@ export default function AccountSettings({
                 <button
                   type="button"
                   onClick={() => setIsEditingNickname(true)}
-                  className="text-sm font-black text-rose-500 hover:underline"
+                  className="text-sm font-black text-[var(--color-primary)] hover:text-[var(--color-primary-sub)] hover:underline"
                 >
                   {TEXT.edit}
                 </button>
@@ -314,7 +315,7 @@ export default function AccountSettings({
                   <button
                     type="button"
                     onClick={() => void handleUpdateProfile('description')}
-                    className="text-rose-500"
+                    className="text-[var(--color-primary)]"
                   >
                     {TEXT.save}
                   </button>
@@ -335,7 +336,7 @@ export default function AccountSettings({
                 <button
                   type="button"
                   onClick={() => setIsEditingDescription(true)}
-                  className="shrink-0 text-sm font-black text-rose-500 hover:underline"
+                  className="shrink-0 text-sm font-black text-[var(--color-primary)] hover:text-[var(--color-primary-sub)] hover:underline"
                 >
                   {TEXT.edit}
                 </button>
@@ -353,20 +354,22 @@ export default function AccountSettings({
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
                   placeholder={TEXT.newPassword}
-                  className="rounded-xl border-2 border-rose-100 bg-gray-50 px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-rose-500"
+                  className="rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-[var(--color-primary)]"
+                  style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 16%, white)' }}
                 />
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   placeholder={TEXT.confirmPassword}
-                  className="rounded-xl border-2 border-rose-100 bg-gray-50 px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-rose-500"
+                  className="rounded-xl border-2 bg-gray-50 px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-[var(--color-primary)]"
+                  style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 16%, white)' }}
                 />
                 <div className="flex gap-3 text-sm font-black">
                   <button
                     type="button"
                     onClick={() => void handleUpdateProfile('password')}
-                    className="text-rose-500"
+                    className="text-[var(--color-primary)]"
                   >
                     {TEXT.save}
                   </button>
@@ -385,7 +388,7 @@ export default function AccountSettings({
                 <button
                   type="button"
                   onClick={() => setIsEditingPassword(true)}
-                  className="text-sm font-black text-rose-500 hover:underline"
+                  className="text-sm font-black text-[var(--color-primary)] hover:text-[var(--color-primary-sub)] hover:underline"
                 >
                   {TEXT.edit}
                 </button>
@@ -405,7 +408,7 @@ export default function AccountSettings({
             <button
               type="button"
               onClick={() => navigate(PATHS.SETTINGS_PARAM.replace(':tab', 'voice'))}
-              className="text-sm font-black text-rose-500 hover:underline"
+              className="text-sm font-black text-[var(--color-primary)] hover:text-[var(--color-primary-sub)] hover:underline"
             >
               {TEXT.open}
             </button>
@@ -426,7 +429,7 @@ export default function AccountSettings({
               className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
             >
               <motion.div
-                animate={{ backgroundColor: profile?.isProfilePublic ? '#f43f5e' : '#e5e7eb' }}
+                animate={{ backgroundColor: profile?.isProfilePublic ? 'var(--color-primary)' : '#e5e7eb' }}
                 className="absolute inset-0"
               />
               <motion.div
@@ -452,7 +455,7 @@ export default function AccountSettings({
               className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
             >
               <motion.div
-                animate={{ backgroundColor: profile?.isAcceptPrompt ? '#f43f5e' : '#e5e7eb' }}
+                animate={{ backgroundColor: profile?.isAcceptPrompt ? 'var(--color-primary)' : '#e5e7eb' }}
                 className="absolute inset-0"
               />
               <motion.div
@@ -469,7 +472,8 @@ export default function AccountSettings({
         <button
           type="button"
           onClick={handleWithdraw}
-          className="border-b border-rose-500/30 pb-1 text-sm font-black text-rose-500 hover:text-rose-600"
+          className="border-b pb-1 text-sm font-black text-[var(--color-primary)] hover:text-[var(--color-primary-sub)]"
+          style={{ borderColor: 'color-mix(in srgb, var(--color-primary) 30%, transparent)' }}
         >
           {TEXT.deleteAccount}
         </button>

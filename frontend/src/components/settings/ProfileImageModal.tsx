@@ -154,7 +154,13 @@ export default function ProfileImageModal({ isOpen, profile, onClose, onSuccess 
               </button>
             </div>
 
-            <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border-4 border-gray-100 bg-gradient-to-tr from-rose-50 to-emerald-50 shadow-lg">
+            <div
+              className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border-4 border-gray-100 shadow-lg"
+              style={{
+                background:
+                  'linear-gradient(to top right, color-mix(in srgb, var(--color-primary) 12%, white), color-mix(in srgb, var(--color-secondary) 40%, white))',
+              }}
+            >
               <img
                 src={imagePreview || profile?.userProfileImageUrl || fallbackImage}
                 alt={TEXT.previewAlt}
@@ -172,7 +178,7 @@ export default function ProfileImageModal({ isOpen, profile, onClose, onSuccess 
               />
               <label
                 htmlFor="modalProfileImageInput"
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-gray-200 py-3 text-center text-sm font-bold text-gray-500 transition-all hover:border-rose-300 hover:text-rose-500"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-gray-200 py-3 text-center text-sm font-bold text-gray-500 transition-all hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
               >
                 <Upload className="h-4 w-4" />
                 {selectedImageFile ? selectedImageFile.name : TEXT.chooseImage}
@@ -198,7 +204,7 @@ export default function ProfileImageModal({ isOpen, profile, onClose, onSuccess 
                 type="button"
                 onClick={handleUpload}
                 disabled={!selectedImageFile || isSaving || isDeleting}
-                className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-rose-500 py-3 text-sm font-black text-white shadow-lg shadow-rose-500/20 transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+                className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[var(--color-primary)] py-3 text-sm font-black text-white shadow-lg transition-colors hover:bg-[var(--color-primary-sub)] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
               >
                 {isSaving ? (
                   <RefreshCw className="h-4 w-4 animate-spin" />
