@@ -288,7 +288,7 @@ export function useChatAudioPlayback() {
 
     const audio = new Audio();
     audio.autoplay = false;
-    audio.playsInline = true;
+    audio.setAttribute('playsinline', 'true');
     audio.preload = 'auto';
 
     if (objectUrlRef.current) {
