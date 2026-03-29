@@ -70,7 +70,7 @@ const LandingPage: React.FC = () => {
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript.replace(/\s+/g, '');
           if (transcript.includes('로그인')) {
-            recognition.stop();
+            recognition?.stop();
             redirectToLogin();
             return;
           }
@@ -80,7 +80,7 @@ const LandingPage: React.FC = () => {
       recognition.onend = () => {
         if (!isUnmounted) {
           try {
-            recognition.start();
+            recognition?.start();
           } catch {
             // ignore repeated start attempts
           }

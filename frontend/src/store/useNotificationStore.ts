@@ -9,6 +9,27 @@ interface SseConnectPayload {
   message?: string;
 }
 
+function getMessageEventData(event: unknown): string | null {
+  if (typeof MessageEvent !== 'undefined' && event instanceof MessageEvent) {
+    return typeof event.data === 'string' ? event.data : null;
+  }
+
+  const data = (event as { data?: unknown } | null | undefined)?.data;
+  return typeof data === 'string' ? data : null;
+}
+
+function addCustomSseListener(
+  source: EventSourcePolyfill,
+  type: string,
+  listener: (event: unknown) => void,
+) {
+  (
+    source as unknown as {
+      addEventListener: (eventType: string, eventListener: (event: unknown) => void) => void;
+    }
+  ).addEventListener(type, listener);
+}
+
 const timeAgo = (dateStr: string) => {
   const date = new Date(dateStr);
   const now = new Date();
@@ -140,11 +161,12 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
 
     const handleCustomEvent =
       (eventName: string) =>
-      (event: MessageEvent<string>): void => {
-        if (!event.data) return;
+      (event: unknown): void => {
+        const data = getMessageEventData(event);
+        if (!data) return;
 
         try {
-          const newNoti: RealtimeNotificationDTO = JSON.parse(event.data);
+          const newNoti: RealtimeNotificationDTO = JSON.parse(data);
           get().appendRealtimeAlarm(mapRealtimeNotificationToAlarm(newNoti, eventName));
           void get().fetchNotifications();
         } catch (e) {
@@ -152,23 +174,40 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
         }
       };
 
-    eventSource.addEventListener('connect', (event: MessageEvent<string>) => {
-      if (!event.data) return;
+    addCustomSseListener(eventSource, 'connect', (event: unknown) => {
+        const dataText = getMessageEventData(event);
+        if (!dataText) return;
 
-      try {
-        const data = JSON.parse(event.data) as SseConnectPayload;
-        console.log('SSE Connect API 응답:', data.message);
-      } catch (e) {
-        console.debug('JSON Parse skip for connect event:', e);
-      }
-    });
+        try {
+          const data = JSON.parse(dataText) as SseConnectPayload;
+          console.log('SSE Connect API 응답:', data.message);
+        } catch (e) {
+          console.debug('JSON Parse skip for connect event:', e);
+        }
+      });
 
-    eventSource.addEventListener('FOLLOW_REQUEST', handleCustomEvent('FOLLOW_REQUEST'));
-    eventSource.addEventListener('FOLLOW_ACCEPT', handleCustomEvent('FOLLOW_ACCEPT'));
-    eventSource.addEventListener('FOLLOW_CREATED', handleCustomEvent('FOLLOW_CREATED'));
-    eventSource.addEventListener('NOTIFICATION', handleCustomEvent('NOTIFICATION'));
+    addCustomSseListener(
+      eventSource,
+      'FOLLOW_REQUEST',
+      handleCustomEvent('FOLLOW_REQUEST'),
+    );
+    addCustomSseListener(
+      eventSource,
+      'FOLLOW_ACCEPT',
+      handleCustomEvent('FOLLOW_ACCEPT'),
+    );
+    addCustomSseListener(
+      eventSource,
+      'FOLLOW_CREATED',
+      handleCustomEvent('FOLLOW_CREATED'),
+    );
+    addCustomSseListener(
+      eventSource,
+      'NOTIFICATION',
+      handleCustomEvent('NOTIFICATION'),
+    );
 
-    eventSource.onerror = (error: Event) => {
+    eventSource.onerror = function onSseError(error) {
       set({ isSseConnected: false });
       console.error('SSE 연결 에러 (연결 유실 혹은 토큰 만료 등):', error);
     };

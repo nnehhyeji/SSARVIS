@@ -157,7 +157,7 @@ export default function ProfileImageModal({ isOpen, profile, onClose, onSuccess 
               <h3 className="text-xl font-black text-gray-900">{TEXT.title}</h3>
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={() => handleClose()}
                 className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gray-100 transition-colors hover:bg-gray-200"
               >
                 <X className="h-4 w-4 text-gray-500" />
