@@ -10,8 +10,8 @@ import followApi, {
 } from '../../apis/followApi';
 import AvatarRow, { type AvatarRowItem } from '../../components/profile/AvatarRow';
 import { PATHS } from '../../routes/paths';
-import { avatarFallback } from '../../utils/avatar';
 import { toast } from '../../store/useToastStore';
+import { initialsAvatarFallback } from '../../utils/avatar';
 
 const sortByTopChatters = (items: AvatarRowItem[], topChatters: TopChatterResponse[]) => {
   const ranking = new Map<number, number>();
@@ -40,6 +40,7 @@ const mapFollowing = (
     items.map((item) => ({
       userId: item.userId,
       nickname: item.nickname,
+      customId: item.customId || '',
       profileImageUrl: item.followerProfileImgUrl || '',
     })),
     topChatters,
@@ -49,6 +50,7 @@ const mapFollowers = (items: FollowerListResponse[] = []): AvatarRowItem[] =>
   items.map((item) => ({
     userId: item.followerId,
     nickname: item.nickname,
+    customId: item.customId || '',
     profileImageUrl: item.followerProfileImgUrl || '',
   }));
 
@@ -96,12 +98,50 @@ const ProfilePage: React.FC = () => {
     navigator.clipboard
       .writeText(shareUrl)
       .then(() => {
-        toast.success('프로필 링크를 복사했어요.');
+        toast.success('프로필 링크를 클립보드에 복사했습니다.');
       })
       .catch((err) => {
         console.error('Failed to copy link:', err);
-        toast.error('프로필 링크 복사에 실패했어요.');
+        toast.error('프로필 링크를 복사하지 못했습니다.');
       });
+  };
+
+  const handleUserClick = async (item: AvatarRowItem) => {
+    try {
+      const myId = userInfo?.id;
+
+      if (myId && item.userId === myId) {
+        navigate(PATHS.USER_HOME(item.userId));
+        return;
+      }
+
+      if (!item.customId) {
+        toast.error('사용자 정보를 확인할 수 없습니다.');
+        return;
+      }
+
+      const response = await followApi.searchUsers(item.customId);
+      const target = (response.data || []).find(
+        (user) => user.userId === item.userId && user.customId === item.customId,
+      );
+
+      if (!target) {
+        toast.error('해당 사용자를 찾을 수 없습니다.');
+        return;
+      }
+
+      const canVisit = target.followStatus === 'FOLLOWING' || target.isProfilePublic === true;
+
+      if (!canVisit) {
+        toast.error('비공개 계정이라 아직 이 사용자의 집에 입장할 수 없습니다.');
+        return;
+      }
+
+      navigate(PATHS.VISIT(target.userId));
+    } catch (error) {
+      console.error('Failed to resolve visit target:', error);
+      toast.error('사용자 집 정보를 확인하지 못했습니다.');
+    }
   };
 
   return (
@@ -111,7 +151,10 @@ const ProfilePage: React.FC = () => {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <div className="h-36 w-36 overflow-hidden rounded-full bg-white/50 shadow-2xl backdrop-blur-sm transition-transform duration-500 group-hover:scale-105">
               <img
-                src={profile?.userProfileImageUrl || avatarFallback(userInfo?.nickname || 'user')}
+                src={
+                  profile?.userProfileImageUrl ||
+                  initialsAvatarFallback(profile?.nickname || userInfo?.nickname || 'User')
+                }
                 alt="Profile"
                 className="h-full w-full object-cover"
               />
@@ -124,7 +167,7 @@ const ProfilePage: React.FC = () => {
                 @{userInfo?.customId || 'unknown_id'}
               </p>
               <h1 className="text-4xl font-black tracking-tighter text-gray-900 drop-shadow-sm">
-                {userInfo?.nickname || 'nneh'}
+                {userInfo?.nickname || 'User'}
               </h1>
 
               <div className="my-1 flex items-center gap-2.5">
@@ -150,7 +193,7 @@ const ProfilePage: React.FC = () => {
               <button
                 onClick={handleShareClick}
                 className="group/share flex h-8 w-8 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-500/30 transition-all active:scale-95 hover:bg-rose-600"
-                title="프로필 공유"
+                title="프로필 링크 공유"
               >
                 <Share2 className="h-4 w-4 transition-colors" />
               </button>
@@ -161,8 +204,8 @@ const ProfilePage: React.FC = () => {
         </div>
 
         <div className="space-y-12 px-6">
-          <AvatarRow title="팔로우 중" items={followingUsers} />
-          <AvatarRow title="팔로워" items={followerUsers} />
+          <AvatarRow title="팔로우 중" items={followingUsers} onUserClick={handleUserClick} />
+          <AvatarRow title="팔로워" items={followerUsers} onUserClick={handleUserClick} />
         </div>
       </div>
     </div>

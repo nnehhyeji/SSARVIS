@@ -45,6 +45,8 @@ export interface UserSearchResponse {
   email: string;
   profileImageUrl: string;
   followStatus: 'NONE' | 'REQUESTED' | 'FOLLOWING';
+  isProfilePublic: boolean;
+  isFollower: boolean;
 }
 
 export interface TopChatterResponse {
