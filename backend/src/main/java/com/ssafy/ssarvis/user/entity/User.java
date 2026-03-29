@@ -156,4 +156,8 @@ public class User extends BaseTime {
     public void updateProfileVisibility(Boolean isPublic) {
         this.isPublic = isPublic;
     }
+
+    public void deleteProfileImage() {
+        this.profileImageUrl = null;
+    }
 }

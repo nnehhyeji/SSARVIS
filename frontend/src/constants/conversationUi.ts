@@ -23,6 +23,6 @@ export const CONVERSATION_UI = {
 
 export const ACTIVE_SPEECH_COLOR = '#F7576E';
 export const PENDING_TEXT_CLASS = 'text-[#D9D9D9]';
-export const SIDEBAR_SAFE_PADDING = 'pl-[104px] md:pl-[120px] lg:pl-[132px]';
-export const PAGE_INSET = 'px-8 pt-8 md:px-12 md:pt-12';
+export const SIDEBAR_SAFE_PADDING = 'pl-[88px] md:pl-[104px] lg:pl-[116px]';
+export const PAGE_INSET = 'px-6 pt-5 md:px-10 md:pt-8';
 export const SINGLE_SPEAKER_BREAKPOINT = 1440;
