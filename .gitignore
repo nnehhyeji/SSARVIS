@@ -2,3 +2,4 @@ compose-front/
 compose-front/*
 .agents/
 .agents/*
+build.txt
