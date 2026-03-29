@@ -15,6 +15,7 @@ import MyHomeConversationView from '../../components/features/home/MyHomeConvers
 import VisitorConversationStage from '../../components/features/home/VisitorConversationStage';
 
 import { PATHS } from '../../routes/paths';
+import followApi from '../../apis/followApi';
 import userApi from '../../apis/userApi';
 import type { UserResponse } from '../../apis/userApi';
 
@@ -111,6 +112,7 @@ export default function UserMainPage() {
   const { follows, isVisitorMode, visitedFollowName, visitFollow, leaveFollow } = useFollow();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
+  const [guestOwnerName, setGuestOwnerName] = useState('');
   const [isTextInputMode, setIsTextInputMode] = useState(false);
   const [isAiTopicModalOpen, setIsAiTopicModalOpen] = useState(false);
   const [modeHistories, setModeHistories] = useState<
@@ -176,8 +178,37 @@ export default function UserMainPage() {
     };
   }, [isLoggedIn, isMyHome, leaveFollow, targetId, visitFollow]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    if (isMyHome || !targetId || isLoggedIn) {
+      setGuestOwnerName('');
+      return;
+    }
+
+    const loadGuestOwnerName = async () => {
+      try {
+        const data = await followApi.getFollowAi(targetId);
+        if (!isMounted) return;
+        setGuestOwnerName(data.name.split('_')[0]?.trim() || '');
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('Failed to load guest owner name:', error);
+        setGuestOwnerName('');
+      }
+    };
+
+    void loadGuestOwnerName();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn, isMyHome, targetId]);
+
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
-  const ownerName = isMyHome ? userInfo?.nickname || 'User' : visitedFollowName || 'Visitor';
+  const ownerName = isMyHome
+    ? userInfo?.nickname || 'User'
+    : visitedFollowName || guestOwnerName || 'Visitor';
   const visitorDescription =
     follows.find((follow) => follow.id === targetId)?.description?.trim() || '';
   const visitorIntroText = visitorDescription || `어서와, ${ownerName} ai한테 말을 걸어봐`;
