@@ -56,6 +56,13 @@ export interface TopChatterResponse {
   totalMessageCount: number;
 }
 
+export interface FollowAiResponse {
+  assistantId: number;
+  name: string;
+  modelId: string;
+  isAccessible: boolean;
+}
+
 const followApi = {
   requestFollow: async (data: FollowRequest) => {
     const response = await axiosInstance.post<CommonResponse<void>>('/follows/request', data);
@@ -92,6 +99,13 @@ const followApi = {
     const response =
       await axiosInstance.get<CommonResponse<TopChatterResponse[]>>('/follows/top-chatters');
     return response.data;
+  },
+
+  getFollowAi: async (followId: number) => {
+    const response = await axiosInstance.get<CommonResponse<FollowAiResponse>>(
+      `/follows/ai/${followId}`,
+    );
+    return response.data.data;
   },
 
   getFollowRequests: async () => {
