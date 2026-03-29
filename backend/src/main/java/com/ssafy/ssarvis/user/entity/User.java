@@ -160,4 +160,8 @@ public class User extends BaseTime {
     public void deleteProfileImage() {
         this.profileImageUrl = null;
     }
+
+    public void increaseViewCount(){
+        this.viewCount++;
+    }
 }
