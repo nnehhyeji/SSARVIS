@@ -13,10 +13,10 @@ import { useUserStore } from '../../store/useUserStore';
 import AiTopicModal from '../../components/features/assistant/AiTopicModal';
 import MyHomeConversationView from '../../components/features/home/MyHomeConversationView';
 import VisitorConversationStage from '../../components/features/home/VisitorConversationStage';
+import NamnaConversationStage from '../../components/features/namna/NamnaConversationStage';
 
 import { WAKE_WORD } from '../../constants/voice';
 import { PATHS } from '../../routes/paths';
-import followApi from '../../apis/followApi';
 import followApi from '../../apis/followApi';
 import userApi from '../../apis/userApi';
 import type { UserResponse } from '../../apis/userApi';
@@ -55,6 +55,10 @@ export default function UserMainPage() {
     setIsSpeaking,
     triggerText,
     setTriggerText,
+    setIsMyAiSpeaking,
+    myMouthOpenRadius,
+    myTriggerText,
+    setMyTriggerText,
     setMicPreferenceEnabled,
     setMicRuntimeActive,
   } = useAICharacter({ enableDefaultTriggerText: isMyHome });
@@ -130,8 +134,8 @@ export default function UserMainPage() {
   const { follows, isVisitorMode, visitedFollowName, visitFollow, leaveFollow } = useFollow();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
-  const [guestOwnerName, setGuestOwnerName] = useState('');
   const [isTextInputMode, setIsTextInputMode] = useState(false);
+  const [isVisitorDualAiMode, setIsVisitorDualAiMode] = useState(false);
   const [isAiTopicModalOpen, setIsAiTopicModalOpen] = useState(false);
   const [visitorFollowStatus, setVisitorFollowStatus] = useState<
     'NONE' | 'REQUESTED' | 'FOLLOWING' | null
@@ -200,33 +204,6 @@ export default function UserMainPage() {
       leaveFollow();
     };
   }, [isLoggedIn, isMyHome, leaveFollow, targetId, visitFollow]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    if (isMyHome || !targetId || isLoggedIn) {
-      setGuestOwnerName('');
-      return;
-    }
-
-    const loadGuestOwnerName = async () => {
-      try {
-        const data = await followApi.getFollowAi(targetId);
-        if (!isMounted) return;
-        setGuestOwnerName(data.name.split('_')[0]?.trim() || '');
-      } catch (error) {
-        if (!isMounted) return;
-        console.error('Failed to load guest owner name:', error);
-        setGuestOwnerName('');
-      }
-    };
-
-    void loadGuestOwnerName();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isLoggedIn, isMyHome, targetId]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? userInfo?.nickname || 'User' : visitedFollowName || 'Visitor';
@@ -418,6 +395,28 @@ export default function UserMainPage() {
         : visitorNeedsWakeWordGuide
           ? ''
           : visitorStageStatusText;
+  const isVisitorDualAiSceneOpen =
+    !isMyHome && (isVisitorDualAiMode || aiToAiChat.isBattling || Boolean(aiToAiChat.topic));
+  const visitorDualLeftCaptionText = aiToAiChat.targetLatestText || triggerText;
+  const visitorDualLeftDoneLength =
+    aiToAiChat.activeSpeaker === 'target' && visitorDualLeftCaptionText.trim()
+      ? Math.max(0, visitorDualLeftCaptionText.length - 1)
+      : visitorDualLeftCaptionText.length;
+  const visitorDualLeftActiveLength =
+    aiToAiChat.activeSpeaker === 'target' && visitorDualLeftCaptionText.trim() ? 1 : 0;
+  const visitorDualRightCaptionText = aiToAiChat.myLatestText || myTriggerText;
+  const visitorDualRightDoneLength =
+    aiToAiChat.activeSpeaker === 'mine' && visitorDualRightCaptionText.trim()
+      ? Math.max(0, visitorDualRightCaptionText.length - 1)
+      : visitorDualRightCaptionText.length;
+  const visitorDualRightActiveLength =
+    aiToAiChat.activeSpeaker === 'mine' && visitorDualRightCaptionText.trim() ? 1 : 0;
+  const visitorDualActiveSpeaker: 'left' | 'right' | null =
+    aiToAiChat.activeSpeaker === 'target'
+      ? 'left'
+      : aiToAiChat.activeSpeaker === 'mine'
+        ? 'right'
+        : null;
 
   useEffect(() => {
     if (!visitorIsListening) return;
@@ -515,6 +514,14 @@ export default function UserMainPage() {
     const timeout = setTimeout(handleEndSpeaking, triggerText.length * 100 + 500);
     return () => clearTimeout(timeout);
   }, [handleEndSpeaking, handleStartSpeaking, triggerText]);
+
+  useEffect(() => {
+    if (!myTriggerText) return;
+
+    setIsMyAiSpeaking(true);
+    const timeout = setTimeout(() => setIsMyAiSpeaking(false), myTriggerText.length * 100 + 500);
+    return () => clearTimeout(timeout);
+  }, [myTriggerText, setIsMyAiSpeaking]);
 
   const getAssistantType = useCallback(() => {
     if (isMyHome) {
@@ -647,12 +654,15 @@ export default function UserMainPage() {
   const handleToggleDualAi = useCallback(() => {
     if (aiToAiChat.isBattling) {
       aiToAiChat.stopBattle();
+      setIsVisitorDualAiMode(false);
+      setIsAiTopicModalOpen(false);
       return;
     }
 
     if (!isLoggedIn || !currentUserId || !targetId) return;
 
-    setIsAiTopicModalOpen(true);
+    setIsVisitorDualAiMode(true);
+    setIsAiTopicModalOpen(false);
   }, [aiToAiChat, currentUserId, isLoggedIn, targetId]);
 
   const handleVisitorFollow = useCallback(async () => {
@@ -721,11 +731,13 @@ export default function UserMainPage() {
 
       if (!started) return;
 
+      setIsVisitorDualAiMode(true);
       setIsAiTopicModalOpen(false);
       setIsTextInputMode(false);
       setTriggerText('');
+      setMyTriggerText('');
     },
-    [aiToAiChat, currentUserId, setTriggerText, targetId],
+    [aiToAiChat, currentUserId, setMyTriggerText, setTriggerText, targetId],
   );
 
   useEffect(() => {
@@ -781,48 +793,108 @@ export default function UserMainPage() {
 
   return (
     <>
-      <VisitorConversationStage
-        title={ownerName}
-        currentMode={currentMode}
-        isMicOn={isMicOn}
-        isTextInputMode={isTextInputMode}
-        faceType={faceType}
-        mouthOpenRadius={mouthOpenRadius}
-        isCharacterSpeaking={battleIsTargetSpeaking || activeChat.isAiSpeaking || isSpeaking}
-        assistantDisplayName={`${ownerName} AI`}
-        aiCaptionText={visitorCaptionText}
-        aiDoneLength={visitorCaptionDoneLength}
-        aiActiveLength={visitorCaptionActiveLength}
-        statusText={visitorStageStatus}
-        isListeningStatus={visitorIsListening}
-        showWakeCue={visitorWakeDetected}
-        liveUserTranscript={activeChat.sttText}
-        showLiveTranscript={activeChat.voicePhase === 'speech'}
-        connectionNotice={visitorConnectionNotice}
-        isDualAiRunning={aiToAiChat.isBattling}
-        canStartDualAi={Boolean(isLoggedIn && currentUserId && targetId)}
-        followButtonLabel={visitorFollowButtonLabel}
-        isFollowButtonDisabled={isVisitorFollowButtonDisabled}
-        isFollowButtonLoading={isVisitorFollowLoading}
-        chatInput={activeChat.chatInput}
-        onChatInputChange={activeChat.setChatInput}
-        onMicToggle={handleVisitorMicToggle}
-        onSendText={handleVisitorSendChat}
-        onCancel={() => {
-          if (aiToAiChat.isBattling) {
+      {isVisitorDualAiSceneOpen ? (
+        <NamnaConversationStage
+          title={ownerName}
+          isLockMode={activeChat.isLockMode}
+          isMicOn={isMicOn}
+          isTextInputMode={isTextInputMode}
+          headerCenterLabel={aiToAiChat.topic ? `주제: ${aiToAiChat.topic}` : '주제를 입력해주세요!'}
+          onHeaderCenterAction={() => setIsAiTopicModalOpen(true)}
+          onHeaderCenterClear={
+            aiToAiChat.topic || aiToAiChat.isBattling
+              ? () => {
+                  aiToAiChat.stopBattle();
+                  setIsVisitorDualAiMode(false);
+                  setIsAiTopicModalOpen(false);
+                }
+              : undefined
+          }
+          leftFaceType={(faceType + 2) % 6}
+          leftMouthOpenRadius={mouthOpenRadius}
+          leftMode={currentMode}
+          leftIsSpeaking={aiToAiChat.activeSpeaker === 'target'}
+          leftDisplayName={`${ownerName} AI`}
+          leftCaptionText={visitorDualLeftCaptionText}
+          leftDoneLength={visitorDualLeftDoneLength}
+          leftActiveLength={visitorDualLeftActiveLength}
+          rightFaceType={faceType}
+          rightMouthOpenRadius={myMouthOpenRadius}
+          rightMode="normal"
+          rightIsSpeaking={aiToAiChat.activeSpeaker === 'mine'}
+          rightDisplayName={`${userInfo?.nickname || '내'} AI`}
+          rightCaptionText={visitorDualRightCaptionText}
+          rightDoneLength={visitorDualRightDoneLength}
+          rightActiveLength={visitorDualRightActiveLength}
+          activeSpeaker={visitorDualActiveSpeaker}
+          statusText={aiToAiChat.statusMessage}
+          connectionNotice={aiToAiChat.errorMessage || undefined}
+          progressCurrent={aiToAiChat.turnCount}
+          progressTotal={aiToAiChat.maxTurn}
+          progressLabel="AI 대화 진행"
+          useProgressFooter
+          showContinuationPrompt={aiToAiChat.isAwaitingContinuation}
+          onContinueConversation={aiToAiChat.continueBattle}
+          onStopConversation={() => {
             aiToAiChat.stopBattle();
-            return;
-          }
-          if (shouldUseGuestChat) {
-            guestChat.stopRecordingAndSendSTT();
-            return;
-          }
-          cancelTurn();
-        }}
-        onOpenPersona={handleOpenPersona}
-        onToggleDualAi={handleToggleDualAi}
-        onFollowClick={handleVisitorFollow}
-      />
+            setIsVisitorDualAiMode(false);
+            setIsAiTopicModalOpen(false);
+          }}
+          chatInput={activeChat.chatInput}
+          onChatInputChange={activeChat.setChatInput}
+          onMicToggle={handleVisitorMicToggle}
+          onSendText={handleVisitorSendChat}
+          onCancel={() => {
+            aiToAiChat.stopBattle();
+            setIsVisitorDualAiMode(false);
+            setIsAiTopicModalOpen(false);
+          }}
+          onToggleLock={toggleLock}
+        />
+      ) : (
+        <VisitorConversationStage
+          title={ownerName}
+          currentMode={currentMode}
+          isMicOn={isMicOn}
+          isTextInputMode={isTextInputMode}
+          faceType={faceType}
+          mouthOpenRadius={mouthOpenRadius}
+          isCharacterSpeaking={battleIsTargetSpeaking || activeChat.isAiSpeaking || isSpeaking}
+          assistantDisplayName={`${ownerName} AI`}
+          aiCaptionText={visitorCaptionText}
+          aiDoneLength={visitorCaptionDoneLength}
+          aiActiveLength={visitorCaptionActiveLength}
+          statusText={visitorStageStatus}
+          isListeningStatus={visitorIsListening}
+          showWakeCue={visitorWakeDetected}
+          liveUserTranscript={activeChat.sttText}
+          showLiveTranscript={activeChat.voicePhase === 'speech'}
+          connectionNotice={visitorConnectionNotice}
+          isDualAiRunning={aiToAiChat.isBattling}
+          canStartDualAi={Boolean(isLoggedIn && currentUserId && targetId)}
+          followButtonLabel={visitorFollowButtonLabel}
+          isFollowButtonDisabled={isVisitorFollowButtonDisabled}
+          isFollowButtonLoading={isVisitorFollowLoading}
+          chatInput={activeChat.chatInput}
+          onChatInputChange={activeChat.setChatInput}
+          onMicToggle={handleVisitorMicToggle}
+          onSendText={handleVisitorSendChat}
+          onCancel={() => {
+            if (aiToAiChat.isBattling) {
+              aiToAiChat.stopBattle();
+              return;
+            }
+            if (shouldUseGuestChat) {
+              guestChat.stopRecordingAndSendSTT();
+              return;
+            }
+            cancelTurn();
+          }}
+          onOpenPersona={handleOpenPersona}
+          onToggleDualAi={handleToggleDualAi}
+          onFollowClick={handleVisitorFollow}
+        />
+      )}
 
       <AiTopicModal
         isOpen={isAiTopicModalOpen}

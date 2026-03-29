@@ -204,7 +204,7 @@ export default function NamnaConversationStage({
                 <button
                   type="button"
                   onClick={onHeaderCenterAction}
-                  className={`inline-flex items-center rounded-full px-2 py-0 text-sm font-black transition-colors ${
+                  className={`inline-flex items-center rounded-full px-1 py-0 text-sm font-black transition-colors ${
                     onHeaderCenterAction
                       ? isLockMode
                         ? 'text-white/85 hover:text-white'
@@ -222,7 +222,7 @@ export default function NamnaConversationStage({
                     type="button"
                     onClick={onHeaderCenterClear}
                     aria-label="주제 대화 취소"
-                    className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                    className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
                       isLockMode
                         ? 'bg-white/8 text-white/75 hover:bg-white/12 hover:text-white'
                         : 'bg-white text-[#D84D66] hover:bg-[#FFE8EC]'
