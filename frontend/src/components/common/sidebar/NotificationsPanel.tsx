@@ -35,47 +35,62 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
         </button>
       </div>
       <div className="px-4 space-y-2 overflow-y-auto pb-8">
-        {alarms.map((alarm) => (
-          <div
-            key={alarm.id}
-            onClick={() => onAlarmClick(alarm)}
-            className="flex items-center gap-4 py-3 px-4 group/alarm transition-all hover:bg-black/5 rounded-2xl cursor-pointer relative"
-          >
+        {alarms.map((alarm) => {
+          const payload = alarm.payload as
+            | {
+                senderNickname?: string;
+                senderName?: string;
+                senderEmail?: string;
+                senderProfileImage?: string;
+                senderProfileImgUrl?: string;
+                profileImageUrl?: string;
+                profileImgUrl?: string;
+                followRequestId?: number;
+                senderCustomId?: string;
+              }
+            | undefined;
+
+          return (
             <div
-              className={`w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 ${
-                alarm.isRead ? 'opacity-0' : 'opacity-100'
-              }`}
-            />
-            <SidebarAvatar
-              name={
-                ((alarm.payload as { senderNickname?: string; senderName?: string } | undefined)
-                  ?.senderNickname ||
-                  (alarm.payload as { senderNickname?: string; senderName?: string } | undefined)
-                    ?.senderName ||
-                  'A')
-              }
-              imageUrl={
-                (alarm.payload as { senderProfileImage?: string } | undefined)?.senderProfileImage
-              }
-            />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-800 leading-snug">{alarm.message}</p>
-              <p className="text-[11px] text-gray-400 font-bold mt-1 tracking-tight uppercase italic">
-                {alarm.time}
-              </p>
-              {alarm.type === 'FOLLOW_REQUEST' &&
-                alarm.payload &&
-                !!(alarm.payload as { followRequestId?: number }).followRequestId && (
+              key={alarm.id}
+              onClick={() => onAlarmClick(alarm)}
+              className="flex items-center gap-4 py-3 px-4 group/alarm transition-all hover:bg-black/5 rounded-2xl cursor-pointer relative"
+            >
+              <div
+                className={`w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 ${
+                  alarm.isRead ? 'opacity-0' : 'opacity-100'
+                }`}
+              />
+              <SidebarAvatar
+                name={
+                  payload?.senderNickname ||
+                  payload?.senderName ||
+                  payload?.senderCustomId ||
+                  payload?.senderEmail ||
+                  'User'
+                }
+                imageUrl={
+                  payload?.senderProfileImage ||
+                  payload?.senderProfileImgUrl ||
+                  payload?.profileImageUrl ||
+                  payload?.profileImgUrl
+                }
+              />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-800 leading-snug">{alarm.message}</p>
+                <p className="text-[11px] text-gray-400 font-bold mt-1 tracking-tight uppercase italic">
+                  {alarm.time}
+                </p>
+                {alarm.type === 'FOLLOW_REQUEST' && !!payload?.followRequestId && (
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        const payload = alarm.payload as Record<string, number | string>;
                         onAccept(
-                          payload.followRequestId as number,
-                          (payload.senderCustomId as string) ||
-                            (payload.senderNickname as string) ||
-                            (payload.senderName as string) ||
+                          payload.followRequestId!,
+                          payload.senderCustomId ||
+                            payload.senderNickname ||
+                            payload.senderName ||
                             '사용자',
                         );
                         onRemoveAlarm(alarm.id);
@@ -86,18 +101,19 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                     </button>
                   </div>
                 )}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveAlarm(alarm.id);
+                }}
+                className="opacity-0 group-hover/alarm:opacity-100 p-1 hover:bg-gray-100 rounded-full transition-all"
+              >
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemoveAlarm(alarm.id);
-              }}
-              className="opacity-0 group-hover/alarm:opacity-100 p-1 hover:bg-gray-100 rounded-full transition-all"
-            >
-              <X className="w-4 h-4 text-gray-400" />
-            </button>
-          </div>
-        ))}
+          );
+        })}
         {alarms.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 opacity-20 text-gray-400">
             <Bell className="w-12 h-12 mb-2" />

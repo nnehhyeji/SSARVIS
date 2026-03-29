@@ -15,6 +15,15 @@ export interface EvaluationPromptResponse {
   };
 }
 
+export interface EvaluationListResponse {
+  message: string;
+  data: {
+    userId: number;
+    totalCount: number;
+    evaluations: unknown[];
+  };
+}
+
 export interface VoiceRegisterResponse {
   message: string;
   data: {
@@ -60,6 +69,15 @@ export async function postEvaluationPrompt(
     payload,
     { timeout: 60000 },
   );
+  return response.data;
+}
+
+/**
+ * [Persona Evaluation] 남이 보는 나 평가 누적 현황 조회
+ * GET /api/v1/ai/evaluations
+ */
+export async function getEvaluationList(): Promise<EvaluationListResponse> {
+  const response = await axiosInstance.get<EvaluationListResponse>('/ai/evaluations');
   return response.data;
 }
 

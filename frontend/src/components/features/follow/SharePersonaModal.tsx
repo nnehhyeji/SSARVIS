@@ -18,7 +18,7 @@ export default function SharePersonaModal({ isOpen, onClose }: SharePersonaModal
 
   const { userInfo } = useUserStore();
   const myUserId = userInfo?.id || 1;
-  const shareUrl = `${window.location.origin}${PATHS.VISIT(myUserId)}?mode=persona`;
+  const shareUrl = `${window.location.origin}${PATHS.PERSONA(myUserId)}`;
 
   useEffect(() => {
     if (isOpen) {

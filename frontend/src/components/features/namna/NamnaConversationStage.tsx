@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Lock, Unlock, Send, Square } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Lock, Mic, MicOff, Send, Square, Unlock } from 'lucide-react';
 
 import CharacterScene from '../character/CharacterScene';
 import {
@@ -52,98 +52,95 @@ function CaptionLine({
   );
 }
 
-interface AssistantConversationStageProps {
+interface NamnaConversationStageProps {
   title: string;
-  currentMode: string;
   isLockMode: boolean;
   isMicOn: boolean;
   isTextInputMode?: boolean;
   headerCenterLabel?: string;
-  headerCenterSubtext?: string;
-  headerCenterProgressCurrent?: number;
-  headerCenterProgressTotal?: number;
-  faceType: number;
-  mouthOpenRadius: number;
-  isCharacterSpeaking: boolean;
-  assistantDisplayName: string;
-  userDisplayName: string;
-  profileImage: string;
-  aiCaptionText: string;
-  aiDoneLength: number;
-  aiActiveLength: number;
-  userCaptionText: string;
-  userDoneLength: number;
-  userActiveLength: number;
-  activeSpeaker: 'ai' | 'user' | null;
+  onHeaderCenterAction?: () => void;
+  onHeaderCenterClear?: () => void;
+  leftFaceType: number;
+  leftMouthOpenRadius: number;
+  leftMode: string;
+  leftIsSpeaking: boolean;
+  leftDisplayName: string;
+  leftCaptionText: string;
+  leftDoneLength: number;
+  leftActiveLength: number;
+  rightFaceType: number;
+  rightMouthOpenRadius: number;
+  rightMode: string;
+  rightIsSpeaking: boolean;
+  rightDisplayName: string;
+  rightCaptionText: string;
+  rightDoneLength: number;
+  rightActiveLength: number;
+  activeSpeaker: 'left' | 'right' | null;
   statusText: string;
   statusSubtext?: string;
-  isLongAiCaption?: boolean;
-  isLongUserCaption?: boolean;
-  isLongActiveCaption?: boolean;
-  pageNotice?: string;
   connectionNotice?: string;
+  progressCurrent?: number;
+  progressTotal?: number;
+  progressLabel?: string;
+  useProgressFooter?: boolean;
+  showContinuationPrompt?: boolean;
+  onContinueConversation?: () => void;
+  onStopConversation?: () => void;
   chatInput: string;
   onChatInputChange: (value: string) => void;
   onMicToggle: () => void;
   onSendText: () => void;
   onCancel: () => void;
   onToggleLock: () => void;
-  isInteractionDisabled?: boolean;
-  disabledPlaceholder?: string;
-  isContinuousConversationEnabled?: boolean;
-  onToggleContinuousConversation?: () => void;
 }
 
-export default function AssistantConversationStage({
+export default function NamnaConversationStage({
   title,
-  currentMode,
   isLockMode,
   isMicOn,
   isTextInputMode = false,
   headerCenterLabel,
-  headerCenterSubtext,
-  headerCenterProgressCurrent,
-  headerCenterProgressTotal,
-  faceType,
-  mouthOpenRadius,
-  isCharacterSpeaking,
-  assistantDisplayName,
-  userDisplayName,
-  profileImage,
-  aiCaptionText,
-  aiDoneLength,
-  aiActiveLength,
-  userCaptionText,
-  userDoneLength,
-  userActiveLength,
+  onHeaderCenterAction,
+  onHeaderCenterClear,
+  leftFaceType,
+  leftMouthOpenRadius,
+  leftMode,
+  leftIsSpeaking,
+  leftDisplayName,
+  leftCaptionText,
+  leftDoneLength,
+  leftActiveLength,
+  rightFaceType,
+  rightMouthOpenRadius,
+  rightMode,
+  rightIsSpeaking,
+  rightDisplayName,
+  rightCaptionText,
+  rightDoneLength,
+  rightActiveLength,
   activeSpeaker,
   statusText,
   statusSubtext,
-  isLongAiCaption = false,
-  isLongUserCaption = false,
-  isLongActiveCaption = false,
-  pageNotice,
   connectionNotice,
+  progressCurrent = 0,
+  progressTotal = 0,
+  progressLabel,
+  useProgressFooter = false,
+  showContinuationPrompt = false,
+  onContinueConversation,
+  onStopConversation,
   chatInput,
   onChatInputChange,
   onMicToggle,
   onSendText,
   onCancel,
   onToggleLock,
-  isInteractionDisabled = false,
-  disabledPlaceholder,
-  isContinuousConversationEnabled = false,
-  onToggleContinuousConversation,
-}: AssistantConversationStageProps) {
+}: NamnaConversationStageProps) {
   const [isNarrowLayout, setIsNarrowLayout] = useState(false);
   const showTextInput = isTextInputMode || !isMicOn;
-  const headerProgressPercent =
-    headerCenterProgressTotal && headerCenterProgressTotal > 0
-      ? Math.min(
-          100,
-          Math.max(0, ((headerCenterProgressCurrent ?? 0) / headerCenterProgressTotal) * 100),
-        )
-      : null;
+  const progressPercent =
+    progressTotal > 0 ? Math.min(100, Math.max(0, (progressCurrent / progressTotal) * 100)) : 0;
 
   useEffect(() => {
     const updateLayout = () => {
@@ -156,20 +153,12 @@ export default function AssistantConversationStage({
   }, []);
 
   const longCaptionThreshold = isNarrowLayout ? 36 : 55;
+  const leftIsLong = leftCaptionText.trim().length >= longCaptionThreshold;
+  const rightIsLong = rightCaptionText.trim().length >= longCaptionThreshold;
   const shouldFocusActiveSpeaker =
-    (isNarrowLayout && activeSpeaker !== null) || isLongActiveCaption;
-  const showAiSection = shouldFocusActiveSpeaker
-    ? activeSpeaker !== 'user'
-    : !isNarrowLayout || activeSpeaker !== 'user';
-  const showUserSection = shouldFocusActiveSpeaker
-    ? activeSpeaker !== 'ai'
-    : !isNarrowLayout || activeSpeaker !== 'ai';
-  const aiCaptionSize = isLongAiCaption ? 'compact' : 'default';
-  const userCaptionSize = isLongUserCaption ? 'compact' : 'default';
-  const aiCaptionOffsetClass =
-    aiCaptionText.trim().length >= longCaptionThreshold ? 'pt-20' : 'pt-14';
-  const userCaptionOffsetClass =
-    userCaptionText.trim().length >= longCaptionThreshold ? 'pt-8' : 'pt-4';
+    isNarrowLayout && activeSpeaker !== null && (leftCaptionText.trim() || rightCaptionText.trim());
+  const showLeftSection = shouldFocusActiveSpeaker ? activeSpeaker !== 'right' : true;
+  const showRightSection = shouldFocusActiveSpeaker ? activeSpeaker !== 'left' : true;
 
   return (
     <div
@@ -186,7 +175,7 @@ export default function AssistantConversationStage({
       )}
 
       <div className="relative z-10 flex h-full w-full flex-col overflow-hidden">
-        <header className={`flex shrink-0 items-start justify-between gap-6 pb-6 ${PAGE_INSET}`}>
+        <header className={`flex shrink-0 items-end justify-between gap-4 pb-6 ${PAGE_INSET}`}>
           <h1
             className={`text-[46px] font-black tracking-[-0.06em] md:text-[54px] ${
               isLockMode ? 'text-white' : 'text-black'
@@ -194,48 +183,6 @@ export default function AssistantConversationStage({
           >
             {title}
           </h1>
-
-          {headerCenterLabel ? (
-            <div
-              className={`hidden min-w-[280px] max-w-[420px] shrink-0 flex-col gap-2 rounded-[24px] px-5 py-4 shadow-sm md:flex ${
-                isLockMode
-                  ? 'border border-white/12 bg-white/6'
-                  : 'border border-[#F2D9DE] bg-[#FFF8F9]'
-              }`}
-            >
-              <div
-                className={`text-center text-sm font-black tracking-[-0.03em] ${
-                  isLockMode ? 'text-white/88' : 'text-[#D84D66]'
-                }`}
-              >
-                {headerCenterLabel}
-              </div>
-              {typeof headerProgressPercent === 'number' ? (
-                <div
-                  className={`h-2.5 overflow-hidden rounded-full ${
-                    isLockMode ? 'bg-white/10' : 'bg-[#EFE6E8]'
-                  }`}
-                >
-                  <div
-                    className="h-full rounded-full transition-[width] duration-500"
-                    style={{
-                      width: `${headerProgressPercent}%`,
-                      backgroundColor: 'var(--color-primary)',
-                    }}
-                  />
-                </div>
-              ) : null}
-              {headerCenterSubtext ? (
-                <div
-                  className={`text-center text-xs font-semibold tracking-[-0.02em] ${
-                    isLockMode ? 'text-white/58' : 'text-[#7C7280]'
-                  }`}
-                >
-                  {headerCenterSubtext}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </header>
 
         <div
@@ -244,39 +191,72 @@ export default function AssistantConversationStage({
           }`}
         />
 
-        {pageNotice ? (
-          <div className="shrink-0 px-8 pt-4 md:px-12">
-            <div
-              className={`mx-auto max-w-[920px] rounded-2xl px-4 py-3 text-sm font-semibold ${
-                isLockMode
-                  ? 'border border-white/10 bg-white/[0.04] text-white/75'
-                  : 'border border-[#EFE7D7] bg-[#FFF9EE] text-[#7A6642]'
-              }`}
-            >
-              {pageNotice}
+        {headerCenterLabel ? (
+          <div className="shrink-0 pt-4">
+            <div className="flex justify-center">
+              <div
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-2 shadow-sm ${
+                  isLockMode
+                    ? 'border border-white/12 bg-white/6'
+                    : 'border border-[#F5C7CF] bg-[#FFF4F6]'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={onHeaderCenterAction}
+                  className={`inline-flex items-center rounded-full px-1 py-0 text-sm font-black transition-colors ${
+                    onHeaderCenterAction
+                      ? isLockMode
+                        ? 'text-white/85 hover:text-white'
+                        : 'text-[#D84D66] hover:text-[#C93F58]'
+                      : isLockMode
+                        ? 'text-white/80'
+                        : 'text-[#555555]'
+                  }`}
+                  disabled={!onHeaderCenterAction}
+                >
+                  {headerCenterLabel}
+                </button>
+                {onHeaderCenterClear ? (
+                  <button
+                    type="button"
+                    onClick={onHeaderCenterClear}
+                    aria-label="주제 대화 취소"
+                    className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
+                      isLockMode
+                        ? 'bg-white/8 text-white/75 hover:bg-white/12 hover:text-white'
+                        : 'bg-white text-[#D84D66] hover:bg-[#FFE8EC]'
+                    }`}
+                  >
+                    <span className="text-base font-black leading-none">×</span>
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
         ) : null}
 
-        <main className="relative flex-1 overflow-hidden px-6 pb-5 pt-5 md:px-10 md:pb-6 md:pt-6">
+        <main className="relative flex-1 overflow-hidden px-6 pb-5 md:px-10 md:pb-6">
           <div className="relative h-full min-h-[420px] md:min-h-[500px]">
             <section
               className={`absolute left-0 flex items-start gap-7 transition-opacity duration-200 max-xl:w-[60%] max-lg:w-[70%] ${
-                showUserSection
+                showRightSection
                   ? 'top-[8%] w-[56%]'
                   : 'top-[12%] w-[72%] max-xl:w-[78%] max-lg:w-[84%]'
               } ${
-                showAiSection ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+                showLeftSection
+                  ? 'pointer-events-auto opacity-100'
+                  : 'pointer-events-none opacity-0'
               }`}
-              aria-hidden={!showAiSection}
+              aria-hidden={!showLeftSection}
             >
               <div className="relative h-[186px] w-[186px] shrink-0 md:h-[210px] md:w-[210px]">
                 <CharacterScene
-                  faceType={faceType}
-                  mouthOpenRadius={mouthOpenRadius}
-                  mode={currentMode}
+                  faceType={leftFaceType}
+                  mouthOpenRadius={leftMouthOpenRadius}
+                  mode={leftMode}
                   isLockMode={isLockMode}
-                  isSpeaking={isCharacterSpeaking}
+                  isSpeaking={leftIsSpeaking}
                   isMicOn={isMicOn}
                   showWaveform={false}
                 />
@@ -285,26 +265,26 @@ export default function AssistantConversationStage({
                     isLockMode ? 'text-white' : 'text-black'
                   }`}
                 >
-                  {assistantDisplayName}
+                  {leftDisplayName}
                 </div>
               </div>
 
-              <div className={aiCaptionOffsetClass}>
+              <div className={leftIsLong ? 'pt-20' : 'pt-14'}>
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={`ai-${title}-${aiCaptionText}`}
+                    key={`namna-left-${leftCaptionText}`}
                     initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
+                    animate={{ opacity: leftCaptionText ? 1 : 0, y: leftCaptionText ? 0 : 14 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                   >
                     <CaptionLine
-                      text={aiCaptionText}
-                      doneLength={aiDoneLength}
-                      activeLength={aiActiveLength}
+                      text={leftCaptionText}
+                      doneLength={leftDoneLength}
+                      activeLength={leftActiveLength}
                       align="left"
                       isLockMode={isLockMode}
-                      size={aiCaptionSize}
+                      size={leftIsLong ? 'compact' : 'default'}
                     />
                   </motion.div>
                 </AnimatePresence>
@@ -313,58 +293,53 @@ export default function AssistantConversationStage({
 
             <section
               className={`absolute right-0 flex items-start justify-end gap-8 transition-opacity duration-200 ${
-                showAiSection
+                showLeftSection
                   ? 'bottom-[14%] w-[52%] max-xl:w-[58%] max-lg:w-[68%]'
                   : 'bottom-[12%] w-[72%] max-xl:w-[78%] max-lg:w-[84%]'
               } ${
-                showUserSection
+                showRightSection
                   ? 'pointer-events-auto opacity-100'
                   : 'pointer-events-none opacity-0'
               }`}
-              aria-hidden={!showUserSection}
+              aria-hidden={!showRightSection}
             >
-              <div className={`max-w-[min(32vw,28rem)] ${userCaptionOffsetClass}`}>
+              <div className={`max-w-[min(32vw,28rem)] ${rightIsLong ? 'pt-8' : 'pt-4'}`}>
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={`user-${title}-${userCaptionText}`}
+                    key={`namna-right-${rightCaptionText}`}
                     initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: userCaptionText ? 1 : 0, y: userCaptionText ? 0 : 14 }}
+                    animate={{ opacity: rightCaptionText ? 1 : 0, y: rightCaptionText ? 0 : 14 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                   >
                     <CaptionLine
-                      text={userCaptionText}
-                      doneLength={userDoneLength}
-                      activeLength={userActiveLength}
+                      text={rightCaptionText}
+                      doneLength={rightDoneLength}
+                      activeLength={rightActiveLength}
                       align="right"
                       isLockMode={isLockMode}
-                      size={userCaptionSize}
+                      size={rightIsLong ? 'compact' : 'default'}
                     />
                   </motion.div>
                 </AnimatePresence>
               </div>
 
-              <div className="relative h-[160px] w-[160px] shrink-0 md:h-[178px] md:w-[178px]">
-                <motion.div
-                  className="h-full w-full overflow-hidden rounded-[20px] bg-[#F4F4F4]"
-                  animate={{
-                    y: activeSpeaker === 'user' ? -4 : 0,
-                    scale: activeSpeaker === 'user' ? 1.01 : 1,
-                  }}
-                  transition={{ duration: 0.2, ease: 'easeOut' }}
-                >
-                  <img
-                    src={profileImage}
-                    alt="User profile"
-                    className="h-full w-full object-cover"
-                  />
-                </motion.div>
+              <div className="relative h-[186px] w-[186px] shrink-0 md:h-[210px] md:w-[210px]">
+                <CharacterScene
+                  faceType={rightFaceType}
+                  mouthOpenRadius={rightMouthOpenRadius}
+                  mode={rightMode}
+                  isLockMode={isLockMode}
+                  isSpeaking={rightIsSpeaking}
+                  isMicOn={isMicOn}
+                  showWaveform={false}
+                />
                 <div
                   className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
                     isLockMode ? 'text-white' : 'text-black'
                   }`}
                 >
-                  {userDisplayName}
+                  {rightDisplayName}
                 </div>
               </div>
             </section>
@@ -372,7 +347,7 @@ export default function AssistantConversationStage({
         </main>
 
         <footer className="shrink-0 px-6 pb-5 pt-2 md:px-10 md:pb-6">
-          {connectionNotice && (
+          {connectionNotice ? (
             <div className="mb-3 flex items-center justify-center">
               <div
                 className={`rounded-full px-4 py-2 text-sm font-bold shadow-sm ${
@@ -384,7 +359,7 @@ export default function AssistantConversationStage({
                 {connectionNotice}
               </div>
             </div>
-          )}
+          ) : null}
 
           <div className="mb-3 flex items-center justify-center">
             <div className="flex flex-col items-center gap-1">
@@ -416,25 +391,83 @@ export default function AssistantConversationStage({
                 : 'border border-[#E7E7E7] bg-white shadow-[0_12px_32px_rgba(0,0,0,0.06)]'
             }`}
           >
-            <button
-              onClick={onMicToggle}
-              disabled={isInteractionDisabled}
-              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
-                isInteractionDisabled
-                  ? isLockMode
-                    ? 'cursor-not-allowed border-white/10 bg-white/5 text-white/30'
-                    : 'cursor-not-allowed border-[#E5E5E5] bg-[#F5F5F5] text-[#B5B5B5]'
-                  : isMicOn
-                  ? 'border-[#F7576E]/25 bg-[#F7576E]/10 text-[#F7576E]'
-                  : isLockMode
-                    ? 'border-white/10 bg-white/5 text-white/70'
-                    : 'border-[#DADADA] bg-[#F8F8F8] text-[#666666]'
-              }`}
-            >
-              {isMicOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
-            </button>
+            {useProgressFooter ? (
+              <div
+                className={`flex min-w-0 flex-1 flex-col gap-2 rounded-[18px] px-4 py-3 ${
+                  isLockMode
+                    ? 'border border-white/10 bg-white/[0.04]'
+                    : 'border border-[#EEEEEE] bg-[#FAFAFA]'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span
+                    className={`text-sm font-black tracking-[-0.03em] ${
+                      isLockMode ? 'text-white/85' : 'text-[#333333]'
+                    }`}
+                  >
+                    {progressLabel || '대화 진행도'}
+                  </span>
+                  <span
+                    className={`text-xs font-bold ${
+                      isLockMode ? 'text-white/60' : 'text-[#7B7B7B]'
+                    }`}
+                  >
+                    {progressCurrent}/{progressTotal || 0}
+                  </span>
+                </div>
+                <div
+                  className={`h-3 overflow-hidden rounded-full ${
+                    isLockMode ? 'bg-white/10' : 'bg-[#ECECEC]'
+                  }`}
+                >
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500"
+                    style={{
+                      width: `${progressPercent}%`,
+                      backgroundColor: 'var(--color-primary)',
+                    }}
+                  />
+                </div>
+                {showContinuationPrompt ? (
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={onStopConversation}
+                      className={`rounded-full px-4 py-2 text-xs font-black transition-colors ${
+                        isLockMode
+                          ? 'border border-white/10 bg-white/5 text-white/75 hover:bg-white/10'
+                          : 'border border-[#E4E4E4] bg-white text-[#666666] hover:bg-[#F7F7F7]'
+                      }`}
+                    >
+                      여기서 멈추기
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onContinueConversation}
+                      className="rounded-full bg-[#F7576E] px-4 py-2 text-xs font-black text-white transition-colors hover:bg-[#EB4A61]"
+                    >
+                      20턴 더 진행하기
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : showTextInput ? (
+              <button
+                type="button"
+                onClick={onMicToggle}
+                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
+                  isMicOn
+                    ? 'border-[#F7576E]/25 bg-[#F7576E]/10 text-[#F7576E]'
+                    : isLockMode
+                      ? 'border-white/10 bg-white/5 text-white/70'
+                      : 'border-[#DADADA] bg-[#F8F8F8] text-[#666666]'
+                }`}
+              >
+                {isMicOn ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+              </button>
+            ) : null}
 
-            {showTextInput && (
+            {!useProgressFooter && showTextInput ? (
               <div
                 className={`flex min-w-0 flex-1 items-center gap-2 rounded-[18px] px-4 py-2 ${
                   isLockMode
@@ -449,27 +482,28 @@ export default function AssistantConversationStage({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') onSendText();
                   }}
-                  placeholder={disabledPlaceholder || CONVERSATION_UI.placeholder.chatInput}
-                  disabled={isInteractionDisabled}
+                  placeholder={CONVERSATION_UI.placeholder.chatInput}
                   className={`min-w-0 flex-1 bg-transparent text-[15px] font-medium outline-none placeholder:text-[#B7B7B7] ${
                     isLockMode ? 'text-white' : 'text-black'
                   }`}
                 />
                 <button
+                  type="button"
                   onClick={onSendText}
-                  disabled={isInteractionDisabled || !chatInput.trim()}
+                  disabled={!chatInput.trim()}
                   className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
-                    !isInteractionDisabled && chatInput.trim()
-                      ? 'bg-[#F7576E] text-white'
-                      : 'bg-[#ECECEC] text-[#AFAFAF]'
+                    chatInput.trim() ? 'bg-[#F7576E] text-white' : 'bg-[#ECECEC] text-[#AFAFAF]'
                   }`}
                 >
                   <Send className="h-4 w-4" />
                 </button>
               </div>
-            )}
+            ) : !useProgressFooter ? (
+              <div className="flex-1" />
+            ) : null}
 
             <button
+              type="button"
               onClick={onCancel}
               aria-label={CONVERSATION_UI.controls.cancel}
               title={CONVERSATION_UI.controls.cancel}
@@ -483,6 +517,7 @@ export default function AssistantConversationStage({
             </button>
 
             <button
+              type="button"
               onClick={onToggleLock}
               className={`flex h-14 shrink-0 items-center gap-2 rounded-full border px-5 text-sm font-bold transition-all duration-200 ${
                 isLockMode
@@ -493,21 +528,6 @@ export default function AssistantConversationStage({
               {isLockMode ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
               {isLockMode ? CONVERSATION_UI.controls.lock : CONVERSATION_UI.controls.unlock}
             </button>
-
-            {onToggleContinuousConversation ? (
-              <button
-                onClick={onToggleContinuousConversation}
-                className={`flex h-14 shrink-0 items-center gap-2 rounded-full border px-5 text-sm font-bold transition-all duration-200 ${
-                  isContinuousConversationEnabled
-                    ? 'border-[#F7576E]/20 bg-[#F7576E]/10 text-[#F7576E]'
-                    : isLockMode
-                      ? 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10'
-                      : 'border-[#E4E4E4] bg-[#FAFAFA] text-[#555555] hover:bg-[#F4F4F4]'
-                }`}
-              >
-                {isContinuousConversationEnabled ? '연속 대화 ON' : '연속 대화 OFF'}
-              </button>
-            ) : null}
           </div>
         </footer>
       </div>

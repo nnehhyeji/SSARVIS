@@ -44,14 +44,50 @@ const timeAgo = (dateStr: string) => {
   return `${diffInDays}일 전`;
 };
 
-const mapNotificationToAlarm = (dto: NotificationDTO): Alarm => ({
-  id: dto.notificationId,
-  message: dto.message,
-  isRead: dto.isRead,
-  time: timeAgo(dto.createdAt),
-  type: dto.eventName || 'system',
-  payload: dto.payload || {},
-});
+const extractSenderNameFromMessage = (message: string) => {
+  const trimmedMessage = message.trim();
+  if (!trimmedMessage) return '';
+
+  const honorificIndex = trimmedMessage.indexOf('님');
+  if (honorificIndex > 0) {
+    return trimmedMessage.slice(0, honorificIndex).trim();
+  }
+
+  return trimmedMessage.split(/\s+/)[0]?.trim() || '';
+};
+
+const mapNotificationToAlarm = (dto: NotificationDTO): Alarm => {
+  const payload = (dto.payload || {}) as Record<string, unknown>;
+  const senderName =
+    (payload.senderNickname as string | undefined) ||
+    (payload.senderName as string | undefined) ||
+    (payload.senderCustomId as string | undefined) ||
+    (payload.senderEmail as string | undefined) ||
+    extractSenderNameFromMessage(dto.message);
+
+  return {
+    id: dto.notificationId,
+    message: dto.message,
+    isRead: dto.isRead,
+    time: timeAgo(dto.createdAt),
+    type: dto.eventName || 'system',
+    payload: {
+      ...payload,
+      senderNickname: senderName,
+      senderName:
+        (payload.senderName as string | undefined) ||
+        (payload.senderNickname as string | undefined) ||
+        senderName,
+      senderCustomId: (payload.senderCustomId as string | undefined) || senderName,
+      senderProfileImage:
+        (payload.senderProfileImage as string | undefined) ||
+        (payload.senderProfileImgUrl as string | undefined) ||
+        (payload.profileImageUrl as string | undefined) ||
+        (payload.profileImgUrl as string | undefined) ||
+        '',
+    },
+  };
+};
 
 const createRealtimeAlarmId = () => Date.now() + Math.floor(Math.random() * 1000);
 
