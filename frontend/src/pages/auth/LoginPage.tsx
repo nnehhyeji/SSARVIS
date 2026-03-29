@@ -8,6 +8,8 @@ import authApi from '../../apis/authApi';
 import userApi from '../../apis/userApi';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
 import { PATHS } from '../../routes/paths';
+import { toast } from '../../store/useToastStore';
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useUserStore();
@@ -82,9 +84,9 @@ export default function LoginPage() {
       navigate(PATHS.USER_HOME(profile.id));
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        alert(error.response?.data?.message || '로그인 중 오류가 발생했습니다.');
+        toast.error('로그인에 실패했어요.', error.response?.data?.message);
       } else {
-        alert('로그인 중 알 수 없는 오류가 발생했습니다.');
+        toast.error('로그인 중 알 수 없는 오류가 발생했어요.');
       }
     } finally {
       setIsLoading(false);

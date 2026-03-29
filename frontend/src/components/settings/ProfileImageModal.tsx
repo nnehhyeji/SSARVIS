@@ -4,6 +4,7 @@ import { Upload, X, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import userApi from '../../apis/userApi';
 import type { UserResponse } from '../../apis/userApi';
+import { toast } from '../../store/useToastStore';
 
 interface Props {
   isOpen: boolean;
@@ -28,11 +29,11 @@ export default function ProfileImageModal({ isOpen, profile, onClose, onSuccess 
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('이미지 파일만 업로드 가능합니다.');
+      toast.error('이미지 파일만 업로드할 수 있어요.');
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      alert('이미지 크기는 10MB 이하여야 합니다.');
+      toast.error('이미지 크기는 10MB 이하여야 해요.');
       return;
     }
 
@@ -53,13 +54,13 @@ export default function ProfileImageModal({ isOpen, profile, onClose, onSuccess 
       const newImageUrl = response.data;
       onSuccess(newImageUrl);
       handleClose();
-      alert('프로필 이미지가 변경되었습니다.');
+      toast.success('프로필 이미지가 변경되었어요.');
     } catch (error: unknown) {
       console.error('Failed to upload image:', error);
       if (axios.isAxiosError(error)) {
-        alert(error.response?.data?.message || '이미지 업로드 중 오류가 발생했습니다.');
+        toast.error('이미지 업로드에 실패했어요.', error.response?.data?.message);
       } else {
-        alert('이미지 업로드 중 오류가 발생했습니다.');
+        toast.error('이미지 업로드 중 오류가 발생했어요.');
       }
     } finally {
       setIsSaving(false);

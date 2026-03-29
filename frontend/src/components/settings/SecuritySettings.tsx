@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Lock, ShieldCheck, ChevronRight, XCircle } from 'lucide-react';
 import authApi from '../../apis/authApi';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
+import { toast } from '../../store/useToastStore';
 
 interface Props {
   isSaving: boolean;
@@ -33,17 +34,17 @@ export default function SecuritySettings({
     if (!isVoiceLockRegistered) return;
     const trimmedLockPhrase = lockPhrase.trim();
     if (!trimmedLockPhrase) {
-      alert('해제 문구를 입력해주세요.');
+      toast.error('해제 문구를 입력해주세요.');
       return;
     }
     setIsSaving(true);
     try {
       await authApi.setupVoiceLock({ voicePassword: trimmedLockPhrase, timeout: timeoutDuration });
-      alert('보안 설정이 저장되었습니다.');
+      toast.success('보안 설정이 저장되었어요.');
       setLockPhrase('');
     } catch (error) {
       console.error('Failed to save security settings:', error);
-      alert('설정 저장 중 오류가 발생했습니다.');
+      toast.error('설정 저장 중 오류가 발생했어요.');
     } finally {
       setIsSaving(false);
     }
@@ -201,9 +202,9 @@ export default function SecuritySettings({
                 if (window.confirm('음성 정보를 삭제하시겠습니까? 기능이 비활성화됩니다.')) {
                   try {
                     await clearVoiceLock();
-                    alert('삭제 완료');
+                    toast.success('음성 데이터가 삭제되었어요.');
                   } catch {
-                    alert('실패');
+                    toast.error('음성 데이터 삭제에 실패했어요.');
                   }
                 }
               }}
