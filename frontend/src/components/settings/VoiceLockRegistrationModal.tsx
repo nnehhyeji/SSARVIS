@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, X, ChevronRight, Check, RefreshCw, Edit2, ShieldCheck, Keyboard } from 'lucide-react';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
-import { useMicrophonePermission } from '../../hooks/useMicrophonePermission';
 import VoiceVisualizer from '../common/VoiceVisualizer';
 import CharacterScene from '../features/character/CharacterScene';
 import { useAICharacter } from '../../hooks/useAICharacter';
@@ -26,7 +25,6 @@ type CustomWindow = Window & {
 const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({ onClose }) => {
   const { setIsVoiceLockRegistered, setVoiceLockEnabled, timeoutDuration } = useVoiceLockStore();
   const { faceType, mouthOpenRadius } = useAICharacter();
-  const { getStream } = useMicrophonePermission();
 
   const [step, setStep] = useState<Step>('intro');
   const [transcript, setTranscript] = useState('');
@@ -39,44 +37,15 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const skipNextOnEndRef = useRef(false);
-
-  const stopRecording = React.useCallback(() => {
-    setIsRecognitionActive(false);
-
-    if (recognitionRef.current) {
-      skipNextOnEndRef.current = true;
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        // Ignore stop error
-      }
-      recognitionRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-
-    if (audioContextRef.current) {
-      void audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-
-    setVolume(0);
-  }, []);
 
   // Stop recording when step changes or component unmounts
   useEffect(() => {
     return () => {
       stopRecording();
     };
-  }, [stopRecording]);
+  }, []);
 
   const startRecording = async () => {
-    skipNextOnEndRef.current = false;
-    stopRecording();
     setErrorMsg('');
     setTranscript('');
     setInterimTranscript('');
@@ -92,12 +61,7 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
 
     try {
       // 1. Setup Audio Volume Visualizer
-      const stream = await getStream();
-      if (!stream) {
-        setErrorMsg('마이크 권한이 필요합니다.');
-        return;
-      }
-      streamRef.current = stream;
+      streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
       const Win2 = window as unknown as CustomWindow;
       audioContextRef.current = new (window.AudioContext || Win2.webkitAudioContext)();
       const analyser = audioContextRef.current.createAnalyser();
@@ -148,11 +112,7 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
       };
 
       recognition.onend = () => {
-        if (skipNextOnEndRef.current) {
-          skipNextOnEndRef.current = false;
-          return;
-        }
-        stopRecording();
+        setIsRecognitionActive(false);
         // If we have a final transcript, move to confirm
         setStep((prev) => (prev === 'recording' ? 'confirm' : prev));
       };
@@ -166,6 +126,24 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
     }
   };
 
+  const stopRecording = () => {
+    setIsRecognitionActive(false);
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // Ignore stop error
+      }
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+    }
+    setVolume(0);
+  };
+
   const handleComplete = async () => {
     if (!transcript.trim()) return;
 
@@ -177,7 +155,6 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
         voicePassword: transcript.trim(),
         timeout: timeoutDuration,
       });
-      stopRecording();
       setIsVoiceLockRegistered(true);
       setVoiceLockEnabled(true);
       setStep('success');
@@ -190,9 +167,8 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
   };
 
   const retryRecording = () => {
-    stopRecording();
     setStep('recording');
-    void startRecording();
+    startRecording();
   };
 
   // --- Step Components ---
@@ -210,9 +186,8 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
       </div>
       <button
         onClick={() => {
-          stopRecording();
           setStep('recording');
-          void startRecording();
+          startRecording();
         }}
         className="mt-4 w-full py-5 bg-indigo-500 text-white rounded-2xl font-black text-xl hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 group"
       >
@@ -220,10 +195,7 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
         <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
       </button>
       <button
-        onClick={() => {
-          stopRecording();
-          setStep('edit');
-        }}
+        onClick={() => setStep('edit')}
         className="flex items-center gap-2 text-gray-400 hover:text-gray-600 font-bold text-sm transition-colors"
       >
         <Keyboard className="w-4 h-4" />
@@ -307,10 +279,7 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
             <span>다시 말하기</span>
           </button>
           <button
-            onClick={() => {
-              stopRecording();
-              setStep('edit');
-            }}
+            onClick={() => setStep('edit')}
             className="py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
           >
             <Edit2 className="w-4 h-4" />
@@ -367,10 +336,7 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
         </p>
       </div>
       <button
-        onClick={() => {
-          stopRecording();
-          onClose();
-        }}
+        onClick={onClose}
         className="mt-4 w-full py-5 bg-gray-900 text-white rounded-2xl font-black text-xl hover:bg-black transition-all shadow-xl shadow-gray-200"
       >
         확인
@@ -385,10 +351,7 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={() => {
-          stopRecording();
-          onClose();
-        }}
+        onClick={onClose}
       />
 
       <motion.div
@@ -398,10 +361,7 @@ const VoiceLockRegistrationModal: React.FC<VoiceLockRegistrationModalProps> = ({
         className="relative bg-white w-full max-w-lg rounded-[48px] shadow-2xl overflow-hidden focus:outline-none"
       >
         <button
-          onClick={() => {
-            stopRecording();
-            onClose();
-          }}
+          onClick={onClose}
           className="absolute top-8 right-8 p-2 rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all z-20"
         >
           <X className="w-6 h-6" />
