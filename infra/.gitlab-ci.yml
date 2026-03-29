@@ -384,7 +384,7 @@ build_and_scan_ai:
 deploy:
   tags: [docker-shared]
   stage: deploy
-  image: alpine:3.19.9
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:3.19.9
   before_script:
     - echo "source=$CI_PIPELINE_SOURCE branch=$CI_COMMIT_BRANCH sha=$CI_COMMIT_SHA"
     - apk add --no-cache bash openssh-client
