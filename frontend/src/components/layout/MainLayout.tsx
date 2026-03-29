@@ -80,15 +80,6 @@ function extractSpeechAfterWakeWord(text: string): string {
 function resolveRemoteRouteCommand(text: string, userId?: number | null): string | null {
   const normalized = normalizeText(text);
 
-  if (normalized === '내정보' || normalized === '마이페이지') {
-    return PATHS.PROFILE;
-  }
-  if (normalized === 'ai비서' || normalized === '에이아이비서') {
-    return PATHS.ASSISTANT;
-  }
-  if (normalized === '남이보는나' || normalized === '나의페르소나') {
-    return PATHS.NAMNA;
-  }
   if (normalized === '대화보관함' || normalized === '보관함') {
     return PATHS.CHAT;
   }
