@@ -15,6 +15,8 @@ interface ChatPanelProps {
   isChatLoading: boolean;
   selectedChatId: string | null;
   setSelectedChatId: (val: string | null) => void;
+  onSelectArchiveTab: () => void;
+  onSelectGuestbookTab: () => void;
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({
@@ -30,19 +32,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   isChatLoading,
   selectedChatId,
   setSelectedChatId,
+  onSelectArchiveTab,
+  onSelectGuestbookTab,
 }) => {
   return (
     <div className="flex flex-col h-full">
       {/* Tabs: 대화 vs 방명록 */}
       <div className="flex mb-2 border-b border-gray-300 w-full">
         <button
-          onClick={() => setChatTab('archive')}
+          onClick={onSelectArchiveTab}
           className={`flex-1 py-3 text-lg font-black transition-colors text-center ${chatTab === 'archive' ? 'text-rose-500 border-b-2 border-rose-500' : 'text-gray-400 hover:text-gray-500'}`}
         >
           대화
         </button>
         <button
-          onClick={() => setChatTab('guestbook')}
+          onClick={onSelectGuestbookTab}
           className={`flex-1 py-3 text-lg font-black transition-colors text-center ${chatTab === 'guestbook' ? 'text-rose-500 border-b-2 border-rose-500' : 'text-gray-400 hover:text-gray-500'}`}
         >
           방명록

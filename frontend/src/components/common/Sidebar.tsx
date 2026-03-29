@@ -157,6 +157,26 @@ export default function Sidebar({
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
+  const returnToChatList = () => {
+    navigate(PATHS.CHAT);
+  };
+
+  const returnToChatCategories = () => {
+    setChatTab('archive');
+    setChatView('categories');
+    setChatCategory('assistant');
+    setAssistantFilters([]);
+    navigate(PATHS.CHAT);
+  };
+
+  const openGuestbookRoot = () => {
+    setChatTab('guestbook');
+    setChatView('categories');
+    setChatCategory('assistant');
+    setAssistantFilters([]);
+    navigate(PATHS.CHAT);
+  };
+
   useEffect(() => {
     let isMounted = true;
     if (activeTertiary !== 'chat') return;
@@ -508,6 +528,18 @@ export default function Sidebar({
           >
             <div className="p-6 pb-2 flex items-flex-start justify-between">
               <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-3">
+                  {activeTertiary === 'chat' &&
+                    (selectedChatId || (chatTab === 'archive' && chatView === 'list')) && (
+                    <button
+                      onClick={selectedChatId ? returnToChatList : returnToChatCategories}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-[0px] text-gray-500 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800"
+                      aria-label="이전"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      이전으로
+                    </button>
+                    )}
                 <h2 className="text-3xl font-black text-gray-800">
                   {activeTertiary === 'friends'
                     ? '팔로우 목록'
@@ -521,6 +553,7 @@ export default function Sidebar({
                             ? '검색'
                             : '알림'}
                 </h2>
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -600,9 +633,11 @@ export default function Sidebar({
                     if (id) {
                       navigate(PATHS.CHAT_ARCHIVE(id));
                     } else {
-                      navigate(PATHS.CHAT);
+                      returnToChatList();
                     }
                   }}
+                  onSelectArchiveTab={returnToChatCategories}
+                  onSelectGuestbookTab={openGuestbookRoot}
                 />
               )}
               {activeTertiary === 'assistant' && (
@@ -637,7 +672,7 @@ export default function Sidebar({
             {/* Top Header / Back Button */}
             <div className="h-20 shrink-0 px-8 flex items-center justify-between border-b border-gray-50 z-20">
               <button
-                onClick={() => navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME)}
+                onClick={returnToChatList}
                 className="group flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors"
               >
                 <div className="w-10 h-10 rounded-full border border-gray-100 flex items-center justify-center group-hover:bg-gray-50 transition">
