@@ -2,7 +2,6 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Loader2, Sparkles } from 'lucide-react';
-import { useMicrophonePermission } from '../../hooks/useMicrophonePermission';
 
 import { PATHS } from '../../routes/paths';
 
@@ -85,7 +84,6 @@ export default function TutorialPage() {
   const navigate = useNavigate();
   const { userInfo } = useUserStore();
   const nickname = useUserStore((state) => state.userInfo?.nickname?.trim() ?? '');
-  const { getStream } = useMicrophonePermission();
 
   const [step, setStep] = useState<TutorialStep>('mbti');
   const [isVoiceAnimating, setIsVoiceAnimating] = useState(false);
@@ -164,11 +162,7 @@ export default function TutorialPage() {
 
   const startRecording = useCallback(async () => {
     try {
-      const stream = await getStream();
-      if (!stream) {
-        alert('마이크 접근 권한이 필요합니다.');
-        return;
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       chunksRef.current = [];
       finalTranscriptRef.current = '';
@@ -238,7 +232,7 @@ export default function TutorialPage() {
     } catch {
       alert('마이크 접근 권한이 필요합니다.');
     }
-  }, [getStream, stopRecording, stopAllMediaResources]);
+  }, [stopRecording, stopAllMediaResources]);
 
   // 컴포넌트 언마운트 시 모든 리소스 정리
   useEffect(() => {
