@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import userApi from '../../apis/userApi';
@@ -7,6 +7,7 @@ import { useUserStore } from '../../store/useUserStore';
 import { useNavigate } from 'react-router-dom';
 import { PATHS } from '../../routes/paths';
 import { toast } from '../../store/useToastStore';
+import { initialsAvatarFallback } from '../../utils/avatar';
 
 interface Props {
   profile: UserResponse | null;
@@ -17,6 +18,64 @@ interface Props {
   loadProfile: () => Promise<void>;
   onOpenImageModal: () => void;
   formatTime: (seconds: number | null | undefined) => string;
+}
+
+const TEXT = {
+  defaultUser: '\uC0AC\uC6A9\uC790',
+  empty: '\uC5C6\uC74C',
+  photoAlt: '\uD504\uB85C\uD544 \uC774\uBBF8\uC9C0',
+  managePhoto: '\uD504\uB85C\uD544 \uC0AC\uC9C4 \uAD00\uB9AC',
+  nickname: '\uC774\uB984',
+  bio: '\uC6B0\uB9AC\uC9D1 \uC18C\uAC1C',
+  password: '\uBE44\uBC00\uBC88\uD638 \uBCC0\uACBD',
+  visibility: '\uACC4\uC815 \uACF5\uAC1C \uBC94\uC704',
+  prompts: '\uB0A8\uC774 \uBCF4\uB294 \uB098',
+  voiceLock: '\uC74C\uC131 \uC7A0\uAE08',
+  save: '\uC800\uC7A5',
+  cancel: '\uCDE8\uC18C',
+  edit: '\uC218\uC815',
+  customId: '\uC0AC\uC6A9\uC790 \uC544\uC774\uB514',
+  email: '\uC774\uBA54\uC77C',
+  nicknameLength: '\uB2C9\uB124\uC784\uC740 2\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4.',
+  passwordLength: '\uBE44\uBC00\uBC88\uD638\uB294 8\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4.',
+  passwordMismatch: '\uBE44\uBC00\uBC88\uD638 \uD655\uC778\uC774 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.',
+  settingsSaved: '\uC124\uC815\uC774 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
+  saveFailed: '\uC124\uC815\uC744 \uC800\uC7A5\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
+  saveError: '\uC124\uC815 \uC800\uC7A5 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.',
+  visibilityFailed: '\uACF5\uAC1C \uBC94\uC704\uB97C \uBCC0\uACBD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
+  promptFailed: '\uD504\uB86C\uD504\uD2B8 \uC218\uC9D1 \uC124\uC815\uC744 \uBCC0\uACBD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
+  withdrawConfirm:
+    '\uC815\uB9D0 \uD68C\uC6D0 \uD0C8\uD1F4\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C? \uC774 \uC791\uC5C5\uC740 \uB418\uB3CC\uB9B4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.',
+  withdrawSuccess: '\uD68C\uC6D0 \uD0C8\uD1F4\uAC00 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
+  withdrawFailed: '\uD68C\uC6D0 \uD0C8\uD1F4\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
+  withdrawError: '\uD68C\uC6D0 \uD0C8\uD1F4 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.',
+  bioPlaceholder: '\uC9E7\uC740 \uC18C\uAC1C\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.',
+  noBio: '\uC544\uC9C1 \uC18C\uAC1C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.',
+  newPassword: '\uC0C8 \uBE44\uBC00\uBC88\uD638',
+  confirmPassword: '\uBE44\uBC00\uBC88\uD638 \uD655\uC778',
+  passwordGuide: '',
+  publicAccount: '\uACF5\uAC1C \uACC4\uC815',
+  privateAccount: '\uBE44\uACF5\uAC1C \uACC4\uC815',
+  visibilityHelp: '\uB204\uAC00 \uB0B4 \uC9D1 \uD654\uBA74\uC5D0 \uC811\uADFC\uD560 \uC218 \uC788\uB294\uC9C0 \uC124\uC815\uD569\uB2C8\uB2E4.',
+  enabled: '\uBB38\uB2F5 \uC218\uC9D1',
+  disabled: '\uBE44\uD65C\uC131\uD654',
+  promptHelp:
+    '\uD0C0\uC778\uC758 \uC9C8\uBB38\uC744 \uBC1B\uC544 \uC751\uB2F5\uC744 \uC218\uC9D1\uD558\uACE0 AI\uB97C \uACE0\uB3C4\uD654\uD569\uB2C8\uB2E4.',
+  currentSetting: '\uD604\uC7AC \uC124\uC815',
+  open: '\uC5F4\uAE30',
+  deleteAccount: '\uD68C\uC6D0 \uD0C8\uD1F4',
+  notSet: '\uBBF8\uC124\uC815',
+};
+
+function SectionRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-6">
+      <div className="w-28 shrink-0 pt-1 text-sm font-black uppercase tracking-[0.2em] text-gray-400">
+        {label}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
 }
 
 export default function AccountSettings({
@@ -36,10 +95,15 @@ export default function AccountSettings({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingPassword, setIsEditingPassword] = useState(false);
 
-  const [newNickname, setNewNickname] = useState(profile?.nickname ?? '');
-  const [newDescription, setNewDescription] = useState(profile?.description ?? '');
+  const [newNickname, setNewNickname] = useState('');
+  const [newDescription, setNewDescription] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  useEffect(() => {
+    setNewNickname(profile?.nickname ?? '');
+    setNewDescription(profile?.description ?? '');
+  }, [profile?.description, profile?.nickname]);
 
   const handleUpdateProfile = useCallback(
     async (type: 'nickname' | 'description' | 'password') => {
@@ -48,375 +112,344 @@ export default function AccountSettings({
         const updateData: UpdateUserRequest = {};
 
         if (type === 'nickname') {
-          if (newNickname.length < 2) {
-            toast.error('닉네임은 2자 이상이어야 해요.');
+          if (newNickname.trim().length < 2) {
+            toast.error(TEXT.nicknameLength);
             return;
           }
-          updateData.nickname = newNickname;
-        } else if (type === 'description') {
-          updateData.description = newDescription;
-        } else if (type === 'password') {
+          updateData.nickname = newNickname.trim();
+        }
+
+        if (type === 'description') {
+          updateData.description = newDescription.trim();
+        }
+
+        if (type === 'password') {
           if (newPassword.length < 8) {
-            toast.error('비밀번호는 8자 이상이어야 해요.');
+            toast.error(TEXT.passwordLength);
             return;
           }
           if (newPassword !== confirmPassword) {
-            toast.error('비밀번호가 일치하지 않아요.');
+            toast.error(TEXT.passwordMismatch);
             return;
           }
           updateData.password = newPassword;
         }
 
         await userApi.updateUserProfile(updateData);
-        toast.success('변경 사항이 저장되었어요.');
+        await loadProfile();
+
+        toast.success(TEXT.settingsSaved);
         setIsEditingNickname(false);
         setIsEditingDescription(false);
         setIsEditingPassword(false);
         setNewPassword('');
         setConfirmPassword('');
-        loadProfile();
       } catch (error: unknown) {
         if (axios.isAxiosError(error)) {
-          toast.error('프로필 수정에 실패했어요.', error.response?.data?.message);
+          toast.error(TEXT.saveFailed, error.response?.data?.message);
         } else {
-          toast.error('수정 중 오류가 발생했어요.');
+          toast.error(TEXT.saveError);
         }
       } finally {
         setIsSaving(false);
       }
     },
-    [newNickname, newDescription, newPassword, confirmPassword, loadProfile, setIsSaving],
+    [confirmPassword, loadProfile, newDescription, newNickname, newPassword, setIsSaving],
   );
 
   const handleToggleProfile = async () => {
-    if (isSaving) return;
-    const prevProfile = profile;
-    const nextIsPublic = !profile?.isProfilePublic;
+    if (!profile || isSaving) return;
+
+    const nextIsPublic = !profile.isProfilePublic;
     setProfile((prev) => (prev ? { ...prev, isProfilePublic: nextIsPublic } : prev));
+
     try {
       setIsSaving(true);
       await userApi.toggleProfileVisibility(nextIsPublic);
     } catch (error) {
       console.error('Failed to toggle profile visibility:', error);
-      setProfile(prevProfile);
+      setProfile(profile);
+      toast.error(TEXT.visibilityFailed);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleTogglePersonaCollection = async () => {
-    if (isSaving) return;
-    const prevProfile = profile;
+    if (!profile || isSaving) return;
+
+    const previousProfile = profile;
     setProfile((prev) => (prev ? { ...prev, isAcceptPrompt: !prev.isAcceptPrompt } : prev));
+
     try {
       setIsSaving(true);
       await userApi.toggleNamna();
     } catch (error) {
       console.error('Failed to toggle persona collection:', error);
-      setProfile(prevProfile);
+      setProfile(previousProfile);
+      toast.error(TEXT.promptFailed);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleWithdraw = async () => {
-    if (
-      window.confirm(
-        '정말로 탈퇴하시겠습니까?\n탈퇴 시 모든 데이터가 삭제되며, 동일한 이메일로의 재가입이 불가능합니다.',
-      )
-      ) {
-      try {
-        await userApi.withdraw();
-        toast.success('회원 탈퇴가 완료되었어요.');
-        logout();
-        navigate(PATHS.LOGIN);
-      } catch (error: unknown) {
-        if (axios.isAxiosError(error)) {
-          toast.error('회원 탈퇴 처리에 실패했어요.', error.response?.data?.message);
-        } else {
-          toast.error('탈퇴 처리 중 알 수 없는 오류가 발생했어요.');
-        }
+    if (!window.confirm(TEXT.withdrawConfirm)) {
+      return;
+    }
+
+    try {
+      await userApi.withdraw();
+      toast.success(TEXT.withdrawSuccess);
+      logout();
+      navigate(PATHS.LOGIN);
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        toast.error(TEXT.withdrawFailed, error.response?.data?.message);
+      } else {
+        toast.error(TEXT.withdrawError);
       }
     }
   };
 
   return (
-    <div className="flex flex-col gap-12 w-full pb-32">
-      {/* 1. 프로필 섹션 */}
-      <div className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-8">
-          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-xl bg-gray-100">
+    <div className="flex w-full flex-col gap-10 pb-24">
+      <div className="flex items-center justify-between gap-8">
+        <div className="flex items-center gap-6">
+          <div className="h-28 w-28 overflow-hidden rounded-full border-4 border-white bg-gray-100 shadow-lg">
             <img
               src={
                 profile?.userProfileImageUrl ||
-                `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.nickname || 'user'}`
+                initialsAvatarFallback(profile?.nickname || TEXT.defaultUser)
               }
-              alt="Profile"
-              className="w-full h-full object-cover"
+              alt={TEXT.photoAlt}
+              className="h-full w-full object-cover"
             />
           </div>
+
           <div className="flex flex-col gap-1">
-            <h2 className="text-4xl font-black text-gray-900 tracking-tight">
-              {profile?.nickname}
+            <h2 className="text-3xl font-black tracking-tight text-gray-900">
+              {profile?.nickname || TEXT.defaultUser}
             </h2>
-            <p className="text-gray-400 font-bold text-lg">ID: @{profile?.customId || 'unknown'}</p>
-            <p className="text-gray-400 font-bold text-lg">EMAIL: {profile?.email}</p>
+            <p className="text-base font-medium text-gray-500">
+              {TEXT.customId} : {profile?.customId || TEXT.empty}
+            </p>
+            <p className="text-base font-medium text-gray-500">
+              {TEXT.email} : {profile?.email || TEXT.empty}
+            </p>
           </div>
         </div>
+
         <button
+          type="button"
           onClick={onOpenImageModal}
-          className="px-8 py-3 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-xl shadow-lg shadow-rose-500/20 transition-all active:scale-95"
+          className="rounded-xl bg-rose-500 px-6 py-2.5 text-sm font-black text-white shadow-lg shadow-rose-500/20 transition-all hover:bg-rose-600 active:scale-95"
         >
-          이미지 변경
+          {TEXT.managePhoto}
         </button>
       </div>
 
       <div className="h-px w-full bg-gray-100" />
 
-      {/* 2. 상세 설정 리스트 */}
-      <div className="flex flex-col gap-12">
-        {/* 닉네임 */}
-        <div className="flex items-start justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">
-            닉네임
-          </div>
-          <div className="flex-1 flex justify-between items-center pl-10">
+      <div className="flex flex-col gap-10">
+        <SectionRow label={TEXT.nickname}>
+          <div className="flex items-start justify-between gap-4">
             {isEditingNickname ? (
-              <div className="flex flex-col gap-2 w-full max-w-md">
+              <div className="flex w-full max-w-md flex-col gap-2">
                 <input
                   type="text"
                   value={newNickname}
-                  onChange={(e) => setNewNickname(e.target.value)}
-                  className="text-[18px] font-black text-gray-900 bg-gray-50 rounded-xl px-4 py-3 outline-none border-2 border-rose-100 focus:border-rose-500 transition-all leading-tight"
+                  onChange={(event) => setNewNickname(event.target.value)}
+                  className="rounded-xl border-2 border-rose-100 bg-gray-50 px-4 py-3 text-base font-bold text-gray-900 outline-none transition-colors focus:border-rose-500"
                   autoFocus
                 />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleUpdateProfile('nickname')}
-                    className="text-sm text-rose-500 font-black"
-                  >
-                    저장
+                <div className="flex gap-3 text-sm font-black">
+                  <button type="button" onClick={() => void handleUpdateProfile('nickname')} className="text-rose-500">
+                    {TEXT.save}
                   </button>
-                  <button
-                    onClick={() => setIsEditingNickname(false)}
-                    className="text-sm text-gray-400 font-black pl-2"
-                  >
-                    취소
+                  <button type="button" onClick={() => setIsEditingNickname(false)} className="text-gray-400">
+                    {TEXT.cancel}
                   </button>
                 </div>
               </div>
             ) : (
-              <span className="text-[18px] font-black text-gray-900 leading-tight">
-                {profile?.nickname}
-              </span>
-            )}
-            {!isEditingNickname && (
-              <button
-                onClick={() => setIsEditingNickname(true)}
-                className="text-rose-500 font-black hover:underline underline-offset-4 text-sm"
-              >
-                편집
-              </button>
+              <>
+                <span className="text-base font-bold text-gray-900">{profile?.nickname}</span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingNickname(true)}
+                  className="text-sm font-black text-rose-500 hover:underline"
+                >
+                  {TEXT.edit}
+                </button>
+              </>
             )}
           </div>
-        </div>
+        </SectionRow>
 
-        {/* 소개 */}
-        <div className="flex items-start justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1">
-            소개
-          </div>
-          <div className="flex-1 flex flex-col gap-4 pl-10">
+        <SectionRow label={TEXT.bio}>
+          <div className="flex items-start justify-between gap-4">
             {isEditingDescription ? (
-              <div className="flex flex-col gap-4 w-full">
-                <div className="relative">
+              <div className="flex w-full flex-col gap-3">
+                <div className="relative max-w-2xl">
                   <textarea
                     value={newDescription}
-                    onChange={(e) => setNewDescription(e.target.value)}
-                    className="w-full text-[18px] font-black text-gray-900 bg-gray-100 rounded-3xl px-8 py-8 outline-none min-h-[160px] resize-none border-none placeholder:text-gray-300 leading-tight"
+                    onChange={(event) => setNewDescription(event.target.value)}
+                    className="min-h-[140px] w-full resize-none rounded-[24px] bg-gray-100 px-6 py-6 text-base font-bold text-gray-900 outline-none"
                     maxLength={255}
-                    placeholder="자신을 자유롭게 소개해 주세요."
+                    placeholder={TEXT.bioPlaceholder}
                   />
-                  <span className="absolute bottom-6 right-8 text-xl font-bold text-gray-400">
+                  <span className="absolute bottom-5 right-6 text-sm font-bold text-gray-400">
                     {newDescription.length}/255
                   </span>
                 </div>
-                <div className="flex gap-6">
-                  <button
-                    onClick={() => handleUpdateProfile('description')}
-                    className="text-rose-500 font-black text-sm"
-                  >
-                    저장
+                <div className="flex gap-3 text-sm font-black">
+                  <button type="button" onClick={() => void handleUpdateProfile('description')} className="text-rose-500">
+                    {TEXT.save}
                   </button>
-                  <button
-                    onClick={() => setIsEditingDescription(false)}
-                    className="text-gray-400 font-black text-sm"
-                  >
-                    취소
+                  <button type="button" onClick={() => setIsEditingDescription(false)} className="text-gray-400">
+                    {TEXT.cancel}
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex justify-between items-start w-full">
-                <p className="text-[18px] font-black text-gray-900 leading-tight max-w-2xl">
-                  {profile?.description || '소개가 없습니다.'}
+              <>
+                <p className="max-w-2xl text-base font-bold leading-relaxed text-gray-900">
+                  {profile?.description || TEXT.noBio}
                 </p>
                 <button
+                  type="button"
                   onClick={() => setIsEditingDescription(true)}
-                  className="text-rose-500 font-black hover:underline underline-offset-4 text-sm whitespace-nowrap"
+                  className="shrink-0 text-sm font-black text-rose-500 hover:underline"
                 >
-                  편집
+                  {TEXT.edit}
                 </button>
-              </div>
+              </>
             )}
           </div>
-        </div>
+        </SectionRow>
 
-        {/* 비밀번호 변경 */}
-        <div className="flex items-start justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">
-            비밀번호 변경
-          </div>
-          <div className="flex-1 flex flex-col gap-4 pl-10">
+        <SectionRow label={TEXT.password}>
+          <div className="flex items-start justify-between gap-4">
             {isEditingPassword ? (
-              <div className="flex flex-col gap-4 w-full max-w-md">
+              <div className="flex w-full max-w-md flex-col gap-3">
                 <input
                   type="password"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="새 비밀번호"
-                  className="bg-gray-50 rounded-xl px-4 py-3 outline-none border-2 border-rose-100 focus:border-rose-500 font-bold"
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder={TEXT.newPassword}
+                  className="rounded-xl border-2 border-rose-100 bg-gray-50 px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-rose-500"
                 />
                 <input
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="새 비밀번호 확인"
-                  className="bg-gray-50 rounded-xl px-4 py-3 outline-none border-2 border-rose-100 focus:border-rose-500 font-bold"
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder={TEXT.confirmPassword}
+                  className="rounded-xl border-2 border-rose-100 bg-gray-50 px-4 py-3 text-sm font-bold outline-none transition-colors focus:border-rose-500"
                 />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleUpdateProfile('password')}
-                    className="text-sm text-rose-500 font-black"
-                  >
-                    저장
+                <div className="flex gap-3 text-sm font-black">
+                  <button type="button" onClick={() => void handleUpdateProfile('password')} className="text-rose-500">
+                    {TEXT.save}
                   </button>
-                  <button
-                    onClick={() => setIsEditingPassword(false)}
-                    className="text-sm text-gray-400 font-black pl-2"
-                  >
-                    취소
+                  <button type="button" onClick={() => setIsEditingPassword(false)} className="text-gray-400">
+                    {TEXT.cancel}
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex justify-between items-center w-full">
-                <div className="w-4 h-4" /> {/* Spacer */}
+              <>
+                <span className="text-base font-bold text-gray-900" />
                 <button
+                  type="button"
                   onClick={() => setIsEditingPassword(true)}
-                  className="text-sm text-rose-500 font-black hover:underline underline-offset-4"
+                  className="text-sm font-black text-rose-500 hover:underline"
                 >
-                  편집
+                  {TEXT.edit}
                 </button>
-              </div>
+              </>
             )}
           </div>
-        </div>
+        </SectionRow>
 
-        {/* 계정 공개 범위 */}
-        <div className="flex items-center justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
-            계정 공개 범위
-          </div>
-          <div className="flex-1 pl-10 flex items-center justify-between">
-            <div className="flex flex-col gap-2">
-              <span className="text-[18px] font-black text-gray-900 leading-none">공개 계정</span>
-              <p className="text-sm font-bold text-gray-400">
-                검색 아이디를 통해 타인이 나를 찾을 수 있습니다.
-              </p>
-            </div>
-            <button
-              onClick={handleToggleProfile}
-              className="w-14 h-7 rounded-full relative transition-all duration-300 bg-gray-200 overflow-hidden"
-            >
-              <motion.div
-                animate={{
-                  backgroundColor: profile?.isProfilePublic ? '#f43f5e' : '#e5e7eb',
-                }}
-                className="absolute inset-0"
-              />
-              <motion.div
-                animate={{
-                  x: profile?.isProfilePublic ? 32 : 4,
-                }}
-                className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md z-10"
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* 남이 보는 나 */}
-        <div className="flex items-center justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">
-            남이 보는 나
-          </div>
-          <div className="flex-1 pl-10 flex items-center justify-between">
-            <div className="flex flex-col gap-2">
-              <span className="text-[18px] font-black text-gray-900 leading-none">문답 수집</span>
-              <p className="text-sm font-bold text-gray-400">
-                타인의 질문을 받아 응답을 수집하고 AI를 고도화합니다.
-              </p>
-            </div>
-            <button
-              onClick={handleTogglePersonaCollection}
-              className="w-14 h-7 rounded-full relative transition-all duration-300 bg-gray-200 overflow-hidden"
-            >
-              <motion.div
-                animate={{
-                  backgroundColor: profile?.isAcceptPrompt ? '#f43f5e' : '#e5e7eb',
-                }}
-                className="absolute inset-0"
-              />
-              <motion.div
-                animate={{
-                  x: profile?.isAcceptPrompt ? 32 : 4,
-                }}
-                className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md z-10"
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* 음성 잠금 */}
-        <div className="flex items-center justify-between">
-          <div className="w-32 text-lg font-black text-gray-400 uppercase tracking-widest pt-1 whitespace-nowrap">
-            음성 잠금
-          </div>
-          <div className="flex-1 pl-10 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <span className="text-[18px] font-black text-gray-900 leading-tight">사용중</span>
-              <span className="text-sm font-bold text-gray-400">
-                {isVoiceLockRegistered ? formatTime(profile?.voiceLockTimeout) : '미설정'}
+        <SectionRow label={TEXT.voiceLock}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-base font-bold text-gray-900">{TEXT.currentSetting}</span>
+              <span className="text-sm font-medium text-gray-400">
+                {isVoiceLockRegistered ? formatTime(profile?.voiceLockTimeout) : TEXT.notSet}
               </span>
             </div>
             <button
+              type="button"
               onClick={() => navigate(PATHS.SETTINGS_PARAM.replace(':tab', 'voice'))}
-              className="text-rose-500 font-black hover:underline underline-offset-4 text-sm"
+              className="text-sm font-black text-rose-500 hover:underline"
             >
-              설정
+              {TEXT.open}
             </button>
           </div>
-        </div>
+        </SectionRow>
+
+        <SectionRow label={TEXT.visibility}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-base font-bold text-gray-900">
+                {profile?.isProfilePublic ? TEXT.publicAccount : TEXT.privateAccount}
+              </span>
+              <p className="text-sm font-medium text-gray-400">{TEXT.visibilityHelp}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleToggleProfile}
+              className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
+            >
+              <motion.div
+                animate={{ backgroundColor: profile?.isProfilePublic ? '#f43f5e' : '#e5e7eb' }}
+                className="absolute inset-0"
+              />
+              <motion.div
+                animate={{ x: profile?.isProfilePublic ? 32 : 4 }}
+                className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-md"
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+        </SectionRow>
+
+        <SectionRow label={TEXT.prompts}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-base font-bold text-gray-900">
+                {profile?.isAcceptPrompt ? TEXT.enabled : TEXT.disabled}
+              </span>
+              <p className="text-sm font-medium text-gray-400">{TEXT.promptHelp}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleTogglePersonaCollection}
+              className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
+            >
+              <motion.div
+                animate={{ backgroundColor: profile?.isAcceptPrompt ? '#f43f5e' : '#e5e7eb' }}
+                className="absolute inset-0"
+              />
+              <motion.div
+                animate={{ x: profile?.isAcceptPrompt ? 32 : 4 }}
+                className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-md"
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+        </SectionRow>
+
       </div>
 
-      <div className="flex justify-center pt-20">
+      <div className="flex justify-center pt-8">
         <button
+          type="button"
           onClick={handleWithdraw}
-          className="text-sm font-black text-rose-500 hover:text-rose-600 border-b border-rose-500/30 pb-1"
+          className="border-b border-rose-500/30 pb-1 text-sm font-black text-rose-500 hover:text-rose-600"
         >
-          회원탈퇴
+          {TEXT.deleteAccount}
         </button>
       </div>
     </div>

@@ -11,11 +11,20 @@ import AccountSettings from '../../components/settings/AccountSettings';
 import SecuritySettings from '../../components/settings/SecuritySettings';
 import ProfileImageModal from '../../components/settings/ProfileImageModal';
 
+const TEXT = {
+  settings: '\uC124\uC815',
+  account: '\uACC4\uC815 \uC124\uC815',
+  voiceLock: '\uC74C\uC131 \uC7A0\uAE08',
+  notSet: '\uBBF8\uC124\uC815',
+  minute: '\uBD84',
+};
+
 const MENU_ITEMS = [
-  { id: 'account', label: '개인정보 설정' },
-  { id: 'ai', label: 'AI 설정' },
-  { id: 'voice', label: '음성 잠금 설정' },
-];
+  { id: 'account', label: TEXT.account },
+  { id: 'voice', label: TEXT.voiceLock },
+] as const;
+
+const VALID_TABS = new Set(MENU_ITEMS.map((item) => item.id));
 
 export default function SettingsPage() {
   const { tab = 'account' } = useParams<{ tab: string }>();
@@ -43,42 +52,54 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    fetchVoiceLockStatus();
-    loadProfile();
+    if (!VALID_TABS.has(tab as (typeof MENU_ITEMS)[number]['id'])) {
+      navigate(PATHS.SETTINGS_PARAM.replace(':tab', 'account'), { replace: true });
+    }
+  }, [navigate, tab]);
+
+  useEffect(() => {
+    void fetchVoiceLockStatus();
+    void loadProfile();
   }, [fetchVoiceLockStatus, loadProfile]);
 
-  const handleTabChange = (id: string) => navigate(PATHS.SETTINGS_PARAM.replace(':tab', id));
+  const handleTabChange = (id: (typeof MENU_ITEMS)[number]['id']) => {
+    navigate(PATHS.SETTINGS_PARAM.replace(':tab', id));
+  };
+
+  const formatMinutes = (seconds: number | null | undefined) =>
+    seconds ? `${Math.floor(seconds / 60)}${TEXT.minute}` : TEXT.notSet;
 
   return (
-    <div className="w-full h-full bg-white overflow-y-auto">
-      <main className="max-w-[1200px] w-full mx-auto px-16 py-16">
-        <h1 className="text-6xl font-black text-gray-900 mb-20 tracking-tighter">설정</h1>
+    <div className="h-full w-full overflow-y-auto bg-white">
+      <main className="mx-auto w-full max-w-[1080px] px-10 py-10">
+        <h1 className="mb-12 text-5xl font-black tracking-tight text-gray-900">{TEXT.settings}</h1>
 
-        <div className="flex gap-24">
-          {/* 좌측 메뉴 탭 */}
-          <aside className="w-64 shrink-0 flex flex-col gap-6 pt-2">
-            {MENU_ITEMS.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleTabChange(item.id)}
-                className={`text-left text-3xl font-black transition-all ${
-                  tab === item.id ? 'text-rose-500' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
+        <div className="flex gap-16">
+          <aside className="w-52 shrink-0 pt-1">
+            <div className="flex flex-col gap-4">
+              {MENU_ITEMS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleTabChange(item.id)}
+                  className={`text-left text-2xl font-black transition-colors ${
+                    tab === item.id ? 'text-rose-500' : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </aside>
 
-          {/* 우측 상세 컨텐츠 */}
-          <section className="flex-1">
+          <section className="min-w-0 flex-1">
             <AnimatePresence mode="wait">
               <motion.div
                 key={tab}
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.22 }}
               >
                 {tab === 'account' && (
                   <AccountSettings
@@ -89,22 +110,16 @@ export default function SettingsPage() {
                     setProfile={setProfile}
                     loadProfile={loadProfile}
                     onOpenImageModal={() => setIsImageModalOpen(true)}
-                    formatTime={(s) => (s ? `${Math.floor(s / 60)}분` : '미설정')}
+                    formatTime={formatMinutes}
                   />
                 )}
-                {tab === 'ai' && (
-                  <div className="py-20 text-center">
-                    <p className="text-2xl font-black text-gray-300 italic">
-                      공백 (AI 설정 준비 중)
-                    </p>
-                  </div>
-                )}
+
                 {tab === 'voice' && (
                   <SecuritySettings
                     isSaving={isSaving}
                     setIsSaving={setIsSaving}
                     voiceLockTimeout={profile?.voiceLockTimeout}
-                    formatTime={(s) => (s ? `${Math.floor(s / 60)}분` : '미설정')}
+                    formatTime={formatMinutes}
                     onOpenRegistrationModal={() => setIsRegistrationModalOpen(true)}
                   />
                 )}
@@ -114,7 +129,6 @@ export default function SettingsPage() {
         </div>
       </main>
 
-      {/* 모달 */}
       <AnimatePresence>
         {isRegistrationModalOpen && (
           <VoiceLockRegistrationModal onClose={() => setIsRegistrationModalOpen(false)} />
@@ -126,7 +140,10 @@ export default function SettingsPage() {
           isOpen={isImageModalOpen}
           profile={profile}
           onClose={() => setIsImageModalOpen(false)}
-          onSuccess={(newUrl) => setProfile({ ...profile, userProfileImageUrl: newUrl })}
+          onSuccess={async (newUrl) => {
+            setProfile((prev) => (prev ? { ...prev, userProfileImageUrl: newUrl ?? '' } : prev));
+            await loadProfile();
+          }}
         />
       )}
     </div>
