@@ -13,6 +13,14 @@ import { useUserStore } from '../../store/useUserStore';
  */
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const redirectToLogin = () => {
+    const { isLoggedIn, userInfo } = useUserStore.getState();
+    if (isLoggedIn && userInfo?.id) {
+      navigate(PATHS.USER_HOME(userInfo.id));
+      return;
+    }
+    navigate(PATHS.LOGIN);
+  };
 
   useEffect(() => {
     const SpeechRecognitionApi =
@@ -36,12 +44,7 @@ const LandingPage: React.FC = () => {
           const transcript = event.results[i][0].transcript.replace(/\s+/g, '');
           if (transcript.includes('로그인')) {
             recognition.stop();
-            const { isLoggedIn, userInfo } = useUserStore.getState();
-            if (isLoggedIn && userInfo?.id) {
-              navigate(PATHS.USER_HOME(userInfo.id));
-            } else {
-              navigate(PATHS.LOGIN);
-            }
+            redirectToLogin();
             return;
           }
         }
@@ -185,7 +188,18 @@ const LandingPage: React.FC = () => {
 
           <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
 
-            <div className="flex items-center justify-center px-8 py-5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_10px_30px_rgba(0,0,0,0.2)]">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={redirectToLogin}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  redirectToLogin();
+                }
+              }}
+              className="flex cursor-pointer items-center justify-center px-8 py-5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40"
+            >
               <motion.svg
                 animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
