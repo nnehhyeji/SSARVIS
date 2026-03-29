@@ -10,8 +10,10 @@ import type { Alarm } from '../../types';
 import userApi from '../../apis/userApi';
 import { useVoiceLockTimer } from '../../hooks/useVoiceLockTimer';
 import VoiceLockOverlay from '../common/VoiceLockOverlay';
+import { toast } from '../../store/useToastStore';
 
 const MainLayout: React.FC = () => {
+  const LOGOUT_CONFIRM_TOAST_ID = 'logout-confirm-toast';
   const navigate = useNavigate();
   const location = useLocation();
   const { userInfo, logout: logoutStore, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
@@ -110,14 +112,24 @@ const MainLayout: React.FC = () => {
   }, [location.pathname, currentMode, setCurrentMode]);
 
   const handleLogout = async () => {
-    if (window.confirm('로그아웃 하시겠습니까?')) {
-      try {
-        await authApi.logout();
-      } finally {
-        logoutStore();
-        navigate(PATHS.LOGIN);
-      }
-    }
+    toast.dismiss(LOGOUT_CONFIRM_TOAST_ID);
+    toast.show({
+      id: LOGOUT_CONFIRM_TOAST_ID,
+      title: '로그아웃 하시겠습니까?',
+      description: '확인을 누르면 현재 세션이 종료돼요.',
+      variant: 'info',
+      duration: 7000,
+      actionLabel: '로그아웃',
+      onAction: async () => {
+        try {
+          await authApi.logout();
+        } finally {
+          logoutStore();
+          toast.info('로그아웃되었어요.');
+          navigate(PATHS.LOGIN);
+        }
+      },
+    });
   };
 
   const handleAlarmClick = useCallback(
