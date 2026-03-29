@@ -27,7 +27,6 @@ import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class OAuthService {
 

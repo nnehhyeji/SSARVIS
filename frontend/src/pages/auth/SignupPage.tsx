@@ -28,10 +28,12 @@ export default function SignupPage() {
   const [registerUUID, setRegisterUUID] = useState('');
   const [profileImageUrl, setProfileImageUrl] = useState('');
   const [isOAuthUser, setIsOAuthUser] = useState(false);
+  const [isEmailFromOAuth, setIsEmailFromOAuth] = useState(false);
+  const [isNicknameFromOAuth, setIsNicknameFromOAuth] = useState(false);
 
   useEffect(() => {
     if (location.state && location.state.isNewUser) {
-      const { registerUUID, profileImageUrl, email, nickName } = location.state;
+      const { registerUUID, profileImageUrl, email, nickname } = location.state;
       if (registerUUID) {
         setIsOAuthUser(true);
         setRegisterUUID(registerUUID);
@@ -39,8 +41,12 @@ export default function SignupPage() {
         if (email) {
           setEmail(email);
           setEmailStatus('verified');
+          setIsEmailFromOAuth(true);
         }
-        if (nickName) setNickname(nickName);
+        if (nickname) {
+          setNickname(nickname);
+          setIsNicknameFromOAuth(true);
+        }
       }
     }
   }, [location.state]);
@@ -139,11 +145,12 @@ export default function SignupPage() {
     }
   };
 
-  const sendEmailCode = () => {
+  const sendEmailCode = async () => {
     if (!email || !email.includes('@')) {
       toast.error('올바른 이메일 형식을 입력해 주세요.');
       return;
     }
+<<<<<<< Updated upstream
     setEmailStatus('sent');
     setTimeLeft(180);
     setIsTimerActive(true);
@@ -165,6 +172,34 @@ export default function SignupPage() {
           toast.error('인증 코드 발송 중 알 수 없는 오류가 발생했어요.');
         }
       });
+=======
+
+    try {
+      const duplicateCheck = await userApi.checkEmail({ email });
+      if (duplicateCheck.isDuplicate) {
+        alert('이미 사용중인 이메일입니다.');
+        return;
+      }
+
+      setEmailStatus('sent');
+      setTimeLeft(180);
+      setIsTimerActive(true);
+      alert('인증 코드 발송을 요청했습니다. 잠시 후 메일함을 확인해 주세요.');
+
+      await userApi.sendVerificationCode({ email });
+      console.log('실제 이메일 발송 완료됨');
+    } catch (error: unknown) {
+      setEmailStatus('none');
+      setIsTimerActive(false);
+      setTimeLeft(0);
+
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.message || '처리 중 오류가 발생했습니다.');
+      } else {
+        alert('알 수 없는 오류가 발생했습니다.');
+      }
+    }
+>>>>>>> Stashed changes
   };
 
   const verifyEmailCode = async () => {
@@ -282,6 +317,97 @@ export default function SignupPage() {
                 <input type="hidden" name="profileImageUrl" value={profileImageUrl} />
               </>
             )}
+
+            {/* Email Field */}
+            <div className="space-y-1 text-left">
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
+                Email
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder="이메일"
+                  value={email}
+                  disabled={emailStatus === 'verified' || isEmailFromOAuth}
+                  readOnly={isEmailFromOAuth}
+                  onChange={(e) => {
+                    if (isEmailFromOAuth) return;
+                    setEmail(e.target.value);
+                    setEmailStatus('none');
+                  }}
+                  className={`flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 disabled:opacity-50 text-sm ${isEmailFromOAuth ? 'opacity-70 cursor-not-allowed text-gray-500' : ''}`}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={sendEmailCode}
+                  disabled={emailStatus === 'sending' || emailStatus === 'verified' || isEmailFromOAuth}
+                  className="px-5 py-3 bg-white border border-gray-200 text-[#11141D] rounded-2xl font-bold text-[11px] hover:bg-gray-50 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
+                >
+                  {isEmailFromOAuth
+                    ? '카카오 인증됨'
+                    : emailStatus === 'sending'
+                      ? '발송 중'
+                      : emailStatus === 'verified'
+                        ? '인증됨'
+                        : '인증요청'}
+                </button>
+              </div>
+
+              {(emailStatus === 'sent' || emailStatus === 'verified') && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-2 mt-2"
+                >
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={isEmailFromOAuth ? '카카오 인증됨' : '인증코드 6자리'}
+                      value={isEmailFromOAuth ? '' : verificationCode}
+                      disabled={emailStatus === 'verified' || isEmailFromOAuth}
+                      readOnly={isEmailFromOAuth}
+                      onChange={(e) => setVerificationCode(e.target.value)}
+                      className="flex-1 px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 transition-all text-sm disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      onClick={verifyEmailCode}
+                      disabled={isVerifying || emailStatus === 'verified' || isEmailFromOAuth}
+                      className="px-5 py-3 bg-[#11141D] text-white rounded-2xl font-bold text-[11px] hover:bg-[#1a1e2b] transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {isEmailFromOAuth ? '완료' : isVerifying ? '확인 중' : '확인'}
+                    </button>
+                  </div>
+                  {emailStatus === 'sent' && (
+                    <p
+                      className={`text-[9px] font-bold ml-1 ${timeLeft < 30 ? 'text-red-500' : 'text-[#D5A09D]'}`}
+                    >
+                      {timeLeft > 0
+                        ? `남은 시간 ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`
+                        : '인증 만료'}
+                    </p>
+                  )}
+                </motion.div>
+              )}
+            </div>
+
+            {/* Password Field */}
+            <div className="space-y-1 text-left">
+              <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
+                Password
+              </label>
+              <input
+                type="password"
+                placeholder="비밀번호 입력 (8~20자)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${password && !isPasswordValid ? 'border-red-200' : ''
+                  }`}
+                required
+              />
+            </div>
+
             {/* ID Field */}
             <div className="space-y-1 text-left">
               <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
@@ -322,6 +448,7 @@ export default function SignupPage() {
               )}
             </div>
 
+<<<<<<< Updated upstream
             {/* Email Field */}
             <div className="space-y-1 text-left">
               <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
@@ -409,6 +536,8 @@ export default function SignupPage() {
               />
             </div>
 
+=======
+>>>>>>> Stashed changes
             {/* Nickname Field */}
             <div className="space-y-1 text-left">
               <label className="text-[#11141D] text-[10px] font-bold ml-1 uppercase tracking-wider text-gray-400">
@@ -418,9 +547,12 @@ export default function SignupPage() {
                 type="text"
                 placeholder="활동할 닉네임"
                 value={nickname}
-                readOnly={isOAuthUser}
-                onChange={(e) => setNickname(e.target.value)}
-                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${isOAuthUser ? 'opacity-70 cursor-not-allowed text-gray-500' : ''}`}
+                readOnly={isNicknameFromOAuth}
+                onChange={(e) => {
+                  if (isNicknameFromOAuth) return;
+                  setNickname(e.target.value);
+                }}
+                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${isNicknameFromOAuth ? 'opacity-70 cursor-not-allowed text-gray-500' : ''}`}
                 required
               />
             </div>
@@ -434,25 +566,29 @@ export default function SignupPage() {
             </button>
           </form>
 
-          <div className="flex items-center w-full my-4">
-            <div className="flex-1 h-[1px] bg-gray-100"></div>
-          </div>
+          {!isOAuthUser && (
+            <>
+              <div className="flex items-center w-full my-4">
+                <div className="flex-1 h-[1px] bg-gray-100"></div>
+              </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              const REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY || ''; // .env 파일에 VITE_KAKAO_REST_API_KEY 추가 필요
-              const REDIRECT_URI = import.meta.env.VITE_KAKAO_OAUTH_REDIRECT_URL || '';
-              const link = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
-              window.location.href = link;
-            }}
-            className="w-full py-3.5 bg-[#FEE500] text-[#11141D] rounded-2xl font-bold hover:bg-[#fada0a] transition-all active:scale-[0.99] flex items-center justify-center gap-2 shadow-sm text-sm"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 3c-4.97 0-9 3.037-9 6.784 0 2.455 1.705 4.607 4.29 5.86l-.88 3.256c-.05.184.058.376.24.428.055.016.113.018.17.006l3.83-2.541c.43.06.877.091 1.35.091 4.97 0 9-3.037 9-6.784S16.97 3 12 3z" />
-            </svg>
-            카카오 간편 통합 가입
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY || ''; // .env 파일에 VITE_KAKAO_REST_API_KEY 추가 필요
+                  const REDIRECT_URI = import.meta.env.VITE_KAKAO_OAUTH_REDIRECT_URL || '';
+                  const link = `https://kauth.kakao.com/oauth/authorize?client_id=${REST_API_KEY}&redirect_uri=${REDIRECT_URI}&response_type=code`;
+                  window.location.href = link;
+                }}
+                className="w-full py-3.5 bg-[#FEE500] text-[#11141D] rounded-2xl font-bold hover:bg-[#fada0a] transition-all active:scale-[0.99] flex items-center justify-center gap-2 shadow-sm text-sm"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 3c-4.97 0-9 3.037-9 6.784 0 2.455 1.705 4.607 4.29 5.86l-.88 3.256c-.05.184.058.376.24.428.055.016.113.018.17.006l3.83-2.541c.43.06.877.091 1.35.091 4.97 0 9-3.037 9-6.784S16.97 3 12 3z" />
+                </svg>
+                카카오 간편 통합 가입
+              </button>
+            </>
+          )}
 
           <div className="mt-6 text-center">
             <span className="text-gray-400 text-xs">이미 계정이 있나요? </span>

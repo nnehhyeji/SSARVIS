@@ -32,6 +32,7 @@ export interface VoiceLockSetupRequest {
 
 export interface KakaoLoginPayload {
   isNewUser?: boolean;
+  isLinked?: boolean;
   accessToken?: string;
   registerUUID?: string;
   profileImageUrl?: string;
