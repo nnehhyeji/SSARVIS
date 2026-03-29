@@ -7,16 +7,27 @@ import { CONVERSATION_UI } from '../../constants/conversationUi';
 import { useAICharacter } from '../../hooks/useAICharacter';
 import { useChat } from '../../hooks/useChat';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
+import { useMicStore } from '../../store/useMicStore';
 import { useUserStore } from '../../store/useUserStore';
 
 export default function AssistantPage() {
   const { userInfo, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
-  const [pageNotice, setPageNotice] = useState('');
   const [isTextInputMode, setIsTextInputMode] = useState(false);
+  const [showMigrationNotice] = useState(!sessionStorage.getItem('assistant-mode-migrated-notice'));
 
-  const { isMicOn, mouthOpenRadius, faceType, toggleMic, isSpeaking, setIsSpeaking, triggerText } =
-    useAICharacter();
+  const {
+    isMicOn,
+    micPreferenceEnabled,
+    mouthOpenRadius,
+    faceType,
+    isSpeaking,
+    setIsSpeaking,
+    triggerText,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
+  } = useAICharacter();
+  const micStoreHydrated = useMicStore((state) => state.hasHydrated);
 
   const {
     chatInput,
@@ -73,12 +84,16 @@ export default function AssistantPage() {
   useEffect(() => {
     if (currentMode === 'normal') {
       setCurrentMode('study');
-      if (!sessionStorage.getItem('assistant-mode-migrated-notice')) {
-        setPageNotice('일상 모드는 홈으로 이동되었어요. AI 비서에서는 학습 모드로 이어집니다.');
+      if (showMigrationNotice) {
         sessionStorage.setItem('assistant-mode-migrated-notice', '1');
       }
     }
-  }, [currentMode, setCurrentMode]);
+  }, [currentMode, setCurrentMode, showMigrationNotice]);
+
+  const pageNotice =
+    currentMode === 'normal' || showMigrationNotice
+      ? '일상 모드는 홈으로 이동되었어요. AI 비서에서는 학습 모드로 이어집니다.'
+      : '';
 
   useEffect(() => {
     const prevMode = prevModeRef.current;
@@ -150,16 +165,36 @@ export default function AssistantPage() {
   const assistantDisplayName = `${userInfo?.nickname || profile?.nickname || 'User'} AI`;
   const userDisplayName = profile?.nickname || userInfo?.nickname || 'User';
 
-  const handleMicToggle = () => {
-    toggleMic();
-    if (!isMicOn) {
-      setIsTextInputMode(false);
-      startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
-    } else {
+  const enableMic = useCallback(async () => {
+    setMicPreferenceEnabled(true);
+    setIsTextInputMode(false);
+    const started = await startRecording(
+      null,
+      assistantType,
+      isLockMode ? 'SECRET' : 'GENERAL',
+      'USER_AI',
+    );
+    setMicRuntimeActive(started);
+    if (!started) {
       setIsTextInputMode(true);
-      stopRecordingAndSendSTT();
     }
-  };
+    return started;
+  }, [assistantType, isLockMode, setMicPreferenceEnabled, setMicRuntimeActive, startRecording]);
+
+  const disableMic = useCallback(() => {
+    setMicPreferenceEnabled(false);
+    setMicRuntimeActive(false);
+    setIsTextInputMode(true);
+    stopRecordingAndSendSTT();
+  }, [setMicPreferenceEnabled, setMicRuntimeActive, stopRecordingAndSendSTT]);
+
+  const handleMicToggle = useCallback(() => {
+    if (isMicOn) {
+      disableMic();
+      return;
+    }
+    void enableMic();
+  }, [disableMic, enableMic, isMicOn]);
 
   const handleSendText = () => {
     if (!chatInput.trim()) return;
@@ -167,13 +202,23 @@ export default function AssistantPage() {
   };
 
   useEffect(() => {
-    if (didAutoStartRef.current || isMicOn) return;
+    if (!micStoreHydrated || !micPreferenceEnabled || didAutoStartRef.current || isMicOn) return;
 
     didAutoStartRef.current = true;
-    setIsTextInputMode(false);
-    toggleMic();
-    startRecording(null, assistantType, isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
-  }, [assistantType, isLockMode, isMicOn, startRecording, toggleMic]);
+    const timeoutId = window.setTimeout(() => {
+      void enableMic();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [enableMic, isMicOn, micPreferenceEnabled, micStoreHydrated]);
+
+  useEffect(() => {
+    return () => {
+      setMicRuntimeActive(false);
+    };
+  }, [setMicRuntimeActive]);
 
   return (
     <AssistantConversationStage

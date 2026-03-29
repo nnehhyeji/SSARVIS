@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { ChevronLeft, Check, X } from 'lucide-react';
 import { PATHS } from '../../routes/paths';
 import userApi from '../../apis/userApi';
+import type { SignupRequest } from '../../apis/userApi';
 import authApi from '../../apis/authApi';
 import { useUserStore } from '../../store/useUserStore';
 import { useVoiceLockStore } from '../../store/useVoiceLockStore';
@@ -93,7 +94,7 @@ export default function SignupPage() {
     try {
       setIsSubmitting(true);
       // 1. 전송할 데이터 객체 구성
-      const signupData: any = {
+      const signupData: SignupRequest = {
         email,
         password,
         nickname,
@@ -148,7 +149,8 @@ export default function SignupPage() {
     setIsTimerActive(true);
     toast.info('인증 코드를 발송했어요.', '잠시 후 메일함을 확인해 주세요.');
 
-    userApi.sendVerificationCode({ email })
+    userApi
+      .sendVerificationCode({ email })
       .then(() => {
         console.log('실제 이메일 발송 완료됨');
       })
@@ -314,7 +316,6 @@ export default function SignupPage() {
                 </p>
               )}
               {customIdStatus === 'duplicate' && (
-
                 <p className="text-[9px] text-red-500 font-bold ml-1 flex items-center gap-1">
                   <X className="w-3 h-3" /> 이미 사용중인 아이디입니다.
                 </p>
@@ -401,8 +402,9 @@ export default function SignupPage() {
                 placeholder="비밀번호 입력 (8~20자)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${password && !isPasswordValid ? 'border-red-200' : ''
-                  }`}
+                className={`w-full px-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/30 focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 focus:border-[#D5A09D] transition-all placeholder:text-gray-300 text-sm ${
+                  password && !isPasswordValid ? 'border-red-200' : ''
+                }`}
                 required
               />
             </div>

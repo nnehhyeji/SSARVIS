@@ -65,7 +65,16 @@ interface UseChatOptions {
 
 const DEFAULT_GREETING = '난 너야, 만나서 반가워.';
 const WAKE_WORD = '싸비스';
-const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '싸비쓰', '서비스', '싸비스야', '비스', '싸비', '싸쓰'];
+const WAKE_WORD_ALIASES = [
+  WAKE_WORD,
+  '사비스',
+  '싸비쓰',
+  '서비스',
+  '싸비스야',
+  '비스',
+  '싸비',
+  '싸쓰',
+];
 // 1.5초 무응답 시 API 요청 전송
 const SPEECH_SILENCE_MS = 1500;
 const INITIAL_SPEECH_GRACE_MS = 3500;
@@ -104,6 +113,38 @@ function extractSpeechAfterWakeWord(text: string): string {
     }
   }
   return '';
+}
+
+function matchRouteCommand(text: string): string | null {
+  const normalized = normalizeText(text);
+
+  if (normalized === '내정보' || normalized === '마이페이지') {
+    return PATHS.PROFILE;
+  }
+  if (normalized === 'ai비서' || normalized === '에이아이비서') {
+    return PATHS.ASSISTANT;
+  }
+  if (normalized === '남이보는나' || normalized === '나의페르소나') {
+    return PATHS.NAMNA;
+  }
+  if (normalized === '대화보관함' || normalized === '보관함') {
+    return PATHS.CHAT;
+  }
+  if (normalized === '설정') {
+    return PATHS.SETTINGS_PARAM.replace(':tab', 'account');
+  }
+
+  return null;
+}
+
+function matchHomeRouteCommand(text: string, userId?: number | null): string | null {
+  const normalized = normalizeText(text);
+
+  if (normalized === '홈' || normalized === '홈으로' || normalized === '메인화면') {
+    return userId ? PATHS.USER_HOME(userId) : PATHS.HOME;
+  }
+
+  return null;
 }
 
 export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions = {}) {
@@ -257,16 +298,19 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   }, []);
 
   // --- State management ---
-  const beginAwaitingResponse = useCallback((message = WAITING_FOR_AI_TEXT) => {
-    awaitingResponseRef.current = true;
-    setIsAwaitingResponse(true);
-    setAiTextStreamingComplete(false);
-    setAiStreamComplete(false);
-    clearEndOfStreamFallbackTimer();
-    clearTextEndFallbackTimer();
-    setVoiceStatus(message);
-    setSttText(message);
-  }, [clearEndOfStreamFallbackTimer, clearTextEndFallbackTimer]);
+  const beginAwaitingResponse = useCallback(
+    (message = WAITING_FOR_AI_TEXT) => {
+      awaitingResponseRef.current = true;
+      setIsAwaitingResponse(true);
+      setAiTextStreamingComplete(false);
+      setAiStreamComplete(false);
+      clearEndOfStreamFallbackTimer();
+      clearTextEndFallbackTimer();
+      setVoiceStatus(message);
+      setSttText(message);
+    },
+    [clearEndOfStreamFallbackTimer, clearTextEndFallbackTimer],
+  );
 
   const endAwaitingResponse = useCallback((clearTranscript: boolean = true) => {
     awaitingResponseRef.current = false;
@@ -315,11 +359,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       updateVoiceStatus(WAKE_GUIDE_TEXT);
       resumeWakeWordRef.current?.();
     }, WAKE_RESUME_COOLDOWN_MS);
-  }, [
-    aiPlaybackActiveRef,
-    clearWakeResumeCooldownTimer,
-    updateVoiceStatus,
-  ]);
+  }, [aiPlaybackActiveRef, clearWakeResumeCooldownTimer, updateVoiceStatus]);
 
   const stopMediaRecorder = useCallback(() => {
     const mediaRecorder = mediaRecorderRef.current;
@@ -431,17 +471,20 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     return voiceModelCheckPromiseRef.current;
   }, [handleVoiceRegistrationRequired]);
 
-  const handleSocketClose = useCallback(({ hadToken, code, reason }: { hadToken: boolean; code: number; reason: string }) => {
-    if (!hadToken) {
-      setConnectionNotice(LOGIN_EXPIRED_TEXT);
-    } else if (code === 1011 && !hasVerifiedVoiceModelRef.current) {
-      handleVoiceRegistrationRequired();
-    } else if (code === 1011 && reason.includes('ASSISTANT')) {
-      handleVoiceRegistrationRequired();
-    } else if (awaitingResponseRef.current || isSubmittingSpeechTurnRef.current) {
-      setConnectionNotice(CONNECTION_ERROR_TEXT);
-    }
-  }, [handleVoiceRegistrationRequired]);
+  const handleSocketClose = useCallback(
+    ({ hadToken, code, reason }: { hadToken: boolean; code: number; reason: string }) => {
+      if (!hadToken) {
+        setConnectionNotice(LOGIN_EXPIRED_TEXT);
+      } else if (code === 1011 && !hasVerifiedVoiceModelRef.current) {
+        handleVoiceRegistrationRequired();
+      } else if (code === 1011 && reason.includes('ASSISTANT')) {
+        handleVoiceRegistrationRequired();
+      } else if (awaitingResponseRef.current || isSubmittingSpeechTurnRef.current) {
+        setConnectionNotice(CONNECTION_ERROR_TEXT);
+      }
+    },
+    [handleVoiceRegistrationRequired],
+  );
 
   const handleSocketMessage = useCallback(
     async (message: ChatSocketMessage) => {
@@ -663,7 +706,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       // ★ Immediately lock state & set mode to idle to cut off all re-entry paths
       isSubmittingSpeechTurnRef.current = true;
       speechTurnCompletedRef.current = true;
-      recognitionModeRef.current = 'idle';  // ← onend will see 'idle' and do nothing
+      recognitionModeRef.current = 'idle'; // ← onend will see 'idle' and do nothing
 
       // Capture text before any resets
       const finalText = sttTextRef.current.trim();
@@ -748,7 +791,6 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       stopRecognition,
       stopSilenceMonitor,
       updateVoiceStatus,
-      wsRef,
     ],
   );
 
@@ -757,49 +799,56 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
   // --- Silence monitor: polls every 200ms, fires when 1.5s of silence detected ---
   // Uses refs exclusively — immune to stale closure problems
-  const startSilenceMonitor = useCallback((sessionId: number) => {
-    stopSilenceMonitor();
-    lastSpeechTimeRef.current = Date.now();
-    console.log('[silence] ★ monitor started for session', sessionId);
+  const startSilenceMonitor = useCallback(
+    (sessionId: number) => {
+      stopSilenceMonitor();
+      lastSpeechTimeRef.current = Date.now();
+      console.log('[silence] ★ monitor started for session', sessionId);
 
-    silenceIntervalRef.current = setInterval(() => {
-      // Guard checks using refs (always current, never stale)
-      if (sessionId !== speechSessionIdRef.current) {
-        console.log('[silence] stale session → stopping monitor');
-        stopSilenceMonitor();
-        return;
-      }
-      if (recognitionModeRef.current !== 'speech') {
-        console.log('[silence] mode changed to', recognitionModeRef.current, '→ stopping monitor');
-        stopSilenceMonitor();
-        return;
-      }
-      if (isSubmittingSpeechTurnRef.current || speechTurnCompletedRef.current) {
-        console.log('[silence] already submitting/completed → stopping monitor');
-        stopSilenceMonitor();
-        return;
-      }
+      silenceIntervalRef.current = setInterval(() => {
+        // Guard checks using refs (always current, never stale)
+        if (sessionId !== speechSessionIdRef.current) {
+          console.log('[silence] stale session → stopping monitor');
+          stopSilenceMonitor();
+          return;
+        }
+        if (recognitionModeRef.current !== 'speech') {
+          console.log(
+            '[silence] mode changed to',
+            recognitionModeRef.current,
+            '→ stopping monitor',
+          );
+          stopSilenceMonitor();
+          return;
+        }
+        if (isSubmittingSpeechTurnRef.current || speechTurnCompletedRef.current) {
+          console.log('[silence] already submitting/completed → stopping monitor');
+          stopSilenceMonitor();
+          return;
+        }
 
-      const elapsed = Date.now() - lastSpeechTimeRef.current;
-      const silenceThreshold = hasDetectedSpeechRef.current
-        ? SPEECH_SILENCE_MS
-        : INITIAL_SPEECH_GRACE_MS;
-      if (elapsed >= silenceThreshold) {
-        const text = sttTextRef.current.trim();
-        console.log(
-          '[silence] ★★★ silence detected! elapsed=' +
-            elapsed +
-            'ms, threshold=' +
-            silenceThreshold +
-            'ms, text=' +
-            JSON.stringify(text),
-        );
-        stopSilenceMonitor();
-        // Call via ref — always the latest version, never stale
-        void finalizeSpeechTurnRef.current?.(!!text);
-      }
-    }, 200);
-  }, [stopSilenceMonitor]);
+        const elapsed = Date.now() - lastSpeechTimeRef.current;
+        const silenceThreshold = hasDetectedSpeechRef.current
+          ? SPEECH_SILENCE_MS
+          : INITIAL_SPEECH_GRACE_MS;
+        if (elapsed >= silenceThreshold) {
+          const text = sttTextRef.current.trim();
+          console.log(
+            '[silence] ★★★ silence detected! elapsed=' +
+              elapsed +
+              'ms, threshold=' +
+              silenceThreshold +
+              'ms, text=' +
+              JSON.stringify(text),
+          );
+          stopSilenceMonitor();
+          // Call via ref — always the latest version, never stale
+          void finalizeSpeechTurnRef.current?.(!!text);
+        }
+      }, 200);
+    },
+    [stopSilenceMonitor],
+  );
 
   // --- startSpeechCapture: entered after wake word is detected ---
   const startSpeechCapture = useCallback(
@@ -856,6 +905,34 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
           transcript += event.results[i]?.[0]?.transcript || '';
         }
 
+        if (containsWakeWord(transcript)) {
+          const commandText = extractSpeechAfterWakeWord(transcript);
+          const routeAfterWakeWord =
+            matchRouteCommand(commandText) || matchHomeRouteCommand(commandText, userInfo?.id);
+
+          pendingSpeechSeedRef.current = '';
+          hasDetectedSpeechRef.current = false;
+          sttTextRef.current = '';
+
+          if (routeAfterWakeWord) {
+            stopSilenceMonitor();
+            clearSpeechSilenceTimer();
+            setSttText('');
+            updateVoiceStatus(WAKE_DETECTED_TEXT);
+            stopRecognition();
+            navigate(routeAfterWakeWord);
+            return;
+          }
+
+          const restartedText = commandText.trim();
+          hasDetectedSpeechRef.current = !!restartedText;
+          sttTextRef.current = restartedText;
+          setSttText(restartedText || SPEECH_LISTENING_TEXT);
+          updateVoiceStatus(restartedText || WAKE_DETECTED_TEXT);
+          lastSpeechTimeRef.current = Date.now();
+          return;
+        }
+
         const seedText = pendingSpeechSeedRef.current.trim();
         const normalizedText = [seedText, transcript.trim()].filter(Boolean).join(' ').trim();
         if (!normalizedText) return;
@@ -879,10 +956,13 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       clearSpeechSilenceTimer,
       clearTranscriptTimer,
       ensureSocketReady,
+      navigate,
       safeStartRecognition,
       startSilenceMonitor,
+      stopRecognition,
       stopSilenceMonitor,
       updateVoiceStatus,
+      userInfo,
     ],
   );
 
@@ -892,7 +972,11 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
   // --- startWakeMode: listens for "싸비스" or navigation commands ---
   const startWakeMode = useCallback(() => {
-    if (!recognitionRef.current || !wakeWordActiveRef.current || isSubmittingSpeechTurnRef.current) {
+    if (
+      !recognitionRef.current ||
+      !wakeWordActiveRef.current ||
+      isSubmittingSpeechTurnRef.current
+    ) {
       return;
     }
 
@@ -907,8 +991,17 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       if (!heardText) return;
 
       const noSpaceText = normalizeText(heardText);
+      const routeAfterWakeWord = matchRouteCommand(extractSpeechAfterWakeWord(heardText));
+      const standaloneRoute = matchRouteCommand(heardText);
 
-      // Priority 1: Wake word -> transition to speech capture
+      // Priority 1: Wake word + routing command
+      if (containsWakeWord(heardText) && routeAfterWakeWord) {
+        stopRecognition();
+        navigate(routeAfterWakeWord);
+        return;
+      }
+
+      // Priority 2: Wake word -> transition to speech capture
       if (containsWakeWord(heardText)) {
         const seededText = extractSpeechAfterWakeWord(heardText);
         console.log('[useChat] Wake Word Detected', { heardText, seededText });
@@ -920,7 +1013,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
         return;
       }
 
-      // Priority 2: Standalone commands (only when NO wake word present)
+      // Priority 3: Standalone commands
       if (noSpaceText === '대기모드' || noSpaceText === '잠금' || noSpaceText === '화면잠금') {
         const voiceLockStore = useVoiceLockStore.getState();
         if (voiceLockStore.isVoiceLockEnabled) {
@@ -929,34 +1022,15 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
           return;
         }
       }
-      if (noSpaceText === '내정보' || noSpaceText === '마이페이지') {
+      if (standaloneRoute) {
         stopRecognition();
-        navigate(PATHS.PROFILE);
+        navigate(standaloneRoute);
         return;
       }
-      if (noSpaceText === 'ai비서' || noSpaceText === '에이아이비서') {
+      const standaloneHomeRoute = matchHomeRouteCommand(heardText, userInfo?.id);
+      if (standaloneHomeRoute) {
         stopRecognition();
-        navigate(PATHS.ASSISTANT);
-        return;
-      }
-      if (noSpaceText === '남이보는나' || noSpaceText === '나의페르소나') {
-        stopRecognition();
-        navigate(PATHS.NAMNA);
-        return;
-      }
-      if (noSpaceText === '대화보관함' || noSpaceText === '보관함') {
-        stopRecognition();
-        navigate(PATHS.CHAT);
-        return;
-      }
-      if (noSpaceText === '설정') {
-        stopRecognition();
-        navigate(PATHS.SETTINGS_PARAM.replace(':tab', 'account'));
-        return;
-      }
-      if (noSpaceText === '홈' || noSpaceText === '홈으로' || noSpaceText === '메인화면') {
-        stopRecognition();
-        navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
+        navigate(standaloneHomeRoute);
         return;
       }
 
@@ -965,7 +1039,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     };
 
     safeStartRecognition();
-  }, [navigate, safeStartRecognition, stopRecognition, updateVoiceStatus, userInfo]);
+  }, [navigate, safeStartRecognition, stopRecognition, updateVoiceStatus, userInfo?.id]);
 
   useEffect(() => {
     resumeWakeWordRef.current = () => {
@@ -1033,7 +1107,9 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       manualStopRef.current = false;
 
       console.log('[onend] recognition.onend', {
-        mode, pendingCapture, manualStop,
+        mode,
+        pendingCapture,
+        manualStop,
         submitting: isSubmittingSpeechTurnRef.current,
         completed: speechTurnCompletedRef.current,
       });
@@ -1101,7 +1177,6 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       cleanupAudioPlayback(true);
       recognitionRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     cleanupAudioPlayback,
     clearAiPlaybackFallbackTimer,
@@ -1186,17 +1261,17 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     ) => {
       if (isLocked) {
         updateVoiceStatus('화면이 잠겨있어요. 잠금을 해제하고 다시 시도해주세요.');
-        return;
+        return false;
       }
 
       if (!isSpeechRecognitionSupported.current) {
         updateVoiceStatus('이 브라우저에서는 음성 인식을 지원하지 않아요.');
-        return;
+        return false;
       }
 
       const isVoiceModelReady = await ensureVoiceModelReady();
       if (!isVoiceModelReady) {
-        return;
+        return false;
       }
 
       currentRecordingOptionsRef.current = {
@@ -1213,7 +1288,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       } catch (error) {
         void error;
         updateVoiceStatus('마이크 권한을 확인할 수 없어요');
-        return;
+        return false;
       }
 
       wakeWordActiveRef.current = true;
@@ -1230,6 +1305,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       setSttText(WAKE_GUIDE_TEXT);
       updateVoiceStatus(WAKE_GUIDE_TEXT);
       startWakeMode();
+      return true;
     },
     [
       clearSpeechSilenceTimer,
@@ -1237,7 +1313,6 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       ensureSocketReady,
       ensureVoiceModelReady,
       isLocked,
-      startSpeechCapture,
       startWakeMode,
       updateVoiceStatus,
     ],
@@ -1275,6 +1350,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     finalizeSpeechTurn,
     stopMediaRecorder,
     stopRecognition,
+    stopSilenceMonitor,
     updateVoiceStatus,
   ]);
 
@@ -1294,6 +1370,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     clearSpeechSilenceTimer,
     endAwaitingResponse,
     resumeWakeWordWhenReady,
+    stopSilenceMonitor,
     wsRef,
   ]);
 
@@ -1319,7 +1396,14 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
         setChatMessages((prev) => [...prev, { sender: 'me', text: text.trim() }]);
       }
     },
-    [beginAwaitingResponse, clearEndOfStreamFallbackTimer, clearTypeWriter, endAwaitingResponse, ensureVoiceModelReady, sendTextTurn],
+    [
+      beginAwaitingResponse,
+      clearEndOfStreamFallbackTimer,
+      clearTypeWriter,
+      endAwaitingResponse,
+      ensureVoiceModelReady,
+      sendTextTurn,
+    ],
   );
 
   return {

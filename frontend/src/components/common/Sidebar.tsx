@@ -69,6 +69,11 @@ interface SidebarProps {
   viewCount?: number;
 }
 
+interface AlarmPayload {
+  senderId?: number;
+  senderUserId?: number;
+}
+
 const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
 const RECENT_SEARCH_LIMIT = 5;
 const STICKY_TERTIARY_IDS = new Set(['friends', 'chat', 'notifications', 'search']);
@@ -165,7 +170,7 @@ export default function Sidebar({
         }
       }
     }
-  }, [location.pathname, selectedChatId]);
+  }, [activeTertiary, location.pathname, selectedChatId]);
 
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
@@ -392,7 +397,8 @@ export default function Sidebar({
       setFriendView('main');
       setFriendTab('following');
     } else if (alarm.type === 'FOLLOW_ACCEPT') {
-      const senderId = (alarm.payload as any)?.senderId || (alarm.payload as any)?.senderUserId;
+      const payload = alarm.payload as AlarmPayload | undefined;
+      const senderId = payload?.senderId || payload?.senderUserId;
       if (senderId) {
         navigate(PATHS.USER_HOME(senderId));
         setActiveTertiary(null);

@@ -14,18 +14,20 @@ import CharacterScene from '../../components/features/character/CharacterScene';
 import ChatWindow from '../../components/features/chat/ChatWindow';
 import AiTopicModal from '../../components/features/assistant/AiTopicModal';
 import { useAIToAIChat } from '../../hooks/useAIToAIChat';
+import { useMicStore } from '../../store/useMicStore';
 
 export default function NamnaPage() {
   const { userInfo } = useUserStore();
   const [searchParams] = useSearchParams();
   const aiToAiChat = useAIToAIChat();
+  const isDualParamEnabled = searchParams.get('dual') === 'true';
 
   // interaction hooks
   const {
     isMicOn,
+    micPreferenceEnabled,
     mouthOpenRadius,
     faceType,
-    toggleMic,
     isSpeaking,
     setIsSpeaking,
     triggerText,
@@ -35,7 +37,10 @@ export default function NamnaPage() {
     myMouthOpenRadius,
     myTriggerText,
     setMyTriggerText,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
   } = useAICharacter();
+  const micStoreHydrated = useMicStore((state) => state.hasHydrated);
 
   const {
     chatInput,
@@ -52,26 +57,67 @@ export default function NamnaPage() {
   } = useChat();
 
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(!isMicOn);
-  const [isDualAiMode, setIsDualAiMode] = useState(false);
-  const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
+  const [isDualAiMode, setIsDualAiMode] = useState(isDualParamEnabled);
+  const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(isDualParamEnabled);
   const hasStartedDualBattleRef = useRef(false);
+  const didAutoStartRef = useRef(false);
 
   // URL 파라미터 감지 (With Mine 연동)
   useEffect(() => {
-    if (searchParams.get('dual') === 'true') {
-      setIsDualAiMode(true);
-      setIsInteractionModalOpen(true);
-      hasStartedDualBattleRef.current = false;
-    } else {
-      setIsDualAiMode(false);
-      hasStartedDualBattleRef.current = false;
-    }
-  }, [searchParams]);
+    const timeoutId = window.setTimeout(() => {
+      if (isDualParamEnabled) {
+        setIsDualAiMode(true);
+        setIsInteractionModalOpen(true);
+        hasStartedDualBattleRef.current = false;
+      } else {
+        setIsDualAiMode(false);
+        hasStartedDualBattleRef.current = false;
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isDualParamEnabled]);
 
   // Sync: Default behavior when mic state changes
   useEffect(() => {
-    setIsChatHistoryOpen(!isMicOn);
+    const timeoutId = window.setTimeout(() => {
+      setIsChatHistoryOpen(!isMicOn);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [isMicOn]);
+
+  useEffect(() => {
+    if (!micStoreHydrated || !micPreferenceEnabled || didAutoStartRef.current || isMicOn) return;
+
+    void (async () => {
+      const started = await startRecording(
+        null,
+        'PERSONA',
+        isLockMode ? 'SECRET' : 'GENERAL',
+        'USER_AI',
+      );
+      setMicRuntimeActive(Boolean(started));
+      didAutoStartRef.current = true;
+    })();
+  }, [
+    isLockMode,
+    isMicOn,
+    micPreferenceEnabled,
+    micStoreHydrated,
+    setMicRuntimeActive,
+    startRecording,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      setMicRuntimeActive(false);
+    };
+  }, [setMicRuntimeActive]);
 
   const lastAiMessage = useMemo(() => {
     return (
@@ -115,7 +161,7 @@ export default function NamnaPage() {
       setTriggerText('');
       setIsChatHistoryOpen(true);
     },
-    [aiToAiChat, setMyTriggerText, setTriggerText, userInfo?.id],
+    [aiToAiChat, setMyTriggerText, setTriggerText, userInfo],
   );
 
   const stopDualAiConversation = useCallback(() => {
@@ -146,7 +192,14 @@ export default function NamnaPage() {
   useEffect(() => {
     if (!isDualAiMode || !hasStartedDualBattleRef.current || aiToAiChat.isBattling) return;
     hasStartedDualBattleRef.current = false;
-    setIsDualAiMode(false);
+
+    const timeoutId = window.setTimeout(() => {
+      setIsDualAiMode(false);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [aiToAiChat.isBattling, isDualAiMode]);
 
   return (
@@ -170,12 +223,23 @@ export default function NamnaPage() {
           <div className="absolute left-[-110px] top-1/2 -translate-y-1/2 z-40">
             <button
               onClick={() => {
-                toggleMic();
-                if (!isMicOn) {
-                  startRecording(null, 'PERSONA', isLockMode ? 'SECRET' : 'GENERAL', 'USER_AI');
-                } else {
+                if (isMicOn) {
+                  setMicPreferenceEnabled(false);
+                  setMicRuntimeActive(false);
                   stopRecordingAndSendSTT();
+                  return;
                 }
+
+                void (async () => {
+                  setMicPreferenceEnabled(true);
+                  const started = await startRecording(
+                    null,
+                    'PERSONA',
+                    isLockMode ? 'SECRET' : 'GENERAL',
+                    'USER_AI',
+                  );
+                  setMicRuntimeActive(Boolean(started));
+                })();
               }}
               className={`p-5 rounded-full backdrop-blur-md shadow-2xl border transition-all duration-300 ${isMicOn ? 'bg-white/10 border-white/30 hover:bg-white/20' : 'bg-red-500/10 border-red-500/30'}`}
             >

@@ -11,12 +11,104 @@ import userApi from '../../apis/userApi';
 import { useVoiceLockTimer } from '../../hooks/useVoiceLockTimer';
 import VoiceLockOverlay from '../common/VoiceLockOverlay';
 import { toast } from '../../store/useToastStore';
+import { useMicStore } from '../../store/useMicStore';
+
+const WAKE_WORD = '싸비스';
+const WAKE_WORD_ALIASES = [
+  WAKE_WORD,
+  '사비스',
+  '싸비쓰',
+  '서비스',
+  '싸비스야',
+  '비스',
+  '싸비',
+  '싸쓰',
+];
+
+interface LayoutSpeechRecognitionResultItem {
+  transcript: string;
+}
+
+interface LayoutSpeechRecognitionResult {
+  0: LayoutSpeechRecognitionResultItem;
+  length: number;
+}
+
+interface LayoutSpeechRecognitionEvent {
+  resultIndex: number;
+  results: ArrayLike<LayoutSpeechRecognitionResult>;
+}
+
+interface LayoutSpeechRecognitionErrorEvent {
+  error: string;
+}
+
+interface LayoutSpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: LayoutSpeechRecognitionEvent) => void) | null;
+  onerror: ((event: LayoutSpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+function normalizeText(text: string) {
+  return text.replace(/\s+/g, '').toLowerCase();
+}
+
+function containsWakeWord(text: string) {
+  const normalized = normalizeText(text);
+  return WAKE_WORD_ALIASES.some((alias) => normalized.includes(normalizeText(alias)));
+}
+
+function extractSpeechAfterWakeWord(text: string): string {
+  for (const alias of WAKE_WORD_ALIASES) {
+    const index = text.indexOf(alias);
+    if (index >= 0) {
+      return text
+        .slice(index + alias.length)
+        .replace(/^[\s,.:;!?~'"`-]+/, '')
+        .trim();
+    }
+  }
+  return '';
+}
+
+function resolveRemoteRouteCommand(text: string, userId?: number | null): string | null {
+  const normalized = normalizeText(text);
+
+  if (normalized === '내정보' || normalized === '마이페이지') {
+    return PATHS.PROFILE;
+  }
+  if (normalized === 'ai비서' || normalized === '에이아이비서') {
+    return PATHS.ASSISTANT;
+  }
+  if (normalized === '남이보는나' || normalized === '나의페르소나') {
+    return PATHS.NAMNA;
+  }
+  if (normalized === '대화보관함' || normalized === '보관함') {
+    return PATHS.CHAT;
+  }
+  if (normalized === '설정') {
+    return PATHS.SETTINGS_PARAM.replace(':tab', 'account');
+  }
+  if (normalized === '홈' || normalized === '홈으로' || normalized === '메인화면') {
+    return userId ? PATHS.USER_HOME(userId) : PATHS.HOME;
+  }
+
+  return null;
+}
 
 const MainLayout: React.FC = () => {
   const LOGOUT_CONFIRM_TOAST_ID = 'logout-confirm-toast';
   const navigate = useNavigate();
   const location = useLocation();
   const { userInfo, logout: logoutStore, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
+  const micPreferenceEnabled = useMicStore((state) => state.micPreferenceEnabled);
+  const setMicRuntimeActive = useMicStore((state) => state.setMicRuntimeActive);
 
   // Sidebar state & hooks
   const [viewCount, setViewCount] = useState(0);
@@ -110,6 +202,103 @@ const MainLayout: React.FC = () => {
       }
     }
   }, [location.pathname, currentMode, setCurrentMode]);
+
+  useEffect(() => {
+    const isHomeConversationPage = /^\/\d+$/.test(location.pathname);
+    const isConversationPage =
+      isHomeConversationPage ||
+      location.pathname === PATHS.ASSISTANT ||
+      location.pathname === PATHS.NAMNA;
+
+    if (!isLoggedIn || !micPreferenceEnabled || isConversationPage) {
+      return;
+    }
+
+    const SpeechRecognitionApi =
+      (window as unknown as { SpeechRecognition?: new () => LayoutSpeechRecognition })
+        .SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: new () => LayoutSpeechRecognition })
+        .webkitSpeechRecognition;
+
+    if (!SpeechRecognitionApi) {
+      setMicRuntimeActive(false);
+      return;
+    }
+
+    let recognition: LayoutSpeechRecognition | null = null;
+    let isUnmounted = false;
+
+    const safeStart = () => {
+      if (!recognition) return;
+      try {
+        recognition.start();
+      } catch (error) {
+        const message = String((error as Error).message || error);
+        if (!message.includes('already started')) {
+          console.warn('Remote voice control start failed:', message);
+        }
+      }
+    };
+
+    try {
+      recognition = new SpeechRecognitionApi();
+      recognition.lang = 'ko-KR';
+      recognition.continuous = true;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setMicRuntimeActive(true);
+      };
+
+      recognition.onresult = (event: LayoutSpeechRecognitionEvent) => {
+        const lastResult = event.results[event.results.length - 1];
+        const heardText = lastResult?.[0]?.transcript?.trim() || '';
+        if (!heardText) return;
+
+        const commandSource = containsWakeWord(heardText)
+          ? extractSpeechAfterWakeWord(heardText)
+          : heardText;
+        const route = resolveRemoteRouteCommand(commandSource, userInfo?.id);
+
+        if (route) {
+          navigate(route);
+        }
+      };
+
+      recognition.onerror = (event: LayoutSpeechRecognitionErrorEvent) => {
+        if (event.error !== 'aborted') {
+          console.warn('Remote voice control error:', event.error);
+        }
+      };
+
+      recognition.onend = () => {
+        if (!isUnmounted) {
+          safeStart();
+        }
+      };
+
+      safeStart();
+    } catch (error) {
+      console.warn('Failed to initialize remote voice control:', error);
+      setMicRuntimeActive(false);
+    }
+
+    return () => {
+      isUnmounted = true;
+      setMicRuntimeActive(false);
+      if (recognition) {
+        recognition.onend = null;
+        recognition.stop();
+      }
+    };
+  }, [
+    isLoggedIn,
+    location.pathname,
+    micPreferenceEnabled,
+    navigate,
+    setMicRuntimeActive,
+    userInfo?.id,
+  ]);
 
   const handleLogout = async () => {
     toast.dismiss(LOGOUT_CONFIRM_TOAST_ID);

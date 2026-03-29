@@ -29,7 +29,7 @@ export default function KakaoCallbackPage() {
       try {
         // 프론트엔드에서 코드를 받아 백엔드 API로 전달하여 인증 처리
         const response = await authApi.kakaoLogin(code);
-        
+
         // 백엔드 응답이 제공한 JSON 형태를 바로 활용
         // { "message": "...", "data": { "isNewUser": true, "registerUUID": "...", ... } }
         const { isNewUser, accessToken } = response.data || {};
