@@ -28,7 +28,7 @@ function CaptionLine({
   const pendingText = text.slice(safeDoneLength + safeActiveLength);
 
   return (
-    <div className="max-w-[min(34vw,32rem)] whitespace-pre-wrap break-words text-left text-[clamp(1.9rem,2.9vw,3.6rem)] font-black leading-[1.28] tracking-[-0.05em] text-black">
+    <div className="max-w-[min(32vw,28rem)] whitespace-pre-wrap break-words text-left text-[clamp(1.5rem,2.2vw,3rem)] font-black leading-[1.26] tracking-[-0.05em] text-black">
       {doneText ? <span className="text-black">{doneText}</span> : null}
       {activeText ? <span style={{ color: ACTIVE_SPEECH_COLOR }}>{activeText}</span> : null}
       {pendingText ? <span className={PENDING_TEXT_CLASS}>{pendingText}</span> : null}
@@ -91,7 +91,7 @@ export default function VisitorConversationStage({
     <div className={`relative h-full w-full bg-white ${SIDEBAR_SAFE_PADDING}`}>
       <div className="relative z-10 flex h-full w-full flex-col overflow-hidden">
         <header className={`flex shrink-0 items-end justify-between gap-4 pb-6 ${PAGE_INSET}`}>
-          <h1 className="text-[58px] font-black tracking-[-0.06em] text-black md:text-[64px]">
+          <h1 className="text-[46px] font-black tracking-[-0.06em] text-black md:text-[54px]">
             {title}
           </h1>
 
@@ -124,42 +124,45 @@ export default function VisitorConversationStage({
 
         <div className="w-full shrink-0 border-t border-[#E5E5E5]" />
 
-        <main className="relative flex-1 overflow-hidden px-8 pb-8 pt-8 md:px-12">
-          <div className="flex h-full min-h-[540px] items-center justify-center">
-            <div className="flex items-center justify-center gap-10">
-            <div className="relative flex h-[320px] w-[320px] items-center justify-center md:h-[380px] md:w-[380px]">
-              <CharacterScene
-                faceType={(faceType + 2) % 6}
-                mouthOpenRadius={mouthOpenRadius}
-                mode={currentMode}
-                isLockMode={false}
-                isSpeaking={isCharacterSpeaking}
-                isMicOn={isMicOn}
-                label=""
-              />
-            </div>
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`visitor-ai-${aiCaptionText}`}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="min-h-[5.5rem] self-center"
-              >
-                <CaptionLine
-                  text={aiCaptionText}
-                  doneLength={aiDoneLength}
-                  activeLength={aiActiveLength}
+        <main className="relative flex-1 overflow-hidden px-6 pb-5 pt-5 md:px-10 md:pb-6 md:pt-6">
+          <div className="flex h-full min-h-[420px] items-center justify-center md:min-h-[500px]">
+            <div className="flex items-center justify-center gap-7">
+              <div className="relative flex h-[250px] w-[250px] items-center justify-center md:h-[310px] md:w-[310px]">
+                <CharacterScene
+                  faceType={(faceType + 2) % 6}
+                  mouthOpenRadius={mouthOpenRadius}
+                  mode={currentMode}
+                  isLockMode={false}
+                  isSpeaking={isCharacterSpeaking}
+                  isMicOn={isMicOn}
+                  label=""
                 />
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] text-black backdrop-blur-sm">
+                  {assistantDisplayName}
+                </div>
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`visitor-ai-${aiCaptionText}`}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="min-h-[4.5rem] self-center"
+                >
+                  <CaptionLine
+                    text={aiCaptionText}
+                    doneLength={aiDoneLength}
+                    activeLength={aiActiveLength}
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
         </main>
 
-        <footer className="shrink-0 px-8 pb-8 pt-3 md:px-12">
+        <footer className="shrink-0 px-6 pb-5 pt-2 md:px-10 md:pb-6">
           {connectionNotice ? (
             <div className="mb-3 flex items-center justify-center">
               <div className="rounded-full border border-[#F7C3CB] bg-[#FFF3F5] px-4 py-2 text-sm font-bold text-[#C84358] shadow-sm">
@@ -174,7 +177,7 @@ export default function VisitorConversationStage({
             </div>
           </div>
 
-          <div className="mx-auto flex max-w-[920px] items-center gap-3 rounded-[24px] border border-[#E7E7E7] bg-white px-4 py-4 shadow-[0_12px_32px_rgba(0,0,0,0.06)]">
+          <div className="mx-auto flex max-w-[860px] items-center gap-3 rounded-[24px] border border-[#E7E7E7] bg-white px-4 py-3 shadow-[0_12px_32px_rgba(0,0,0,0.06)]">
             <button
               type="button"
               onClick={onMicToggle}
