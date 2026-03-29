@@ -1,8 +1,9 @@
-/* src/index.css */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
 @import "tailwindcss";
 
+/* src/index.css */
+
 /* 1. Noto Sans KR (구글 폰트) 가져오기 */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
 
 /* 2. 가지고 계신 Neue Haas Display 파일 등록 (모든 굵기 매핑) */
 @font-face {
