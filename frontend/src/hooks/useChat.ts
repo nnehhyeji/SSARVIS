@@ -116,25 +116,7 @@ function extractSpeechAfterWakeWord(text: string): string {
   return '';
 }
 
-function matchRouteCommand(text: string): string | null {
-  const normalized = normalizeText(text);
-
-  if (normalized === '내정보' || normalized === '마이페이지') {
-    return PATHS.PROFILE;
-  }
-  if (normalized === 'ai비서' || normalized === '에이아이비서') {
-    return PATHS.ASSISTANT;
-  }
-  if (normalized === '남이보는나' || normalized === '나의페르소나') {
-    return PATHS.NAMNA;
-  }
-  if (normalized === '대화보관함' || normalized === '보관함') {
-    return PATHS.CHAT;
-  }
-  if (normalized === '설정') {
-    return PATHS.SETTINGS_PARAM.replace(':tab', 'account');
-  }
-
+function matchRouteCommand(_text: string): string | null {
   return null;
 }
 
@@ -838,11 +820,11 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
           const text = sttTextRef.current.trim();
           console.log(
             '[silence] ★★★ silence detected! elapsed=' +
-              elapsed +
-              'ms, threshold=' +
-              silenceThreshold +
-              'ms, text=' +
-              JSON.stringify(text),
+            elapsed +
+            'ms, threshold=' +
+            silenceThreshold +
+            'ms, text=' +
+            JSON.stringify(text),
           );
           stopSilenceMonitor();
           // Call via ref — always the latest version, never stale

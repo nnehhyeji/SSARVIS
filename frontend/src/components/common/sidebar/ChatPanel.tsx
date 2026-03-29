@@ -5,7 +5,6 @@ import SidebarAvatar from './SidebarAvatar';
 
 interface ChatPanelProps {
   chatTab: 'archive' | 'guestbook';
-  setChatTab: (val: 'archive' | 'guestbook') => void;
   chatView: 'categories' | 'list';
   setChatView: (val: 'categories' | 'list') => void;
   chatCategory: 'assistant' | 'persona' | 'friend';
