@@ -114,9 +114,11 @@ export default function SignupPage() {
       setRegisterUUID(state.registerUUID);
       if (state.profileImageUrl) setProfileImageUrl(state.profileImageUrl);
 
+      // OAuth 유저는 기본적으로 이메일 인증이 된 상태로 처리
+      setEmailStatus('verified');
+
       if (state.email) {
         setEmail(state.email);
-        setEmailStatus('verified');
         setIsEmailFromOAuth(true);
       }
 
@@ -389,13 +391,15 @@ export default function SignupPage() {
                   type="email"
                   placeholder={TEXT.emailPlaceholder}
                   value={email}
-                  disabled={emailStatus === 'verified' || isEmailFromOAuth}
+                  disabled={(!isOAuthUser && emailStatus === 'verified') || isEmailFromOAuth}
                   readOnly={isEmailFromOAuth}
                   onChange={(event) => {
                     if (isEmailFromOAuth) return;
                     setEmail(event.target.value);
-                    setEmailStatus('none');
-                    setVerificationCode('');
+                    if (!isOAuthUser) {
+                      setEmailStatus('none');
+                      setVerificationCode('');
+                    }
                   }}
                   className={`flex-1 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm transition-all placeholder:text-gray-300 focus:border-[#D5A09D] focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 disabled:opacity-50 ${
                     isEmailFromOAuth ? 'cursor-not-allowed text-gray-500 opacity-70' : ''
@@ -406,11 +410,11 @@ export default function SignupPage() {
                   type="button"
                   onClick={sendEmailCode}
                   disabled={
-                    emailStatus === 'sending' || emailStatus === 'verified' || isEmailFromOAuth
+                    emailStatus === 'sending' || emailStatus === 'verified' || isOAuthUser
                   }
                   className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-[11px] font-bold text-[#11141D] shadow-sm transition-all hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50"
                 >
-                  {isEmailFromOAuth
+                  {isOAuthUser
                     ? TEXT.socialVerified
                     : emailStatus === 'sending'
                       ? TEXT.sending
@@ -420,7 +424,7 @@ export default function SignupPage() {
                 </button>
               </div>
 
-              {(emailStatus === 'sent' || emailStatus === 'verified' || isEmailFromOAuth) && (
+              {(emailStatus === 'sent' || (!isOAuthUser && emailStatus === 'verified') || isOAuthUser) && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -429,20 +433,20 @@ export default function SignupPage() {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder={isEmailFromOAuth ? TEXT.socialVerified : TEXT.codePlaceholder}
-                      value={isEmailFromOAuth ? '' : verificationCode}
-                      disabled={emailStatus === 'verified' || isEmailFromOAuth}
-                      readOnly={isEmailFromOAuth}
+                      placeholder={isOAuthUser ? TEXT.socialVerified : TEXT.codePlaceholder}
+                      value={isOAuthUser ? '' : verificationCode}
+                      disabled={emailStatus === 'verified' || isOAuthUser}
+                      readOnly={isOAuthUser}
                       onChange={(event) => setVerificationCode(event.target.value)}
                       className="flex-1 rounded-2xl border border-gray-100 bg-gray-50/30 px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#D5A09D]/20 disabled:opacity-50"
                     />
                     <button
                       type="button"
                       onClick={verifyEmailCode}
-                      disabled={isVerifying || emailStatus === 'verified' || isEmailFromOAuth}
+                      disabled={isVerifying || emailStatus === 'verified' || isOAuthUser}
                       className="rounded-2xl bg-[#11141D] px-5 py-3 text-[11px] font-bold text-white shadow-sm transition-all hover:bg-[#1a1e2b] active:scale-[0.98] disabled:opacity-50"
                     >
-                      {isEmailFromOAuth
+                      {isOAuthUser
                         ? TEXT.verified
                         : isVerifying
                           ? TEXT.customIdChecking
