@@ -290,12 +290,10 @@ export default function NamnaConversationStage({
                 </div>
 
                 <div className={leftIsLong ? 'pt-16' : 'pt-10'}>
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence>
                     <motion.div
-                      key={`namna-left-${leftCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
+                      initial={false}
                       animate={{ opacity: leftCaptionText ? 1 : 0, y: leftCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                       <CaptionLine
@@ -324,12 +322,10 @@ export default function NamnaConversationStage({
                 aria-hidden={!showRightSection}
               >
                 <div className={`max-w-[min(28vw,24rem)] ${rightIsLong ? 'pt-6' : 'pt-3'}`}>
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence>
                     <motion.div
-                      key={`namna-right-${rightCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
+                      initial={false}
                       animate={{ opacity: rightCaptionText ? 1 : 0, y: rightCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                       <CaptionLine

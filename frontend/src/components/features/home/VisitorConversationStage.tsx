@@ -197,12 +197,10 @@ export default function VisitorConversationStage({
                 </AnimatePresence>
               </div>
 
-              <AnimatePresence mode="wait">
+              <AnimatePresence>
                 <motion.div
-                  key={`visitor-ai-${aiCaptionText}`}
-                  initial={{ opacity: 0, y: 14 }}
+                  initial={false}
                   animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
-                  exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2, ease: 'easeOut' }}
                   className="min-h-[4.5rem] w-[min(32vw,28rem)] flex-none self-center"
                 >
