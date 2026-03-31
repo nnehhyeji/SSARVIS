@@ -7,6 +7,7 @@ class OpenAIConfig(BaseSettings):
     openai_base_url: str = ""
     openai_api_key: str = ""
     llm_model: str = "gpt-4o-mini"
+    llm_max_output_tokens: int = 100
     llm_timeout_seconds: float = 30.0
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
