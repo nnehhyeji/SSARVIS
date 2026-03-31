@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
@@ -24,6 +25,16 @@ from app.prompts import (
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
+chat_payload_logger = logging.getLogger("app.domains.chat.payload")
+
+_chat_log_path = Path("/tmp/chat.log")
+_chat_log_path.parent.mkdir(parents=True, exist_ok=True)
+if not chat_payload_logger.handlers:
+    _chat_payload_handler = logging.FileHandler(_chat_log_path, encoding="utf-8")
+    _chat_payload_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    chat_payload_logger.addHandler(_chat_payload_handler)
+    chat_payload_logger.setLevel(logging.INFO)
+    chat_payload_logger.propagate = False
 
 openai_client = OpenAIClient()
 dashscope_voice_client = DashScopeVoiceClient()
@@ -101,6 +112,11 @@ async def _handle_chat_request(
         )
         return False
 
+    chat_payload_logger.info(
+        "chat_request payload=%s",
+        raw,
+    )
+
     await ws.send_text(
         ChatEvent(
             type="text.start",
@@ -110,6 +126,10 @@ async def _handle_chat_request(
     )
 
     preparation = await chat_service.prepare_chat(request)
+    chat_payload_logger.info(
+        "chat_openai_input messages=%s",
+        preparation.messages,
+    )
     assistant_response = await chat_service.openai_client.generate(preparation.messages)
     await chat_service.save_chat(request, assistant_response)
 

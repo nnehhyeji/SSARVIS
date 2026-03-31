@@ -71,6 +71,7 @@ class OpenAIClient:
         return await self._client.responses.create(
             model=openai_config.llm_model,
             input=messages,
+            max_output_tokens=openai_config.llm_max_output_tokens,
             timeout=timeout,
         )
 
