@@ -100,6 +100,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const speechFinalizedRef = useRef(false);
   const sttTextRef = useRef('');
   const currentRecordingOptionsRef = useRef<GuestRecordingOptions | null>(null);
+  const ignoreIncomingResponseRef = useRef(false);
   const resetGuestChatState = useCallback(() => {
     sessionIdRef.current = null;
     pendingTextRef.current = null;
@@ -201,6 +202,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
     socket.onmessage = (event) => {
       if (event.data instanceof ArrayBuffer) {
+        if (ignoreIncomingResponseRef.current) return;
         audioQueueRef.current.push(event.data);
         processAudioQueue();
         return;
@@ -208,6 +210,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
       if (event.data instanceof Blob) {
         void event.data.arrayBuffer().then((buffer) => {
+          if (ignoreIncomingResponseRef.current) return;
           audioQueueRef.current.push(buffer);
           processAudioQueue();
         });
@@ -235,15 +238,19 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       }
 
       if (message.type === 'END_OF_STREAM') {
+        if (ignoreIncomingResponseRef.current) return;
         setIsAwaitingResponse(false);
         return;
       }
 
       if (message.type === 'ERROR' || message.type === 'error') {
+        if (ignoreIncomingResponseRef.current) return;
         setIsAwaitingResponse(false);
         console.error('Guest WebSocket error:', message.message, message.detail);
         return;
       }
+
+      if (ignoreIncomingResponseRef.current) return;
 
       switch (message.type) {
         case 'text.start':
@@ -364,6 +371,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
         console.warn('Guest WebSocket connection failed.');
         return;
       }
+
+      ignoreIncomingResponseRef.current = false;
 
       const payloadBase = {
         sessionId: sessionIdRef.current,
@@ -608,6 +617,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   );
 
   const stopRecordingAndSendSTT = useCallback(() => {
+    ignoreIncomingResponseRef.current = true;
     recognitionModeRef.current = 'idle';
     setVoicePhase('idle');
     setWakeWordDetectedAt(null);
@@ -617,6 +627,24 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     setSttText('');
     sttTextRef.current = '';
   }, [clearSpeechSilenceTimer, stopRecognition]);
+
+  const sleepConversation = useCallback(() => {
+    ignoreIncomingResponseRef.current = true;
+    recognitionModeRef.current = 'idle';
+    setVoicePhase('wake');
+    setWakeWordDetectedAt(null);
+    pendingSpeechCaptureRef.current = false;
+    clearSpeechSilenceTimer();
+    resetTypewriter();
+    setIsAwaitingResponse(false);
+    setIsAiSpeaking(false);
+    wsRef.current?.close();
+    wsRef.current = null;
+    stopRecognition();
+    setSttText(`웨이크워드 대기 중.. "${WAKE_WORD}"라고 말해보세요`);
+    sttTextRef.current = '';
+    startWakeMode();
+  }, [clearSpeechSilenceTimer, resetTypewriter, startWakeMode, stopRecognition]);
 
   const sendMessage = useCallback(
     async (
@@ -701,5 +729,6 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
+    sleepConversation,
   };
 }

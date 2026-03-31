@@ -57,7 +57,7 @@ export default function NamnaPage() {
     startRecording,
     stopRecordingAndSendSTT,
     toggleLock,
-    cancelTurn,
+    sleepConversation,
     discardCurrentTurn,
   } = useChat();
 
@@ -334,8 +334,17 @@ export default function NamnaPage() {
       return;
     }
 
-    cancelTurn();
-  }, [aiToAiChat, cancelTurn, isDualParamEnabled]);
+    setMicPreferenceEnabled(true);
+    setMicRuntimeActive(true);
+    setIsTextInputMode(false);
+    sleepConversation();
+  }, [
+    aiToAiChat,
+    isDualParamEnabled,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
+    sleepConversation,
+  ]);
 
   const profileImage = initialsAvatarFallback(userInfo?.nickname || 'User');
   const namnaDisplayName = `남이 본 ${userInfo?.nickname || '나'}`;
