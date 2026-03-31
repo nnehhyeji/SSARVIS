@@ -2,8 +2,14 @@ import { create } from 'zustand';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import notificationApi from '../apis/notificationApi';
 import { getApiHttpBaseUrl } from '../config/api';
-import type { NotificationDTO, RealtimeNotificationDTO } from '../apis/notificationApi';
+import type { NotificationDTO } from '../apis/notificationApi';
 import type { Alarm } from '../types';
+
+export interface RealtimeNotificationDTO {
+  receiverId?: number;
+  eventName?: string;
+  payload?: Record<string, unknown>;
+}
 
 interface SseConnectPayload {
   message?: string;
@@ -94,24 +100,38 @@ const createRealtimeAlarmId = () => Date.now() + Math.floor(Math.random() * 1000
 const mapRealtimeNotificationToAlarm = (
   dto: RealtimeNotificationDTO,
   eventName: string,
-): Alarm => ({
-  id: createRealtimeAlarmId(),
-  message: dto.message,
-  isRead: false,
-  time: timeAgo(dto.createdAt),
-  type: eventName,
-  payload: {
-    senderId: dto.senderId,
-    senderEmail: dto.senderEmail,
-    senderCustomId: dto.senderCustomId,
-    senderNickname: dto.senderNickname,
-    senderProfileImage: dto.senderProfileImage,
-    targetUserId: dto.targetUserId,
-    followRequestId: dto.followRequestId,
-    followId: dto.followId,
-    direction: dto.direction,
-  },
-});
+): Alarm => {
+  const payload = (dto.payload || {}) as Record<string, unknown>;
+  const senderName =
+    (payload.senderNickname as string | undefined) ||
+    (payload.senderName as string | undefined) ||
+    (payload.senderCustomId as string | undefined) ||
+    (payload.senderEmail as string | undefined) ||
+    '알 수 없는 사용자';
+
+  return {
+    id: createRealtimeAlarmId(),
+    message: (payload.message as string) || '새로운 알림이 도착했습니다.',
+    isRead: false,
+    time: timeAgo((payload.createdAt as string) || new Date().toISOString()),
+    type: eventName,
+    payload: {
+      ...payload,
+      senderNickname: senderName,
+      senderName:
+        (payload.senderName as string | undefined) ||
+        (payload.senderNickname as string | undefined) ||
+        senderName,
+      senderCustomId: (payload.senderCustomId as string | undefined) || senderName,
+      senderProfileImage:
+        (payload.senderProfileImage as string | undefined) ||
+        (payload.senderProfileImgUrl as string | undefined) ||
+        (payload.profileImageUrl as string | undefined) ||
+        (payload.profileImgUrl as string | undefined) ||
+        '',
+    },
+  };
+};
 
 let eventSource: EventSourcePolyfill | null = null;
 
@@ -187,8 +207,12 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
       if (event.data && !event.data.includes('EventStream Created')) {
         try {
           const newNoti: NotificationDTO = JSON.parse(event.data);
-          if (!newNoti.notificationId) return;
-          get().appendRealtimeAlarm(mapNotificationToAlarm(newNoti));
+          if (!newNoti.notificationId && !newNoti.payload) return;
+          if (newNoti.notificationId) {
+            get().appendRealtimeAlarm(mapNotificationToAlarm(newNoti));
+          } else if (newNoti.payload) {
+            get().appendRealtimeAlarm(mapRealtimeNotificationToAlarm(newNoti as unknown as RealtimeNotificationDTO, newNoti.eventName || 'system'));
+          }
         } catch (e) {
           console.error('SSE 수신 데이터 파싱 오류:', e);
         }

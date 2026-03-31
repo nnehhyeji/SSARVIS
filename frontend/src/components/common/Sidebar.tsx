@@ -76,8 +76,6 @@ interface AlarmPayload {
 
 const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
 const RECENT_SEARCH_LIMIT = 5;
-const STICKY_TERTIARY_IDS = new Set(['friends', 'chat', 'notifications', 'search']);
-const HOVER_LOCK_TERTIARY_IDS = new Set(['assistant', 'persona']);
 
 export default function Sidebar({
   userInfo,
@@ -110,28 +108,52 @@ export default function Sidebar({
   const [activeTertiary, setActiveTertiary] = useState<
     'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null
   >(null);
-  const isStickyTertiary = activeTertiary ? STICKY_TERTIARY_IDS.has(activeTertiary) : false;
+
+  const isStickyTertiary =
+    activeTertiary === 'search' ||
+    (activeTertiary === 'chat' && location.pathname.startsWith('/chat'));
+  const isHoverLockTertiary = activeTertiary ? !isStickyTertiary : false;
+
   const closeHoverPanelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTertiaryOnlyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sidebarWidth = isExpanded ? 240 : 80;
   const tertiaryPanelWidth = 320;
-  const tertiaryLeft =
-    activeTertiary === 'notifications' || activeTertiary === 'search' ? 0 : sidebarWidth;
+  const tertiaryLeft = sidebarWidth;
   const detailPanelLeft = activeTertiary ? sidebarWidth + tertiaryPanelWidth : sidebarWidth;
-  const isHoverLockTertiary = activeTertiary ? HOVER_LOCK_TERTIARY_IDS.has(activeTertiary) : false;
+
+  const clearTertiaryOnlyTimer = useCallback(() => {
+    if (closeTertiaryOnlyTimerRef.current) {
+      clearTimeout(closeTertiaryOnlyTimerRef.current);
+      closeTertiaryOnlyTimerRef.current = null;
+    }
+  }, []);
 
   const clearHoverPanelCloseTimer = useCallback(() => {
     if (closeHoverPanelTimerRef.current) {
       clearTimeout(closeHoverPanelTimerRef.current);
       closeHoverPanelTimerRef.current = null;
     }
-  }, []);
+    clearTertiaryOnlyTimer();
+  }, [clearTertiaryOnlyTimer]);
+
+  const scheduleTertiaryOnlyClose = useCallback(() => {
+    clearTertiaryOnlyTimer();
+    closeTertiaryOnlyTimerRef.current = setTimeout(() => {
+      setActiveTertiary((current) => {
+        if (current && current !== 'search' && !(current === 'chat' && window.location.pathname.startsWith('/chat'))) {
+          return null;
+        }
+        return current;
+      });
+    }, 120);
+  }, [clearTertiaryOnlyTimer]);
 
   const scheduleHoverPanelClose = useCallback(() => {
     clearHoverPanelCloseTimer();
     closeHoverPanelTimerRef.current = setTimeout(() => {
       setIsExpanded(false);
       setActiveTertiary((current) => {
-        if (current && HOVER_LOCK_TERTIARY_IDS.has(current)) {
+        if (current && current !== 'search' && !(current === 'chat' && window.location.pathname.startsWith('/chat'))) {
           return null;
         }
         return current;
@@ -147,30 +169,24 @@ export default function Sidebar({
 
   // Sync activeTertiary with URL path
   useEffect(() => {
-    const path = location.pathname;
-    if (path.startsWith('/chat') || path.startsWith('/chat-archive')) {
-      setActiveTertiary('chat');
-    } else if (selectedChatId) {
-      setActiveTertiary('chat');
-    } else {
-      // For paths that don't correspond to tertiary panels, but some panels might be open manually
-      // We don't necessarily want to close manually opened panels on all navigations,
-      // but for 'friends', 'notifications', 'search' we might want to keep current state.
-      // However, the rule is "navigating to these pages opens/keeps panels open".
-      if (!['/friends', '/notifications', '/search'].includes(path)) {
-        if (
-          activeTertiary !== 'friends' &&
-          activeTertiary !== 'notifications' &&
-          activeTertiary !== 'search'
-        ) {
-          // If we are on Home, close panels unless it's friends etc.
-          if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
-            setActiveTertiary(null);
-          }
+    setActiveTertiary((current) => {
+      const path = location.pathname;
+      if (path.startsWith('/chat') || path.startsWith('/chat-archive') || selectedChatId) {
+        return 'chat';
+      }
+
+      // If navigating to Home or User Home, we only force close 'chat' if it was open.
+      // Other panels ('friends', 'notifications', 'search', 'assistant', 'persona') 
+      // should remain un-interfered with so hover works naturally.
+      if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
+        if (current === 'chat') {
+          return null;
         }
       }
-    }
-  }, [activeTertiary, location.pathname, selectedChatId]);
+
+      return current;
+    });
+  }, [location.pathname, selectedChatId]);
 
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
@@ -449,7 +465,10 @@ export default function Sidebar({
   };
 
   const handleItemHover = (item: MenuItem) => {
-    if (!item.tertiaryId || !HOVER_LOCK_TERTIARY_IDS.has(item.tertiaryId)) {
+    if (!item.tertiaryId) {
+      if (activeTertiary && !isStickyTertiary) {
+        scheduleTertiaryOnlyClose();
+      }
       return;
     }
     clearHoverPanelCloseTimer();
@@ -490,10 +509,7 @@ export default function Sidebar({
         }}
         animate={{
           width: isExpanded ? 240 : 80,
-          opacity:
-            !isExpanded && (activeTertiary === 'notifications' || activeTertiary === 'search')
-              ? 0
-              : 1,
+          opacity: 1,
         }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
         className="h-full bg-[#eee5df] border-r border-gray-200 pointer-events-auto flex flex-col items-center py-6 z-[130]"
@@ -543,6 +559,11 @@ export default function Sidebar({
               <div key={item.id} className="relative group/item">
                 <button
                   onMouseEnter={() => handleItemHover(item)}
+                  onMouseLeave={() => {
+                    if (item.tertiaryId && !isStickyTertiary) {
+                      scheduleTertiaryOnlyClose();
+                    }
+                  }}
                   onClick={() => handleItemClick(item)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 hover:bg-black/5`}
                 >
@@ -578,6 +599,11 @@ export default function Sidebar({
             return (
               <button
                 key={item.id}
+                onMouseEnter={() => {
+                  if (activeTertiary && !isStickyTertiary) {
+                    scheduleTertiaryOnlyClose();
+                  }
+                }}
                 onClick={() => handleItemClick(item)}
                 className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 transition-all duration-300"
               >
@@ -622,7 +648,7 @@ export default function Sidebar({
             }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className={`fixed top-0 h-full w-[320px] bg-white border-r border-gray-200 pointer-events-auto overflow-hidden flex flex-col ${activeTertiary === 'notifications' || activeTertiary === 'search' ? 'z-[140]' : 'z-[120]'}`}
+            className="fixed top-0 h-full w-[320px] bg-white border-r border-gray-200 pointer-events-auto overflow-hidden flex flex-col z-[120]"
           >
             <div className="flex min-h-[88px] items-center justify-between px-6 pb-2 pt-6">
               <div className="flex min-h-[44px] items-center gap-3">

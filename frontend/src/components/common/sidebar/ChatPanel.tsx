@@ -142,7 +142,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                         >
                           {!isAiSection && (
                             <SidebarAvatar
-                              name={session.title || 'Friend'}
+                              name={session.targetUserCustomId || session.title || 'Friend'}
+                              imageUrl={session.targetUserProfileImageUrl}
                               sizeClassName="w-14 h-14"
                             />
                           )}
@@ -216,6 +217,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               >
                 <SidebarAvatar
                   name={session.title || 'Visitor'}
+                  imageUrl={session.targetUserProfileImageUrl}
                   sizeClassName="w-12 h-12"
                   className="shadow-inner"
                 />

@@ -68,8 +68,8 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto w-full px-4 pt-4 space-y-1">
-            {follows.length > 0 ? (
-              follows.map((f) => (
+            {follows.filter((f) => (friendTab === 'following' ? f.isFollowing : f.isFollower)).length > 0 ? (
+              follows.filter((f) => (friendTab === 'following' ? f.isFollowing : f.isFollower)).map((f) => (
                 <div
                   key={f.id}
                   className="flex items-center gap-4 p-4 hover:bg-white/40 rounded-[20px] transition-all cursor-pointer group/friend"
