@@ -45,8 +45,6 @@ public class OAuthService {
     @Value("${spring.security.oauth2.client.provider.kakao.user-info-uri}")
     private String userInfoUri;
 
-    private static final String REDIS_EMAIL_AUTH_PREFIX = "email_auth:";
-
     private final RestTemplate restTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
@@ -170,7 +168,7 @@ public class OAuthService {
     }
 
     public void saveTempEmail(SocialUserInfoDto socialUserInfoDto){
-        String redisKey = REDIS_EMAIL_AUTH_PREFIX + socialUserInfoDto.email();
+        String redisKey = Constants.VERIFIED_EMAIL_PREFIX + socialUserInfoDto.email();
 
         redisTemplate.opsForValue()
             .set(redisKey, "true", 30, java.util.concurrent.TimeUnit.MINUTES);
