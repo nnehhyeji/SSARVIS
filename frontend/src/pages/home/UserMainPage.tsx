@@ -134,7 +134,17 @@ export default function UserMainPage() {
     ],
   );
 
-  const { follows, isVisitorMode, visitedFollowName, visitFollow, leaveFollow } = useFollow();
+  const {
+    follows,
+    isVisitorMode,
+    visitedFollowName,
+    visitFollow,
+    leaveFollow,
+    setIsVisitorMode,
+    setVisitedFollowName,
+    setVisitedUserId,
+    setVisitorVisibility,
+  } = useFollow();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
   const [isTextInputMode, setIsTextInputMode] = useState(false);
@@ -203,12 +213,40 @@ export default function UserMainPage() {
   useEffect(() => {
     if (isMyHome || !targetId || !isLoggedIn) return;
 
-    visitFollow(targetId, true);
+    // 팔로우 목록에서 찾아 방문자 모드 진입 시도
+    const result = visitFollow(targetId, true);
+
+    if (!result) {
+      // 팔로우 관계 없는 유저 - API로 프로필 조회 후 방문자 상태 직접 설정
+      let isMounted = true;
+      void (async () => {
+        try {
+          const profile = await userApi.getUserProfileById(targetId);
+          if (!isMounted) return;
+          setVisitedFollowName(profile.nickname);
+          setVisitedUserId(targetId);
+          setIsVisitorMode(true);
+          setVisitorVisibility('public');
+          // customId가 있으면 팔로우 상태 새로고침에 활용
+          if (profile.customId) {
+            setVisitorFollowCustomId(profile.customId);
+            setVisitorFollowStatus('NONE');
+          }
+        } catch (error) {
+          console.error('방문한 유저 프로필 조회 실패:', error);
+        }
+      })();
+
+      return () => {
+        isMounted = false;
+        leaveFollow();
+      };
+    }
 
     return () => {
       leaveFollow();
     };
-  }, [isLoggedIn, isMyHome, leaveFollow, targetId, visitFollow]);
+  }, [isLoggedIn, isMyHome, leaveFollow, targetId, visitFollow, setIsVisitorMode, setVisitedFollowName, setVisitedUserId, setVisitorVisibility, setVisitorFollowCustomId, setVisitorFollowStatus]);
 
   useEffect(() => {
     setIsVisitorDualAiMode(false);

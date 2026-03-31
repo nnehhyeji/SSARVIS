@@ -62,6 +62,16 @@ export interface UserResponse {
   voiceLockTimeout: number;
 }
 
+export interface UserProfileResponse {
+  userId: number;
+  nickname: string;
+  customId: string;
+  profileImageUrl: string;
+  description: string;
+  viewCount: number;
+  isPublic: boolean;
+}
+
 export interface UpdateUserRequest {
   password?: string;
   nickname?: string;
@@ -139,6 +149,13 @@ const userApi = {
   deleteProfileImage: async () => {
     const response = await axiosInstance.delete<CommonResponse<void>>('/users/profile-image');
     return response.data;
+  },
+
+  getUserProfileById: async (userId: number) => {
+    const response = await axiosInstance.get<CommonResponse<UserProfileResponse>>(
+      `/users/${userId}/profile`,
+    );
+    return response.data.data;
   },
 
   toggleNamna: async () => {

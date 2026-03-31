@@ -13,6 +13,9 @@ export interface ChatSession {
   lastMessageAt: string;
   memoryPolicy: string;
   expiredAt: string | null;
+  targetUserId?: number;
+  targetUserCustomId?: string;
+  targetUserProfileImageUrl?: string;
 }
 
 export interface ChatMessageData {
