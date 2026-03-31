@@ -148,24 +148,25 @@ export function useAIToAIChat() {
     );
   }, []);
 
-  const enqueuePendingPresentation = useCallback(
-    (side: Side) => {
-      const current = sideAudioRef.current[side];
-      if (
-        !current.hasResponseText ||
-        current.presentationCommitted ||
-        current.isPlaying ||
-        pendingPresentationQueueRef.current.includes(side)
-      ) {
-        return;
-      }
+  const enqueuePendingPresentation = useCallback((side: Side) => {
+    const current = sideAudioRef.current[side];
+    if (
+      !current.hasResponseText ||
+      current.presentationCommitted ||
+      current.isPlaying ||
+      pendingPresentationQueueRef.current.includes(side)
+    ) {
+      return;
+    }
 
-      pendingPresentationQueueRef.current.push(side);
-    },
-    [],
-  );
+    pendingPresentationQueueRef.current.push(side);
+  }, []);
 
   const closeSockets = useCallback(() => {
+    pendingRelayRef.current = null;
+    pendingPresentationQueueRef.current = [];
+    activePresentationSideRef.current = null;
+
     (['mine', 'target'] as Side[]).forEach((side) => {
       const socket = socketsRef.current[side];
       if (socket && socket.readyState < WebSocket.CLOSING) {
@@ -262,19 +263,50 @@ export function useAIToAIChat() {
       socket.send(JSON.stringify({ type: 'AUDIO_END' }));
       socket.send(JSON.stringify({ type: 'TEXT', text }));
     },
-    [stopBattle],
+    [dequeuePendingPresentation, stopBattle],
   );
+
+  const canRequestTurnForSide = useCallback((side: Side) => {
+    const state = sideAudioRef.current[side];
+    return !(
+      state.isPlaying ||
+      state.hasResponseText ||
+      state.presentationCommitted ||
+      activePresentationSideRef.current === side
+    );
+  }, []);
+
+  const tryRelay = useCallback(() => {
+    const pending = pendingRelayRef.current;
+    if (!pending || !isBattlingRef.current || isPausedRef.current) return;
+
+    if (turnCountRef.current >= maxTurnRef.current) {
+      setIsAwaitingContinuation(true);
+      setStatusMessage(`${maxTurnRef.current}턴까지 대화를 진행했어요. 더 이어갈까요?`);
+      return;
+    }
+
+    if (!canRequestTurnForSide(pending.to)) {
+      return;
+    }
+
+    pendingRelayRef.current = null;
+    turnCountRef.current += 1;
+    setTurnCount(turnCountRef.current);
+    setStatusMessage(`${turnCountRef.current}턴째 대화를 이어가는 중입니다.`);
+    sendTurn(pending.to, pending.text);
+  }, [canRequestTurnForSide, sendTurn]);
 
   const handlePresentationFinished = useCallback(
     (side: Side) => {
-      const state = sideAudioRef.current[side];
-      state.isPlaying = false;
+      resetAudioState(side);
       if (activePresentationSideRef.current === side) {
         activePresentationSideRef.current = null;
       }
       setActiveSpeaker((current) => (current === side ? null : current));
+      tryRelay();
     },
-    [],
+    [resetAudioState, tryRelay],
   );
 
   const startQueuedPresentation = useCallback(
@@ -310,6 +342,11 @@ export function useAIToAIChat() {
         return true;
       }
 
+      if (!state.responseStreamComplete || state.voiceStarted || state.hasAudioData) {
+        activePresentationSideRef.current = null;
+        return false;
+      }
+
       handlePresentationFinished(side);
       return false;
     },
@@ -328,23 +365,6 @@ export function useAIToAIChat() {
 
     startQueuedPresentation(nextSide);
   }, [startQueuedPresentation]);
-
-  const tryRelay = useCallback(() => {
-    const pending = pendingRelayRef.current;
-    if (!pending || !isBattlingRef.current || isPausedRef.current) return;
-
-    if (turnCountRef.current >= maxTurnRef.current) {
-      setIsAwaitingContinuation(true);
-      setStatusMessage(`${maxTurnRef.current}턴까지 대화를 진행했어요. 더 이어갈까요?`);
-      return;
-    }
-
-    pendingRelayRef.current = null;
-    turnCountRef.current += 1;
-    setTurnCount(turnCountRef.current);
-    setStatusMessage(`${turnCountRef.current}턴째 대화를 이어가는 중입니다.`);
-    sendTurn(pending.to, pending.text);
-  }, [sendTurn]);
 
   const handleResponseReady = useCallback(
     (from: Side) => {
@@ -409,7 +429,13 @@ export function useAIToAIChat() {
       state.audio = audio;
       state.objectUrl = objectUrl;
     },
-    [commitPresentation, handlePresentationFinished, processAudioQueue, resetAudioState, scheduleNextPresentation],
+    [
+      commitPresentation,
+      handlePresentationFinished,
+      processAudioQueue,
+      resetAudioState,
+      scheduleNextPresentation,
+    ],
   );
 
   const attachSocketHandlers = useCallback(
@@ -449,9 +475,16 @@ export function useAIToAIChat() {
 
           if (state.isPlaying) {
             commitPresentation(side);
-          } else {
+          } else if (
+            state.audio ||
+            (state.responseStreamComplete && !state.voiceStarted && !state.hasAudioData)
+          ) {
             enqueuePendingPresentation(side);
             scheduleNextPresentation();
+          }
+
+          if (state.responseStreamComplete && isResponseReady(side)) {
+            handleResponseReady(side);
           }
           return;
         }
@@ -459,13 +492,21 @@ export function useAIToAIChat() {
         if (message.type === 'voice.start') {
           sideAudioRef.current[side].voiceStarted = true;
           setupAudioForSide(side);
+          if (sideAudioRef.current[side].hasResponseText) {
+            enqueuePendingPresentation(side);
+            scheduleNextPresentation();
+          }
           return;
         }
 
         if (message.type === 'voice.delta') {
           const state = sideAudioRef.current[side];
           const audio = state.audio;
-          if (audio && audio.paused && (!activePresentationSideRef.current || activePresentationSideRef.current === side)) {
+          if (
+            audio &&
+            audio.paused &&
+            (!activePresentationSideRef.current || activePresentationSideRef.current === side)
+          ) {
             activePresentationSideRef.current = side;
             state.isPlaying = true;
             setActiveSpeaker(side);
@@ -666,9 +707,8 @@ export function useAIToAIChat() {
     maxTurnRef.current += MAX_TURN;
     setMaxTurn(maxTurnRef.current);
     setIsAwaitingContinuation(false);
-    tryRelay();
     resumeBattle();
-  }, [resumeBattle, tryRelay]);
+  }, [resumeBattle]);
 
   return {
     isBattling,
