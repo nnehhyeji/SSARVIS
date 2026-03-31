@@ -127,8 +127,7 @@ async def _handle_chat_request(
 
     preparation = await chat_service.prepare_chat(request)
     chat_payload_logger.info(
-        "chat_openai_input request=%s messages=%s",
-        request.model_dump_json(),
+        "chat_openai_input messages=%s",
         preparation.messages,
     )
     assistant_response = await chat_service.openai_client.generate(preparation.messages)
