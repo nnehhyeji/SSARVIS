@@ -16,6 +16,56 @@ function getActiveSegment(text: string) {
   };
 }
 
+function getSegmentAroundIndex(text: string, index: number) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return { doneLength: 0, activeLength: 0 };
+
+  const clampedIndex = Math.max(0, Math.min(index, trimmed.length));
+  const targetIndex = Math.max(0, Math.min(clampedIndex - 1, trimmed.length - 1));
+
+  if (/\s/.test(trimmed[targetIndex] ?? '')) {
+    return getActiveSegment(trimmed.slice(0, clampedIndex));
+  }
+
+  let activeStart = targetIndex;
+  while (activeStart > 0 && !/\s/.test(trimmed[activeStart - 1])) {
+    activeStart -= 1;
+  }
+
+  let activeEnd = targetIndex + 1;
+  while (activeEnd < trimmed.length && !/\s/.test(trimmed[activeEnd])) {
+    activeEnd += 1;
+  }
+
+  return {
+    doneLength: activeStart,
+    activeLength: activeEnd - activeStart,
+  };
+}
+
+function getVisibleSegmentAroundIndex(text: string, index: number) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) {
+    return {
+      text: '',
+      doneLength: 0,
+      activeLength: 0,
+    };
+  }
+
+  const segment = getSegmentAroundIndex(trimmed, index);
+  const visibleLength = Math.min(
+    trimmed.length,
+    segment.doneLength + segment.activeLength,
+  );
+
+  return {
+    text: trimmed.slice(0, visibleLength),
+    doneLength: segment.doneLength,
+    activeLength: segment.activeLength,
+  };
+}
+
 interface UseConversationStageStateParams {
   chatMessages: ChatMessage[];
   latestAiText: string;
@@ -83,36 +133,67 @@ export function useConversationStageState({
     ? getActiveSegment(userCaptionText)
     : { doneLength: userCaptionText.length, activeLength: 0 };
 
-  const aiCaptionText = latestAiText || triggerText || lastAiMessage;
-  const aiCaptionSegments = useMemo(() => {
-    if (!aiCaptionText) return { doneLength: 0, activeLength: 0 };
-    if (aiStreamComplete || (aiTextStreamingComplete && !isAiSpeaking && !isAiTextTyping)) {
-      return { doneLength: aiCaptionText.length, activeLength: 0 };
-    }
-    if (isCharacterSpeaking) {
-      const spokenLength = Math.max(
-        0,
-        Math.min(Math.floor(aiCaptionText.length * aiSpeechProgress), aiCaptionText.length),
-      );
-
-      if (spokenLength === 0) return { doneLength: 0, activeLength: 0 };
-
+  const aiCaptionState = useMemo(() => {
+    const fullAiText = latestAiText || triggerText || lastAiMessage;
+    if (!fullAiText) {
       return {
-        doneLength: Math.max(0, spokenLength - 1),
-        activeLength: 1,
+        text: '',
+        doneLength: 0,
+        activeLength: 0,
       };
     }
 
-    return getActiveSegment(aiCaptionText);
+    if (isCharacterSpeaking) {
+      const spokenLength = Math.max(
+        0,
+        Math.min(Math.floor(fullAiText.length * aiSpeechProgress), fullAiText.length),
+      );
+
+      if (spokenLength === 0) {
+        return { text: '', doneLength: 0, activeLength: 0 };
+      }
+
+      return getVisibleSegmentAroundIndex(fullAiText, spokenLength);
+    }
+
+    if (isAiTextTyping) {
+      const typedText = lastAiMessage || '';
+      return {
+        text: typedText,
+        ...(typedText
+          ? getActiveSegment(typedText)
+          : { doneLength: 0, activeLength: 0 }),
+      };
+    }
+
+    if (aiStreamComplete || (aiTextStreamingComplete && !isAiSpeaking && !isAiTextTyping)) {
+      return {
+        text: fullAiText,
+        doneLength: fullAiText.length,
+        activeLength: 0,
+      };
+    }
+
+    return {
+      text: fullAiText,
+      ...getActiveSegment(fullAiText),
+    };
   }, [
-    aiCaptionText,
     aiSpeechProgress,
     aiStreamComplete,
     aiTextStreamingComplete,
     isAiSpeaking,
     isAiTextTyping,
     isCharacterSpeaking,
+    lastAiMessage,
+    latestAiText,
+    triggerText,
   ]);
+  const aiCaptionText = aiCaptionState.text;
+  const aiCaptionSegments = {
+    doneLength: aiCaptionState.doneLength,
+    activeLength: aiCaptionState.activeLength,
+  };
 
   const activeSpeaker: 'ai' | 'user' | null = isAiSpeaking
     ? 'ai'

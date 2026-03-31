@@ -318,12 +318,10 @@ export default function AssistantConversationStage({
                     aiCaptionText.trim().length >= longCaptionThreshold ? 'pt-16' : 'pt-10'
                   }
                 >
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence>
                     <motion.div
-                      key={`ai-${title}-${aiCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
+                      initial={false}
                       animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                       <CaptionLine
@@ -354,12 +352,10 @@ export default function AssistantConversationStage({
                 <div
                   className={`max-w-[min(28vw,24rem)] ${userCaptionText.trim().length >= longCaptionThreshold ? 'pt-6' : 'pt-3'}`}
                 >
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence>
                     <motion.div
-                      key={`user-${title}-${userCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
+                      initial={false}
                       animate={{ opacity: userCaptionText ? 1 : 0, y: userCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                       <CaptionLine
