@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -46,7 +47,7 @@ public class OAuthService {
     private String userInfoUri;
 
     private final RestTemplate restTemplate;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
     public String getKakaoAccessToken(String authorizationCode) {
@@ -168,7 +169,7 @@ public class OAuthService {
     }
 
     public void saveTempEmail(SocialUserInfoDto socialUserInfoDto){
-        String redisKey = Constants.VERIFIED_EMAIL_PREFIX + socialUserInfoDto.email();
+        String redisKey = Constants.VERIFIED_EMAIL_PREFIX + socialUserInfoDto.email().trim();
 
         redisTemplate.opsForValue()
             .set(redisKey, "true", 30, java.util.concurrent.TimeUnit.MINUTES);
