@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+﻿﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiOrigin } from '../config/api';
 import type { ChatMessage } from '../types';
 
@@ -23,7 +23,10 @@ type SideAudioState = {
   isPlaying: boolean;
   streamEnded: boolean;
   streamHandled: boolean;
-  lastText: string;
+  responseText: string;
+  hasResponseText: boolean;
+  responseStreamComplete: boolean;
+  presentationCommitted: boolean;
   requestId: number;
   voiceStarted: boolean;
   hasAudioData: boolean;
@@ -41,7 +44,10 @@ function createSideAudioState(): SideAudioState {
     isPlaying: false,
     streamEnded: false,
     streamHandled: false,
-    lastText: '',
+    responseText: '',
+    hasResponseText: false,
+    responseStreamComplete: false,
+    presentationCommitted: false,
     requestId: 0,
     voiceStarted: false,
     hasAudioData: false,
@@ -82,8 +88,11 @@ export function useAIToAIChat() {
     current.mediaSource = null;
     current.streamEnded = false;
     if (!options?.preserveLastText) {
-      current.lastText = '';
+      current.responseText = '';
+      current.hasResponseText = false;
     }
+    current.responseStreamComplete = false;
+    current.presentationCommitted = false;
     current.streamHandled = false;
     current.voiceStarted = false;
     current.hasAudioData = false;
@@ -100,6 +109,34 @@ export function useAIToAIChat() {
     }
 
     current.isPlaying = false;
+  }, []);
+
+  const isResponseReady = useCallback((side: Side) => {
+    const current = sideAudioRef.current[side];
+    return current.hasResponseText && current.responseStreamComplete;
+  }, []);
+
+  const getResponseText = useCallback((side: Side) => {
+    return sideAudioRef.current[side].responseText.trim();
+  }, []);
+
+  const commitPresentation = useCallback((side: Side) => {
+    const current = sideAudioRef.current[side];
+    if (current.presentationCommitted) {
+      return;
+    }
+
+    const nextText = current.responseText;
+    current.presentationCommitted = true;
+
+    if (side === 'mine') {
+      setMyLatestText(nextText);
+      setBattleMessages((prev) => [...prev, { sender: 'me', text: `나의 AI: ${nextText}` }]);
+      return;
+    }
+
+    setTargetLatestText(nextText);
+    setBattleMessages((prev) => [...prev, { sender: 'ai', text: `${nextText}` }]);
   }, []);
 
   const closeSockets = useCallback(() => {
@@ -177,7 +214,10 @@ export function useAIToAIChat() {
         return;
       }
 
-      sideAudioRef.current[side].lastText = '';
+      sideAudioRef.current[side].responseText = '';
+      sideAudioRef.current[side].hasResponseText = false;
+      sideAudioRef.current[side].responseStreamComplete = false;
+      sideAudioRef.current[side].presentationCommitted = false;
       sideAudioRef.current[side].streamHandled = false;
       sideAudioRef.current[side].requestId += 1;
       socket.send(
@@ -231,7 +271,7 @@ export function useAIToAIChat() {
       state.streamHandled = true;
 
       const nextSide: Side = from === 'mine' ? 'target' : 'mine';
-      const relayText = state.lastText.trim();
+      const relayText = getResponseText(from);
 
       if (!relayText) {
         setErrorMessage('AI 응답 텍스트를 받지 못해 대화를 이어갈 수 없습니다.');
@@ -242,7 +282,7 @@ export function useAIToAIChat() {
       pendingRelayRef.current = { to: nextSide, text: relayText };
       tryRelay();
     },
-    [stopBattle, tryRelay],
+    [getResponseText, stopBattle, tryRelay],
   );
 
   const setupAudioForSide = useCallback(
@@ -259,6 +299,7 @@ export function useAIToAIChat() {
 
       audio.onplay = () => {
         state.isPlaying = true;
+        commitPresentation(side);
         setActiveSpeaker(side);
       };
       audio.onended = () => {
@@ -284,7 +325,7 @@ export function useAIToAIChat() {
       state.audio = audio;
       state.objectUrl = objectUrl;
     },
-    [handleStreamFinished, processAudioQueue, resetAudioState],
+    [commitPresentation, handleStreamFinished, processAudioQueue, resetAudioState],
   );
 
   const attachSocketHandlers = useCallback(
@@ -318,15 +359,8 @@ export function useAIToAIChat() {
 
         if (message.type === 'text.end') {
           const nextText = message.payload?.text || '';
-          sideAudioRef.current[side].lastText = nextText;
-
-          if (side === 'mine') {
-            setMyLatestText(nextText);
-            setBattleMessages((prev) => [...prev, { sender: 'me', text: `나의 AI: ${nextText}` }]);
-          } else {
-            setTargetLatestText(nextText);
-            setBattleMessages((prev) => [...prev, { sender: 'ai', text: `${nextText}` }]);
-          }
+          sideAudioRef.current[side].responseText = nextText;
+          sideAudioRef.current[side].hasResponseText = nextText.trim().length > 0;
           return;
         }
 
@@ -358,9 +392,14 @@ export function useAIToAIChat() {
         if (message.type === 'END_OF_STREAM') {
           const state = sideAudioRef.current[side];
           state.streamEnded = true;
+          state.responseStreamComplete = true;
           processAudioQueue(side);
 
-          if (!state.voiceStarted && !state.hasAudioData && !state.isPlaying) {
+          if (state.hasResponseText && !state.voiceStarted && !state.hasAudioData) {
+            commitPresentation(side);
+          }
+
+          if (isResponseReady(side) && !state.voiceStarted && !state.hasAudioData && !state.isPlaying) {
             handleStreamFinished(side);
           }
         }
@@ -375,7 +414,7 @@ export function useAIToAIChat() {
         socketsRef.current[side] = null;
       };
     },
-    [handleStreamFinished, processAudioQueue, setupAudioForSide, stopBattle],
+    [commitPresentation, handleStreamFinished, isResponseReady, processAudioQueue, setupAudioForSide, stopBattle],
   );
 
   const connectSocket = useCallback(
