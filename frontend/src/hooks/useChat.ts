@@ -597,24 +597,8 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
             cleanupAudioPlayback(true);
             resumeWakeWordWhenReady();
           }, TEXT_END_FALLBACK_MS);
-          let index = 0;
           setLatestAiText(aiResponseText);
-          setIsAiTextTyping(true);
-          typeWriterIntervalRef.current = setInterval(() => {
-            setChatMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last && last.sender === 'ai') {
-                last.text = aiResponseText.slice(0, index + 1);
-              }
-              return next;
-            });
-            index += 1;
-            if (index >= aiResponseText.length) {
-              clearTypeWriter();
-              commitFinalAiMessage(aiResponseText);
-            }
-          }, 50);
+          setIsAiTextTyping(false);
           break;
         }
 

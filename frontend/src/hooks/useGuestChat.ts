@@ -53,6 +53,16 @@ const WAKE_WORD = '싸비스';
 const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '서비스', '싸비스야', '사비서', '싸비스'];
 const SPEECH_SILENCE_MS = 2000;
 
+function estimateWordRevealIntervalMs(text: string, tokenCount: number) {
+  if (tokenCount <= 1) return 220;
+
+  const punctuationPauseCount = (text.match(/[,.!?~]/g) ?? []).length;
+  const estimatedDurationMs =
+    text.trim().length * 70 + punctuationPauseCount * 180 + tokenCount * 40;
+
+  return Math.max(120, Math.min(320, Math.round(estimatedDurationMs / tokenCount)));
+}
+
 type RecognitionMode = 'idle' | 'wake' | 'speech';
 
 interface GuestRecordingOptions {
@@ -260,6 +270,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
         case 'text.end': {
           const aiResponseText = message.payload?.text || message.text || '';
+          const tokens = aiResponseText.match(/\S+\s*/g) ?? [aiResponseText];
+          const revealIntervalMs = estimateWordRevealIntervalMs(aiResponseText, tokens.length);
           let index = 0;
 
           resetTypewriter();
@@ -268,16 +280,16 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
               const next = [...prev];
               const last = next[next.length - 1];
               if (last && last.sender === 'ai') {
-                last.text = aiResponseText.slice(0, index + 1);
+                last.text = tokens.slice(0, index + 1).join('');
               }
               return next;
             });
 
             index += 1;
-            if (index >= aiResponseText.length) {
+            if (index >= tokens.length) {
               resetTypewriter();
             }
-          }, 50);
+          }, revealIntervalMs);
           break;
         }
 

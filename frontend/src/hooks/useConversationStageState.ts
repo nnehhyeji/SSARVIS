@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ChatMessage } from '../types';
 import { CONVERSATION_UI } from '../constants/conversationUi';
@@ -66,6 +66,14 @@ function getVisibleSegmentAroundIndex(text: string, index: number) {
   };
 }
 
+function estimateCaptionDurationMs(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+
+  const punctuationPauseCount = (trimmed.match(/[,.!?~]/g) ?? []).length;
+  return Math.max(1500, trimmed.length * 102 + punctuationPauseCount * 290);
+}
+
 interface UseConversationStageStateParams {
   chatMessages: ChatMessage[];
   latestAiText: string;
@@ -101,6 +109,9 @@ export function useConversationStageState({
   liveCaptionWindowMs = 1600,
   longCaptionThreshold = 55,
 }: UseConversationStageStateParams) {
+  const [fallbackSpeechProgress, setFallbackSpeechProgress] = useState(0);
+  const speechStartedAtRef = useRef<number | null>(null);
+
   const lastAiMessage = useMemo(() => {
     return (
       chatMessages
@@ -133,8 +144,45 @@ export function useConversationStageState({
     ? getActiveSegment(userCaptionText)
     : { doneLength: userCaptionText.length, activeLength: 0 };
 
+  const fullAiText = latestAiText || triggerText || lastAiMessage;
+
+  useEffect(() => {
+    if (!isCharacterSpeaking || !fullAiText.trim()) {
+      speechStartedAtRef.current = null;
+      setFallbackSpeechProgress(0);
+      return;
+    }
+
+    if (speechStartedAtRef.current === null) {
+      speechStartedAtRef.current = performance.now();
+    }
+
+    const estimatedDurationMs = estimateCaptionDurationMs(fullAiText);
+    if (estimatedDurationMs <= 0) {
+      setFallbackSpeechProgress(0);
+      return;
+    }
+
+    let frameId = 0;
+
+    const tick = () => {
+      if (speechStartedAtRef.current === null) return;
+
+      const elapsedMs = performance.now() - speechStartedAtRef.current;
+      const estimatedProgress = Math.max(0, Math.min(elapsedMs / estimatedDurationMs, 0.98));
+      setFallbackSpeechProgress((prev) =>
+        estimatedProgress > prev ? estimatedProgress : prev,
+      );
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [fullAiText, isCharacterSpeaking]);
+
   const aiCaptionState = useMemo(() => {
-    const fullAiText = latestAiText || triggerText || lastAiMessage;
     if (!fullAiText) {
       return {
         text: '',
@@ -144,9 +192,10 @@ export function useConversationStageState({
     }
 
     if (isCharacterSpeaking) {
+      const effectiveProgress = Math.max(aiSpeechProgress, fallbackSpeechProgress);
       const spokenLength = Math.max(
         0,
-        Math.min(Math.floor(fullAiText.length * aiSpeechProgress), fullAiText.length),
+        Math.min(Math.floor(fullAiText.length * effectiveProgress), fullAiText.length),
       );
 
       if (spokenLength === 0) {
@@ -156,17 +205,18 @@ export function useConversationStageState({
       return getVisibleSegmentAroundIndex(fullAiText, spokenLength);
     }
 
-    if (isAiTextTyping) {
-      const typedText = lastAiMessage || '';
+    if (!aiStreamComplete && !isAiSpeaking && !isAiTextTyping) {
       return {
-        text: typedText,
-        ...(typedText
-          ? getActiveSegment(typedText)
-          : { doneLength: 0, activeLength: 0 }),
+        text: '',
+        doneLength: 0,
+        activeLength: 0,
       };
     }
 
-    if (aiStreamComplete || (aiTextStreamingComplete && !isAiSpeaking && !isAiTextTyping)) {
+    if (
+      aiStreamComplete ||
+      (aiTextStreamingComplete && !isAwaitingResponse && !isAiSpeaking && !isAiTextTyping)
+    ) {
       return {
         text: fullAiText,
         doneLength: fullAiText.length,
@@ -182,10 +232,12 @@ export function useConversationStageState({
     aiSpeechProgress,
     aiStreamComplete,
     aiTextStreamingComplete,
+    isAwaitingResponse,
+    fallbackSpeechProgress,
     isAiSpeaking,
     isAiTextTyping,
     isCharacterSpeaking,
-    lastAiMessage,
+    fullAiText,
     latestAiText,
     triggerText,
   ]);
