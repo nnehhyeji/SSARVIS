@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquare, Mic, MicOff, Send, Square } from 'lucide-react';
 
-import CharacterScene from '../character/CharacterScene';
+import { initialsAvatarFallback } from '../../../utils/avatar';
 import {
   ACTIVE_SPEECH_COLOR,
   CONVERSATION_UI,
@@ -45,6 +45,7 @@ interface VisitorConversationStageProps {
   mouthOpenRadius: number;
   isCharacterSpeaking: boolean;
   assistantDisplayName: string;
+  assistantProfileImage?: string;
   userDisplayName?: string;
   profileImage?: string;
   aiCaptionText: string;
@@ -80,6 +81,7 @@ export default function VisitorConversationStage({
   mouthOpenRadius,
   isCharacterSpeaking,
   assistantDisplayName,
+  assistantProfileImage,
   userDisplayName = '나',
   profileImage,
   aiCaptionText,
@@ -107,6 +109,8 @@ export default function VisitorConversationStage({
 }: VisitorConversationStageProps) {
   const showTextInput = isTextInputMode || !isMicOn;
   const showUserAvatar = Boolean(profileImage?.trim());
+  const resolvedAssistantProfileImage =
+    assistantProfileImage?.trim() || initialsAvatarFallback(assistantDisplayName);
 
   return (
     <div className={`relative h-full w-full bg-white ${SIDEBAR_SAFE_PADDING}`}>
@@ -174,15 +178,20 @@ export default function VisitorConversationStage({
                       />
                     ) : null}
                   </AnimatePresence>
-                  <CharacterScene
-                    faceType={(faceType + 2) % 6}
-                    mouthOpenRadius={mouthOpenRadius}
-                    mode={currentMode}
-                    isLockMode={false}
-                    isSpeaking={isCharacterSpeaking}
-                    isMicOn={isMicOn}
-                    label=""
-                  />
+                  <div className="relative h-full w-full overflow-hidden rounded-full border border-[#F3D4DA] bg-[#FFF4F6] shadow-[0_18px_50px_rgba(247,87,110,0.18)]">
+                    <img
+                      src={resolvedAssistantProfileImage}
+                      alt={assistantDisplayName}
+                      className="h-full w-full object-cover"
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
+                        isCharacterSpeaking && isMicOn
+                          ? 'bg-[radial-gradient(circle,_rgba(247,87,110,0.12)_0%,_rgba(247,87,110,0)_65%)] opacity-100'
+                          : 'opacity-0'
+                      }`}
+                    />
+                  </div>
                 </div>
                 <div className="mt-0.5 text-center text-sm font-normal tracking-[-0.03em] text-black/70">
                   {assistantDisplayName}

@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Link2, Lock, Mic, MicOff, Send, Square, Unlock } from 'lucide-react';
 
 import CharacterScene from '../character/CharacterScene';
+import { initialsAvatarFallback } from '../../../utils/avatar';
 import {
   ACTIVE_SPEECH_COLOR,
   CONVERSATION_UI,
@@ -67,6 +68,7 @@ interface NamnaConversationStageProps {
   leftMode: string;
   leftIsSpeaking: boolean;
   leftDisplayName: string;
+  leftProfileImage?: string;
   leftCaptionText: string;
   leftDoneLength: number;
   leftActiveLength: number;
@@ -75,6 +77,7 @@ interface NamnaConversationStageProps {
   rightMode: string;
   rightIsSpeaking: boolean;
   rightDisplayName: string;
+  rightProfileImage?: string;
   rightCaptionText: string;
   rightDoneLength: number;
   rightActiveLength: number;
@@ -112,6 +115,7 @@ export default function NamnaConversationStage({
   leftMode,
   leftIsSpeaking,
   leftDisplayName,
+  leftProfileImage,
   leftCaptionText,
   leftDoneLength,
   leftActiveLength,
@@ -120,6 +124,7 @@ export default function NamnaConversationStage({
   rightMode,
   rightIsSpeaking,
   rightDisplayName,
+  rightProfileImage,
   rightCaptionText,
   rightDoneLength,
   rightActiveLength,
@@ -143,6 +148,10 @@ export default function NamnaConversationStage({
 }: NamnaConversationStageProps) {
   const [isNarrowLayout, setIsNarrowLayout] = useState(false);
   const showTextInput = isTextInputMode || !isMicOn;
+  const resolvedLeftProfileImage =
+    leftProfileImage?.trim() || initialsAvatarFallback(leftDisplayName);
+  const resolvedRightProfileImage =
+    rightProfileImage?.trim() || initialsAvatarFallback(rightDisplayName);
   const progressPercent =
     progressTotal > 0 ? Math.min(100, Math.max(0, (progressCurrent / progressTotal) * 100)) : 0;
 
@@ -271,15 +280,20 @@ export default function NamnaConversationStage({
                 aria-hidden={!showLeftSection}
               >
                 <div className="relative h-[170px] w-[170px] shrink-0 md:h-[190px] md:w-[190px]">
-                  <CharacterScene
-                    faceType={leftFaceType}
-                    mouthOpenRadius={leftMouthOpenRadius}
-                    mode={leftMode}
-                    isLockMode={isLockMode}
-                    isSpeaking={leftIsSpeaking}
-                    isMicOn={isMicOn}
-                    showWaveform={false}
-                  />
+                  <div className="h-full w-full overflow-hidden rounded-full border border-black/5 bg-[#FFF4F6] shadow-[0_18px_50px_rgba(247,87,110,0.12)]">
+                    <img
+                      src={resolvedLeftProfileImage}
+                      alt={leftDisplayName}
+                      className="h-full w-full object-cover"
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
+                        leftIsSpeaking && isMicOn
+                          ? 'bg-[radial-gradient(circle,_rgba(247,87,110,0.12)_0%,_rgba(247,87,110,0)_65%)] opacity-100'
+                          : 'opacity-0'
+                      }`}
+                    />
+                  </div>
                   <div
                     className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
                       isLockMode ? 'text-white' : 'text-black'
@@ -341,15 +355,20 @@ export default function NamnaConversationStage({
                 </div>
 
                 <div className="relative h-[170px] w-[170px] shrink-0 md:h-[190px] md:w-[190px]">
-                  <CharacterScene
-                    faceType={rightFaceType}
-                    mouthOpenRadius={rightMouthOpenRadius}
-                    mode={rightMode}
-                    isLockMode={isLockMode}
-                    isSpeaking={rightIsSpeaking}
-                    isMicOn={isMicOn}
-                    showWaveform={false}
-                  />
+                  <div className="h-full w-full overflow-hidden rounded-full border border-black/5 bg-[#FFF4F6] shadow-[0_18px_50px_rgba(247,87,110,0.12)]">
+                    <img
+                      src={resolvedRightProfileImage}
+                      alt={rightDisplayName}
+                      className="h-full w-full object-cover"
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
+                        rightIsSpeaking && isMicOn
+                          ? 'bg-[radial-gradient(circle,_rgba(247,87,110,0.12)_0%,_rgba(247,87,110,0)_65%)] opacity-100'
+                          : 'opacity-0'
+                      }`}
+                    />
+                  </div>
                   <div
                     className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
                       isLockMode ? 'text-white' : 'text-black'

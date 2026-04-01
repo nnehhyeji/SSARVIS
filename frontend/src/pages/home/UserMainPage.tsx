@@ -199,6 +199,7 @@ export default function UserMainPage() {
   } = useFollow();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
+  const [visitedProfileImage, setVisitedProfileImage] = useState('');
   const [isTextInputMode, setIsTextInputMode] = useState(false);
   const [isVisitorDualAiMode, setIsVisitorDualAiMode] = useState(false);
   const [isAiTopicModalOpen, setIsAiTopicModalOpen] = useState(false);
@@ -279,6 +280,7 @@ export default function UserMainPage() {
           setVisitedUserId(targetId);
           setIsVisitorMode(true);
           setVisitorVisibility('public');
+          setVisitedProfileImage(profile.profileImageUrl || '');
           // customId가 있으면 팔로우 상태 새로고침에 활용
           if (profile.customId) {
             setVisitorFollowCustomId(profile.customId);
@@ -318,6 +320,8 @@ export default function UserMainPage() {
     visitorFollow?.description?.trim() || '';
   const visitorIntroText = visitorDescription || '\uC5B4\uC11C \uC640, ' + ownerName + ' AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
+  const visitorProfileImage =
+    visitedProfileImage || visitorFollow?.profileImgUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(ownerName)}`;
 
   const refreshVisitorFollowStatus = useCallback(
     async (customId: string) => {
@@ -367,6 +371,17 @@ export default function UserMainPage() {
       isMounted = false;
     };
   }, [isLoggedIn, isMyHome, refreshVisitorFollowStatus, targetId, visitorFollow]);
+
+  useEffect(() => {
+    if (isMyHome) {
+      setVisitedProfileImage('');
+      return;
+    }
+
+    if (visitorFollow?.profileImgUrl) {
+      setVisitedProfileImage(visitorFollow.profileImgUrl);
+    }
+  }, [isMyHome, visitorFollow?.profileImgUrl]);
 
   useEffect(() => {
     if (isMyHome) {
@@ -1002,6 +1017,7 @@ export default function UserMainPage() {
           leftMode={currentMode}
           leftIsSpeaking={aiToAiChat.activeSpeaker === 'target'}
           leftDisplayName={`${ownerName} AI`}
+          leftProfileImage={visitorProfileImage}
           leftCaptionText={visitorDualLeftCaptionText}
           leftDoneLength={visitorDualLeftDoneLength}
           leftActiveLength={visitorDualLeftActiveLength}
@@ -1010,6 +1026,7 @@ export default function UserMainPage() {
           rightMode="normal"
           rightIsSpeaking={aiToAiChat.activeSpeaker === 'mine'}
           rightDisplayName={`${userInfo?.nickname || '내'} AI`}
+          rightProfileImage={homeProfileImage}
           rightCaptionText={visitorDualRightCaptionText}
           rightDoneLength={visitorDualRightDoneLength}
           rightActiveLength={visitorDualRightActiveLength}
@@ -1048,6 +1065,7 @@ export default function UserMainPage() {
           mouthOpenRadius={mouthOpenRadius}
           isCharacterSpeaking={battleIsTargetSpeaking || activeChat.isAiSpeaking || isSpeaking}
           assistantDisplayName={`${ownerName} AI`}
+          assistantProfileImage={visitorProfileImage}
           userDisplayName={userInfo?.nickname || '나'}
           profileImage={homeProfileImage}
           aiCaptionText={visitorCaptionText}
