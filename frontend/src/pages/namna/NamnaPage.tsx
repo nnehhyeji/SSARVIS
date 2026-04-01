@@ -7,6 +7,7 @@ import { useUserStore } from '../../store/useUserStore';
 import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 import { useMicStore } from '../../store/useMicStore';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
+import { useHasUserGesture } from '../../hooks/useHasUserGesture';
 import AiTopicModal from '../../components/features/assistant/AiTopicModal';
 import AssistantConversationStage from '../../components/features/assistant/AssistantConversationStage';
 import NamnaConversationStage from '../../components/features/namna/NamnaConversationStage';
@@ -120,6 +121,7 @@ export default function NamnaPage() {
   const [isSharePersonaModalOpen, setIsSharePersonaModalOpen] = useState(false);
   const hasStartedDualBattleRef = useRef(false);
   const didAutoStartRef = useRef(false);
+  const hasUserGesture = useHasUserGesture();
   const isDualAiSceneOpen = isDualAiMode || aiToAiChat.isBattling || Boolean(aiToAiChat.topic);
 
   const isNamnaReady = evaluationCount >= NAMNA_PROMPT_THRESHOLD;
@@ -196,6 +198,7 @@ export default function NamnaPage() {
     if (
       !isNamnaReady ||
       !micStoreHydrated ||
+      !hasUserGesture ||
       !micPreferenceEnabled ||
       didAutoStartRef.current ||
       isMicOn
@@ -221,6 +224,7 @@ export default function NamnaPage() {
     isLockMode,
     isNamnaReady,
     isMicOn,
+    hasUserGesture,
     micPreferenceEnabled,
     micStoreHydrated,
     setMicRuntimeActive,

@@ -7,6 +7,7 @@ import { useGuestChat } from '../../hooks/useGuestChat';
 import { useFollow } from '../../hooks/useFollow';
 import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
+import { useHasUserGesture } from '../../hooks/useHasUserGesture';
 import { useMicStore } from '../../store/useMicStore';
 import { useUserStore } from '../../store/useUserStore';
 
@@ -110,6 +111,7 @@ export default function UserMainPage() {
     setMicRuntimeActive,
   } = useAICharacter({ enableDefaultTriggerText: isMyHome });
   const micStoreHydrated = useMicStore((state) => state.hasHydrated);
+  const hasUserGesture = useHasUserGesture();
 
   const {
     chatInput,
@@ -262,6 +264,32 @@ export default function UserMainPage() {
   }, [cancelTurn, chatMessages, currentMode, isMyHome, modeHistories, setChatMessages]);
 
   useEffect(() => {
+    if (isMyHome) {
+      setVisitedProfileImage('');
+      setVisitorFollowStatus(null);
+      setVisitorFollowCustomId('');
+      return;
+    }
+
+    setIsVisitorMode(false);
+    setVisitedFollowName('');
+    setVisitedUserId(null);
+    setVisitorVisibility('public');
+    setVisitedProfileImage('');
+    setVisitorFollowStatus(null);
+    setVisitorFollowCustomId('');
+    setTriggerText('');
+  }, [
+    isMyHome,
+    setIsVisitorMode,
+    setTriggerText,
+    setVisitedFollowName,
+    setVisitedUserId,
+    setVisitorVisibility,
+    targetId,
+  ]);
+
+  useEffect(() => {
     if (isMyHome || !targetId || !isLoggedIn) return;
 
     // 팔로우 목록에서 찾아 방문자 모드 진입 시도
@@ -393,9 +421,7 @@ export default function UserMainPage() {
       return;
     }
 
-    if (visitorFollow?.profileImgUrl) {
-      setVisitedProfileImage(visitorFollow.profileImgUrl);
-    }
+    setVisitedProfileImage(visitorFollow?.profileImgUrl || '');
   }, [isMyHome, visitorFollow?.profileImgUrl]);
 
   useEffect(() => {
@@ -599,6 +625,7 @@ export default function UserMainPage() {
   useEffect(() => {
     if (
       !micStoreHydrated ||
+      !hasUserGesture ||
       !micPreferenceEnabled ||
       !hasHydrated ||
       didAutoStartRef.current ||
@@ -646,6 +673,7 @@ export default function UserMainPage() {
     isMicOn,
     isMyHome,
     isPersonaShared,
+    hasUserGesture,
     micPreferenceEnabled,
     micStoreHydrated,
     setMicRuntimeActive,

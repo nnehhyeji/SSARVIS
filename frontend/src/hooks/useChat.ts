@@ -165,6 +165,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     finalizeAudioStream,
     cleanupAudioPlayback,
     clearAiPlaybackFallbackTimer,
+    unlockAudioPlayback,
   } = useChatAudioPlayback();
 
   // --- Refs ---
@@ -1280,6 +1281,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       chatSessionType: string = 'USER_AI',
       targetUserId: number | null = null,
     ) => {
+      unlockAudioPlayback();
       if (isLocked) {
         updateVoiceStatus('화면이 잠겨있어요. 잠금을 해제하고 다시 시도해주세요.');
         return false;
@@ -1337,6 +1339,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       ensureVoiceModelReady,
       isLocked,
       startWakeMode,
+      unlockAudioPlayback,
       updateVoiceStatus,
     ],
   );

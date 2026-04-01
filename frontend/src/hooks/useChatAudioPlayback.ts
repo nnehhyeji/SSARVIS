@@ -53,6 +53,12 @@ async function primeHtmlMediaPlayback(): Promise<void> {
   }
 }
 
+async function ensureAudioUnlocked(): Promise<void> {
+  await resumeGlobalAudioContext();
+  primeAudioContext();
+  await primeHtmlMediaPlayback();
+}
+
 export function useChatAudioPlayback() {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [aiSpeechProgress, setAiSpeechProgress] = useState(0);
@@ -168,6 +174,12 @@ export function useChatAudioPlayback() {
     } catch {
       // ignore
     }
+  }, []);
+
+  const unlockAudioPlayback = useCallback(() => {
+    void ensureAudioUnlocked().catch(() => {
+      // ignore; later gestures can retry
+    });
   }, []);
 
   const cleanupAudioPlayback = useCallback(
@@ -574,5 +586,6 @@ export function useChatAudioPlayback() {
     cleanupAudioPlayback,
     clearAiPlaybackFallbackTimer,
     warmUpAudio,
+    unlockAudioPlayback,
   };
 }
