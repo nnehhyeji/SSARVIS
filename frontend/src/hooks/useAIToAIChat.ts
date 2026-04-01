@@ -34,6 +34,14 @@ type SideAudioState = {
 
 const MAX_TURN = 20;
 
+function estimateCaptionDurationMs(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+
+  const punctuationPauseCount = (trimmed.match(/[,.!?~]/g) ?? []).length;
+  return Math.max(1500, trimmed.length * 102 + punctuationPauseCount * 290);
+}
+
 function createSideAudioState(): SideAudioState {
   return {
     mediaSource: null,
@@ -60,6 +68,8 @@ export function useAIToAIChat() {
   const [myLatestText, setMyLatestText] = useState('');
   const [targetLatestText, setTargetLatestText] = useState('');
   const [activeSpeaker, setActiveSpeaker] = useState<Side | null>(null);
+  const [mySpeechProgress, setMySpeechProgress] = useState(0);
+  const [targetSpeechProgress, setTargetSpeechProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('주제를 정하면 두 AI가 대화를 시작합니다.');
   const [topic, setTopic] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -82,6 +92,67 @@ export function useAIToAIChat() {
   const turnCountRef = useRef(0);
   const maxTurnRef = useRef(MAX_TURN);
   const configRef = useRef<Record<Side, AiSocketConfig | null>>({ mine: null, target: null });
+  const progressStartedAtRef = useRef<Record<Side, number | null>>({ mine: null, target: null });
+  const progressFrameRef = useRef<Record<Side, number | null>>({ mine: null, target: null });
+
+  const setSideSpeechProgress = useCallback((side: Side, value: number) => {
+    if (side === 'mine') {
+      setMySpeechProgress(value);
+      return;
+    }
+    setTargetSpeechProgress(value);
+  }, []);
+
+  const stopSideProgressTracking = useCallback((side: Side) => {
+    const frameId = progressFrameRef.current[side];
+    if (frameId !== null) {
+      window.cancelAnimationFrame(frameId);
+      progressFrameRef.current[side] = null;
+    }
+  }, []);
+
+  const resetSideSpeechProgress = useCallback(
+    (side: Side, value = 0) => {
+      progressStartedAtRef.current[side] = null;
+      stopSideProgressTracking(side);
+      setSideSpeechProgress(side, value);
+    },
+    [setSideSpeechProgress, stopSideProgressTracking],
+  );
+
+  const startSideProgressTracking = useCallback(
+    (side: Side) => {
+      stopSideProgressTracking(side);
+      progressStartedAtRef.current[side] = performance.now();
+
+      const tick = () => {
+        const state = sideAudioRef.current[side];
+        const responseText = state.responseText;
+        const estimatedDurationMs = estimateCaptionDurationMs(responseText);
+        const startedAt = progressStartedAtRef.current[side];
+
+        if (!startedAt || estimatedDurationMs <= 0) {
+          progressFrameRef.current[side] = window.requestAnimationFrame(tick);
+          return;
+        }
+
+        const elapsedMs = performance.now() - startedAt;
+        const fallbackProgress = Math.max(0, Math.min(elapsedMs / estimatedDurationMs, 0.98));
+
+        let actualProgress = 0;
+        const audio = state.audio;
+        if (audio && Number.isFinite(audio.duration) && audio.duration > 0) {
+          actualProgress = Math.max(0, Math.min(audio.currentTime / audio.duration, 0.98));
+        }
+
+        setSideSpeechProgress(side, Math.max(fallbackProgress, actualProgress));
+        progressFrameRef.current[side] = window.requestAnimationFrame(tick);
+      };
+
+      progressFrameRef.current[side] = window.requestAnimationFrame(tick);
+    },
+    [setSideSpeechProgress, stopSideProgressTracking],
+  );
 
   const resetAudioState = useCallback((side: Side, options?: { preserveLastText?: boolean }) => {
     const current = sideAudioRef.current[side];
@@ -98,6 +169,7 @@ export function useAIToAIChat() {
     current.streamHandled = false;
     current.voiceStarted = false;
     current.hasAudioData = false;
+    resetSideSpeechProgress(side, options?.preserveLastText ? 1 : 0);
 
     if (current.audio) {
       current.audio.pause();
@@ -111,7 +183,7 @@ export function useAIToAIChat() {
     }
 
     current.isPlaying = false;
-  }, []);
+  }, [resetSideSpeechProgress]);
 
   const isResponseReady = useCallback((side: Side) => {
     const current = sideAudioRef.current[side];
@@ -187,6 +259,8 @@ export function useAIToAIChat() {
     setTurnCount(0);
     setMaxTurn(MAX_TURN);
     setActiveSpeaker(null);
+    setMySpeechProgress(0);
+    setTargetSpeechProgress(0);
     setTopic('');
     setMyLatestText('');
     setTargetLatestText('');
@@ -408,8 +482,11 @@ export function useAIToAIChat() {
         commitPresentation(side);
         activePresentationSideRef.current = side;
         setActiveSpeaker(side);
+        startSideProgressTracking(side);
       };
       audio.onended = () => {
+        setSideSpeechProgress(side, 1);
+        stopSideProgressTracking(side);
         handlePresentationFinished(side);
         scheduleNextPresentation();
       };
@@ -435,6 +512,9 @@ export function useAIToAIChat() {
       processAudioQueue,
       resetAudioState,
       scheduleNextPresentation,
+      setSideSpeechProgress,
+      startSideProgressTracking,
+      stopSideProgressTracking,
     ],
   );
 
@@ -716,6 +796,8 @@ export function useAIToAIChat() {
     turnCount,
     myLatestText,
     targetLatestText,
+    mySpeechProgress,
+    targetSpeechProgress,
     activeSpeaker,
     statusMessage,
     topic,

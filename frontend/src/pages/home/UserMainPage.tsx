@@ -25,6 +25,55 @@ import { toast } from '../../store/useToastStore';
 const VISITOR_LISTENING_STATUS_OPTIONS = ['\uB4E3\uB294 \uC911', '\uACBD\uCCAD \uC911'] as const;
 const VISITOR_ROTATING_MESSAGE_INTERVAL_MS = 2200;
 
+function getActiveSegment(text: string) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return { doneLength: 0, activeLength: 0 };
+
+  const lastWhitespace = Math.max(trimmed.lastIndexOf(' '), trimmed.lastIndexOf('\n'));
+  const activeStart = lastWhitespace >= 0 ? lastWhitespace + 1 : 0;
+
+  return {
+    doneLength: activeStart,
+    activeLength: trimmed.length - activeStart,
+  };
+}
+
+function getSegmentAroundIndex(text: string, index: number) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return { doneLength: 0, activeLength: 0 };
+
+  const clampedIndex = Math.max(0, Math.min(index, trimmed.length));
+  const targetIndex = Math.max(0, Math.min(clampedIndex - 1, trimmed.length - 1));
+
+  if (/\s/.test(trimmed[targetIndex] ?? '')) {
+    return getActiveSegment(trimmed.slice(0, clampedIndex));
+  }
+
+  let activeStart = targetIndex;
+  while (activeStart > 0 && !/\s/.test(trimmed[activeStart - 1])) {
+    activeStart -= 1;
+  }
+
+  let activeEnd = targetIndex + 1;
+  while (activeEnd < trimmed.length && !/\s/.test(trimmed[activeEnd])) {
+    activeEnd += 1;
+  }
+
+  return {
+    doneLength: activeStart,
+    activeLength: activeEnd - activeStart,
+  };
+}
+
+function getDualCaptionSegments(text: string, isSpeaking: boolean, progress: number) {
+  if (!text.trim()) return { doneLength: 0, activeLength: 0 };
+  if (!isSpeaking) return { doneLength: text.length, activeLength: 0 };
+
+  const spokenLength = Math.max(0, Math.min(Math.floor(text.length * progress), text.length));
+  if (spokenLength === 0) return { doneLength: 0, activeLength: 0 };
+  return getSegmentAroundIndex(text, spokenLength);
+}
+
 export default function UserMainPage() {
   const { userId } = useParams();
   const [searchParams] = useSearchParams();
@@ -418,6 +467,11 @@ export default function UserMainPage() {
       : visitorBaseCaptionText;
   const battleIsTargetSpeaking =
     aiToAiChat.activeSpeaker === 'target' && battleCaptionText.trim().length > 0;
+  const battleCaptionSegments = getDualCaptionSegments(
+    battleCaptionText,
+    battleIsTargetSpeaking,
+    aiToAiChat.targetSpeechProgress,
+  );
   const visitorStageCaptionText = aiToAiChat.isBattling
     ? battleCaptionText
     : visitorBaseCaptionText;
@@ -428,16 +482,12 @@ export default function UserMainPage() {
     ? visitorRotatingCaptionText
     : visitorStageCaptionText;
   const visitorCaptionDoneLength = aiToAiChat.isBattling
-    ? battleIsTargetSpeaking
-      ? Math.max(0, battleCaptionText.length - 1)
-      : battleCaptionText.length
+    ? battleCaptionSegments.doneLength
     : shouldRotateVisitorIdleMessages
       ? visitorCaptionText.length
       : visitorBaseDoneLength;
   const visitorCaptionActiveLength = aiToAiChat.isBattling
-    ? battleIsTargetSpeaking
-      ? 1
-      : 0
+    ? battleCaptionSegments.activeLength
     : shouldRotateVisitorIdleMessages
       ? 0
       : visitorBaseActiveLength;
@@ -455,19 +505,21 @@ export default function UserMainPage() {
   const isVisitorDualAiSceneOpen =
     !isMyHome && (isVisitorDualAiMode || aiToAiChat.isBattling || Boolean(aiToAiChat.topic));
   const visitorDualLeftCaptionText = aiToAiChat.targetLatestText || triggerText;
-  const visitorDualLeftDoneLength =
-    aiToAiChat.activeSpeaker === 'target' && visitorDualLeftCaptionText.trim()
-      ? Math.max(0, visitorDualLeftCaptionText.length - 1)
-      : visitorDualLeftCaptionText.length;
-  const visitorDualLeftActiveLength =
-    aiToAiChat.activeSpeaker === 'target' && visitorDualLeftCaptionText.trim() ? 1 : 0;
+  const visitorDualLeftSegments = getDualCaptionSegments(
+    visitorDualLeftCaptionText,
+    aiToAiChat.activeSpeaker === 'target',
+    aiToAiChat.targetSpeechProgress,
+  );
+  const visitorDualLeftDoneLength = visitorDualLeftSegments.doneLength;
+  const visitorDualLeftActiveLength = visitorDualLeftSegments.activeLength;
   const visitorDualRightCaptionText = aiToAiChat.myLatestText || myTriggerText;
-  const visitorDualRightDoneLength =
-    aiToAiChat.activeSpeaker === 'mine' && visitorDualRightCaptionText.trim()
-      ? Math.max(0, visitorDualRightCaptionText.length - 1)
-      : visitorDualRightCaptionText.length;
-  const visitorDualRightActiveLength =
-    aiToAiChat.activeSpeaker === 'mine' && visitorDualRightCaptionText.trim() ? 1 : 0;
+  const visitorDualRightSegments = getDualCaptionSegments(
+    visitorDualRightCaptionText,
+    aiToAiChat.activeSpeaker === 'mine',
+    aiToAiChat.mySpeechProgress,
+  );
+  const visitorDualRightDoneLength = visitorDualRightSegments.doneLength;
+  const visitorDualRightActiveLength = visitorDualRightSegments.activeLength;
   const visitorDualActiveSpeaker: 'left' | 'right' | null =
     aiToAiChat.activeSpeaker === 'target'
       ? 'left'
