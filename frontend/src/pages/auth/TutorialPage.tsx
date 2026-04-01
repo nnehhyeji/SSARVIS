@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 
 import { PATHS } from '../../routes/paths';
 
@@ -84,6 +84,7 @@ export default function TutorialPage() {
   const navigate = useNavigate();
   const { userInfo } = useUserStore();
   const nickname = useUserStore((state) => state.userInfo?.nickname?.trim() ?? '');
+  const homePath = userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME;
 
   const [step, setStep] = useState<TutorialStep>('mbti');
   const [isVoiceAnimating, setIsVoiceAnimating] = useState(false);
@@ -581,6 +582,14 @@ export default function TutorialPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden flex flex-col items-center justify-center bg-white">
+      <button
+        type="button"
+        onClick={() => navigate(homePath)}
+        className="absolute left-6 top-6 z-20 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-100 px-4 py-2 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-800"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        홈으로 돌아가기
+      </button>
       <div className="w-full max-w-2xl z-10 scale-[0.8] origin-center shrink-0">
         {step !== 'loading' && <StepIndicator current={step} />}
 
