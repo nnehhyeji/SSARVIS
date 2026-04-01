@@ -61,6 +61,9 @@ const TEXT = {
   promptHelp: '타인의 질문을 받아 응답을 수집하고 AI를 고도화합니다.',
   currentSetting: '현재 설정',
   open: '열기',
+  tutorial: '튜토리얼',
+  tutorialReset: '튜토리얼 재설정',
+  tutorialHelp: '초기 안내와 음성 등록 흐름을 처음부터 다시 진행할 수 있어요.',
   deleteAccount: '회원 탈퇴',
   notSet: '미설정',
 };
@@ -208,6 +211,10 @@ export default function AccountSettings({
         toast.error(TEXT.withdrawError);
       }
     }
+  };
+
+  const handleResetTutorial = () => {
+    navigate(PATHS.TUTORIAL);
   };
 
   return (
@@ -466,6 +473,22 @@ export default function AccountSettings({
                 className="absolute top-1 h-5 w-5 rounded-full bg-white shadow-md"
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               />
+            </button>
+          </div>
+        </SectionRow>
+
+        <SectionRow label={TEXT.tutorial}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-base font-bold text-gray-900">{TEXT.tutorialReset}</span>
+              <p className="text-sm font-medium text-gray-400">{TEXT.tutorialHelp}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleResetTutorial}
+              className="rounded-xl border border-[color:color-mix(in_srgb,var(--color-primary)_24%,white)] px-4 py-2 text-sm font-black text-[var(--color-primary)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--color-primary)_8%,white)]"
+            >
+              {TEXT.tutorialReset}
             </button>
           </div>
         </SectionRow>
