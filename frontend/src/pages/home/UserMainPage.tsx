@@ -691,6 +691,25 @@ export default function UserMainPage() {
   }, [isMyHome]);
 
   useEffect(() => {
+    const category = getSessionCategory();
+    const recordingTargetId = category === 'USER_AI' ? null : targetId;
+
+    updateRecordingContext(
+      null,
+      getAssistantType(),
+      getMemoryPolicy(),
+      category,
+      recordingTargetId,
+    );
+  }, [
+    getAssistantType,
+    getMemoryPolicy,
+    getSessionCategory,
+    targetId,
+    updateRecordingContext,
+  ]);
+
+  useEffect(() => {
     const prevContextKey = prevPageContextKeyRef.current;
     if (prevContextKey === pageContextKey) return;
 
@@ -705,6 +724,8 @@ export default function UserMainPage() {
 
     cancelTurn();
     resetConversationRuntime();
+    didAutoStartRef.current = false;
+    setMicRuntimeActive(false);
     setChatInput('');
 
     if (isMyHome) {
@@ -725,6 +746,7 @@ export default function UserMainPage() {
     resetConversationRuntime,
     setChatInput,
     setChatMessages,
+    setMicRuntimeActive,
     setTriggerText,
   ]);
 
