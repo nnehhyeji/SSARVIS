@@ -12,6 +12,8 @@ import AssistantConversationStage from '../../components/features/assistant/Assi
 import NamnaConversationStage from '../../components/features/namna/NamnaConversationStage';
 import { initialsAvatarFallback } from '../../utils/avatar';
 import { getEvaluationList } from '../../apis/aiApi';
+import userApi from '../../apis/userApi';
+import type { UserResponse } from '../../apis/userApi';
 import SharePersonaModal from '../../components/features/follow/SharePersonaModal';
 import { PAGE_INSET, SIDEBAR_SAFE_PADDING } from '../../constants/conversationUi';
 
@@ -70,6 +72,7 @@ export default function NamnaPage() {
   const [searchParams] = useSearchParams();
   const aiToAiChat = useAIToAIChat();
   const isDualParamEnabled = searchParams.get('dual') === 'true';
+  const [profile, setProfile] = useState<UserResponse | null>(null);
 
   const {
     isMicOn,
@@ -173,6 +176,26 @@ export default function NamnaPage() {
         console.error('남이 보는 나 평가 현황 조회 실패:', error);
       }
     })();
+  }, [userInfo?.id]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!userInfo?.id) return;
+
+    void (async () => {
+      try {
+        const data = await userApi.getUserProfile();
+        if (!isMounted) return;
+        setProfile(data);
+      } catch (error) {
+        console.error('남이 보는 나 프로필 조회 실패:', error);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
   }, [userInfo?.id]);
 
   useEffect(() => {
@@ -403,7 +426,8 @@ export default function NamnaPage() {
     sleepConversation,
   ]);
 
-  const profileImage = initialsAvatarFallback(userInfo?.nickname || 'User');
+  const profileImage =
+    profile?.userProfileImageUrl || initialsAvatarFallback(userInfo?.nickname || 'User');
   const namnaDisplayName = `남이 본 ${userInfo?.nickname || '나'}`;
 
   if (!isNamnaReady) {

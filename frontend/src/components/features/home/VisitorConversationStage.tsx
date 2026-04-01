@@ -45,6 +45,8 @@ interface VisitorConversationStageProps {
   mouthOpenRadius: number;
   isCharacterSpeaking: boolean;
   assistantDisplayName: string;
+  userDisplayName?: string;
+  profileImage?: string;
   aiCaptionText: string;
   aiDoneLength: number;
   aiActiveLength: number;
@@ -78,6 +80,8 @@ export default function VisitorConversationStage({
   mouthOpenRadius,
   isCharacterSpeaking,
   assistantDisplayName,
+  userDisplayName = '나',
+  profileImage,
   aiCaptionText,
   aiDoneLength,
   aiActiveLength,
@@ -102,6 +106,7 @@ export default function VisitorConversationStage({
   onFollowClick,
 }: VisitorConversationStageProps) {
   const showTextInput = isTextInputMode || !isMicOn;
+  const showUserAvatar = Boolean(profileImage?.trim());
 
   return (
     <div className={`relative h-full w-full bg-white ${SIDEBAR_SAFE_PADDING}`}>
@@ -253,6 +258,11 @@ export default function VisitorConversationStage({
 
             {showTextInput ? (
               <div className="flex min-w-0 flex-1 items-center gap-2 rounded-[18px] border border-[#EEEEEE] bg-[#FAFAFA] px-4 py-2">
+                {showUserAvatar ? (
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#E7E7E7] bg-[#F1F1F1]">
+                    <img src={profileImage} alt={userDisplayName} className="h-full w-full object-cover" />
+                  </div>
+                ) : null}
                 <input
                   type="text"
                   value={chatInput}
@@ -276,9 +286,15 @@ export default function VisitorConversationStage({
               </div>
             ) : showLiveTranscript ? (
               <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[18px] border border-[#F3D4DA] bg-[#FFF7F8] px-4 py-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F7576E]/12 text-[#F7576E]">
-                  <Mic className="h-4 w-4" />
-                </div>
+                {showUserAvatar ? (
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#F3D4DA] bg-white">
+                    <img src={profileImage} alt={userDisplayName} className="h-full w-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F7576E]/12 text-[#F7576E]">
+                    <Mic className="h-4 w-4" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 text-[11px] font-bold tracking-[0.08em] text-[#C56A78]">
                     실시간 자막

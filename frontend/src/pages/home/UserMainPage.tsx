@@ -228,7 +228,7 @@ export default function UserMainPage() {
   useEffect(() => {
     let isMounted = true;
 
-    if (!isMyHome) return;
+    if (!isLoggedIn) return;
 
     const loadProfile = async () => {
       try {
@@ -236,7 +236,7 @@ export default function UserMainPage() {
         if (!isMounted) return;
         setProfile(data);
       } catch (error) {
-        console.error('Failed to load home profile:', error);
+        console.error('Failed to load user profile:', error);
       }
     };
 
@@ -245,7 +245,7 @@ export default function UserMainPage() {
     return () => {
       isMounted = false;
     };
-  }, [isMyHome]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!isMyHome) return;
@@ -1048,6 +1048,8 @@ export default function UserMainPage() {
           mouthOpenRadius={mouthOpenRadius}
           isCharacterSpeaking={battleIsTargetSpeaking || activeChat.isAiSpeaking || isSpeaking}
           assistantDisplayName={`${ownerName} AI`}
+          userDisplayName={userInfo?.nickname || '나'}
+          profileImage={homeProfileImage}
           aiCaptionText={visitorCaptionText}
           aiDoneLength={visitorCaptionDoneLength}
           aiActiveLength={visitorCaptionActiveLength}
