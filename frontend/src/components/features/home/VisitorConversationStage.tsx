@@ -3,6 +3,11 @@ import { MessageSquare, Mic, MicOff, Send, Square } from 'lucide-react';
 
 import { initialsAvatarFallback } from '../../../utils/avatar';
 import {
+  hasVisibleCaptionLine,
+  renderCaptionLine,
+  splitCaptionLineSegments,
+} from '../../../utils/captionSegments';
+import {
   ACTIVE_SPEECH_COLOR,
   CONVERSATION_UI,
   PAGE_INSET,
@@ -19,19 +24,21 @@ function CaptionLine({
   doneLength: number;
   activeLength: number;
 }) {
-  if (!text.trim()) return null;
-
-  const safeDoneLength = Math.max(0, Math.min(doneLength, text.length));
-  const safeActiveLength = Math.max(0, Math.min(activeLength, text.length - safeDoneLength));
-  const doneText = text.slice(0, safeDoneLength);
-  const activeText = text.slice(safeDoneLength, safeDoneLength + safeActiveLength);
-  const pendingText = text.slice(safeDoneLength + safeActiveLength);
+  const lines = splitCaptionLineSegments(text, doneLength, activeLength);
+  if (!hasVisibleCaptionLine(lines, true)) return null;
 
   return (
-    <div className="w-full whitespace-pre-wrap break-words text-left text-[clamp(1.5rem,2.2vw,3rem)] font-black leading-[1.26] tracking-[-0.05em] text-black">
-      {doneText ? <span className="text-black">{doneText}</span> : null}
-      {activeText ? <span style={{ color: ACTIVE_SPEECH_COLOR }}>{activeText}</span> : null}
-      {pendingText ? <span className={PENDING_TEXT_CLASS}>{pendingText}</span> : null}
+    <div className="w-full break-words text-left text-[clamp(1.5rem,2.2vw,3rem)] font-black leading-[1.1] tracking-[-0.05em] text-black">
+      {lines.map((line, index) => (
+        <div key={`visitor-${index}`} className={index === 0 ? '' : 'mt-[0.08em]'}>
+          {renderCaptionLine(
+            line,
+            (value) => <span className="text-black">{value}</span>,
+            (value) => <span style={{ color: ACTIVE_SPEECH_COLOR }}>{value}</span>,
+            (value) => <span className={PENDING_TEXT_CLASS}>{value}</span>,
+          )}
+        </div>
+      ))}
     </div>
   );
 }

@@ -4,6 +4,11 @@ import { Link2, Lock, Mic, MicOff, Send, Square, Unlock } from 'lucide-react';
 
 import { initialsAvatarFallback } from '../../../utils/avatar';
 import {
+  hasVisibleCaptionLine,
+  renderCaptionLine,
+  splitCaptionLineSegments,
+} from '../../../utils/captionSegments';
+import {
   ACTIVE_SPEECH_COLOR,
   CONVERSATION_UI,
   PAGE_INSET,
@@ -27,13 +32,9 @@ function CaptionLine({
   isLockMode: boolean;
   size?: 'default' | 'compact';
 }) {
-  if (!text.trim()) return null;
+  const lines = splitCaptionLineSegments(text, doneLength, activeLength);
+  if (!hasVisibleCaptionLine(lines, true)) return null;
 
-  const safeDoneLength = Math.max(0, Math.min(doneLength, text.length));
-  const safeActiveLength = Math.max(0, Math.min(activeLength, text.length - safeDoneLength));
-  const doneText = text.slice(0, safeDoneLength);
-  const activeText = text.slice(safeDoneLength, safeDoneLength + safeActiveLength);
-  const pendingText = text.slice(safeDoneLength + safeActiveLength);
   const doneClassName = isLockMode ? 'text-white' : 'text-black';
   const pendingClassName = isLockMode ? 'text-[#3F3A42]' : PENDING_TEXT_CLASS;
 
@@ -41,13 +42,20 @@ function CaptionLine({
     <div
       className={`max-w-[min(28vw,24rem)] whitespace-pre-wrap break-words font-black tracking-[-0.05em] ${
         size === 'compact'
-          ? 'text-[clamp(1.3rem,1.9vw,2.3rem)] leading-[1.24]'
-          : 'text-[clamp(1.6rem,2.3vw,3rem)] leading-[1.26]'
+          ? 'text-[clamp(1.3rem,1.9vw,2.3rem)] leading-[1.08]'
+          : 'text-[clamp(1.6rem,2.3vw,3rem)] leading-[1.1]'
       } ${align === 'right' ? 'text-right' : 'text-left'}`}
     >
-      {doneText ? <span className={doneClassName}>{doneText}</span> : null}
-      {activeText ? <span style={{ color: ACTIVE_SPEECH_COLOR }}>{activeText}</span> : null}
-      {pendingText ? <span className={pendingClassName}>{pendingText}</span> : null}
+      {lines.map((line, index) => (
+        <div key={`${align}-${index}`} className={index === 0 ? '' : 'mt-[0.08em]'}>
+          {renderCaptionLine(
+            line,
+            (value) => <span className={doneClassName}>{value}</span>,
+            (value) => <span style={{ color: ACTIVE_SPEECH_COLOR }}>{value}</span>,
+            (value) => <span className={pendingClassName}>{value}</span>,
+          )}
+        </div>
+      ))}
     </div>
   );
 }
