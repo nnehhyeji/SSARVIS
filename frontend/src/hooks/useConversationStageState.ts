@@ -54,10 +54,7 @@ function getVisibleSegmentAroundIndex(text: string, index: number) {
   }
 
   const segment = getSegmentAroundIndex(trimmed, index);
-  const visibleLength = Math.min(
-    trimmed.length,
-    segment.doneLength + segment.activeLength,
-  );
+  const visibleLength = Math.min(trimmed.length, segment.doneLength + segment.activeLength);
 
   return {
     text: trimmed.slice(0, visibleLength),
@@ -147,9 +144,13 @@ export function useConversationStageState({
   const fullAiText = latestAiText || triggerText || lastAiMessage;
 
   useEffect(() => {
+    let frameId = 0;
+
     if (!isCharacterSpeaking || !fullAiText.trim()) {
       speechStartedAtRef.current = null;
-      setFallbackSpeechProgress(0);
+      frameId = window.requestAnimationFrame(() => {
+        setFallbackSpeechProgress(0);
+      });
       return;
     }
 
@@ -159,20 +160,18 @@ export function useConversationStageState({
 
     const estimatedDurationMs = estimateCaptionDurationMs(fullAiText);
     if (estimatedDurationMs <= 0) {
-      setFallbackSpeechProgress(0);
+      frameId = window.requestAnimationFrame(() => {
+        setFallbackSpeechProgress(0);
+      });
       return;
     }
-
-    let frameId = 0;
 
     const tick = () => {
       if (speechStartedAtRef.current === null) return;
 
       const elapsedMs = performance.now() - speechStartedAtRef.current;
       const estimatedProgress = Math.max(0, Math.min(elapsedMs / estimatedDurationMs, 0.98));
-      setFallbackSpeechProgress((prev) =>
-        estimatedProgress > prev ? estimatedProgress : prev,
-      );
+      setFallbackSpeechProgress((prev) => (estimatedProgress > prev ? estimatedProgress : prev));
       frameId = window.requestAnimationFrame(tick);
     };
 
@@ -238,8 +237,6 @@ export function useConversationStageState({
     isAiTextTyping,
     isCharacterSpeaking,
     fullAiText,
-    latestAiText,
-    triggerText,
   ]);
   const aiCaptionText = aiCaptionState.text;
   const aiCaptionSegments = {

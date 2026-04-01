@@ -153,12 +153,6 @@ export default function NamnaPage() {
   }, [isDualParamEnabled]);
 
   useEffect(() => {
-    if (!isNamnaReady) {
-      setIsInteractionModalOpen(false);
-    }
-  }, [isNamnaReady]);
-
-  useEffect(() => {
     if (!isDualAiSceneOpen) return;
 
     discardCurrentTurn();
@@ -197,10 +191,6 @@ export default function NamnaPage() {
       isMounted = false;
     };
   }, [userInfo?.id]);
-
-  useEffect(() => {
-    setIsTextInputMode(!isMicOn);
-  }, [isMicOn]);
 
   useEffect(() => {
     if (
@@ -585,7 +575,7 @@ export default function NamnaPage() {
       {isNamnaReady ? (
         <>
           <AiTopicModal
-            isOpen={isInteractionModalOpen}
+            isOpen={isNamnaReady && isInteractionModalOpen}
             onClose={() => setIsInteractionModalOpen(false)}
             onSubmit={handleDualAiTopicSubmit}
           />

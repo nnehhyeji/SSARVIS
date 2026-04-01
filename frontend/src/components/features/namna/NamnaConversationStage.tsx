@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link2, Lock, Mic, MicOff, Send, Square, Unlock } from 'lucide-react';
 
-import CharacterScene from '../character/CharacterScene';
 import { initialsAvatarFallback } from '../../../utils/avatar';
 import {
   ACTIVE_SPEECH_COLOR,
@@ -110,18 +109,12 @@ export default function NamnaConversationStage({
   onHeaderCenterClear,
   headerRightActionLabel,
   onHeaderRightAction,
-  leftFaceType,
-  leftMouthOpenRadius,
-  leftMode,
   leftIsSpeaking,
   leftDisplayName,
   leftProfileImage,
   leftCaptionText,
   leftDoneLength,
   leftActiveLength,
-  rightFaceType,
-  rightMouthOpenRadius,
-  rightMode,
   rightIsSpeaking,
   rightDisplayName,
   rightProfileImage,

@@ -74,11 +74,8 @@ interface VisitorConversationStageProps {
 
 export default function VisitorConversationStage({
   title,
-  currentMode,
   isMicOn,
   isTextInputMode = false,
-  faceType,
-  mouthOpenRadius,
   isCharacterSpeaking,
   assistantDisplayName,
   assistantProfileImage,
@@ -269,7 +266,11 @@ export default function VisitorConversationStage({
               <div className="flex min-w-0 flex-1 items-center gap-2 rounded-[18px] border border-[#EEEEEE] bg-[#FAFAFA] px-4 py-2">
                 {showUserAvatar ? (
                   <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#E7E7E7] bg-[#F1F1F1]">
-                    <img src={profileImage} alt={userDisplayName} className="h-full w-full object-cover" />
+                    <img
+                      src={profileImage}
+                      alt={userDisplayName}
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                 ) : null}
                 <input
@@ -297,7 +298,11 @@ export default function VisitorConversationStage({
               <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[18px] border border-[#F3D4DA] bg-[#FFF7F8] px-4 py-3">
                 {showUserAvatar ? (
                   <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#F3D4DA] bg-white">
-                    <img src={profileImage} alt={userDisplayName} className="h-full w-full object-cover" />
+                    <img
+                      src={profileImage}
+                      alt={userDisplayName}
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                 ) : (
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F7576E]/12 text-[#F7576E]">

@@ -68,33 +68,36 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto w-full px-4 pt-4 space-y-1">
-            {follows.filter((f) => (friendTab === 'following' ? f.isFollowing : f.isFollower)).length > 0 ? (
-              follows.filter((f) => (friendTab === 'following' ? f.isFollowing : f.isFollower)).map((f) => (
-                <div
-                  key={f.id}
-                  className="flex items-center gap-4 p-4 hover:bg-white/40 rounded-[20px] transition-all cursor-pointer group/friend"
-                  onClick={() => onVisit(f.id)}
-                >
-                  <SidebarAvatar name={f.name} imageUrl={f.profileImgUrl} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-[17px] text-gray-800 leading-tight truncate">
-                      {f.name}
-                    </p>
-                    <p className="text-[11px] text-gray-400 font-bold tracking-tight mt-0.5 truncate">
-                      {f.description || '상태 메시지가 없습니다.'}
-                    </p>
+            {follows.filter((f) => (friendTab === 'following' ? f.isFollowing : f.isFollower))
+              .length > 0 ? (
+              follows
+                .filter((f) => (friendTab === 'following' ? f.isFollowing : f.isFollower))
+                .map((f) => (
+                  <div
+                    key={f.id}
+                    className="flex items-center gap-4 p-4 hover:bg-white/40 rounded-[20px] transition-all cursor-pointer group/friend"
+                    onClick={() => onVisit(f.id)}
+                  >
+                    <SidebarAvatar name={f.name} imageUrl={f.profileImgUrl} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-[17px] text-gray-800 leading-tight truncate">
+                        {f.name}
+                      </p>
+                      <p className="text-[11px] text-gray-400 font-bold tracking-tight mt-0.5 truncate">
+                        {f.description || '상태 메시지가 없습니다.'}
+                      </p>
+                    </div>
+                    {f.followId ? (
+                      <X
+                        className="w-5 h-5 text-gray-300 opacity-0 group-hover/friend:opacity-100 hover:text-rose-500 transition-all shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(f);
+                        }}
+                      />
+                    ) : null}
                   </div>
-                  {f.followId ? (
-                    <X
-                      className="w-5 h-5 text-gray-300 opacity-0 group-hover/friend:opacity-100 hover:text-rose-500 transition-all shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(f);
-                      }}
-                    />
-                  ) : null}
-                </div>
-              ))
+                ))
             ) : (
               <div className="flex flex-col items-center justify-center py-20 opacity-40 text-gray-500">
                 <Users className="w-10 h-10 mb-2" />

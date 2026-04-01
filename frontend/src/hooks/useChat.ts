@@ -116,7 +116,8 @@ function extractSpeechAfterWakeWord(text: string): string {
   return '';
 }
 
-function matchRouteCommand(_text: string): string | null {
+function matchRouteCommand(text: string): string | null {
+  void text;
   return null;
 }
 

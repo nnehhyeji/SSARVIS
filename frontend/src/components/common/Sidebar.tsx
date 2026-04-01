@@ -140,7 +140,11 @@ export default function Sidebar({
     clearTertiaryOnlyTimer();
     closeTertiaryOnlyTimerRef.current = setTimeout(() => {
       setActiveTertiary((current) => {
-        if (current && current !== 'search' && !(current === 'chat' && window.location.pathname.startsWith('/chat'))) {
+        if (
+          current &&
+          current !== 'search' &&
+          !(current === 'chat' && window.location.pathname.startsWith('/chat'))
+        ) {
           return null;
         }
         return current;
@@ -153,7 +157,11 @@ export default function Sidebar({
     closeHoverPanelTimerRef.current = setTimeout(() => {
       setIsExpanded(false);
       setActiveTertiary((current) => {
-        if (current && current !== 'search' && !(current === 'chat' && window.location.pathname.startsWith('/chat'))) {
+        if (
+          current &&
+          current !== 'search' &&
+          !(current === 'chat' && window.location.pathname.startsWith('/chat'))
+        ) {
           return null;
         }
         return current;
@@ -176,7 +184,7 @@ export default function Sidebar({
       }
 
       // If navigating to Home or User Home, we only force close 'chat' if it was open.
-      // Other panels ('friends', 'notifications', 'search', 'assistant', 'persona') 
+      // Other panels ('friends', 'notifications', 'search', 'assistant', 'persona')
       // should remain un-interfered with so hover works naturally.
       if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
         if (current === 'chat') {

@@ -1,4 +1,4 @@
-﻿﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiOrigin } from '../config/api';
 import type { ChatMessage } from '../types';
 
@@ -33,7 +33,6 @@ type SideAudioState = {
 };
 
 const MAX_TURN = 20;
-
 function estimateCaptionDurationMs(text: string) {
   const trimmed = text.trim();
   if (!trimmed) return 0;
@@ -94,7 +93,6 @@ export function useAIToAIChat() {
   const configRef = useRef<Record<Side, AiSocketConfig | null>>({ mine: null, target: null });
   const progressStartedAtRef = useRef<Record<Side, number | null>>({ mine: null, target: null });
   const progressFrameRef = useRef<Record<Side, number | null>>({ mine: null, target: null });
-
   const setSideSpeechProgress = useCallback((side: Side, value: number) => {
     if (side === 'mine') {
       setMySpeechProgress(value);
@@ -102,7 +100,6 @@ export function useAIToAIChat() {
     }
     setTargetSpeechProgress(value);
   }, []);
-
   const stopSideProgressTracking = useCallback((side: Side) => {
     const frameId = progressFrameRef.current[side];
     if (frameId !== null) {
@@ -110,7 +107,6 @@ export function useAIToAIChat() {
       progressFrameRef.current[side] = null;
     }
   }, []);
-
   const resetSideSpeechProgress = useCallback(
     (side: Side, value = 0) => {
       progressStartedAtRef.current[side] = null;
@@ -119,7 +115,6 @@ export function useAIToAIChat() {
     },
     [setSideSpeechProgress, stopSideProgressTracking],
   );
-
   const startSideProgressTracking = useCallback(
     (side: Side) => {
       stopSideProgressTracking(side);
@@ -130,7 +125,6 @@ export function useAIToAIChat() {
         const responseText = state.responseText;
         const estimatedDurationMs = estimateCaptionDurationMs(responseText);
         const startedAt = progressStartedAtRef.current[side];
-
         if (!startedAt || estimatedDurationMs <= 0) {
           progressFrameRef.current[side] = window.requestAnimationFrame(tick);
           return;
@@ -138,7 +132,6 @@ export function useAIToAIChat() {
 
         const elapsedMs = performance.now() - startedAt;
         const fallbackProgress = Math.max(0, Math.min(elapsedMs / estimatedDurationMs, 0.98));
-
         let actualProgress = 0;
         const audio = state.audio;
         if (audio && Number.isFinite(audio.duration) && audio.duration > 0) {
@@ -148,43 +141,46 @@ export function useAIToAIChat() {
         setSideSpeechProgress(side, Math.max(fallbackProgress, actualProgress));
         progressFrameRef.current[side] = window.requestAnimationFrame(tick);
       };
-
       progressFrameRef.current[side] = window.requestAnimationFrame(tick);
     },
     [setSideSpeechProgress, stopSideProgressTracking],
   );
+  const resetAudioState = useCallback(
+    (side: Side, options?: { preserveLastText?: boolean }) => {
+      const current = sideAudioRef.current[side];
 
-  const resetAudioState = useCallback((side: Side, options?: { preserveLastText?: boolean }) => {
-    const current = sideAudioRef.current[side];
-    current.queue = [];
-    current.sourceBuffer = null;
-    current.mediaSource = null;
-    current.streamEnded = false;
-    if (!options?.preserveLastText) {
-      current.responseText = '';
-      current.hasResponseText = false;
-    }
-    current.responseStreamComplete = false;
-    current.presentationCommitted = false;
-    current.streamHandled = false;
-    current.voiceStarted = false;
-    current.hasAudioData = false;
-    resetSideSpeechProgress(side, options?.preserveLastText ? 1 : 0);
+      current.queue = [];
+      current.sourceBuffer = null;
+      current.mediaSource = null;
+      current.streamEnded = false;
 
-    if (current.audio) {
-      current.audio.pause();
-      current.audio.src = '';
-      current.audio = null;
-    }
+      if (!options?.preserveLastText) {
+        current.responseText = '';
+        current.hasResponseText = false;
+      }
 
-    if (current.objectUrl) {
-      URL.revokeObjectURL(current.objectUrl);
-      current.objectUrl = null;
-    }
+      current.responseStreamComplete = false;
+      current.presentationCommitted = false;
+      current.streamHandled = false;
+      current.voiceStarted = false;
+      current.hasAudioData = false;
+      resetSideSpeechProgress(side, options?.preserveLastText ? 1 : 0);
 
-    current.isPlaying = false;
-  }, [resetSideSpeechProgress]);
+      if (current.audio) {
+        current.audio.pause();
+        current.audio.src = '';
+        current.audio = null;
+      }
 
+      if (current.objectUrl) {
+        URL.revokeObjectURL(current.objectUrl);
+        current.objectUrl = null;
+      }
+
+      current.isPlaying = false;
+    },
+    [resetSideSpeechProgress],
+  );
   const isResponseReady = useCallback((side: Side) => {
     const current = sideAudioRef.current[side];
     return current.hasResponseText && current.responseStreamComplete;
@@ -517,7 +513,6 @@ export function useAIToAIChat() {
       stopSideProgressTracking,
     ],
   );
-
   const attachSocketHandlers = useCallback(
     (side: Side, socket: WebSocket) => {
       socket.binaryType = 'arraybuffer';

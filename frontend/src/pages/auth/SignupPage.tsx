@@ -409,9 +409,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={sendEmailCode}
-                  disabled={
-                    emailStatus === 'sending' || emailStatus === 'verified' || isOAuthUser
-                  }
+                  disabled={emailStatus === 'sending' || emailStatus === 'verified' || isOAuthUser}
                   className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-[11px] font-bold text-[#11141D] shadow-sm transition-all hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50"
                 >
                   {isOAuthUser
@@ -424,7 +422,9 @@ export default function SignupPage() {
                 </button>
               </div>
 
-              {(emailStatus === 'sent' || (!isOAuthUser && emailStatus === 'verified') || isOAuthUser) && (
+              {(emailStatus === 'sent' ||
+                (!isOAuthUser && emailStatus === 'verified') ||
+                isOAuthUser) && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}

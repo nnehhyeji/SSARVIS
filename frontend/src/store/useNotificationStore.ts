@@ -97,10 +97,7 @@ const mapNotificationToAlarm = (dto: NotificationDTO): Alarm => {
 
 const createRealtimeAlarmId = () => Date.now() + Math.floor(Math.random() * 1000);
 
-const mapRealtimeNotificationToAlarm = (
-  dto: RealtimeNotificationDTO,
-  eventName: string,
-): Alarm => {
+const mapRealtimeNotificationToAlarm = (dto: RealtimeNotificationDTO, eventName: string): Alarm => {
   const payload = (dto.payload || {}) as Record<string, unknown>;
   const senderName =
     (payload.senderNickname as string | undefined) ||
@@ -211,7 +208,12 @@ export const useNotificationStore = create<NotificationState>()((set, get) => ({
           if (newNoti.notificationId) {
             get().appendRealtimeAlarm(mapNotificationToAlarm(newNoti));
           } else if (newNoti.payload) {
-            get().appendRealtimeAlarm(mapRealtimeNotificationToAlarm(newNoti as unknown as RealtimeNotificationDTO, newNoti.eventName || 'system'));
+            get().appendRealtimeAlarm(
+              mapRealtimeNotificationToAlarm(
+                newNoti as unknown as RealtimeNotificationDTO,
+                newNoti.eventName || 'system',
+              ),
+            );
           }
         } catch (e) {
           console.error('SSE 수신 데이터 파싱 오류:', e);
