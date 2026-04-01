@@ -49,7 +49,7 @@ export default function AssistantPage() {
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
-    cancelTurn,
+    sleepConversation,
     updateRecordingContext,
     discardCurrentTurn,
     resetConversationRuntime,
@@ -232,6 +232,13 @@ export default function AssistantPage() {
     void enableMic();
   }, [disableMic, enableMic, isMicOn]);
 
+  const handleSleepConversation = useCallback(() => {
+    setMicPreferenceEnabled(true);
+    setMicRuntimeActive(true);
+    setIsTextInputMode(false);
+    sleepConversation();
+  }, [setMicPreferenceEnabled, setMicRuntimeActive, sleepConversation]);
+
   const handleSendText = () => {
     if (!chatInput.trim()) return;
     sendMessage(chatInput);
@@ -287,7 +294,7 @@ export default function AssistantPage() {
       onChatInputChange={setChatInput}
       onMicToggle={handleMicToggle}
       onSendText={handleSendText}
-      onCancel={cancelTurn}
+      onCancel={handleSleepConversation}
       onToggleLock={toggleLock}
       isContinuousConversationEnabled={isContinuousConversationEnabled}
     />

@@ -89,6 +89,7 @@ export default function UserMainPage() {
     startRecording,
     stopRecordingAndSendSTT,
     cancelTurn,
+    sleepConversation,
     discardCurrentTurn,
   } = useChat({ initialGreeting: isMyHome ? undefined : '' });
 
@@ -114,6 +115,7 @@ export default function UserMainPage() {
             sendMessage,
             startRecording,
             stopRecordingAndSendSTT,
+            sleepConversation,
           },
     [
       chatInput,
@@ -123,6 +125,7 @@ export default function UserMainPage() {
       isAwaitingResponse,
       isLockMode,
       sendMessage,
+      sleepConversation,
       setChatInput,
       shouldUseGuestChat,
       startRecording,
@@ -859,6 +862,25 @@ export default function UserMainPage() {
     };
   }, [setMicRuntimeActive]);
 
+  const handleSleepConversation = useCallback(() => {
+    setMicPreferenceEnabled(true);
+    setMicRuntimeActive(true);
+    setIsTextInputMode(false);
+
+    if (shouldUseGuestChat) {
+      guestChat.sleepConversation();
+      return;
+    }
+
+    sleepConversation();
+  }, [
+    guestChat,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
+    shouldUseGuestChat,
+    sleepConversation,
+  ]);
+
   if (!isMyHome && isLoggedIn && (!isVisitorMode || !visitedFollowName)) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-[#FDFCFB]">
@@ -897,7 +919,7 @@ export default function UserMainPage() {
         onChatInputChange={setChatInput}
         onMicToggle={handleHomeMicToggle}
         onSendText={handleHomeSendText}
-        onCancel={cancelTurn}
+        onCancel={handleSleepConversation}
         onToggleLock={toggleLock}
         isContinuousConversationEnabled={isContinuousConversationEnabled}
       />
@@ -997,11 +1019,7 @@ export default function UserMainPage() {
               aiToAiChat.stopBattle();
               return;
             }
-            if (shouldUseGuestChat) {
-              guestChat.stopRecordingAndSendSTT();
-              return;
-            }
-            cancelTurn();
+            handleSleepConversation();
           }}
           onOpenPersona={handleOpenPersona}
           onToggleDualAi={handleToggleDualAi}
