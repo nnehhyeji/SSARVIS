@@ -300,7 +300,7 @@ Use the following past interaction as contextual reference only. Do not repeat i
 RESPONSE_GUIDELINE_PROMPT = """
 Stay in character. Respond consistently with the system prompt, while adapting naturally to the current context. And answer in the user's language.
 Use casual informal speech (반말) when responding, unless the context strongly requires formality.
-Please make the answer less than 100 lengths.
+Please make the answer less than 100 lengths. 각 문장마다 개행문자 추가해줘.
 """.strip()
 
 # Public 옵션이 들어왔을 경우 컨텍스트 마지막에 붙이는 프롬프트
