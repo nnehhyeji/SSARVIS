@@ -390,6 +390,10 @@ export default function AssistantConversationStage({
                     <img
                       src={profileImage}
                       alt="User profile"
+                      fetchPriority="high"
+                      decoding="async"
+                      width="164"
+                      height="164"
                       className="h-full w-full object-cover"
                     />
                   </motion.div>
@@ -450,8 +454,11 @@ export default function AssistantConversationStage({
             }`}
           >
             <button
+              type="button"
               onClick={onMicToggle}
               disabled={isInteractionDisabled}
+              aria-label={isMicOn ? '마이크 끄기' : '마이크 켜기'}
+              title={isMicOn ? '마이크 끄기' : '마이크 켜기'}
               className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
                 isInteractionDisabled
                   ? isLockMode
@@ -489,8 +496,11 @@ export default function AssistantConversationStage({
                   }`}
                 />
                 <button
+                  type="button"
                   onClick={onSendText}
                   disabled={isInteractionDisabled || !chatInput.trim()}
+                  aria-label="메시지 전송"
+                  title="메시지 전송"
                   className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
                     !isInteractionDisabled && chatInput.trim()
                       ? 'bg-[#F7576E] text-white'

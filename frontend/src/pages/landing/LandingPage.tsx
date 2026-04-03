@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { PATHS } from '../../routes/paths';
 import { useUserStore } from '../../store/useUserStore';
 
+const RIPPLE_LAYERS = [360, 680, 1000, 1320, 1640];
+
 interface LandingSpeechRecognitionResultItem {
   transcript: string;
 }
@@ -152,9 +154,8 @@ const LandingPage: React.FC = () => {
 
       {/* 2. 끊임없이 일렁이는 동심원 파형 (범위 확대 버전) */}
       <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-        {[...Array(9)].map((_, i) => {
-          const size = (i + 1) * 320;
-          const stagger = i * 0.4;
+        {RIPPLE_LAYERS.map((size, i) => {
+          const stagger = i * 0.55;
 
           return (
             <motion.div
@@ -164,7 +165,7 @@ const LandingPage: React.FC = () => {
               animate="animate"
               style={{
                 willChange: 'transform, opacity',
-                zIndex: 10 - i,
+                zIndex: RIPPLE_LAYERS.length - i,
               }}
               className="absolute rounded-full"
             >
@@ -177,7 +178,7 @@ const LandingPage: React.FC = () => {
                   background:
                     i === 0
                       ? 'radial-gradient(circle, #D96477 0%, rgba(217, 100, 119, 0.3) 60%, transparent 100%)'
-                      : `rgba(255, 255, 255, ${0.03 + i * 0.007})`,
+                      : `rgba(255, 255, 255, ${0.035 + i * 0.01})`,
                   border: '1.5px solid rgba(255, 255, 255, 0.08)',
                   boxShadow: i === 0 ? '0 0 100px rgba(217, 100, 119, 0.4)' : 'none',
                 }}
@@ -188,11 +189,11 @@ const LandingPage: React.FC = () => {
         {/* 중앙의 몽환적 광원 (더 밝게) */}
         <motion.div
           animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.6, 0.3],
+            scale: [1, 1.12, 1],
+            opacity: [0.26, 0.46, 0.26],
           }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute w-[500px] h-[500px] rounded-full bg-white/10 blur-[130px] z-5"
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute h-[420px] w-[420px] rounded-full bg-white/10 blur-[120px] z-5"
         />
       </div>
 
@@ -227,8 +228,8 @@ const LandingPage: React.FC = () => {
               className="flex cursor-pointer items-center justify-center px-8 py-5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40"
             >
               <motion.svg
-                animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                animate={{ scale: [1, 1.12, 1], opacity: [0.78, 1, 0.78] }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
                 className="w-6 h-6 text-white mr-3"
                 fill="none"
                 stroke="currentColor"

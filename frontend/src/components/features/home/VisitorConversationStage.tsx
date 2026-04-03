@@ -186,6 +186,8 @@ export default function VisitorConversationStage({
                     <img
                       src={resolvedAssistantProfileImage}
                       alt={assistantDisplayName}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                     <div
@@ -260,6 +262,8 @@ export default function VisitorConversationStage({
             <button
               type="button"
               onClick={onMicToggle}
+              aria-label={isMicOn ? '마이크 끄기' : '마이크 켜기'}
+              title={isMicOn ? '마이크 끄기' : '마이크 켜기'}
               className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
                 isMicOn
                   ? 'border-[#F7576E]/25 bg-[#F7576E]/10 text-[#F7576E]'
@@ -276,6 +280,8 @@ export default function VisitorConversationStage({
                     <img
                       src={profileImage}
                       alt={userDisplayName}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                   </div>
@@ -294,6 +300,8 @@ export default function VisitorConversationStage({
                   type="button"
                   onClick={onSendText}
                   disabled={!chatInput.trim()}
+                  aria-label="메시지 전송"
+                  title="메시지 전송"
                   className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
                     chatInput.trim() ? 'bg-[#F7576E] text-white' : 'bg-[#ECECEC] text-[#AFAFAF]'
                   }`}
@@ -308,6 +316,8 @@ export default function VisitorConversationStage({
                     <img
                       src={profileImage}
                       alt={userDisplayName}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                   </div>

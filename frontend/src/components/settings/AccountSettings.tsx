@@ -71,7 +71,7 @@ const TEXT = {
 function SectionRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-6">
-      <div className="w-28 shrink-0 pt-1 text-sm font-black uppercase tracking-[0.2em] text-gray-400">
+      <div className="w-28 shrink-0 pt-1 text-sm font-black uppercase tracking-[0.2em] text-gray-500">
         {label}
       </div>
       <div className="min-w-0 flex-1">{children}</div>
@@ -228,6 +228,8 @@ export default function AccountSettings({
                 initialsAvatarFallback(profile?.nickname || TEXT.defaultUser)
               }
               alt={TEXT.photoAlt}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full object-cover"
             />
           </div>
@@ -432,6 +434,8 @@ export default function AccountSettings({
             <button
               type="button"
               onClick={handleToggleProfile}
+              aria-label={profile?.isProfilePublic ? '계정 공개 설정 끄기' : '계정 공개 설정 켜기'}
+              title={profile?.isProfilePublic ? '계정 공개 설정 끄기' : '계정 공개 설정 켜기'}
               className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
             >
               <motion.div
@@ -460,6 +464,8 @@ export default function AccountSettings({
             <button
               type="button"
               onClick={handleTogglePersonaCollection}
+              aria-label={profile?.isAcceptPrompt ? '문답 수집 설정 끄기' : '문답 수집 설정 켜기'}
+              title={profile?.isAcceptPrompt ? '문답 수집 설정 끄기' : '문답 수집 설정 켜기'}
               className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
             >
               <motion.div

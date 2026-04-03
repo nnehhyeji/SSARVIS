@@ -44,7 +44,7 @@ const TEXT = {
 function VoiceRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-6">
-      <div className="w-28 shrink-0 pt-1 text-sm font-black uppercase tracking-[0.2em] text-gray-400">
+      <div className="w-28 shrink-0 pt-1 text-sm font-black uppercase tracking-[0.2em] text-gray-500">
         {label}
       </div>
       <div className="min-w-0 flex-1">{children}</div>
@@ -140,6 +140,8 @@ export default function SecuritySettings({
                 <button
                   type="button"
                   onClick={() => setVoiceLockEnabled(!isVoiceLockEnabled)}
+                  aria-label={isVoiceLockEnabled ? '음성 잠금 끄기' : '음성 잠금 켜기'}
+                  title={isVoiceLockEnabled ? '음성 잠금 끄기' : '음성 잠금 켜기'}
                   className="relative h-7 w-14 overflow-hidden rounded-full bg-gray-200"
                 >
                   <motion.div
