@@ -6,11 +6,13 @@ import './App.css';
 import { router } from './routes/AppRouter';
 import ToastViewport from './components/common/ToastViewport';
 import AudioUnlockOverlay from './components/common/AudioUnlockOverlay';
+import HotjarUserSync from './components/common/HotjarUserSync';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <>
       <RouterProvider router={router} />
+      <HotjarUserSync />
       <ToastViewport />
       <AudioUnlockOverlay />
     </>
