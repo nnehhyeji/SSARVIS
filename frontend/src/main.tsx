@@ -7,11 +7,13 @@ import { router } from './routes/AppRouter';
 
 const ToastViewport = lazy(() => import('./components/common/ToastViewport'));
 const AudioUnlockOverlay = lazy(() => import('./components/common/AudioUnlockOverlay'));
+import HotjarUserSync from './components/common/HotjarUserSync';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <>
       <RouterProvider router={router} />
+      <HotjarUserSync />
       <Suspense fallback={null}>
         <ToastViewport />
         <AudioUnlockOverlay />
