@@ -240,6 +240,10 @@ export default function ChatArchiveView({ selectedChatId }: ChatArchiveViewProps
                       <img
                         src={msg.profileImgUrl}
                         alt="AI"
+                        loading="lazy"
+                        decoding="async"
+                        width="48"
+                        height="48"
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -301,6 +305,10 @@ export default function ChatArchiveView({ selectedChatId }: ChatArchiveViewProps
                       <img
                         src={msg.profileImgUrl}
                         alt="User"
+                        loading="lazy"
+                        decoding="async"
+                        width="48"
+                        height="48"
                         className="w-full h-full object-cover"
                       />
                     ) : (

@@ -85,7 +85,7 @@ export default function SettingsPage() {
                   className={`text-left text-2xl font-black transition-colors ${
                     tab === item.id
                       ? 'text-[var(--color-primary)]'
-                      : 'text-gray-400 hover:text-[var(--color-primary-sub)]'
+                      : 'text-gray-500 hover:text-[var(--color-primary-sub)]'
                   }`}
                 >
                   {item.label}

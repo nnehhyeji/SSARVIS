@@ -164,6 +164,8 @@ export default function ProfileImageModal({ isOpen, profile, onClose, onSuccess 
               <img
                 src={imagePreview || profile?.userProfileImageUrl || fallbackImage}
                 alt={TEXT.previewAlt}
+                loading="lazy"
+                decoding="async"
                 className="h-full w-full object-cover"
               />
             </div>
