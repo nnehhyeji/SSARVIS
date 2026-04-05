@@ -213,10 +213,6 @@ export default function AccountSettings({
     }
   };
 
-  const handleResetTutorial = () => {
-    navigate(PATHS.TUTORIAL);
-  };
-
   return (
     <div className="flex w-full flex-col gap-10 pb-24">
       <div className="flex items-center justify-between gap-8">
@@ -483,21 +479,6 @@ export default function AccountSettings({
           </div>
         </SectionRow>
 
-        <SectionRow label={TEXT.tutorial}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <span className="text-base font-bold text-gray-900">{TEXT.tutorialReset}</span>
-              <p className="text-sm font-medium text-gray-400">{TEXT.tutorialHelp}</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleResetTutorial}
-              className="rounded-xl border border-[color:color-mix(in_srgb,var(--color-primary)_24%,white)] px-4 py-2 text-sm font-black text-[var(--color-primary)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--color-primary)_8%,white)]"
-            >
-              {TEXT.tutorialReset}
-            </button>
-          </div>
-        </SectionRow>
       </div>
 
       <div className="flex justify-center pt-8">
