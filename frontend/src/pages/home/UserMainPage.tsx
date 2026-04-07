@@ -7,6 +7,7 @@ import { useGuestChat } from '../../hooks/useGuestChat';
 import { useFollow } from '../../hooks/useFollow';
 import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
+import { useHasUserGesture } from '../../hooks/useHasUserGesture';
 import { useMicStore } from '../../store/useMicStore';
 import { useUserStore } from '../../store/useUserStore';
 
@@ -25,6 +26,55 @@ import { toast } from '../../store/useToastStore';
 const VISITOR_LISTENING_STATUS_OPTIONS = ['\uB4E3\uB294 \uC911', '\uACBD\uCCAD \uC911'] as const;
 const VISITOR_ROTATING_MESSAGE_INTERVAL_MS = 2200;
 
+function getActiveSegment(text: string) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return { doneLength: 0, activeLength: 0 };
+
+  const lastWhitespace = Math.max(trimmed.lastIndexOf(' '), trimmed.lastIndexOf('\n'));
+  const activeStart = lastWhitespace >= 0 ? lastWhitespace + 1 : 0;
+
+  return {
+    doneLength: activeStart,
+    activeLength: trimmed.length - activeStart,
+  };
+}
+
+function getSegmentAroundIndex(text: string, index: number) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return { doneLength: 0, activeLength: 0 };
+
+  const clampedIndex = Math.max(0, Math.min(index, trimmed.length));
+  const targetIndex = Math.max(0, Math.min(clampedIndex - 1, trimmed.length - 1));
+
+  if (/\s/.test(trimmed[targetIndex] ?? '')) {
+    return getActiveSegment(trimmed.slice(0, clampedIndex));
+  }
+
+  let activeStart = targetIndex;
+  while (activeStart > 0 && !/\s/.test(trimmed[activeStart - 1])) {
+    activeStart -= 1;
+  }
+
+  let activeEnd = targetIndex + 1;
+  while (activeEnd < trimmed.length && !/\s/.test(trimmed[activeEnd])) {
+    activeEnd += 1;
+  }
+
+  return {
+    doneLength: activeStart,
+    activeLength: activeEnd - activeStart,
+  };
+}
+
+function getDualCaptionSegments(text: string, isSpeaking: boolean, progress: number) {
+  if (!text.trim()) return { doneLength: 0, activeLength: 0 };
+  if (!isSpeaking) return { doneLength: text.length, activeLength: 0 };
+
+  const spokenLength = Math.max(0, Math.min(Math.floor(text.length * progress), text.length));
+  if (spokenLength === 0) return { doneLength: 0, activeLength: 0 };
+  return getSegmentAroundIndex(text, spokenLength);
+}
+
 export default function UserMainPage() {
   const { userId } = useParams();
   const [searchParams] = useSearchParams();
@@ -34,9 +84,7 @@ export default function UserMainPage() {
   const visitorGreetingAppliedRef = useRef(false);
   const [visitorListeningStatus, setVisitorListeningStatus] = useState<
     (typeof VISITOR_LISTENING_STATUS_OPTIONS)[number]
-  >(
-    VISITOR_LISTENING_STATUS_OPTIONS[0],
-  );
+  >(VISITOR_LISTENING_STATUS_OPTIONS[0]);
   const [visitorIdleMessageIndex, setVisitorIdleMessageIndex] = useState(0);
 
   const currentUserId = userInfo?.id ?? null;
@@ -63,6 +111,7 @@ export default function UserMainPage() {
     setMicRuntimeActive,
   } = useAICharacter({ enableDefaultTriggerText: isMyHome });
   const micStoreHydrated = useMicStore((state) => state.hasHydrated);
+  const hasUserGesture = useHasUserGesture();
 
   const {
     chatInput,
@@ -89,6 +138,7 @@ export default function UserMainPage() {
     startRecording,
     stopRecordingAndSendSTT,
     cancelTurn,
+    sleepConversation,
     discardCurrentTurn,
   } = useChat({ initialGreeting: isMyHome ? undefined : '' });
 
@@ -100,7 +150,7 @@ export default function UserMainPage() {
     () =>
       shouldUseGuestChat
         ? guestChat
-          : {
+        : {
             chatInput,
             chatMessages,
             isLockMode,
@@ -114,6 +164,7 @@ export default function UserMainPage() {
             sendMessage,
             startRecording,
             stopRecordingAndSendSTT,
+            sleepConversation,
           },
     [
       chatInput,
@@ -123,6 +174,7 @@ export default function UserMainPage() {
       isAwaitingResponse,
       isLockMode,
       sendMessage,
+      sleepConversation,
       setChatInput,
       shouldUseGuestChat,
       startRecording,
@@ -134,9 +186,20 @@ export default function UserMainPage() {
     ],
   );
 
-  const { follows, isVisitorMode, visitedFollowName, visitFollow, leaveFollow } = useFollow();
+  const {
+    follows,
+    isVisitorMode,
+    visitedFollowName,
+    visitFollow,
+    leaveFollow,
+    setIsVisitorMode,
+    setVisitedFollowName,
+    setVisitedUserId,
+    setVisitorVisibility,
+  } = useFollow();
 
   const [profile, setProfile] = useState<UserResponse | null>(null);
+  const [visitedProfileImage, setVisitedProfileImage] = useState('');
   const [isTextInputMode, setIsTextInputMode] = useState(false);
   const [isVisitorDualAiMode, setIsVisitorDualAiMode] = useState(false);
   const [isAiTopicModalOpen, setIsAiTopicModalOpen] = useState(false);
@@ -166,7 +229,7 @@ export default function UserMainPage() {
   useEffect(() => {
     let isMounted = true;
 
-    if (!isMyHome) return;
+    if (!isLoggedIn) return;
 
     const loadProfile = async () => {
       try {
@@ -174,7 +237,7 @@ export default function UserMainPage() {
         if (!isMounted) return;
         setProfile(data);
       } catch (error) {
-        console.error('Failed to load home profile:', error);
+        console.error('Failed to load user profile:', error);
       }
     };
 
@@ -183,7 +246,7 @@ export default function UserMainPage() {
     return () => {
       isMounted = false;
     };
-  }, [isMyHome]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!isMyHome) return;
@@ -201,14 +264,81 @@ export default function UserMainPage() {
   }, [cancelTurn, chatMessages, currentMode, isMyHome, modeHistories, setChatMessages]);
 
   useEffect(() => {
+    if (isMyHome) {
+      setVisitedProfileImage('');
+      setVisitorFollowStatus(null);
+      setVisitorFollowCustomId('');
+      return;
+    }
+
+    setIsVisitorMode(false);
+    setVisitedFollowName('');
+    setVisitedUserId(null);
+    setVisitorVisibility('public');
+    setVisitedProfileImage('');
+    setVisitorFollowStatus(null);
+    setVisitorFollowCustomId('');
+    setTriggerText('');
+  }, [
+    isMyHome,
+    setIsVisitorMode,
+    setTriggerText,
+    setVisitedFollowName,
+    setVisitedUserId,
+    setVisitorVisibility,
+    targetId,
+  ]);
+
+  useEffect(() => {
     if (isMyHome || !targetId || !isLoggedIn) return;
 
-    visitFollow(targetId, true);
+    // 팔로우 목록에서 찾아 방문자 모드 진입 시도
+    const result = visitFollow(targetId, true);
+
+    if (!result) {
+      // 팔로우 관계 없는 유저 - API로 프로필 조회 후 방문자 상태 직접 설정
+      let isMounted = true;
+      void (async () => {
+        try {
+          const profile = await userApi.getUserProfileById(targetId);
+          if (!isMounted) return;
+          setVisitedFollowName(profile.nickname);
+          setVisitedUserId(targetId);
+          setIsVisitorMode(true);
+          setVisitorVisibility('public');
+          setVisitedProfileImage(profile.profileImageUrl || '');
+          // customId가 있으면 팔로우 상태 새로고침에 활용
+          if (profile.customId) {
+            setVisitorFollowCustomId(profile.customId);
+            setVisitorFollowStatus('NONE');
+          }
+        } catch (error) {
+          console.error('방문한 유저 프로필 조회 실패:', error);
+        }
+      })();
+
+      return () => {
+        isMounted = false;
+        leaveFollow();
+      };
+    }
 
     return () => {
       leaveFollow();
     };
-  }, [isLoggedIn, isMyHome, leaveFollow, targetId, visitFollow]);
+  }, [
+    isLoggedIn,
+    isMyHome,
+    leaveFollow,
+    targetId,
+    visitFollow,
+    setIsVisitorMode,
+    setVisitedFollowName,
+    setVisitedUserId,
+    setVisitorVisibility,
+    setVisitorFollowCustomId,
+    setVisitorFollowStatus,
+  ]);
 
   useEffect(() => {
     setIsVisitorDualAiMode(false);
@@ -224,10 +354,17 @@ export default function UserMainPage() {
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? userInfo?.nickname || 'User' : visitedFollowName || 'Visitor';
   const visitorFollow = follows.find((follow) => follow.id === targetId) ?? null;
-  const visitorDescription =
-    visitorFollow?.description?.trim() || '';
-  const visitorIntroText = visitorDescription || '\uC5B4\uC11C \uC640, ' + ownerName + ' AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
+  const visitorDescription = visitorFollow?.description?.trim() || '';
+  const visitorIntroText =
+    visitorDescription ||
+    '\uC5B4\uC11C \uC640, ' +
+      ownerName +
+      ' AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
   const showEmptyPersonaMessage = !isMyHome && !hasPersonaAnswers && currentMode === 'persona';
+  const visitorProfileImage =
+    visitedProfileImage ||
+    visitorFollow?.profileImgUrl ||
+    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(ownerName)}`;
 
   const refreshVisitorFollowStatus = useCallback(
     async (customId: string) => {
@@ -277,6 +414,15 @@ export default function UserMainPage() {
       isMounted = false;
     };
   }, [isLoggedIn, isMyHome, refreshVisitorFollowStatus, targetId, visitorFollow]);
+
+  useEffect(() => {
+    if (isMyHome) {
+      setVisitedProfileImage('');
+      return;
+    }
+
+    setVisitedProfileImage(visitorFollow?.profileImgUrl || '');
+  }, [isMyHome, visitorFollow?.profileImgUrl]);
 
   useEffect(() => {
     if (isMyHome) {
@@ -377,26 +523,30 @@ export default function UserMainPage() {
       : visitorBaseCaptionText;
   const battleIsTargetSpeaking =
     aiToAiChat.activeSpeaker === 'target' && battleCaptionText.trim().length > 0;
+  const battleCaptionSegments = getDualCaptionSegments(
+    battleCaptionText,
+    battleIsTargetSpeaking,
+    aiToAiChat.targetSpeechProgress,
+  );
   const visitorStageCaptionText = aiToAiChat.isBattling
     ? battleCaptionText
     : visitorBaseCaptionText;
-  const visitorWakeWordGuide = '"' + WAKE_WORD + '"\uB77C\uACE0 \uB9D0\uD55C \uB4A4 \uCE5C\uAD6C AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
+  const visitorWakeWordGuide =
+    '"' +
+    WAKE_WORD +
+    '"\uB77C\uACE0 \uB9D0\uD55C \uB4A4 \uCE5C\uAD6C AI\uC5D0\uAC8C \uB9D0\uC744 \uAC78\uC5B4\uBCF4\uC138\uC694';
   const visitorRotatingCaptionText =
     visitorIdleMessageIndex === 0 ? visitorIntroText : visitorWakeWordGuide;
   const visitorCaptionText = shouldRotateVisitorIdleMessages
     ? visitorRotatingCaptionText
     : visitorStageCaptionText;
   const visitorCaptionDoneLength = aiToAiChat.isBattling
-    ? battleIsTargetSpeaking
-      ? Math.max(0, battleCaptionText.length - 1)
-      : battleCaptionText.length
+    ? battleCaptionSegments.doneLength
     : shouldRotateVisitorIdleMessages
       ? visitorCaptionText.length
       : visitorBaseDoneLength;
   const visitorCaptionActiveLength = aiToAiChat.isBattling
-    ? battleIsTargetSpeaking
-      ? 1
-      : 0
+    ? battleCaptionSegments.activeLength
     : shouldRotateVisitorIdleMessages
       ? 0
       : visitorBaseActiveLength;
@@ -406,27 +556,29 @@ export default function UserMainPage() {
       ? '\uC751\uB2F5 \uC911'
       : visitorWakeDetected
         ? '\uB4E4\uC5C8\uC5B4\uC694'
-      : visitorIsListening
-        ? visitorListeningStatus
-        : visitorNeedsWakeWordGuide
-          ? ''
-          : visitorStageStatusText;
+        : visitorIsListening
+          ? visitorListeningStatus
+          : visitorNeedsWakeWordGuide
+            ? ''
+            : visitorStageStatusText;
   const isVisitorDualAiSceneOpen =
     !isMyHome && (isVisitorDualAiMode || aiToAiChat.isBattling || Boolean(aiToAiChat.topic));
   const visitorDualLeftCaptionText = aiToAiChat.targetLatestText || triggerText;
-  const visitorDualLeftDoneLength =
-    aiToAiChat.activeSpeaker === 'target' && visitorDualLeftCaptionText.trim()
-      ? Math.max(0, visitorDualLeftCaptionText.length - 1)
-      : visitorDualLeftCaptionText.length;
-  const visitorDualLeftActiveLength =
-    aiToAiChat.activeSpeaker === 'target' && visitorDualLeftCaptionText.trim() ? 1 : 0;
+  const visitorDualLeftSegments = getDualCaptionSegments(
+    visitorDualLeftCaptionText,
+    aiToAiChat.activeSpeaker === 'target',
+    aiToAiChat.targetSpeechProgress,
+  );
+  const visitorDualLeftDoneLength = visitorDualLeftSegments.doneLength;
+  const visitorDualLeftActiveLength = visitorDualLeftSegments.activeLength;
   const visitorDualRightCaptionText = aiToAiChat.myLatestText || myTriggerText;
-  const visitorDualRightDoneLength =
-    aiToAiChat.activeSpeaker === 'mine' && visitorDualRightCaptionText.trim()
-      ? Math.max(0, visitorDualRightCaptionText.length - 1)
-      : visitorDualRightCaptionText.length;
-  const visitorDualRightActiveLength =
-    aiToAiChat.activeSpeaker === 'mine' && visitorDualRightCaptionText.trim() ? 1 : 0;
+  const visitorDualRightSegments = getDualCaptionSegments(
+    visitorDualRightCaptionText,
+    aiToAiChat.activeSpeaker === 'mine',
+    aiToAiChat.mySpeechProgress,
+  );
+  const visitorDualRightDoneLength = visitorDualRightSegments.doneLength;
+  const visitorDualRightActiveLength = visitorDualRightSegments.activeLength;
   const visitorDualActiveSpeaker: 'left' | 'right' | null =
     aiToAiChat.activeSpeaker === 'target'
       ? 'left'
@@ -473,6 +625,7 @@ export default function UserMainPage() {
   useEffect(() => {
     if (
       !micStoreHydrated ||
+      !hasUserGesture ||
       !micPreferenceEnabled ||
       !hasHydrated ||
       didAutoStartRef.current ||
@@ -520,6 +673,7 @@ export default function UserMainPage() {
     isMicOn,
     isMyHome,
     isPersonaShared,
+    hasUserGesture,
     micPreferenceEnabled,
     micStoreHydrated,
     setMicRuntimeActive,
@@ -565,6 +719,25 @@ export default function UserMainPage() {
   }, [isMyHome]);
 
   useEffect(() => {
+    const category = getSessionCategory();
+    const recordingTargetId = category === 'USER_AI' ? null : targetId;
+
+    updateRecordingContext(
+      null,
+      getAssistantType(),
+      getMemoryPolicy(),
+      category,
+      recordingTargetId,
+    );
+  }, [
+    getAssistantType,
+    getMemoryPolicy,
+    getSessionCategory,
+    targetId,
+    updateRecordingContext,
+  ]);
+
+  useEffect(() => {
     const prevContextKey = prevPageContextKeyRef.current;
     if (prevContextKey === pageContextKey) return;
 
@@ -579,6 +752,8 @@ export default function UserMainPage() {
 
     cancelTurn();
     resetConversationRuntime();
+    didAutoStartRef.current = false;
+    setMicRuntimeActive(false);
     setChatInput('');
 
     if (isMyHome) {
@@ -599,6 +774,7 @@ export default function UserMainPage() {
     resetConversationRuntime,
     setChatInput,
     setChatMessages,
+    setMicRuntimeActive,
     setTriggerText,
   ]);
 
@@ -821,10 +997,32 @@ export default function UserMainPage() {
     };
   }, [setMicRuntimeActive]);
 
+  const handleSleepConversation = useCallback(() => {
+    setMicPreferenceEnabled(true);
+    setMicRuntimeActive(true);
+    setIsTextInputMode(false);
+
+    if (shouldUseGuestChat) {
+      guestChat.sleepConversation();
+      return;
+    }
+
+    sleepConversation();
+  }, [
+    guestChat,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
+    shouldUseGuestChat,
+    sleepConversation,
+  ]);
+
   if (!isMyHome && isLoggedIn && (!isVisitorMode || !visitedFollowName)) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-[#FDFCFB]">
-        <p className="font-bold text-gray-500">\uBC29\uBB38 \uC911\uC778 \uCE5C\uAD6C \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4.</p>
+        <p className="font-bold text-gray-500">
+          \uBC29\uBB38 \uC911\uC778 \uCE5C\uAD6C \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294
+          \uC911\uC785\uB2C8\uB2E4.
+        </p>
       </div>
     );
   }
@@ -859,7 +1057,7 @@ export default function UserMainPage() {
         onChatInputChange={setChatInput}
         onMicToggle={handleHomeMicToggle}
         onSendText={handleHomeSendText}
-        onCancel={cancelTurn}
+        onCancel={handleSleepConversation}
         onToggleLock={toggleLock}
         isContinuousConversationEnabled={isContinuousConversationEnabled}
       />
@@ -874,7 +1072,9 @@ export default function UserMainPage() {
           isLockMode={activeChat.isLockMode}
           isMicOn={isMicOn}
           isTextInputMode={isTextInputMode}
-          headerCenterLabel={aiToAiChat.topic ? `주제: ${aiToAiChat.topic}` : '주제를 입력해주세요!'}
+          headerCenterLabel={
+            aiToAiChat.topic ? `주제: ${aiToAiChat.topic}` : '주제를 입력해주세요!'
+          }
           onHeaderCenterAction={() => setIsAiTopicModalOpen(true)}
           onHeaderCenterClear={
             aiToAiChat.topic || aiToAiChat.isBattling
@@ -890,6 +1090,7 @@ export default function UserMainPage() {
           leftMode={currentMode}
           leftIsSpeaking={aiToAiChat.activeSpeaker === 'target'}
           leftDisplayName={`${ownerName} AI`}
+          leftProfileImage={visitorProfileImage}
           leftCaptionText={visitorDualLeftCaptionText}
           leftDoneLength={visitorDualLeftDoneLength}
           leftActiveLength={visitorDualLeftActiveLength}
@@ -898,6 +1099,7 @@ export default function UserMainPage() {
           rightMode="normal"
           rightIsSpeaking={aiToAiChat.activeSpeaker === 'mine'}
           rightDisplayName={`${userInfo?.nickname || '내'} AI`}
+          rightProfileImage={homeProfileImage}
           rightCaptionText={visitorDualRightCaptionText}
           rightDoneLength={visitorDualRightDoneLength}
           rightActiveLength={visitorDualRightActiveLength}
@@ -936,6 +1138,9 @@ export default function UserMainPage() {
           mouthOpenRadius={mouthOpenRadius}
           isCharacterSpeaking={battleIsTargetSpeaking || activeChat.isAiSpeaking || isSpeaking}
           assistantDisplayName={`${ownerName} AI`}
+          assistantProfileImage={visitorProfileImage}
+          userDisplayName={userInfo?.nickname || '나'}
+          profileImage={homeProfileImage}
           aiCaptionText={visitorCaptionText}
           aiDoneLength={visitorCaptionDoneLength}
           aiActiveLength={visitorCaptionActiveLength}
@@ -959,11 +1164,7 @@ export default function UserMainPage() {
               aiToAiChat.stopBattle();
               return;
             }
-            if (shouldUseGuestChat) {
-              guestChat.stopRecordingAndSendSTT();
-              return;
-            }
-            cancelTurn();
+            handleSleepConversation();
           }}
           onOpenPersona={handleOpenPersona}
           onToggleDualAi={handleToggleDualAi}

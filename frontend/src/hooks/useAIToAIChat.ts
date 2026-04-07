@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiOrigin } from '../config/api';
 import type { ChatMessage } from '../types';
 
@@ -23,13 +23,23 @@ type SideAudioState = {
   isPlaying: boolean;
   streamEnded: boolean;
   streamHandled: boolean;
-  lastText: string;
+  responseText: string;
+  hasResponseText: boolean;
+  responseStreamComplete: boolean;
+  presentationCommitted: boolean;
   requestId: number;
   voiceStarted: boolean;
   hasAudioData: boolean;
 };
 
 const MAX_TURN = 20;
+function estimateCaptionDurationMs(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+
+  const punctuationPauseCount = (trimmed.match(/[,.!?~]/g) ?? []).length;
+  return Math.max(1500, trimmed.length * 102 + punctuationPauseCount * 290);
+}
 
 function createSideAudioState(): SideAudioState {
   return {
@@ -41,7 +51,10 @@ function createSideAudioState(): SideAudioState {
     isPlaying: false,
     streamEnded: false,
     streamHandled: false,
-    lastText: '',
+    responseText: '',
+    hasResponseText: false,
+    responseStreamComplete: false,
+    presentationCommitted: false,
     requestId: 0,
     voiceStarted: false,
     hasAudioData: false,
@@ -54,6 +67,8 @@ export function useAIToAIChat() {
   const [myLatestText, setMyLatestText] = useState('');
   const [targetLatestText, setTargetLatestText] = useState('');
   const [activeSpeaker, setActiveSpeaker] = useState<Side | null>(null);
+  const [mySpeechProgress, setMySpeechProgress] = useState(0);
+  const [targetSpeechProgress, setTargetSpeechProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('주제를 정하면 두 AI가 대화를 시작합니다.');
   const [topic, setTopic] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -69,40 +84,157 @@ export function useAIToAIChat() {
     target: createSideAudioState(),
   });
   const pendingRelayRef = useRef<PendingRelay | null>(null);
+  const pendingPresentationQueueRef = useRef<Side[]>([]);
+  const activePresentationSideRef = useRef<Side | null>(null);
   const isBattlingRef = useRef(false);
   const isPausedRef = useRef(false);
   const turnCountRef = useRef(0);
   const maxTurnRef = useRef(MAX_TURN);
   const configRef = useRef<Record<Side, AiSocketConfig | null>>({ mine: null, target: null });
+  const progressStartedAtRef = useRef<Record<Side, number | null>>({ mine: null, target: null });
+  const progressFrameRef = useRef<Record<Side, number | null>>({ mine: null, target: null });
+  const setSideSpeechProgress = useCallback((side: Side, value: number) => {
+    if (side === 'mine') {
+      setMySpeechProgress(value);
+      return;
+    }
+    setTargetSpeechProgress(value);
+  }, []);
+  const stopSideProgressTracking = useCallback((side: Side) => {
+    const frameId = progressFrameRef.current[side];
+    if (frameId !== null) {
+      window.cancelAnimationFrame(frameId);
+      progressFrameRef.current[side] = null;
+    }
+  }, []);
+  const resetSideSpeechProgress = useCallback(
+    (side: Side, value = 0) => {
+      progressStartedAtRef.current[side] = null;
+      stopSideProgressTracking(side);
+      setSideSpeechProgress(side, value);
+    },
+    [setSideSpeechProgress, stopSideProgressTracking],
+  );
+  const startSideProgressTracking = useCallback(
+    (side: Side) => {
+      stopSideProgressTracking(side);
+      progressStartedAtRef.current[side] = performance.now();
 
-  const resetAudioState = useCallback((side: Side, options?: { preserveLastText?: boolean }) => {
+      const tick = () => {
+        const state = sideAudioRef.current[side];
+        const responseText = state.responseText;
+        const estimatedDurationMs = estimateCaptionDurationMs(responseText);
+        const startedAt = progressStartedAtRef.current[side];
+        if (!startedAt || estimatedDurationMs <= 0) {
+          progressFrameRef.current[side] = window.requestAnimationFrame(tick);
+          return;
+        }
+
+        const elapsedMs = performance.now() - startedAt;
+        const fallbackProgress = Math.max(0, Math.min(elapsedMs / estimatedDurationMs, 0.98));
+        let actualProgress = 0;
+        const audio = state.audio;
+        if (audio && Number.isFinite(audio.duration) && audio.duration > 0) {
+          actualProgress = Math.max(0, Math.min(audio.currentTime / audio.duration, 0.98));
+        }
+
+        setSideSpeechProgress(side, Math.max(fallbackProgress, actualProgress));
+        progressFrameRef.current[side] = window.requestAnimationFrame(tick);
+      };
+      progressFrameRef.current[side] = window.requestAnimationFrame(tick);
+    },
+    [setSideSpeechProgress, stopSideProgressTracking],
+  );
+  const resetAudioState = useCallback(
+    (side: Side, options?: { preserveLastText?: boolean }) => {
+      const current = sideAudioRef.current[side];
+
+      current.queue = [];
+      current.sourceBuffer = null;
+      current.mediaSource = null;
+      current.streamEnded = false;
+
+      if (!options?.preserveLastText) {
+        current.responseText = '';
+        current.hasResponseText = false;
+      }
+
+      current.responseStreamComplete = false;
+      current.presentationCommitted = false;
+      current.streamHandled = false;
+      current.voiceStarted = false;
+      current.hasAudioData = false;
+      resetSideSpeechProgress(side, options?.preserveLastText ? 1 : 0);
+
+      if (current.audio) {
+        current.audio.pause();
+        current.audio.src = '';
+        current.audio = null;
+      }
+
+      if (current.objectUrl) {
+        URL.revokeObjectURL(current.objectUrl);
+        current.objectUrl = null;
+      }
+
+      current.isPlaying = false;
+    },
+    [resetSideSpeechProgress],
+  );
+  const isResponseReady = useCallback((side: Side) => {
     const current = sideAudioRef.current[side];
-    current.queue = [];
-    current.sourceBuffer = null;
-    current.mediaSource = null;
-    current.streamEnded = false;
-    if (!options?.preserveLastText) {
-      current.lastText = '';
-    }
-    current.streamHandled = false;
-    current.voiceStarted = false;
-    current.hasAudioData = false;
+    return current.hasResponseText && current.responseStreamComplete;
+  }, []);
 
-    if (current.audio) {
-      current.audio.pause();
-      current.audio.src = '';
-      current.audio = null;
+  const getResponseText = useCallback((side: Side) => {
+    return sideAudioRef.current[side].responseText.trim();
+  }, []);
+
+  const commitPresentation = useCallback((side: Side) => {
+    const current = sideAudioRef.current[side];
+    if (current.presentationCommitted || !current.hasResponseText) {
+      return false;
     }
 
-    if (current.objectUrl) {
-      URL.revokeObjectURL(current.objectUrl);
-      current.objectUrl = null;
+    const nextText = current.responseText;
+    current.presentationCommitted = true;
+
+    if (side === 'mine') {
+      setMyLatestText(nextText);
+      setBattleMessages((prev) => [...prev, { sender: 'me', text: `나의 AI: ${nextText}` }]);
+      return true;
     }
 
-    current.isPlaying = false;
+    setTargetLatestText(nextText);
+    setBattleMessages((prev) => [...prev, { sender: 'ai', text: `${nextText}` }]);
+    return true;
+  }, []);
+
+  const dequeuePendingPresentation = useCallback((side: Side) => {
+    pendingPresentationQueueRef.current = pendingPresentationQueueRef.current.filter(
+      (queuedSide) => queuedSide !== side,
+    );
+  }, []);
+
+  const enqueuePendingPresentation = useCallback((side: Side) => {
+    const current = sideAudioRef.current[side];
+    if (
+      !current.hasResponseText ||
+      current.presentationCommitted ||
+      current.isPlaying ||
+      pendingPresentationQueueRef.current.includes(side)
+    ) {
+      return;
+    }
+
+    pendingPresentationQueueRef.current.push(side);
   }, []);
 
   const closeSockets = useCallback(() => {
+    pendingRelayRef.current = null;
+    pendingPresentationQueueRef.current = [];
+    activePresentationSideRef.current = null;
+
     (['mine', 'target'] as Side[]).forEach((side) => {
       const socket = socketsRef.current[side];
       if (socket && socket.readyState < WebSocket.CLOSING) {
@@ -123,6 +255,8 @@ export function useAIToAIChat() {
     setTurnCount(0);
     setMaxTurn(MAX_TURN);
     setActiveSpeaker(null);
+    setMySpeechProgress(0);
+    setTargetSpeechProgress(0);
     setTopic('');
     setMyLatestText('');
     setTargetLatestText('');
@@ -131,6 +265,8 @@ export function useAIToAIChat() {
     turnCountRef.current = 0;
     maxTurnRef.current = MAX_TURN;
     pendingRelayRef.current = null;
+    pendingPresentationQueueRef.current = [];
+    activePresentationSideRef.current = null;
     closeSockets();
   }, [closeSockets]);
 
@@ -177,9 +313,13 @@ export function useAIToAIChat() {
         return;
       }
 
-      sideAudioRef.current[side].lastText = '';
+      sideAudioRef.current[side].responseText = '';
+      sideAudioRef.current[side].hasResponseText = false;
+      sideAudioRef.current[side].responseStreamComplete = false;
+      sideAudioRef.current[side].presentationCommitted = false;
       sideAudioRef.current[side].streamHandled = false;
       sideAudioRef.current[side].requestId += 1;
+      dequeuePendingPresentation(side);
       socket.send(
         JSON.stringify({
           type: 'CHAT_START',
@@ -193,23 +333,30 @@ export function useAIToAIChat() {
       socket.send(JSON.stringify({ type: 'AUDIO_END' }));
       socket.send(JSON.stringify({ type: 'TEXT', text }));
     },
-    [stopBattle],
+    [dequeuePendingPresentation, stopBattle],
   );
+
+  const canRequestTurnForSide = useCallback((side: Side) => {
+    const state = sideAudioRef.current[side];
+    return !(
+      state.isPlaying ||
+      state.hasResponseText ||
+      state.presentationCommitted ||
+      activePresentationSideRef.current === side
+    );
+  }, []);
 
   const tryRelay = useCallback(() => {
     const pending = pendingRelayRef.current;
     if (!pending || !isBattlingRef.current || isPausedRef.current) return;
 
     if (turnCountRef.current >= maxTurnRef.current) {
-      isPausedRef.current = true;
-      setIsPaused(true);
       setIsAwaitingContinuation(true);
       setStatusMessage(`${maxTurnRef.current}턴까지 대화를 진행했어요. 더 이어갈까요?`);
       return;
     }
 
-    const relayTargetState = sideAudioRef.current[pending.to === 'mine' ? 'target' : 'mine'];
-    if (relayTargetState.isPlaying) {
+    if (!canRequestTurnForSide(pending.to)) {
       return;
     }
 
@@ -218,9 +365,78 @@ export function useAIToAIChat() {
     setTurnCount(turnCountRef.current);
     setStatusMessage(`${turnCountRef.current}턴째 대화를 이어가는 중입니다.`);
     sendTurn(pending.to, pending.text);
-  }, [sendTurn, stopBattle]);
+  }, [canRequestTurnForSide, sendTurn]);
 
-  const handleStreamFinished = useCallback(
+  const handlePresentationFinished = useCallback(
+    (side: Side) => {
+      resetAudioState(side);
+      if (activePresentationSideRef.current === side) {
+        activePresentationSideRef.current = null;
+      }
+      setActiveSpeaker((current) => (current === side ? null : current));
+      tryRelay();
+    },
+    [resetAudioState, tryRelay],
+  );
+
+  const startQueuedPresentation = useCallback(
+    (side: Side) => {
+      if (!isBattlingRef.current || isPausedRef.current) {
+        return false;
+      }
+
+      const state = sideAudioRef.current[side];
+      if (!state.hasResponseText || state.presentationCommitted || state.isPlaying) {
+        return false;
+      }
+
+      if (activePresentationSideRef.current && activePresentationSideRef.current !== side) {
+        return false;
+      }
+
+      dequeuePendingPresentation(side);
+      activePresentationSideRef.current = side;
+      commitPresentation(side);
+
+      if (state.audio) {
+        state.isPlaying = true;
+        setActiveSpeaker(side);
+        state.audio.play().catch((error) => {
+          state.isPlaying = false;
+          if (activePresentationSideRef.current === side) {
+            activePresentationSideRef.current = null;
+          }
+          setActiveSpeaker((current) => (current === side ? null : current));
+          console.warn('AI 대화 오디오 자동재생 실패:', error);
+        });
+        return true;
+      }
+
+      if (!state.responseStreamComplete || state.voiceStarted || state.hasAudioData) {
+        activePresentationSideRef.current = null;
+        return false;
+      }
+
+      handlePresentationFinished(side);
+      return false;
+    },
+    [commitPresentation, dequeuePendingPresentation, handlePresentationFinished],
+  );
+
+  const scheduleNextPresentation = useCallback(() => {
+    if (activePresentationSideRef.current || isPausedRef.current) {
+      return;
+    }
+
+    const nextSide = pendingPresentationQueueRef.current[0];
+    if (!nextSide) {
+      return;
+    }
+
+    startQueuedPresentation(nextSide);
+  }, [startQueuedPresentation]);
+
+  const handleResponseReady = useCallback(
     (from: Side) => {
       if (!isBattlingRef.current) return;
 
@@ -231,7 +447,7 @@ export function useAIToAIChat() {
       state.streamHandled = true;
 
       const nextSide: Side = from === 'mine' ? 'target' : 'mine';
-      const relayText = state.lastText.trim();
+      const relayText = getResponseText(from);
 
       if (!relayText) {
         setErrorMessage('AI 응답 텍스트를 받지 못해 대화를 이어갈 수 없습니다.');
@@ -242,7 +458,7 @@ export function useAIToAIChat() {
       pendingRelayRef.current = { to: nextSide, text: relayText };
       tryRelay();
     },
-    [stopBattle, tryRelay],
+    [getResponseText, stopBattle, tryRelay],
   );
 
   const setupAudioForSide = useCallback(
@@ -259,14 +475,16 @@ export function useAIToAIChat() {
 
       audio.onplay = () => {
         state.isPlaying = true;
+        commitPresentation(side);
+        activePresentationSideRef.current = side;
         setActiveSpeaker(side);
+        startSideProgressTracking(side);
       };
       audio.onended = () => {
-        state.isPlaying = false;
-        setActiveSpeaker(null);
-        if (state.streamEnded) {
-          handleStreamFinished(side);
-        }
+        setSideSpeechProgress(side, 1);
+        stopSideProgressTracking(side);
+        handlePresentationFinished(side);
+        scheduleNextPresentation();
       };
 
       mediaSource.addEventListener('sourceopen', () => {
@@ -284,9 +502,17 @@ export function useAIToAIChat() {
       state.audio = audio;
       state.objectUrl = objectUrl;
     },
-    [handleStreamFinished, processAudioQueue, resetAudioState],
+    [
+      commitPresentation,
+      handlePresentationFinished,
+      processAudioQueue,
+      resetAudioState,
+      scheduleNextPresentation,
+      setSideSpeechProgress,
+      startSideProgressTracking,
+      stopSideProgressTracking,
+    ],
   );
-
   const attachSocketHandlers = useCallback(
     (side: Side, socket: WebSocket) => {
       socket.binaryType = 'arraybuffer';
@@ -318,14 +544,22 @@ export function useAIToAIChat() {
 
         if (message.type === 'text.end') {
           const nextText = message.payload?.text || '';
-          sideAudioRef.current[side].lastText = nextText;
+          const state = sideAudioRef.current[side];
+          state.responseText = nextText;
+          state.hasResponseText = nextText.trim().length > 0;
 
-          if (side === 'mine') {
-            setMyLatestText(nextText);
-            setBattleMessages((prev) => [...prev, { sender: 'me', text: `나의 AI: ${nextText}` }]);
-          } else {
-            setTargetLatestText(nextText);
-            setBattleMessages((prev) => [...prev, { sender: 'ai', text: `${nextText}` }]);
+          if (state.isPlaying) {
+            commitPresentation(side);
+          } else if (
+            state.audio ||
+            (state.responseStreamComplete && !state.voiceStarted && !state.hasAudioData)
+          ) {
+            enqueuePendingPresentation(side);
+            scheduleNextPresentation();
+          }
+
+          if (state.responseStreamComplete && isResponseReady(side)) {
+            handleResponseReady(side);
           }
           return;
         }
@@ -333,23 +567,31 @@ export function useAIToAIChat() {
         if (message.type === 'voice.start') {
           sideAudioRef.current[side].voiceStarted = true;
           setupAudioForSide(side);
+          if (sideAudioRef.current[side].hasResponseText) {
+            enqueuePendingPresentation(side);
+            scheduleNextPresentation();
+          }
           return;
         }
 
         if (message.type === 'voice.delta') {
           const state = sideAudioRef.current[side];
           const audio = state.audio;
-          if (audio && audio.paused) {
+          if (
+            audio &&
+            audio.paused &&
+            (!activePresentationSideRef.current || activePresentationSideRef.current === side)
+          ) {
+            activePresentationSideRef.current = side;
             state.isPlaying = true;
             setActiveSpeaker(side);
             audio.play().catch((error) => {
               state.isPlaying = false;
+              if (activePresentationSideRef.current === side) {
+                activePresentationSideRef.current = null;
+              }
               setActiveSpeaker((current) => (current === side ? null : current));
               console.warn('AI 대화 오디오 자동재생 실패:', error);
-
-              if (state.streamEnded) {
-                handleStreamFinished(side);
-              }
             });
           }
           return;
@@ -358,10 +600,16 @@ export function useAIToAIChat() {
         if (message.type === 'END_OF_STREAM') {
           const state = sideAudioRef.current[side];
           state.streamEnded = true;
+          state.responseStreamComplete = true;
           processAudioQueue(side);
 
-          if (!state.voiceStarted && !state.hasAudioData && !state.isPlaying) {
-            handleStreamFinished(side);
+          if (state.hasResponseText && !state.voiceStarted && !state.hasAudioData) {
+            enqueuePendingPresentation(side);
+            scheduleNextPresentation();
+          }
+
+          if (isResponseReady(side)) {
+            handleResponseReady(side);
           }
         }
       };
@@ -375,7 +623,16 @@ export function useAIToAIChat() {
         socketsRef.current[side] = null;
       };
     },
-    [handleStreamFinished, processAudioQueue, setupAudioForSide, stopBattle],
+    [
+      commitPresentation,
+      enqueuePendingPresentation,
+      handleResponseReady,
+      isResponseReady,
+      processAudioQueue,
+      scheduleNextPresentation,
+      setupAudioForSide,
+      stopBattle,
+    ],
   );
 
   const connectSocket = useCallback(
@@ -441,6 +698,8 @@ export function useAIToAIChat() {
       setIsPaused(false);
       setIsAwaitingContinuation(false);
       pendingRelayRef.current = null;
+      pendingPresentationQueueRef.current = [];
+      activePresentationSideRef.current = null;
 
       configRef.current = {
         mine: {
@@ -504,6 +763,7 @@ export function useAIToAIChat() {
       const audio = sideAudioRef.current[side].audio;
       if (audio && audio.paused && !audio.ended) {
         resumedCurrentAudio = true;
+        activePresentationSideRef.current = side;
         audio.play().catch((error) => {
           console.warn('AI 대화 오디오 재개 실패:', error);
         });
@@ -511,9 +771,10 @@ export function useAIToAIChat() {
     });
 
     if (!resumedCurrentAudio) {
+      scheduleNextPresentation();
       tryRelay();
     }
-  }, [tryRelay]);
+  }, [scheduleNextPresentation, tryRelay]);
 
   const continueBattle = useCallback(() => {
     if (!isBattlingRef.current) return;
@@ -530,6 +791,8 @@ export function useAIToAIChat() {
     turnCount,
     myLatestText,
     targetLatestText,
+    mySpeechProgress,
+    targetSpeechProgress,
     activeSpeaker,
     statusMessage,
     topic,

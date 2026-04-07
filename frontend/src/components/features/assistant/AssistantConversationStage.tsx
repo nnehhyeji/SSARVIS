@@ -4,6 +4,11 @@ import { Mic, MicOff, Lock, Unlock, Send, Square, Link2 } from 'lucide-react';
 
 import CharacterScene from '../character/CharacterScene';
 import {
+  hasVisibleCaptionLine,
+  renderCaptionLine,
+  splitCaptionLineSegments,
+} from '../../../utils/captionSegments';
+import {
   ACTIVE_SPEECH_COLOR,
   CONVERSATION_UI,
   PAGE_INSET,
@@ -27,13 +32,9 @@ function CaptionLine({
   isLockMode: boolean;
   size?: 'default' | 'compact';
 }) {
-  if (!text.trim()) return null;
+  const lines = splitCaptionLineSegments(text, doneLength, activeLength);
+  if (!hasVisibleCaptionLine(lines, true)) return null;
 
-  const safeDoneLength = Math.max(0, Math.min(doneLength, text.length));
-  const safeActiveLength = Math.max(0, Math.min(activeLength, text.length - safeDoneLength));
-  const doneText = text.slice(0, safeDoneLength);
-  const activeText = text.slice(safeDoneLength, safeDoneLength + safeActiveLength);
-  const pendingText = text.slice(safeDoneLength + safeActiveLength);
   const doneClassName = isLockMode ? 'text-white' : 'text-black';
   const pendingClassName = isLockMode ? 'text-[#3F3A42]' : PENDING_TEXT_CLASS;
 
@@ -41,13 +42,20 @@ function CaptionLine({
     <div
       className={`max-w-[min(28vw,24rem)] whitespace-pre-wrap break-words font-black tracking-[-0.05em] ${
         size === 'compact'
-          ? 'text-[clamp(1.3rem,1.9vw,2.3rem)] leading-[1.24]'
-          : 'text-[clamp(1.6rem,2.3vw,3rem)] leading-[1.26]'
+          ? 'text-[clamp(1.3rem,1.9vw,2.3rem)] leading-[1.08]'
+          : 'text-[clamp(1.6rem,2.3vw,3rem)] leading-[1.1]'
       } ${align === 'right' ? 'text-right' : 'text-left'}`}
     >
-      {doneText ? <span className={doneClassName}>{doneText}</span> : null}
-      {activeText ? <span style={{ color: ACTIVE_SPEECH_COLOR }}>{activeText}</span> : null}
-      {pendingText ? <span className={pendingClassName}>{pendingText}</span> : null}
+      {lines.map((line, index) => (
+        <div key={`${align}-${index}`} className={index === 0 ? '' : 'mt-[0.08em]'}>
+          {renderCaptionLine(
+            line,
+            (value) => <span className={doneClassName}>{value}</span>,
+            (value) => <span style={{ color: ACTIVE_SPEECH_COLOR }}>{value}</span>,
+            (value) => <span className={pendingClassName}>{value}</span>,
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -318,12 +326,10 @@ export default function AssistantConversationStage({
                     aiCaptionText.trim().length >= longCaptionThreshold ? 'pt-16' : 'pt-10'
                   }
                 >
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence>
                     <motion.div
-                      key={`ai-${title}-${aiCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
+                      initial={false}
                       animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                       <CaptionLine
@@ -354,12 +360,10 @@ export default function AssistantConversationStage({
                 <div
                   className={`max-w-[min(28vw,24rem)] ${userCaptionText.trim().length >= longCaptionThreshold ? 'pt-6' : 'pt-3'}`}
                 >
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence>
                     <motion.div
-                      key={`user-${title}-${userCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
+                      initial={false}
                       animate={{ opacity: userCaptionText ? 1 : 0, y: userCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                       <CaptionLine
@@ -386,6 +390,10 @@ export default function AssistantConversationStage({
                     <img
                       src={profileImage}
                       alt="User profile"
+                      fetchPriority="high"
+                      decoding="async"
+                      width="164"
+                      height="164"
                       className="h-full w-full object-cover"
                     />
                   </motion.div>
@@ -446,8 +454,11 @@ export default function AssistantConversationStage({
             }`}
           >
             <button
+              type="button"
               onClick={onMicToggle}
               disabled={isInteractionDisabled}
+              aria-label={isMicOn ? '마이크 끄기' : '마이크 켜기'}
+              title={isMicOn ? '마이크 끄기' : '마이크 켜기'}
               className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
                 isInteractionDisabled
                   ? isLockMode
@@ -485,8 +496,11 @@ export default function AssistantConversationStage({
                   }`}
                 />
                 <button
+                  type="button"
                   onClick={onSendText}
                   disabled={isInteractionDisabled || !chatInput.trim()}
+                  aria-label="메시지 전송"
+                  title="메시지 전송"
                   className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
                     !isInteractionDisabled && chatInput.trim()
                       ? 'bg-[#F7576E] text-white'

@@ -7,12 +7,14 @@ import { CONVERSATION_UI } from '../../constants/conversationUi';
 import { useAICharacter } from '../../hooks/useAICharacter';
 import { useChat } from '../../hooks/useChat';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
+import { useHasUserGesture } from '../../hooks/useHasUserGesture';
 import { useMicStore } from '../../store/useMicStore';
 import { useUserStore } from '../../store/useUserStore';
 
 export default function AssistantPage() {
   const { userInfo, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
+  const hasUserGesture = useHasUserGesture();
   const [isTextInputMode, setIsTextInputMode] = useState(false);
   const [showMigrationNotice] = useState(!sessionStorage.getItem('assistant-mode-migrated-notice'));
 
@@ -49,7 +51,7 @@ export default function AssistantPage() {
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
-    cancelTurn,
+    sleepConversation,
     updateRecordingContext,
     discardCurrentTurn,
     resetConversationRuntime,
@@ -232,13 +234,27 @@ export default function AssistantPage() {
     void enableMic();
   }, [disableMic, enableMic, isMicOn]);
 
+  const handleSleepConversation = useCallback(() => {
+    setMicPreferenceEnabled(true);
+    setMicRuntimeActive(true);
+    setIsTextInputMode(false);
+    sleepConversation();
+  }, [setMicPreferenceEnabled, setMicRuntimeActive, sleepConversation]);
+
   const handleSendText = () => {
     if (!chatInput.trim()) return;
     sendMessage(chatInput);
   };
 
   useEffect(() => {
-    if (!micStoreHydrated || !micPreferenceEnabled || didAutoStartRef.current || isMicOn) return;
+    if (
+      !micStoreHydrated ||
+      !hasUserGesture ||
+      !micPreferenceEnabled ||
+      didAutoStartRef.current ||
+      isMicOn
+    )
+      return;
 
     didAutoStartRef.current = true;
     const timeoutId = window.setTimeout(() => {
@@ -248,7 +264,7 @@ export default function AssistantPage() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [enableMic, isMicOn, micPreferenceEnabled, micStoreHydrated]);
+  }, [enableMic, hasUserGesture, isMicOn, micPreferenceEnabled, micStoreHydrated]);
 
   useEffect(() => {
     return () => {
@@ -287,7 +303,7 @@ export default function AssistantPage() {
       onChatInputChange={setChatInput}
       onMicToggle={handleMicToggle}
       onSendText={handleSendText}
-      onCancel={cancelTurn}
+      onCancel={handleSleepConversation}
       onToggleLock={toggleLock}
       isContinuousConversationEnabled={isContinuousConversationEnabled}
     />

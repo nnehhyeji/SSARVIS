@@ -225,6 +225,10 @@ public class AuthServiceImpl implements AuthService {
             // Redis에 소셜 유저 정보(이메일, 닉네임, 프사 등)를 30분간 담아두고 UUID 제공
             String registerUUID = oAuthService.saveTempSocialUserToRedis(socialUserInfoDto);
 
+            // Redis에 이메일 인증 정보 저장
+            if (StringUtils.hasText(socialUserInfoDto.email())) {
+                oAuthService.saveTempEmail(socialUserInfoDto);
+            }
             // 응답: 회원가입 전 임시 발급된 UUID만 프론트엔드로 내려 줌
             return OAuthResponseDto.signupUserResponse(
                 registerUUID,

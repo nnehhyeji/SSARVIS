@@ -116,7 +116,8 @@ function extractSpeechAfterWakeWord(text: string): string {
   return '';
 }
 
-function matchRouteCommand(_text: string): string | null {
+function matchRouteCommand(text: string): string | null {
+  void text;
   return null;
 }
 
@@ -164,6 +165,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     finalizeAudioStream,
     cleanupAudioPlayback,
     clearAiPlaybackFallbackTimer,
+    unlockAudioPlayback,
   } = useChatAudioPlayback();
 
   // --- Refs ---
@@ -200,6 +202,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   const voiceModelCheckPromiseRef = useRef<Promise<boolean> | null>(null);
   const hasDetectedSpeechRef = useRef(false);
   const pendingAiResponseTextRef = useRef('');
+  const ignoreIncomingResponseRef = useRef(false);
   const endOfStreamFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textEndFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wakeResumeCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -285,6 +288,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   // --- State management ---
   const beginAwaitingResponse = useCallback(
     (message = WAITING_FOR_AI_TEXT) => {
+      ignoreIncomingResponseRef.current = false;
       awaitingResponseRef.current = true;
       setIsAwaitingResponse(true);
       setAiTextStreamingComplete(false);
@@ -495,6 +499,17 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       if (message.type === 'ACK') return;
 
       if (message.type === 'END_OF_STREAM') {
+        if (ignoreIncomingResponseRef.current) {
+          console.log('[socket] END_OF_STREAM ignored after cancel');
+          isSubmittingSpeechTurnRef.current = false;
+          clearEndOfStreamFallbackTimer();
+          clearTextEndFallbackTimer();
+          pendingAiResponseTextRef.current = '';
+          clearTypeWriter();
+          endAwaitingResponse();
+          cleanupAudioPlayback(true);
+          return;
+        }
         console.log('[socket] END_OF_STREAM');
         isSubmittingSpeechTurnRef.current = false;
         setConnectionNotice('');
@@ -509,6 +524,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
       if (message.type === 'CANCELLED') {
         console.log('[socket] CANCELLED');
+        ignoreIncomingResponseRef.current = true;
         isSubmittingSpeechTurnRef.current = false;
         setConnectionNotice('');
         clearEndOfStreamFallbackTimer();
@@ -524,6 +540,10 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       }
 
       if (message.type === 'ERROR' || message.type === 'error') {
+        if (ignoreIncomingResponseRef.current) {
+          console.log('[socket] ERROR ignored after cancel', message);
+          return;
+        }
         console.log('[socket] ERROR', message);
         isSubmittingSpeechTurnRef.current = false;
         const code = message.payload?.code;
@@ -546,6 +566,11 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
           cleanupAudioPlayback(true);
           resumeWakeWordWhenReady();
         }
+        return;
+      }
+
+      if (ignoreIncomingResponseRef.current) {
+        console.log('[socket] message ignored after cancel', message.type);
         return;
       }
 
@@ -574,24 +599,8 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
             cleanupAudioPlayback(true);
             resumeWakeWordWhenReady();
           }, TEXT_END_FALLBACK_MS);
-          let index = 0;
           setLatestAiText(aiResponseText);
-          setIsAiTextTyping(true);
-          typeWriterIntervalRef.current = setInterval(() => {
-            setChatMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last && last.sender === 'ai') {
-                last.text = aiResponseText.slice(0, index + 1);
-              }
-              return next;
-            });
-            index += 1;
-            if (index >= aiResponseText.length) {
-              clearTypeWriter();
-              commitFinalAiMessage(aiResponseText);
-            }
-          }, 50);
+          setIsAiTextTyping(false);
           break;
         }
 
@@ -653,7 +662,12 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     onOpen: handleSocketOpen,
     onClose: handleSocketClose,
     onMessage: handleSocketMessage,
-    onBinaryChunk: enqueueAudioChunk,
+    onBinaryChunk: (chunk) => {
+      if (ignoreIncomingResponseRef.current) {
+        return;
+      }
+      enqueueAudioChunk(chunk);
+    },
     onConnectionUnavailable: handleConnectionUnavailable,
   });
 
@@ -1267,6 +1281,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       chatSessionType: string = 'USER_AI',
       targetUserId: number | null = null,
     ) => {
+      unlockAudioPlayback();
       if (isLocked) {
         updateVoiceStatus('화면이 잠겨있어요. 잠금을 해제하고 다시 시도해주세요.');
         return false;
@@ -1324,6 +1339,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       ensureVoiceModelReady,
       isLocked,
       startWakeMode,
+      unlockAudioPlayback,
       updateVoiceStatus,
     ],
   );
@@ -1368,6 +1384,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   ]);
 
   const cancelTurn = useCallback(() => {
+    ignoreIncomingResponseRef.current = true;
     stopSilenceMonitor();
     clearSpeechSilenceTimer();
     isSubmittingSpeechTurnRef.current = false;
@@ -1387,7 +1404,64 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     wsRef,
   ]);
 
+  const sleepConversation = useCallback(() => {
+    ignoreIncomingResponseRef.current = true;
+    wakeWordActiveRef.current = true;
+    hasCompletedInitialWakeTurnRef.current = false;
+    pendingWakeResumeRef.current = false;
+    pendingSpeechCaptureRef.current = false;
+    pendingSpeechSeedRef.current = '';
+    finalizeSpeechOnEndRef.current = false;
+    isSubmittingSpeechTurnRef.current = false;
+    speechTurnCompletedRef.current = false;
+    pendingAiResponseTextRef.current = '';
+
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'CANCEL' }));
+    }
+
+    setIsWakeWordActive(true);
+    setWakeWordDetectedAt(null);
+    setConnectionNotice('');
+    setVoicePhase('wake');
+    setAiTextStreamingComplete(true);
+    setAiStreamComplete(true);
+    clearTypeWriter();
+
+    recognitionModeRef.current = 'idle';
+    stopSilenceMonitor();
+    clearSpeechSilenceTimer();
+    clearTranscriptTimer();
+    clearWakeResumeCooldownTimer();
+    clearEndOfStreamFallbackTimer();
+    clearTextEndFallbackTimer();
+    endAwaitingResponse();
+    cleanupAudioPlayback(true);
+    stopMediaRecorder();
+    stopRecognition();
+    setSttText('');
+    sttTextRef.current = '';
+    updateVoiceStatus(WAKE_GUIDE_TEXT);
+    startWakeMode();
+  }, [
+    cleanupAudioPlayback,
+    clearEndOfStreamFallbackTimer,
+    clearSpeechSilenceTimer,
+    clearTextEndFallbackTimer,
+    clearTranscriptTimer,
+    clearTypeWriter,
+    clearWakeResumeCooldownTimer,
+    endAwaitingResponse,
+    stopMediaRecorder,
+    stopRecognition,
+    stopSilenceMonitor,
+    startWakeMode,
+    updateVoiceStatus,
+    wsRef,
+  ]);
+
   const discardCurrentTurn = useCallback(() => {
+    ignoreIncomingResponseRef.current = false;
     wakeWordActiveRef.current = false;
     hasCompletedInitialWakeTurnRef.current = false;
     pendingWakeResumeRef.current = false;
@@ -1431,6 +1505,9 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   ]);
 
   const resetConversationRuntime = useCallback(() => {
+    ignoreIncomingResponseRef.current = true;
+    wakeWordActiveRef.current = false;
+    hasCompletedInitialWakeTurnRef.current = false;
     pendingSpeechCaptureRef.current = false;
     pendingSpeechSeedRef.current = '';
     pendingWakeResumeRef.current = false;
@@ -1438,9 +1515,13 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     isSubmittingSpeechTurnRef.current = false;
     speechTurnCompletedRef.current = false;
     pendingAiResponseTextRef.current = '';
+    currentRecordingOptionsRef.current = null;
 
     awaitingResponseRef.current = false;
     setIsAwaitingResponse(false);
+    setIsWakeWordActive(false);
+    setWakeWordDetectedAt(null);
+    setVoicePhase('idle');
     setConnectionNotice('');
     setLatestAiText('');
     setVoiceStatus(WAKE_GUIDE_TEXT);
@@ -1450,21 +1531,30 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     setAiStreamComplete(true);
     setIsAiTextTyping(false);
 
+    recognitionModeRef.current = 'idle';
     clearTranscriptTimer();
     clearSpeechSilenceTimer();
     clearEndOfStreamFallbackTimer();
     clearTextEndFallbackTimer();
     clearWakeResumeCooldownTimer();
     clearTypeWriter();
+    stopSilenceMonitor();
     cleanupAudioPlayback(true);
+    stopMediaRecorder();
+    stopRecognition();
+    closeSocket(true);
   }, [
     cleanupAudioPlayback,
+    closeSocket,
     clearEndOfStreamFallbackTimer,
     clearSpeechSilenceTimer,
     clearTextEndFallbackTimer,
     clearTranscriptTimer,
     clearTypeWriter,
     clearWakeResumeCooldownTimer,
+    stopMediaRecorder,
+    stopRecognition,
+    stopSilenceMonitor,
   ]);
 
   const sendMessage = useCallback(
@@ -1527,6 +1617,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     startRecording,
     stopRecordingAndSendSTT,
     cancelTurn,
+    sleepConversation,
     updateRecordingContext,
     discardCurrentTurn,
     resetConversationRuntime,

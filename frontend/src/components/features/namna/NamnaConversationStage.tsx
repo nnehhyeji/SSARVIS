@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link2, Lock, Mic, MicOff, Send, Square, Unlock } from 'lucide-react';
 
-import CharacterScene from '../character/CharacterScene';
+import { initialsAvatarFallback } from '../../../utils/avatar';
+import {
+  hasVisibleCaptionLine,
+  renderCaptionLine,
+  splitCaptionLineSegments,
+} from '../../../utils/captionSegments';
 import {
   ACTIVE_SPEECH_COLOR,
   CONVERSATION_UI,
@@ -27,13 +32,9 @@ function CaptionLine({
   isLockMode: boolean;
   size?: 'default' | 'compact';
 }) {
-  if (!text.trim()) return null;
+  const lines = splitCaptionLineSegments(text, doneLength, activeLength);
+  if (!hasVisibleCaptionLine(lines, true)) return null;
 
-  const safeDoneLength = Math.max(0, Math.min(doneLength, text.length));
-  const safeActiveLength = Math.max(0, Math.min(activeLength, text.length - safeDoneLength));
-  const doneText = text.slice(0, safeDoneLength);
-  const activeText = text.slice(safeDoneLength, safeDoneLength + safeActiveLength);
-  const pendingText = text.slice(safeDoneLength + safeActiveLength);
   const doneClassName = isLockMode ? 'text-white' : 'text-black';
   const pendingClassName = isLockMode ? 'text-[#3F3A42]' : PENDING_TEXT_CLASS;
 
@@ -41,13 +42,20 @@ function CaptionLine({
     <div
       className={`max-w-[min(28vw,24rem)] whitespace-pre-wrap break-words font-black tracking-[-0.05em] ${
         size === 'compact'
-          ? 'text-[clamp(1.3rem,1.9vw,2.3rem)] leading-[1.24]'
-          : 'text-[clamp(1.6rem,2.3vw,3rem)] leading-[1.26]'
+          ? 'text-[clamp(1.3rem,1.9vw,2.3rem)] leading-[1.08]'
+          : 'text-[clamp(1.6rem,2.3vw,3rem)] leading-[1.1]'
       } ${align === 'right' ? 'text-right' : 'text-left'}`}
     >
-      {doneText ? <span className={doneClassName}>{doneText}</span> : null}
-      {activeText ? <span style={{ color: ACTIVE_SPEECH_COLOR }}>{activeText}</span> : null}
-      {pendingText ? <span className={pendingClassName}>{pendingText}</span> : null}
+      {lines.map((line, index) => (
+        <div key={`${align}-${index}`} className={index === 0 ? '' : 'mt-[0.08em]'}>
+          {renderCaptionLine(
+            line,
+            (value) => <span className={doneClassName}>{value}</span>,
+            (value) => <span style={{ color: ACTIVE_SPEECH_COLOR }}>{value}</span>,
+            (value) => <span className={pendingClassName}>{value}</span>,
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -67,6 +75,7 @@ interface NamnaConversationStageProps {
   leftMode: string;
   leftIsSpeaking: boolean;
   leftDisplayName: string;
+  leftProfileImage?: string;
   leftCaptionText: string;
   leftDoneLength: number;
   leftActiveLength: number;
@@ -75,6 +84,7 @@ interface NamnaConversationStageProps {
   rightMode: string;
   rightIsSpeaking: boolean;
   rightDisplayName: string;
+  rightProfileImage?: string;
   rightCaptionText: string;
   rightDoneLength: number;
   rightActiveLength: number;
@@ -107,19 +117,15 @@ export default function NamnaConversationStage({
   onHeaderCenterClear,
   headerRightActionLabel,
   onHeaderRightAction,
-  leftFaceType,
-  leftMouthOpenRadius,
-  leftMode,
   leftIsSpeaking,
   leftDisplayName,
+  leftProfileImage,
   leftCaptionText,
   leftDoneLength,
   leftActiveLength,
-  rightFaceType,
-  rightMouthOpenRadius,
-  rightMode,
   rightIsSpeaking,
   rightDisplayName,
+  rightProfileImage,
   rightCaptionText,
   rightDoneLength,
   rightActiveLength,
@@ -143,6 +149,10 @@ export default function NamnaConversationStage({
 }: NamnaConversationStageProps) {
   const [isNarrowLayout, setIsNarrowLayout] = useState(false);
   const showTextInput = isTextInputMode || !isMicOn;
+  const resolvedLeftProfileImage =
+    leftProfileImage?.trim() || initialsAvatarFallback(leftDisplayName);
+  const resolvedRightProfileImage =
+    rightProfileImage?.trim() || initialsAvatarFallback(rightDisplayName);
   const progressPercent =
     progressTotal > 0 ? Math.min(100, Math.max(0, (progressCurrent / progressTotal) * 100)) : 0;
 
@@ -271,15 +281,22 @@ export default function NamnaConversationStage({
                 aria-hidden={!showLeftSection}
               >
                 <div className="relative h-[170px] w-[170px] shrink-0 md:h-[190px] md:w-[190px]">
-                  <CharacterScene
-                    faceType={leftFaceType}
-                    mouthOpenRadius={leftMouthOpenRadius}
-                    mode={leftMode}
-                    isLockMode={isLockMode}
-                    isSpeaking={leftIsSpeaking}
-                    isMicOn={isMicOn}
-                    showWaveform={false}
-                  />
+                  <div className="h-full w-full overflow-hidden rounded-full border border-black/5 bg-[#FFF4F6] shadow-[0_18px_50px_rgba(247,87,110,0.12)]">
+                    <img
+                      src={resolvedLeftProfileImage}
+                      alt={leftDisplayName}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
+                        leftIsSpeaking && isMicOn
+                          ? 'bg-[radial-gradient(circle,_rgba(247,87,110,0.12)_0%,_rgba(247,87,110,0)_65%)] opacity-100'
+                          : 'opacity-0'
+                      }`}
+                    />
+                  </div>
                   <div
                     className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
                       isLockMode ? 'text-white' : 'text-black'
@@ -290,12 +307,10 @@ export default function NamnaConversationStage({
                 </div>
 
                 <div className={leftIsLong ? 'pt-16' : 'pt-10'}>
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence>
                     <motion.div
-                      key={`namna-left-${leftCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
+                      initial={false}
                       animate={{ opacity: leftCaptionText ? 1 : 0, y: leftCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                       <CaptionLine
@@ -324,12 +339,10 @@ export default function NamnaConversationStage({
                 aria-hidden={!showRightSection}
               >
                 <div className={`max-w-[min(28vw,24rem)] ${rightIsLong ? 'pt-6' : 'pt-3'}`}>
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence>
                     <motion.div
-                      key={`namna-right-${rightCaptionText}`}
-                      initial={{ opacity: 0, y: 14 }}
+                      initial={false}
                       animate={{ opacity: rightCaptionText ? 1 : 0, y: rightCaptionText ? 0 : 14 }}
-                      exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2, ease: 'easeOut' }}
                     >
                       <CaptionLine
@@ -345,15 +358,22 @@ export default function NamnaConversationStage({
                 </div>
 
                 <div className="relative h-[170px] w-[170px] shrink-0 md:h-[190px] md:w-[190px]">
-                  <CharacterScene
-                    faceType={rightFaceType}
-                    mouthOpenRadius={rightMouthOpenRadius}
-                    mode={rightMode}
-                    isLockMode={isLockMode}
-                    isSpeaking={rightIsSpeaking}
-                    isMicOn={isMicOn}
-                    showWaveform={false}
-                  />
+                  <div className="h-full w-full overflow-hidden rounded-full border border-black/5 bg-[#FFF4F6] shadow-[0_18px_50px_rgba(247,87,110,0.12)]">
+                    <img
+                      src={resolvedRightProfileImage}
+                      alt={rightDisplayName}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
+                        rightIsSpeaking && isMicOn
+                          ? 'bg-[radial-gradient(circle,_rgba(247,87,110,0.12)_0%,_rgba(247,87,110,0)_65%)] opacity-100'
+                          : 'opacity-0'
+                      }`}
+                    />
+                  </div>
                   <div
                     className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
                       isLockMode ? 'text-white' : 'text-black'
@@ -474,6 +494,8 @@ export default function NamnaConversationStage({
               <button
                 type="button"
                 onClick={onMicToggle}
+                aria-label={isMicOn ? '마이크 끄기' : '마이크 켜기'}
+                title={isMicOn ? '마이크 끄기' : '마이크 켜기'}
                 className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
                   isMicOn
                     ? 'border-[#F7576E]/25 bg-[#F7576E]/10 text-[#F7576E]'
@@ -510,6 +532,8 @@ export default function NamnaConversationStage({
                   type="button"
                   onClick={onSendText}
                   disabled={!chatInput.trim()}
+                  aria-label="메시지 전송"
+                  title="메시지 전송"
                   className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
                     chatInput.trim() ? 'bg-[#F7576E] text-white' : 'bg-[#ECECEC] text-[#AFAFAF]'
                   }`}

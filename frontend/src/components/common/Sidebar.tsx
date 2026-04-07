@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -21,15 +21,16 @@ import { getChatSessions } from '../../apis/chatApi';
 import type { ChatSession } from '../../apis/chatApi';
 
 // Sub-panels
-import SearchPanel from './sidebar/SearchPanel';
 import type { RecentSearchItem } from './sidebar/SearchPanel';
-import NotificationsPanel from './sidebar/NotificationsPanel';
-import FriendsPanel from './sidebar/FriendsPanel';
-import ChatPanel from './sidebar/ChatPanel';
-import AssistantPanel from './sidebar/AssistantPanel';
-import PersonaPanel from './sidebar/PersonaPanel';
-import ChatArchiveView from './ChatArchiveView';
 import SidebarAvatar from './sidebar/SidebarAvatar';
+
+const SearchPanel = lazy(() => import('./sidebar/SearchPanel'));
+const NotificationsPanel = lazy(() => import('./sidebar/NotificationsPanel'));
+const FriendsPanel = lazy(() => import('./sidebar/FriendsPanel'));
+const ChatPanel = lazy(() => import('./sidebar/ChatPanel'));
+const AssistantPanel = lazy(() => import('./sidebar/AssistantPanel'));
+const PersonaPanel = lazy(() => import('./sidebar/PersonaPanel'));
+const ChatArchiveView = lazy(() => import('./ChatArchiveView'));
 
 interface SidebarProps {
   // User Info & Basic Actions
@@ -76,8 +77,16 @@ interface AlarmPayload {
 
 const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
 const RECENT_SEARCH_LIMIT = 5;
-const STICKY_TERTIARY_IDS = new Set(['friends', 'chat', 'notifications', 'search']);
-const HOVER_LOCK_TERTIARY_IDS = new Set(['assistant', 'persona']);
+
+function SidebarPanelFallback() {
+  return (
+    <div className="flex flex-1 items-center justify-center px-6">
+      <div className="rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-bold text-gray-500">
+        불러오는 중...
+      </div>
+    </div>
+  );
+}
 
 export default function Sidebar({
   userInfo,
@@ -110,28 +119,60 @@ export default function Sidebar({
   const [activeTertiary, setActiveTertiary] = useState<
     'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null
   >(null);
-  const isStickyTertiary = activeTertiary ? STICKY_TERTIARY_IDS.has(activeTertiary) : false;
+
+  const isStickyTertiary =
+    activeTertiary === 'search' ||
+    (activeTertiary === 'chat' && location.pathname.startsWith('/chat'));
+  const isHoverLockTertiary = activeTertiary ? !isStickyTertiary : false;
+
   const closeHoverPanelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTertiaryOnlyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sidebarWidth = isExpanded ? 240 : 80;
   const tertiaryPanelWidth = 320;
-  const tertiaryLeft =
-    activeTertiary === 'notifications' || activeTertiary === 'search' ? 0 : sidebarWidth;
+  const tertiaryLeft = sidebarWidth;
   const detailPanelLeft = activeTertiary ? sidebarWidth + tertiaryPanelWidth : sidebarWidth;
-  const isHoverLockTertiary = activeTertiary ? HOVER_LOCK_TERTIARY_IDS.has(activeTertiary) : false;
+
+  const clearTertiaryOnlyTimer = useCallback(() => {
+    if (closeTertiaryOnlyTimerRef.current) {
+      clearTimeout(closeTertiaryOnlyTimerRef.current);
+      closeTertiaryOnlyTimerRef.current = null;
+    }
+  }, []);
 
   const clearHoverPanelCloseTimer = useCallback(() => {
     if (closeHoverPanelTimerRef.current) {
       clearTimeout(closeHoverPanelTimerRef.current);
       closeHoverPanelTimerRef.current = null;
     }
-  }, []);
+    clearTertiaryOnlyTimer();
+  }, [clearTertiaryOnlyTimer]);
+
+  const scheduleTertiaryOnlyClose = useCallback(() => {
+    clearTertiaryOnlyTimer();
+    closeTertiaryOnlyTimerRef.current = setTimeout(() => {
+      setActiveTertiary((current) => {
+        if (
+          current &&
+          current !== 'search' &&
+          !(current === 'chat' && window.location.pathname.startsWith('/chat'))
+        ) {
+          return null;
+        }
+        return current;
+      });
+    }, 120);
+  }, [clearTertiaryOnlyTimer]);
 
   const scheduleHoverPanelClose = useCallback(() => {
     clearHoverPanelCloseTimer();
     closeHoverPanelTimerRef.current = setTimeout(() => {
       setIsExpanded(false);
       setActiveTertiary((current) => {
-        if (current && HOVER_LOCK_TERTIARY_IDS.has(current)) {
+        if (
+          current &&
+          current !== 'search' &&
+          !(current === 'chat' && window.location.pathname.startsWith('/chat'))
+        ) {
           return null;
         }
         return current;
@@ -147,30 +188,24 @@ export default function Sidebar({
 
   // Sync activeTertiary with URL path
   useEffect(() => {
-    const path = location.pathname;
-    if (path.startsWith('/chat') || path.startsWith('/chat-archive')) {
-      setActiveTertiary('chat');
-    } else if (selectedChatId) {
-      setActiveTertiary('chat');
-    } else {
-      // For paths that don't correspond to tertiary panels, but some panels might be open manually
-      // We don't necessarily want to close manually opened panels on all navigations,
-      // but for 'friends', 'notifications', 'search' we might want to keep current state.
-      // However, the rule is "navigating to these pages opens/keeps panels open".
-      if (!['/friends', '/notifications', '/search'].includes(path)) {
-        if (
-          activeTertiary !== 'friends' &&
-          activeTertiary !== 'notifications' &&
-          activeTertiary !== 'search'
-        ) {
-          // If we are on Home, close panels unless it's friends etc.
-          if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
-            setActiveTertiary(null);
-          }
+    setActiveTertiary((current) => {
+      const path = location.pathname;
+      if (path.startsWith('/chat') || path.startsWith('/chat-archive') || selectedChatId) {
+        return 'chat';
+      }
+
+      // If navigating to Home or User Home, we only force close 'chat' if it was open.
+      // Other panels ('friends', 'notifications', 'search', 'assistant', 'persona')
+      // should remain un-interfered with so hover works naturally.
+      if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
+        if (current === 'chat') {
+          return null;
         }
       }
-    }
-  }, [activeTertiary, location.pathname, selectedChatId]);
+
+      return current;
+    });
+  }, [location.pathname, selectedChatId]);
 
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
@@ -449,7 +484,10 @@ export default function Sidebar({
   };
 
   const handleItemHover = (item: MenuItem) => {
-    if (!item.tertiaryId || !HOVER_LOCK_TERTIARY_IDS.has(item.tertiaryId)) {
+    if (!item.tertiaryId) {
+      if (activeTertiary && !isStickyTertiary) {
+        scheduleTertiaryOnlyClose();
+      }
       return;
     }
     clearHoverPanelCloseTimer();
@@ -490,20 +528,18 @@ export default function Sidebar({
         }}
         animate={{
           width: isExpanded ? 240 : 80,
-          opacity:
-            !isExpanded && (activeTertiary === 'notifications' || activeTertiary === 'search')
-              ? 0
-              : 1,
+          opacity: 1,
         }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
         className="h-full bg-[#eee5df] border-r border-gray-200 pointer-events-auto flex flex-col items-center py-6 z-[130]"
       >
-        <div className="mb-6 flex flex-col items-center gap-2">
-          <div className="flex items-center justify-center overflow-hidden">
-            <div
-              aria-label="Logo"
-              className="h-11 w-11 bg-stone-400"
-              style={{
+          <div className="mb-6 flex flex-col items-center gap-2">
+            <div className="flex items-center justify-center overflow-hidden">
+              <div
+                role="img"
+                aria-label="Logo"
+                className="h-11 w-11 bg-stone-400"
+                style={{
                 WebkitMaskImage: "url('/logo.svg')",
                 WebkitMaskRepeat: 'no-repeat',
                 WebkitMaskPosition: 'center',
@@ -542,7 +578,14 @@ export default function Sidebar({
             return (
               <div key={item.id} className="relative group/item">
                 <button
+                  aria-label={item.label}
+                  title={item.label}
                   onMouseEnter={() => handleItemHover(item)}
+                  onMouseLeave={() => {
+                    if (item.tertiaryId && !isStickyTertiary) {
+                      scheduleTertiaryOnlyClose();
+                    }
+                  }}
                   onClick={() => handleItemClick(item)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 hover:bg-black/5`}
                 >
@@ -578,6 +621,13 @@ export default function Sidebar({
             return (
               <button
                 key={item.id}
+                aria-label={item.label}
+                title={item.label}
+                onMouseEnter={() => {
+                  if (activeTertiary && !isStickyTertiary) {
+                    scheduleTertiaryOnlyClose();
+                  }
+                }}
                 onClick={() => handleItemClick(item)}
                 className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-black/5 transition-all duration-300"
               >
@@ -614,15 +664,12 @@ export default function Sidebar({
               if (!isHoverLockTertiary) return;
               scheduleHoverPanelClose();
             }}
-            initial={{ opacity: 0 }}
-            animate={{
-              x: 0,
-              opacity: 1,
-              left: tertiaryLeft,
-            }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 12 }}
             transition={{ duration: 0.2 }}
-            className={`fixed top-0 h-full w-[320px] bg-white border-r border-gray-200 pointer-events-auto overflow-hidden flex flex-col ${activeTertiary === 'notifications' || activeTertiary === 'search' ? 'z-[140]' : 'z-[120]'}`}
+            style={{ left: tertiaryLeft }}
+            className="fixed top-0 h-full w-[320px] bg-white border-r border-gray-200 pointer-events-auto overflow-hidden flex flex-col z-[120]"
           >
             <div className="flex min-h-[88px] items-center justify-between px-6 pb-2 pt-6">
               <div className="flex min-h-[44px] items-center gap-3">
@@ -657,6 +704,8 @@ export default function Sidebar({
                   if (selectedChatId)
                     navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
                 }}
+                aria-label="패널 닫기"
+                title="패널 닫기"
                 className="inline-flex h-11 w-11 items-center justify-center rounded-full p-2 transition-colors hover:bg-black/5"
               >
                 <X className="w-8 h-8 text-gray-800" />
@@ -664,100 +713,102 @@ export default function Sidebar({
             </div>
 
             <div className="flex-1 flex flex-col pt-4">
-              {activeTertiary === 'search' && (
-                <SearchPanel
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  onSearch={onSearch}
-                  isSearchLoading={isSearchLoading}
-                  searchResults={searchResults}
-                  recentSearches={recentSearches}
-                  addRecentSearch={addRecentSearch}
-                  removeRecentSearch={removeRecentSearch}
-                  persistRecentSearches={persistRecentSearches}
-                  handleRecentSearchClick={handleRecentSearchClick}
-                  onVisit={(id) => {
-                    onVisit(id);
-                    setActiveTertiary(null);
-                  }}
-                  onRequest={onRequest}
-                  setRecentSearches={setRecentSearches}
-                  onAccept={onAccept}
-                />
-              )}
-              {activeTertiary === 'notifications' && (
-                <NotificationsPanel
-                  alarms={alarms}
-                  onAlarmClick={handleNotificationClick}
-                  onReadAllAlarms={onReadAllAlarms}
-                  onDeleteAllAlarms={onDeleteAllAlarms}
-                  onRemoveAlarm={onRemoveAlarm}
-                  onAccept={onAccept}
-                />
-              )}
-              {activeTertiary === 'friends' && (
-                <FriendsPanel
-                  friendView={friendView}
-                  setFriendView={setFriendView}
-                  followRequests={followRequests}
-                  friendTab={friendTab}
-                  setFriendTab={setFriendTab}
-                  follows={follows}
-                  onVisit={(id) => {
-                    onVisit(id);
-                    setActiveTertiary(null);
-                  }}
-                  onDelete={onDelete}
-                  onAccept={onAccept}
-                  onReject={onReject}
-                  onSearchOpen={() => setActiveTertiary('search')}
-                />
-              )}
-              {activeTertiary === 'chat' && (
-                <ChatPanel
-                  chatTab={chatTab}
-                  chatView={chatView}
-                  setChatView={setChatView}
-                  chatCategory={chatCategory}
-                  setChatCategory={setChatCategory}
-                  assistantFilters={assistantFilters}
-                  setAssistantFilters={setAssistantFilters}
-                  displaySessions={displaySessions}
-                  isChatLoading={isChatLoading}
-                  selectedChatId={selectedChatId}
-                  setSelectedChatId={(id) => {
-                    if (id) {
-                      navigate(PATHS.CHAT_ARCHIVE(id));
-                    } else {
-                      returnToChatList();
-                    }
-                  }}
-                  onSelectArchiveTab={returnToChatCategories}
-                  onSelectGuestbookTab={openGuestbookRoot}
-                />
-              )}
-              {activeTertiary === 'assistant' && (
-                <AssistantPanel
-                  currentMode={currentMode}
-                  onModeChange={(m) => {
-                    clearHoverPanelCloseTimer();
-                    onModeChange(m);
-                    navigate(PATHS.ASSISTANT);
-                    setActiveTertiary(null);
-                    setIsExpanded(false);
-                  }}
-                />
-              )}
-              {activeTertiary === 'persona' && (
-                <PersonaPanel
-                  onModeChange={(m) => {
-                    clearHoverPanelCloseTimer();
-                    onModeChange(m);
-                    setActiveTertiary(null);
-                    setIsExpanded(false);
-                  }}
-                />
-              )}
+              <Suspense fallback={<SidebarPanelFallback />}>
+                {activeTertiary === 'search' && (
+                  <SearchPanel
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    onSearch={onSearch}
+                    isSearchLoading={isSearchLoading}
+                    searchResults={searchResults}
+                    recentSearches={recentSearches}
+                    addRecentSearch={addRecentSearch}
+                    removeRecentSearch={removeRecentSearch}
+                    persistRecentSearches={persistRecentSearches}
+                    handleRecentSearchClick={handleRecentSearchClick}
+                    onVisit={(id) => {
+                      onVisit(id);
+                      setActiveTertiary(null);
+                    }}
+                    onRequest={onRequest}
+                    setRecentSearches={setRecentSearches}
+                    onAccept={onAccept}
+                  />
+                )}
+                {activeTertiary === 'notifications' && (
+                  <NotificationsPanel
+                    alarms={alarms}
+                    onAlarmClick={handleNotificationClick}
+                    onReadAllAlarms={onReadAllAlarms}
+                    onDeleteAllAlarms={onDeleteAllAlarms}
+                    onRemoveAlarm={onRemoveAlarm}
+                    onAccept={onAccept}
+                  />
+                )}
+                {activeTertiary === 'friends' && (
+                  <FriendsPanel
+                    friendView={friendView}
+                    setFriendView={setFriendView}
+                    followRequests={followRequests}
+                    friendTab={friendTab}
+                    setFriendTab={setFriendTab}
+                    follows={follows}
+                    onVisit={(id) => {
+                      onVisit(id);
+                      setActiveTertiary(null);
+                    }}
+                    onDelete={onDelete}
+                    onAccept={onAccept}
+                    onReject={onReject}
+                    onSearchOpen={() => setActiveTertiary('search')}
+                  />
+                )}
+                {activeTertiary === 'chat' && (
+                  <ChatPanel
+                    chatTab={chatTab}
+                    chatView={chatView}
+                    setChatView={setChatView}
+                    chatCategory={chatCategory}
+                    setChatCategory={setChatCategory}
+                    assistantFilters={assistantFilters}
+                    setAssistantFilters={setAssistantFilters}
+                    displaySessions={displaySessions}
+                    isChatLoading={isChatLoading}
+                    selectedChatId={selectedChatId}
+                    setSelectedChatId={(id) => {
+                      if (id) {
+                        navigate(PATHS.CHAT_ARCHIVE(id));
+                      } else {
+                        returnToChatList();
+                      }
+                    }}
+                    onSelectArchiveTab={returnToChatCategories}
+                    onSelectGuestbookTab={openGuestbookRoot}
+                  />
+                )}
+                {activeTertiary === 'assistant' && (
+                  <AssistantPanel
+                    currentMode={currentMode}
+                    onModeChange={(m) => {
+                      clearHoverPanelCloseTimer();
+                      onModeChange(m);
+                      navigate(PATHS.ASSISTANT);
+                      setActiveTertiary(null);
+                      setIsExpanded(false);
+                    }}
+                  />
+                )}
+                {activeTertiary === 'persona' && (
+                  <PersonaPanel
+                    onModeChange={(m) => {
+                      clearHoverPanelCloseTimer();
+                      onModeChange(m);
+                      setActiveTertiary(null);
+                      setIsExpanded(false);
+                    }}
+                  />
+                )}
+              </Suspense>
             </div>
           </motion.div>
         )}
@@ -765,9 +816,9 @@ export default function Sidebar({
       <AnimatePresence>
         {sessionId && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 12 }}
             style={{ left: `${detailPanelLeft}px` }}
             className="fixed top-0 bottom-0 right-0 bg-white pointer-events-auto border-l border-gray-200 overflow-hidden flex flex-col z-[110] transition-all duration-200"
           >
@@ -790,7 +841,9 @@ export default function Sidebar({
             </div>
 
             <div className="flex-1 min-h-0 bg-white flex flex-col">
-              <ChatArchiveView selectedChatId={sessionId} />
+              <Suspense fallback={<SidebarPanelFallback />}>
+                <ChatArchiveView selectedChatId={sessionId} />
+              </Suspense>
             </div>
           </motion.div>
         )}

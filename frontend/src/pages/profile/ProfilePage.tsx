@@ -197,6 +197,10 @@ const ProfilePage: React.FC = () => {
                   )
                 }
                 alt={TEXT.profileAlt}
+                fetchPriority="high"
+                decoding="async"
+                width="144"
+                height="144"
                 className="h-full w-full object-cover"
               />
             </div>
@@ -227,13 +231,15 @@ const ProfilePage: React.FC = () => {
             <div className="flex items-center gap-2.5">
               <button
                 onClick={handleEditClick}
-                className="flex h-8 items-center rounded-full bg-rose-500 px-5 text-sm font-bold text-white shadow-lg shadow-rose-500/30 transition-all active:scale-95 hover:bg-rose-600"
+                className="flex h-8 items-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-bold text-white shadow-lg transition-all active:scale-95 hover:bg-[var(--color-primary-sub)]"
+                style={{ boxShadow: '0 10px 24px color-mix(in srgb, var(--color-primary) 28%, transparent)' }}
               >
                 {TEXT.edit}
               </button>
               <button
                 onClick={handleShareClick}
-                className="group/share flex h-8 w-8 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-500/30 transition-all active:scale-95 hover:bg-rose-600"
+                className="group/share flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary)] text-white shadow-lg transition-all active:scale-95 hover:bg-[var(--color-primary-sub)]"
+                style={{ boxShadow: '0 10px 24px color-mix(in srgb, var(--color-primary) 28%, transparent)' }}
                 title={TEXT.shareTitle}
               >
                 <Share2 className="h-4 w-4 transition-colors" />

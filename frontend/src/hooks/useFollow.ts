@@ -65,7 +65,7 @@ export function useFollow() {
         profileExp: '^-^',
         view_count: 0,
         isFollowing: true,
-        isFollower: true,
+        isFollower: false,
       }));
 
       const mappedFollowers: Follow[] = (followerRes.data || []).map((f) => ({
@@ -79,7 +79,7 @@ export function useFollow() {
         color: 'bg-blue-100',
         profileExp: '^o^',
         view_count: 0,
-        isFollowing: true,
+        isFollowing: false,
         isFollower: true,
       }));
 
@@ -128,24 +128,27 @@ export function useFollow() {
   }, [fetchFollows, fetchFollowRequests, isLoggedIn]);
 
   const visitFollow = useCallback(
-    (id: number, isReturn: boolean = false) => {
+    (id: number, isReturn: boolean = false, fallbackName?: string) => {
       const user = follows.find((f) => f.id === id);
-      if (!user) return null;
 
-      setVisitedFollowName(user.name);
-      setVisitedUserId(user.id);
+      // 팔로우 관계가 없더라도 fallbackName이 있으면 방문 허용
+      const name = user?.name || fallbackName || '';
+      if (!name) return null;
+
+      setVisitedFollowName(name);
+      setVisitedUserId(id);
       setIsVisitorMode(true);
       setIsDualAiMode(false);
       setIsInteractionModalOpen(false);
 
-      const visibility = user.isFollowing ? 'private' : 'public';
+      const visibility = user?.isFollowing ? 'private' : 'public';
       setVisitorVisibility(visibility);
 
       if (!isReturn) {
-        toast.info(`${user.name}님의 방으로 이동해요.`, `${visibility} 모드로 방문합니다.`);
+        toast.info(`${name}님의 방으로 이동해요.`, `${visibility} 모드로 방문합니다.`);
       }
 
-      return `${user.name}: 브리지에 다녀왔어요.`;
+      return `${name}: 브리지에 다녀왔어요.`;
     },
     [follows],
   );
@@ -286,6 +289,10 @@ export function useFollow() {
     setFollowRequests,
     setIsDualAiMode,
     setIsInteractionModalOpen,
+    setIsVisitorMode,
+    setVisitedFollowName,
+    setVisitedUserId,
+    setVisitorVisibility,
     visitFollow,
     leaveFollow,
     requestFollow,

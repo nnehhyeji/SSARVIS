@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ChatMessage } from '../types';
 import { CONVERSATION_UI } from '../constants/conversationUi';
@@ -14,6 +14,61 @@ function getActiveSegment(text: string) {
     doneLength: activeStart,
     activeLength: trimmed.length - activeStart,
   };
+}
+
+function getSegmentAroundIndex(text: string, index: number) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return { doneLength: 0, activeLength: 0 };
+
+  const clampedIndex = Math.max(0, Math.min(index, trimmed.length));
+  const targetIndex = Math.max(0, Math.min(clampedIndex - 1, trimmed.length - 1));
+
+  if (/\s/.test(trimmed[targetIndex] ?? '')) {
+    return getActiveSegment(trimmed.slice(0, clampedIndex));
+  }
+
+  let activeStart = targetIndex;
+  while (activeStart > 0 && !/\s/.test(trimmed[activeStart - 1])) {
+    activeStart -= 1;
+  }
+
+  let activeEnd = targetIndex + 1;
+  while (activeEnd < trimmed.length && !/\s/.test(trimmed[activeEnd])) {
+    activeEnd += 1;
+  }
+
+  return {
+    doneLength: activeStart,
+    activeLength: activeEnd - activeStart,
+  };
+}
+
+function getVisibleSegmentAroundIndex(text: string, index: number) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) {
+    return {
+      text: '',
+      doneLength: 0,
+      activeLength: 0,
+    };
+  }
+
+  const segment = getSegmentAroundIndex(trimmed, index);
+  const visibleLength = Math.min(trimmed.length, segment.doneLength + segment.activeLength);
+
+  return {
+    text: trimmed.slice(0, visibleLength),
+    doneLength: segment.doneLength,
+    activeLength: segment.activeLength,
+  };
+}
+
+function estimateCaptionDurationMs(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+
+  const punctuationPauseCount = (trimmed.match(/[,.!?~]/g) ?? []).length;
+  return Math.max(1500, trimmed.length * 102 + punctuationPauseCount * 290);
 }
 
 interface UseConversationStageStateParams {
@@ -51,6 +106,9 @@ export function useConversationStageState({
   liveCaptionWindowMs = 1600,
   longCaptionThreshold = 55,
 }: UseConversationStageStateParams) {
+  const [fallbackSpeechProgress, setFallbackSpeechProgress] = useState(0);
+  const speechStartedAtRef = useRef<number | null>(null);
+
   const lastAiMessage = useMemo(() => {
     return (
       chatMessages
@@ -83,36 +141,108 @@ export function useConversationStageState({
     ? getActiveSegment(userCaptionText)
     : { doneLength: userCaptionText.length, activeLength: 0 };
 
-  const aiCaptionText = latestAiText || triggerText || lastAiMessage;
-  const aiCaptionSegments = useMemo(() => {
-    if (!aiCaptionText) return { doneLength: 0, activeLength: 0 };
-    if (aiStreamComplete || (aiTextStreamingComplete && !isAiSpeaking && !isAiTextTyping)) {
-      return { doneLength: aiCaptionText.length, activeLength: 0 };
+  const fullAiText = latestAiText || triggerText || lastAiMessage;
+
+  useEffect(() => {
+    let frameId = 0;
+
+    if (!isCharacterSpeaking || !fullAiText.trim()) {
+      speechStartedAtRef.current = null;
+      frameId = window.requestAnimationFrame(() => {
+        setFallbackSpeechProgress(0);
+      });
+      return;
     }
-    if (isCharacterSpeaking) {
-      const spokenLength = Math.max(
-        0,
-        Math.min(Math.floor(aiCaptionText.length * aiSpeechProgress), aiCaptionText.length),
-      );
 
-      if (spokenLength === 0) return { doneLength: 0, activeLength: 0 };
+    if (speechStartedAtRef.current === null) {
+      speechStartedAtRef.current = performance.now();
+    }
 
+    const estimatedDurationMs = estimateCaptionDurationMs(fullAiText);
+    if (estimatedDurationMs <= 0) {
+      frameId = window.requestAnimationFrame(() => {
+        setFallbackSpeechProgress(0);
+      });
+      return;
+    }
+
+    const tick = () => {
+      if (speechStartedAtRef.current === null) return;
+
+      const elapsedMs = performance.now() - speechStartedAtRef.current;
+      const estimatedProgress = Math.max(0, Math.min(elapsedMs / estimatedDurationMs, 0.98));
+      setFallbackSpeechProgress((prev) => (estimatedProgress > prev ? estimatedProgress : prev));
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [fullAiText, isCharacterSpeaking]);
+
+  const aiCaptionState = useMemo(() => {
+    if (!fullAiText) {
       return {
-        doneLength: Math.max(0, spokenLength - 1),
-        activeLength: 1,
+        text: '',
+        doneLength: 0,
+        activeLength: 0,
       };
     }
 
-    return getActiveSegment(aiCaptionText);
+    if (isCharacterSpeaking) {
+      const effectiveProgress = Math.max(aiSpeechProgress, fallbackSpeechProgress);
+      const spokenLength = Math.max(
+        0,
+        Math.min(Math.floor(fullAiText.length * effectiveProgress), fullAiText.length),
+      );
+
+      if (spokenLength === 0) {
+        return { text: '', doneLength: 0, activeLength: 0 };
+      }
+
+      return getVisibleSegmentAroundIndex(fullAiText, spokenLength);
+    }
+
+    if (!aiStreamComplete && !isAiSpeaking && !isAiTextTyping) {
+      return {
+        text: '',
+        doneLength: 0,
+        activeLength: 0,
+      };
+    }
+
+    if (
+      aiStreamComplete ||
+      (aiTextStreamingComplete && !isAwaitingResponse && !isAiSpeaking && !isAiTextTyping)
+    ) {
+      return {
+        text: fullAiText,
+        doneLength: fullAiText.length,
+        activeLength: 0,
+      };
+    }
+
+    return {
+      text: fullAiText,
+      ...getActiveSegment(fullAiText),
+    };
   }, [
-    aiCaptionText,
     aiSpeechProgress,
     aiStreamComplete,
     aiTextStreamingComplete,
+    isAwaitingResponse,
+    fallbackSpeechProgress,
     isAiSpeaking,
     isAiTextTyping,
     isCharacterSpeaking,
+    fullAiText,
   ]);
+  const aiCaptionText = aiCaptionState.text;
+  const aiCaptionSegments = {
+    doneLength: aiCaptionState.doneLength,
+    activeLength: aiCaptionState.activeLength,
+  };
 
   const activeSpeaker: 'ai' | 'user' | null = isAiSpeaking
     ? 'ai'

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
 @import 'tailwindcss';
 
 /* src/index.css */
@@ -25,21 +25,6 @@
   font-family: 'Neue Haas Grotesk';
   src: url('./fonts/NeueHaasDisplay-Black.woff') format('woff');
   font-weight: 900; /* Black */
-}
-@font-face {
-  font-family: 'Neue Haas Grotesk';
-  src: url('./fonts/NeueHaasDisplay-Light.woff') format('woff');
-  font-weight: 300; /* Light */
-}
-@font-face {
-  font-family: 'Neue Haas Grotesk';
-  src: url('./fonts/NeueHaasDisplay-XThin.woff') format('woff');
-  font-weight: 200; /* XThin */
-}
-@font-face {
-  font-family: 'Neue Haas Grotesk';
-  src: url('./fonts/NeueHaasDisplay-XXThin.woff') format('woff');
-  font-weight: 100; /* XXThin */
 }
 
 /* 3. 테일윈드 테마 설정 추가 */

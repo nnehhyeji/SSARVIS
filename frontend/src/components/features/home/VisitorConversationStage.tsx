@@ -1,7 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquare, Mic, MicOff, Send, Square } from 'lucide-react';
 
-import CharacterScene from '../character/CharacterScene';
+import { initialsAvatarFallback } from '../../../utils/avatar';
+import {
+  hasVisibleCaptionLine,
+  renderCaptionLine,
+  splitCaptionLineSegments,
+} from '../../../utils/captionSegments';
 import {
   ACTIVE_SPEECH_COLOR,
   CONVERSATION_UI,
@@ -19,19 +24,21 @@ function CaptionLine({
   doneLength: number;
   activeLength: number;
 }) {
-  if (!text.trim()) return null;
-
-  const safeDoneLength = Math.max(0, Math.min(doneLength, text.length));
-  const safeActiveLength = Math.max(0, Math.min(activeLength, text.length - safeDoneLength));
-  const doneText = text.slice(0, safeDoneLength);
-  const activeText = text.slice(safeDoneLength, safeDoneLength + safeActiveLength);
-  const pendingText = text.slice(safeDoneLength + safeActiveLength);
+  const lines = splitCaptionLineSegments(text, doneLength, activeLength);
+  if (!hasVisibleCaptionLine(lines, true)) return null;
 
   return (
-    <div className="w-full whitespace-pre-wrap break-words text-left text-[clamp(1.5rem,2.2vw,3rem)] font-black leading-[1.26] tracking-[-0.05em] text-black">
-      {doneText ? <span className="text-black">{doneText}</span> : null}
-      {activeText ? <span style={{ color: ACTIVE_SPEECH_COLOR }}>{activeText}</span> : null}
-      {pendingText ? <span className={PENDING_TEXT_CLASS}>{pendingText}</span> : null}
+    <div className="w-full break-words text-left text-[clamp(1.5rem,2.2vw,3rem)] font-black leading-[1.1] tracking-[-0.05em] text-black">
+      {lines.map((line, index) => (
+        <div key={`visitor-${index}`} className={index === 0 ? '' : 'mt-[0.08em]'}>
+          {renderCaptionLine(
+            line,
+            (value) => <span className="text-black">{value}</span>,
+            (value) => <span style={{ color: ACTIVE_SPEECH_COLOR }}>{value}</span>,
+            (value) => <span className={PENDING_TEXT_CLASS}>{value}</span>,
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -45,6 +52,9 @@ interface VisitorConversationStageProps {
   mouthOpenRadius: number;
   isCharacterSpeaking: boolean;
   assistantDisplayName: string;
+  assistantProfileImage?: string;
+  userDisplayName?: string;
+  profileImage?: string;
   aiCaptionText: string;
   aiDoneLength: number;
   aiActiveLength: number;
@@ -71,13 +81,13 @@ interface VisitorConversationStageProps {
 
 export default function VisitorConversationStage({
   title,
-  currentMode,
   isMicOn,
   isTextInputMode = false,
-  faceType,
-  mouthOpenRadius,
   isCharacterSpeaking,
   assistantDisplayName,
+  assistantProfileImage,
+  userDisplayName = '나',
+  profileImage,
   aiCaptionText,
   aiDoneLength,
   aiActiveLength,
@@ -102,6 +112,9 @@ export default function VisitorConversationStage({
   onFollowClick,
 }: VisitorConversationStageProps) {
   const showTextInput = isTextInputMode || !isMicOn;
+  const showUserAvatar = Boolean(profileImage?.trim());
+  const resolvedAssistantProfileImage =
+    assistantProfileImage?.trim() || initialsAvatarFallback(assistantDisplayName);
 
   return (
     <div className={`relative h-full w-full bg-white ${SIDEBAR_SAFE_PADDING}`}>
@@ -169,15 +182,22 @@ export default function VisitorConversationStage({
                       />
                     ) : null}
                   </AnimatePresence>
-                  <CharacterScene
-                    faceType={(faceType + 2) % 6}
-                    mouthOpenRadius={mouthOpenRadius}
-                    mode={currentMode}
-                    isLockMode={false}
-                    isSpeaking={isCharacterSpeaking}
-                    isMicOn={isMicOn}
-                    label=""
-                  />
+                  <div className="relative h-full w-full overflow-hidden rounded-full border border-[#F3D4DA] bg-[#FFF4F6] shadow-[0_18px_50px_rgba(247,87,110,0.18)]">
+                    <img
+                      src={resolvedAssistantProfileImage}
+                      alt={assistantDisplayName}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
+                        isCharacterSpeaking && isMicOn
+                          ? 'bg-[radial-gradient(circle,_rgba(247,87,110,0.12)_0%,_rgba(247,87,110,0)_65%)] opacity-100'
+                          : 'opacity-0'
+                      }`}
+                    />
+                  </div>
                 </div>
                 <div className="mt-0.5 text-center text-sm font-normal tracking-[-0.03em] text-black/70">
                   {assistantDisplayName}
@@ -197,12 +217,10 @@ export default function VisitorConversationStage({
                 </AnimatePresence>
               </div>
 
-              <AnimatePresence mode="wait">
+              <AnimatePresence>
                 <motion.div
-                  key={`visitor-ai-${aiCaptionText}`}
-                  initial={{ opacity: 0, y: 14 }}
+                  initial={false}
                   animate={{ opacity: aiCaptionText ? 1 : 0, y: aiCaptionText ? 0 : 14 }}
-                  exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2, ease: 'easeOut' }}
                   className="min-h-[4.5rem] w-[min(32vw,28rem)] flex-none self-center"
                 >
@@ -244,6 +262,8 @@ export default function VisitorConversationStage({
             <button
               type="button"
               onClick={onMicToggle}
+              aria-label={isMicOn ? '마이크 끄기' : '마이크 켜기'}
+              title={isMicOn ? '마이크 끄기' : '마이크 켜기'}
               className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border transition-all duration-200 ${
                 isMicOn
                   ? 'border-[#F7576E]/25 bg-[#F7576E]/10 text-[#F7576E]'
@@ -255,6 +275,17 @@ export default function VisitorConversationStage({
 
             {showTextInput ? (
               <div className="flex min-w-0 flex-1 items-center gap-2 rounded-[18px] border border-[#EEEEEE] bg-[#FAFAFA] px-4 py-2">
+                {showUserAvatar ? (
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#E7E7E7] bg-[#F1F1F1]">
+                    <img
+                      src={profileImage}
+                      alt={userDisplayName}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : null}
                 <input
                   type="text"
                   value={chatInput}
@@ -269,6 +300,8 @@ export default function VisitorConversationStage({
                   type="button"
                   onClick={onSendText}
                   disabled={!chatInput.trim()}
+                  aria-label="메시지 전송"
+                  title="메시지 전송"
                   className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-200 ${
                     chatInput.trim() ? 'bg-[#F7576E] text-white' : 'bg-[#ECECEC] text-[#AFAFAF]'
                   }`}
@@ -278,9 +311,21 @@ export default function VisitorConversationStage({
               </div>
             ) : showLiveTranscript ? (
               <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[18px] border border-[#F3D4DA] bg-[#FFF7F8] px-4 py-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F7576E]/12 text-[#F7576E]">
-                  <Mic className="h-4 w-4" />
-                </div>
+                {showUserAvatar ? (
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#F3D4DA] bg-white">
+                    <img
+                      src={profileImage}
+                      alt={userDisplayName}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F7576E]/12 text-[#F7576E]">
+                    <Mic className="h-4 w-4" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 text-[11px] font-bold tracking-[0.08em] text-[#C56A78]">
                     실시간 자막

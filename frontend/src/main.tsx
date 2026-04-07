@@ -1,18 +1,23 @@
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import './index.css';
 import './App.css';
 import { router } from './routes/AppRouter';
-import ToastViewport from './components/common/ToastViewport';
-import AudioUnlockOverlay from './components/common/AudioUnlockOverlay';
+
+const ToastViewport = lazy(() => import('./components/common/ToastViewport'));
+const AudioUnlockOverlay = lazy(() => import('./components/common/AudioUnlockOverlay'));
+import HotjarUserSync from './components/common/HotjarUserSync';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <>
       <RouterProvider router={router} />
-      <ToastViewport />
-      <AudioUnlockOverlay />
+      <HotjarUserSync />
+      <Suspense fallback={null}>
+        <ToastViewport />
+        <AudioUnlockOverlay />
+      </Suspense>
     </>
   </StrictMode>,
 );

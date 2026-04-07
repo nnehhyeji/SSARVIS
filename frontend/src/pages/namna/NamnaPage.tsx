@@ -7,13 +7,65 @@ import { useUserStore } from '../../store/useUserStore';
 import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 import { useMicStore } from '../../store/useMicStore';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
+import { useHasUserGesture } from '../../hooks/useHasUserGesture';
 import AiTopicModal from '../../components/features/assistant/AiTopicModal';
 import AssistantConversationStage from '../../components/features/assistant/AssistantConversationStage';
 import NamnaConversationStage from '../../components/features/namna/NamnaConversationStage';
 import { initialsAvatarFallback } from '../../utils/avatar';
 import { getEvaluationList } from '../../apis/aiApi';
+import userApi from '../../apis/userApi';
+import type { UserResponse } from '../../apis/userApi';
 import SharePersonaModal from '../../components/features/follow/SharePersonaModal';
 import { PAGE_INSET, SIDEBAR_SAFE_PADDING } from '../../constants/conversationUi';
+
+function getActiveSegment(text: string) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return { doneLength: 0, activeLength: 0 };
+
+  const lastWhitespace = Math.max(trimmed.lastIndexOf(' '), trimmed.lastIndexOf('\n'));
+  const activeStart = lastWhitespace >= 0 ? lastWhitespace + 1 : 0;
+
+  return {
+    doneLength: activeStart,
+    activeLength: trimmed.length - activeStart,
+  };
+}
+
+function getSegmentAroundIndex(text: string, index: number) {
+  const trimmed = text.trimEnd();
+  if (!trimmed) return { doneLength: 0, activeLength: 0 };
+
+  const clampedIndex = Math.max(0, Math.min(index, trimmed.length));
+  const targetIndex = Math.max(0, Math.min(clampedIndex - 1, trimmed.length - 1));
+
+  if (/\s/.test(trimmed[targetIndex] ?? '')) {
+    return getActiveSegment(trimmed.slice(0, clampedIndex));
+  }
+
+  let activeStart = targetIndex;
+  while (activeStart > 0 && !/\s/.test(trimmed[activeStart - 1])) {
+    activeStart -= 1;
+  }
+
+  let activeEnd = targetIndex + 1;
+  while (activeEnd < trimmed.length && !/\s/.test(trimmed[activeEnd])) {
+    activeEnd += 1;
+  }
+
+  return {
+    doneLength: activeStart,
+    activeLength: activeEnd - activeStart,
+  };
+}
+
+function getDualCaptionSegments(text: string, isSpeaking: boolean, progress: number) {
+  if (!text.trim()) return { doneLength: 0, activeLength: 0 };
+  if (!isSpeaking) return { doneLength: text.length, activeLength: 0 };
+
+  const spokenLength = Math.max(0, Math.min(Math.floor(text.length * progress), text.length));
+  if (spokenLength === 0) return { doneLength: 0, activeLength: 0 };
+  return getSegmentAroundIndex(text, spokenLength);
+}
 
 export default function NamnaPage() {
   const NAMNA_PROMPT_THRESHOLD = 5;
@@ -21,6 +73,7 @@ export default function NamnaPage() {
   const [searchParams] = useSearchParams();
   const aiToAiChat = useAIToAIChat();
   const isDualParamEnabled = searchParams.get('dual') === 'true';
+  const [profile, setProfile] = useState<UserResponse | null>(null);
 
   const {
     isMicOn,
@@ -57,7 +110,7 @@ export default function NamnaPage() {
     startRecording,
     stopRecordingAndSendSTT,
     toggleLock,
-    cancelTurn,
+    sleepConversation,
     discardCurrentTurn,
   } = useChat();
 
@@ -68,6 +121,7 @@ export default function NamnaPage() {
   const [isSharePersonaModalOpen, setIsSharePersonaModalOpen] = useState(false);
   const hasStartedDualBattleRef = useRef(false);
   const didAutoStartRef = useRef(false);
+  const hasUserGesture = useHasUserGesture();
   const isDualAiSceneOpen = isDualAiMode || aiToAiChat.isBattling || Boolean(aiToAiChat.topic);
 
   const isNamnaReady = evaluationCount >= NAMNA_PROMPT_THRESHOLD;
@@ -101,12 +155,6 @@ export default function NamnaPage() {
   }, [isDualParamEnabled]);
 
   useEffect(() => {
-    if (!isNamnaReady) {
-      setIsInteractionModalOpen(false);
-    }
-  }, [isNamnaReady]);
-
-  useEffect(() => {
     if (!isDualAiSceneOpen) return;
 
     discardCurrentTurn();
@@ -127,13 +175,30 @@ export default function NamnaPage() {
   }, [userInfo?.id]);
 
   useEffect(() => {
-    setIsTextInputMode(!isMicOn);
-  }, [isMicOn]);
+    let isMounted = true;
+
+    if (!userInfo?.id) return;
+
+    void (async () => {
+      try {
+        const data = await userApi.getUserProfile();
+        if (!isMounted) return;
+        setProfile(data);
+      } catch (error) {
+        console.error('남이 보는 나 프로필 조회 실패:', error);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userInfo?.id]);
 
   useEffect(() => {
     if (
       !isNamnaReady ||
       !micStoreHydrated ||
+      !hasUserGesture ||
       !micPreferenceEnabled ||
       didAutoStartRef.current ||
       isMicOn
@@ -159,6 +224,7 @@ export default function NamnaPage() {
     isLockMode,
     isNamnaReady,
     isMicOn,
+    hasUserGesture,
     micPreferenceEnabled,
     micStoreHydrated,
     setMicRuntimeActive,
@@ -225,28 +291,36 @@ export default function NamnaPage() {
 
   const leftCaptionText = isDualAiMode ? aiToAiChat.targetLatestText || triggerText : aiCaptionText;
   const leftDoneLength = isDualAiMode
-    ? aiToAiChat.activeSpeaker === 'target' && leftCaptionText.trim()
-      ? Math.max(0, leftCaptionText.length - 1)
-      : leftCaptionText.length
+    ? getDualCaptionSegments(
+        leftCaptionText,
+        aiToAiChat.activeSpeaker === 'target',
+        aiToAiChat.targetSpeechProgress,
+      ).doneLength
     : aiCaptionSegments.doneLength;
   const leftActiveLength = isDualAiMode
-    ? aiToAiChat.activeSpeaker === 'target' && leftCaptionText.trim()
-      ? 1
-      : 0
+    ? getDualCaptionSegments(
+        leftCaptionText,
+        aiToAiChat.activeSpeaker === 'target',
+        aiToAiChat.targetSpeechProgress,
+      ).activeLength
     : aiCaptionSegments.activeLength;
 
   const rightCaptionText = isDualAiMode
     ? aiToAiChat.myLatestText || myTriggerText
     : userCaptionText;
   const rightDoneLength = isDualAiMode
-    ? aiToAiChat.activeSpeaker === 'mine' && rightCaptionText.trim()
-      ? Math.max(0, rightCaptionText.length - 1)
-      : rightCaptionText.length
+    ? getDualCaptionSegments(
+        rightCaptionText,
+        aiToAiChat.activeSpeaker === 'mine',
+        aiToAiChat.mySpeechProgress,
+      ).doneLength
     : userCaptionSegments.doneLength;
   const rightActiveLength = isDualAiMode
-    ? aiToAiChat.activeSpeaker === 'mine' && rightCaptionText.trim()
-      ? 1
-      : 0
+    ? getDualCaptionSegments(
+        rightCaptionText,
+        aiToAiChat.activeSpeaker === 'mine',
+        aiToAiChat.mySpeechProgress,
+      ).activeLength
     : userCaptionSegments.activeLength;
 
   const stageActiveSpeaker: 'left' | 'right' | null = isDualAiMode
@@ -334,10 +408,20 @@ export default function NamnaPage() {
       return;
     }
 
-    cancelTurn();
-  }, [aiToAiChat, cancelTurn, isDualParamEnabled]);
+    setMicPreferenceEnabled(true);
+    setMicRuntimeActive(true);
+    setIsTextInputMode(false);
+    sleepConversation();
+  }, [
+    aiToAiChat,
+    isDualParamEnabled,
+    setMicPreferenceEnabled,
+    setMicRuntimeActive,
+    sleepConversation,
+  ]);
 
-  const profileImage = initialsAvatarFallback(userInfo?.nickname || 'User');
+  const profileImage =
+    profile?.userProfileImageUrl || initialsAvatarFallback(userInfo?.nickname || 'User');
   const namnaDisplayName = `남이 본 ${userInfo?.nickname || '나'}`;
 
   if (!isNamnaReady) {
@@ -495,7 +579,7 @@ export default function NamnaPage() {
       {isNamnaReady ? (
         <>
           <AiTopicModal
-            isOpen={isInteractionModalOpen}
+            isOpen={isNamnaReady && isInteractionModalOpen}
             onClose={() => setIsInteractionModalOpen(false)}
             onSubmit={handleDualAiTopicSubmit}
           />

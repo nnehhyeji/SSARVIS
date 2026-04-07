@@ -53,6 +53,16 @@ const WAKE_WORD = '싸비스';
 const WAKE_WORD_ALIASES = [WAKE_WORD, '사비스', '서비스', '싸비스야', '사비서', '싸비스'];
 const SPEECH_SILENCE_MS = 2000;
 
+function estimateWordRevealIntervalMs(text: string, tokenCount: number) {
+  if (tokenCount <= 1) return 220;
+
+  const punctuationPauseCount = (text.match(/[,.!?~]/g) ?? []).length;
+  const estimatedDurationMs =
+    text.trim().length * 70 + punctuationPauseCount * 180 + tokenCount * 40;
+
+  return Math.max(120, Math.min(320, Math.round(estimatedDurationMs / tokenCount)));
+}
+
 type RecognitionMode = 'idle' | 'wake' | 'speech';
 
 interface GuestRecordingOptions {
@@ -100,6 +110,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const speechFinalizedRef = useRef(false);
   const sttTextRef = useRef('');
   const currentRecordingOptionsRef = useRef<GuestRecordingOptions | null>(null);
+  const ignoreIncomingResponseRef = useRef(false);
   const resetGuestChatState = useCallback(() => {
     sessionIdRef.current = null;
     pendingTextRef.current = null;
@@ -201,6 +212,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
     socket.onmessage = (event) => {
       if (event.data instanceof ArrayBuffer) {
+        if (ignoreIncomingResponseRef.current) return;
         audioQueueRef.current.push(event.data);
         processAudioQueue();
         return;
@@ -208,6 +220,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
       if (event.data instanceof Blob) {
         void event.data.arrayBuffer().then((buffer) => {
+          if (ignoreIncomingResponseRef.current) return;
           audioQueueRef.current.push(buffer);
           processAudioQueue();
         });
@@ -235,15 +248,19 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       }
 
       if (message.type === 'END_OF_STREAM') {
+        if (ignoreIncomingResponseRef.current) return;
         setIsAwaitingResponse(false);
         return;
       }
 
       if (message.type === 'ERROR' || message.type === 'error') {
+        if (ignoreIncomingResponseRef.current) return;
         setIsAwaitingResponse(false);
         console.error('Guest WebSocket error:', message.message, message.detail);
         return;
       }
+
+      if (ignoreIncomingResponseRef.current) return;
 
       switch (message.type) {
         case 'text.start':
@@ -253,6 +270,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
         case 'text.end': {
           const aiResponseText = message.payload?.text || message.text || '';
+          const tokens = aiResponseText.match(/\S+\s*/g) ?? [aiResponseText];
+          const revealIntervalMs = estimateWordRevealIntervalMs(aiResponseText, tokens.length);
           let index = 0;
 
           resetTypewriter();
@@ -261,16 +280,16 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
               const next = [...prev];
               const last = next[next.length - 1];
               if (last && last.sender === 'ai') {
-                last.text = aiResponseText.slice(0, index + 1);
+                last.text = tokens.slice(0, index + 1).join('');
               }
               return next;
             });
 
             index += 1;
-            if (index >= aiResponseText.length) {
+            if (index >= tokens.length) {
               resetTypewriter();
             }
-          }, 50);
+          }, revealIntervalMs);
           break;
         }
 
@@ -364,6 +383,8 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
         console.warn('Guest WebSocket connection failed.');
         return;
       }
+
+      ignoreIncomingResponseRef.current = false;
 
       const payloadBase = {
         sessionId: sessionIdRef.current,
@@ -608,6 +629,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   );
 
   const stopRecordingAndSendSTT = useCallback(() => {
+    ignoreIncomingResponseRef.current = true;
     recognitionModeRef.current = 'idle';
     setVoicePhase('idle');
     setWakeWordDetectedAt(null);
@@ -617,6 +639,24 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     setSttText('');
     sttTextRef.current = '';
   }, [clearSpeechSilenceTimer, stopRecognition]);
+
+  const sleepConversation = useCallback(() => {
+    ignoreIncomingResponseRef.current = true;
+    recognitionModeRef.current = 'idle';
+    setVoicePhase('wake');
+    setWakeWordDetectedAt(null);
+    pendingSpeechCaptureRef.current = false;
+    clearSpeechSilenceTimer();
+    resetTypewriter();
+    setIsAwaitingResponse(false);
+    setIsAiSpeaking(false);
+    wsRef.current?.close();
+    wsRef.current = null;
+    stopRecognition();
+    setSttText(`웨이크워드 대기 중.. "${WAKE_WORD}"라고 말해보세요`);
+    sttTextRef.current = '';
+    startWakeMode();
+  }, [clearSpeechSilenceTimer, resetTypewriter, startWakeMode, stopRecognition]);
 
   const sendMessage = useCallback(
     async (
@@ -701,5 +741,6 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     sendMessage,
     startRecording,
     stopRecordingAndSendSTT,
+    sleepConversation,
   };
 }
