@@ -30,11 +30,11 @@ interface HandleTransportMessageArgs {
   setLatestAiText: (value: string) => void;
   setIsAiTextTyping: (value: boolean) => void;
   clearPendingStreamState: () => void;
-  endAwaitingResponse: (resetVoiceStatus?: boolean) => void;
+  endAwaitingResponse: (clearTranscript?: boolean) => void;
   cleanupAudioPlayback: (preserveLastText?: boolean) => void;
   completeEndOfStream: () => void;
   completeCancelledStream: () => void;
-  completeErroredStream: (resumeWakeWord?: boolean) => void;
+  completeErroredStream: (clearTranscript: boolean) => void;
   completeTextFallback: (finalText?: string) => void;
   completeVoiceFallback: () => void;
   clearTypeWriter: () => void;
