@@ -1,3 +1,6 @@
+// For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
+import storybook from "eslint-plugin-storybook";
+
 import js from '@eslint/js';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -7,26 +10,23 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import eslintPluginPrettier from 'eslint-plugin-prettier';
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      js.configs.recommended,
-      tseslint.configs.recommended,
-      reactHooks.configs.flat.recommended,
-      reactRefresh.configs.vite,
-    ],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
-    plugins: {
-      prettier: eslintPluginPrettier,
-    },
-    rules: {
-      'prettier/prettier': 'error',
-    },
+export default defineConfig([globalIgnores(['dist']), {
+  files: ['**/*.{ts,tsx}'],
+  extends: [
+    js.configs.recommended,
+    tseslint.configs.recommended,
+    reactHooks.configs.flat.recommended,
+    reactRefresh.configs.vite,
+  ],
+  languageOptions: {
+    ecmaVersion: 2020,
+    globals: globals.browser,
   },
-  eslintConfigPrettier, // Prettier 규칙과 충돌하는 설정들을 끕니다. (항목 중 제일 뒤에 위치해야 함)
-]);
+  plugins: {
+    prettier: eslintPluginPrettier,
+  },
+  rules: {
+    'prettier/prettier': 'error',
+  },
+}, // Prettier 규칙과 충돌하는 설정들을 끕니다. (항목 중 제일 뒤에 위치해야 함)
+eslintConfigPrettier, ...storybook.configs["flat/recommended"]]);
