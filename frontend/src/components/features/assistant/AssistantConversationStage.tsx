@@ -60,6 +60,23 @@ function CaptionLine({
   );
 }
 
+function NameBadgeLabel({ displayName }: { displayName: string }) {
+  const parts = displayName.trim().split(/\s+/);
+  if (parts.length < 3) {
+    return <span className="whitespace-nowrap">{displayName}</span>;
+  }
+
+  const prefix = parts.slice(0, 2).join(' ');
+  const suffix = parts.slice(2).join(' ');
+
+  return (
+    <span className="flex flex-col items-center leading-none">
+      <span className="whitespace-nowrap">{prefix}</span>
+      <span className="mt-1 whitespace-nowrap">{suffix}</span>
+    </span>
+  );
+}
+
 interface AssistantConversationStageProps {
   title: string;
   currentMode: string;
@@ -317,7 +334,7 @@ export default function AssistantConversationStage({
                       isLockMode ? 'text-white' : 'text-black'
                     }`}
                   >
-                    {assistantDisplayName}
+                    <NameBadgeLabel displayName={assistantDisplayName} />
                   </div>
                 </div>
 

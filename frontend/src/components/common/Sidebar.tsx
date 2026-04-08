@@ -120,11 +120,14 @@ export default function Sidebar({
   const [activeTertiary, setActiveTertiary] = useState<
     'friends' | 'chat' | 'notifications' | 'search' | 'assistant' | 'persona' | null
   >(null);
+  const [tertiaryOpenMode, setTertiaryOpenMode] = useState<'hover' | 'pinned' | null>(null);
 
   const isStickyTertiary =
     activeTertiary === 'search' ||
     (activeTertiary === 'chat' && location.pathname.startsWith('/chat'));
-  const isHoverLockTertiary = activeTertiary ? !isStickyTertiary : false;
+  const isPinnedTertiary = activeTertiary !== null && tertiaryOpenMode === 'pinned';
+  const isHoverLockTertiary =
+    activeTertiary !== null && tertiaryOpenMode === 'hover' && !isStickyTertiary;
 
   const closeHoverPanelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTertiaryOnlyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,22 +163,25 @@ export default function Sidebar({
   const scheduleTertiaryOnlyClose = useCallback(() => {
     clearTertiaryOnlyTimer();
     closeTertiaryOnlyTimerRef.current = setTimeout(() => {
+      if (tertiaryOpenMode !== 'hover') return;
       setActiveTertiary((current) => {
         if (
           current &&
           current !== 'search' &&
           !(current === 'chat' && window.location.pathname.startsWith('/chat'))
         ) {
+          setTertiaryOpenMode(null);
           return null;
         }
         return current;
       });
     }, 120);
-  }, [clearTertiaryOnlyTimer]);
+  }, [clearTertiaryOnlyTimer, tertiaryOpenMode]);
 
   const scheduleHoverPanelClose = useCallback(() => {
     clearHoverPanelCloseTimer();
     closeHoverPanelTimerRef.current = setTimeout(() => {
+      if (tertiaryOpenMode !== 'hover') return;
       setIsExpanded(false);
       setActiveTertiary((current) => {
         if (
@@ -183,12 +189,13 @@ export default function Sidebar({
           current !== 'search' &&
           !(current === 'chat' && window.location.pathname.startsWith('/chat'))
         ) {
+          setTertiaryOpenMode(null);
           return null;
         }
         return current;
       });
     }, 120);
-  }, [clearHoverPanelCloseTimer]);
+  }, [clearHoverPanelCloseTimer, tertiaryOpenMode]);
 
   useEffect(() => {
     return () => {
@@ -207,6 +214,7 @@ export default function Sidebar({
     setActiveTertiary((current) => {
       const path = location.pathname;
       if (path.startsWith('/chat') || path.startsWith('/chat-archive') || selectedChatId) {
+        setTertiaryOpenMode('pinned');
         return 'chat';
       }
 
@@ -215,6 +223,7 @@ export default function Sidebar({
       // should remain un-interfered with so hover works naturally.
       if (path === PATHS.HOME || path.match(/^\/\d+$/)) {
         if (current === 'chat') {
+          setTertiaryOpenMode(null);
           return null;
         }
       }
@@ -447,6 +456,7 @@ export default function Sidebar({
       }
 
       setActiveTertiary('friends');
+      setTertiaryOpenMode('pinned');
       setFriendView('requests');
       setFriendTab('following');
     } else if (alarm.type === 'FOLLOW_CREATED') {
@@ -455,6 +465,7 @@ export default function Sidebar({
       }
 
       setActiveTertiary('friends');
+      setTertiaryOpenMode('pinned');
       setFriendView('main');
       setFriendTab('following');
     } else if (alarm.type === 'FOLLOW_ACCEPT') {
@@ -462,6 +473,7 @@ export default function Sidebar({
       const senderId = payload?.senderId || payload?.senderUserId;
       if (senderId) {
         navigate(PATHS.USER_HOME(senderId));
+        setTertiaryOpenMode(null);
         setActiveTertiary(null);
       }
     }
@@ -476,23 +488,31 @@ export default function Sidebar({
         setChatCategory('assistant');
         setAssistantFilters([]);
         setActiveTertiary('chat');
+        setTertiaryOpenMode('pinned');
       }
 
       // If we're already on this path, manually toggle the tertiary panel
       if (location.pathname === item.path && item.tertiaryId) {
-        const isClosing = activeTertiary === item.tertiaryId;
+        const isClosing =
+          activeTertiary === item.tertiaryId && tertiaryOpenMode === 'pinned';
+        setTertiaryOpenMode(isClosing ? null : 'pinned');
         setActiveTertiary(isClosing ? null : item.tertiaryId);
       } else {
         // If navigating to a new path, let the useEffect handle opening
         navigate(item.path);
       }
     } else if (item.action) {
+      setTertiaryOpenMode(null);
       setActiveTertiary(null);
       item.action();
     } else if (item.hasTertiary) {
-      const isClosing = activeTertiary === item.tertiaryId;
+      const shouldPinOnClick = item.tertiaryId !== 'friends';
+      const isClosing = shouldPinOnClick
+        ? activeTertiary === item.tertiaryId && tertiaryOpenMode === 'pinned'
+        : false;
+      setTertiaryOpenMode(isClosing ? null : shouldPinOnClick ? 'pinned' : 'hover');
       setActiveTertiary(isClosing ? null : item.tertiaryId || null);
-      setIsExpanded(false);
+      setIsExpanded(!isClosing && !isChatDetailOpen);
 
       if (item.tertiaryId === 'chat') {
         setChatView('categories');
@@ -520,6 +540,7 @@ export default function Sidebar({
       clearOpenHoverPanelTimer();
       openHoverPanelTimerRef.current = setTimeout(() => {
         clearHoverPanelCloseTimer();
+        setTertiaryOpenMode('hover');
         setActiveTertiary(item.tertiaryId || null);
       }, 160);
     },
@@ -542,6 +563,7 @@ export default function Sidebar({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => {
+                setTertiaryOpenMode(null);
                 setActiveTertiary(null);
               }}
               className="fixed inset-0 bg-transparent pointer-events-auto z-[115]"
@@ -565,7 +587,8 @@ export default function Sidebar({
             return;
           }
           setIsExpanded(false);
-          if (!isStickyTertiary) {
+          if (!isStickyTertiary && !isPinnedTertiary) {
+            setTertiaryOpenMode(null);
             setActiveTertiary(null);
           }
         }}
@@ -606,7 +629,10 @@ export default function Sidebar({
                 className="overflow-hidden"
               >
                 <div
-                  onClick={() => setActiveTertiary('search')}
+                  onClick={() => {
+                    setTertiaryOpenMode('pinned');
+                    setActiveTertiary('search');
+                  }}
                   className="w-full bg-[#e5e0dc] rounded-xl flex items-center gap-2 py-2 px-3 cursor-pointer hover:bg-[#dcd2ca] transition-colors"
                 >
                   <Search className="w-4 h-4 text-white/80 shrink-0" />
@@ -703,10 +729,11 @@ export default function Sidebar({
       </motion.aside>
 
       <AnimatePresence>
-        {activeTertiary && (isExpanded || isStickyTertiary || isChatDetailOpen) && (
+        {activeTertiary && (isExpanded || isStickyTertiary || isChatDetailOpen || isPinnedTertiary) && (
           <motion.div
             onMouseEnter={() => {
               if (!isHoverLockTertiary || isChatDetailOpen) return;
+              if (activeTertiary === 'friends') return;
               clearHoverPanelCloseTimer();
               setIsExpanded(true);
             }}
@@ -750,6 +777,7 @@ export default function Sidebar({
               </div>
               <button
                 onClick={() => {
+                  setTertiaryOpenMode(null);
                   setActiveTertiary(null);
                   if (selectedChatId)
                     navigate(userInfo?.id ? PATHS.USER_HOME(userInfo.id) : PATHS.HOME);
@@ -778,6 +806,7 @@ export default function Sidebar({
                     handleRecentSearchClick={handleRecentSearchClick}
                     onVisit={(id) => {
                       onVisit(id);
+                      setTertiaryOpenMode(null);
                       setActiveTertiary(null);
                     }}
                     onRequest={onRequest}
@@ -805,12 +834,16 @@ export default function Sidebar({
                     follows={follows}
                     onVisit={(id) => {
                       onVisit(id);
+                      setTertiaryOpenMode(null);
                       setActiveTertiary(null);
                     }}
                     onDelete={onDelete}
                     onAccept={onAccept}
                     onReject={onReject}
-                    onSearchOpen={() => setActiveTertiary('search')}
+                    onSearchOpen={() => {
+                      setTertiaryOpenMode('pinned');
+                      setActiveTertiary('search');
+                    }}
                   />
                 )}
                 {activeTertiary === 'chat' && (
@@ -843,6 +876,7 @@ export default function Sidebar({
                       clearHoverPanelCloseTimer();
                       onModeChange(m);
                       navigate(PATHS.ASSISTANT);
+                      setTertiaryOpenMode(null);
                       setActiveTertiary(null);
                       setIsExpanded(false);
                     }}
@@ -853,6 +887,7 @@ export default function Sidebar({
                     onModeChange={(m) => {
                       clearHoverPanelCloseTimer();
                       onModeChange(m);
+                      setTertiaryOpenMode(null);
                       setActiveTertiary(null);
                       setIsExpanded(false);
                     }}
