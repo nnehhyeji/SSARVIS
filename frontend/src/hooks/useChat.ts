@@ -3,6 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '../types';
 import { useChatAudioPlayback } from './useChatAudioPlayback';
 import { useNavigate } from 'react-router-dom';
+import type {
+  SpeechRecognitionErrorEventLike,
+  SpeechRecognitionEventLike,
+  SpeechRecognitionLike,
+} from './chat/speechRecognitionTypes';
 import { useAwaitingResponseState } from './chat/useAwaitingResponseState';
 import {
   CONNECTION_ERROR_TEXT as CHAT_CONNECTION_ERROR_TEXT,
@@ -15,13 +20,6 @@ import {
   WAKE_DETECTED_TEXT as CHAT_WAKE_DETECTED_TEXT,
   WAKE_GUIDE_TEXT as CHAT_WAKE_GUIDE_TEXT,
 } from './chat/useChatCopy';
-import {
-  containsChatWakeWord as containsWakeWordFromModule,
-  extractChatSpeechAfterWakeWord as extractSpeechAfterWakeWordFromModule,
-  matchChatHomeRouteCommand as matchHomeRouteCommandFromModule,
-  matchChatRouteCommand as matchRouteCommandFromModule,
-  normalizeChatCommandText as normalizeTextFromModule,
-} from './chat/useChatCommands';
 import { decideWakeAction } from './chat/useChatWakeDecision';
 import {
   type ChatRecordingOptions as RecordingOptions,
@@ -42,38 +40,12 @@ import { useUserStore } from '../store/useUserStore';
 import { PATHS } from '../routes/paths';
 import { getUserVoiceModel } from '../apis/aiApi';
 import { toast } from '../store/useToastStore';
-import { WAKE_WORD as WAKE_WORD_CONSTANT } from '../constants/voice';
-
-interface WebSpeechRecognitionResultItem {
-  transcript: string;
-}
-
-interface WebSpeechRecognitionResult {
-  isFinal?: boolean;
-  0: WebSpeechRecognitionResultItem;
-  length: number;
-}
-
-interface WebSpeechRecognitionEvent {
-  resultIndex: number;
-  results: ArrayLike<WebSpeechRecognitionResult>;
-}
-
-interface WebSpeechRecognitionErrorEvent {
-  error: string;
-}
-
-interface WebSpeechRecognition {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: WebSpeechRecognitionEvent) => void) | null;
-  onerror: ((event: WebSpeechRecognitionErrorEvent) => void) | null;
-  onstart: (() => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-}
+import {
+  WAKE_WORD as WAKE_WORD_CONSTANT,
+  containsWakeWord as sharedContainsWakeWord,
+  extractSpeechAfterWakeWord as sharedExtractSpeechAfterWakeWord,
+  normalizeWakeWordText,
+} from '../constants/voice';
 
 type RecognitionMode = 'idle' | 'wake' | 'speech';
 
@@ -138,6 +110,20 @@ function matchHomeRouteCommand(text: string, userId?: number | null): string | n
   return null;
 }
 
+void WAKE_WORD_ALIASES;
+void WAITING_FOR_AI_TEXT;
+void WAKE_DETECTED_TEXT;
+void SPEECH_LISTENING_TEXT;
+void CONNECTION_ERROR_TEXT;
+void LOGIN_EXPIRED_TEXT;
+void VOICE_REGISTRATION_REQUIRED_TEXT;
+void SECRET_MODE_GREETING;
+void SPEECH_STOPPED_TEXT;
+void containsWakeWord;
+void extractSpeechAfterWakeWord;
+void matchRouteCommand;
+void matchHomeRouteCommand;
+
 export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions = {}) {
   const navigate = useNavigate();
   const userInfo = useUserStore((state) => state.userInfo);
@@ -178,7 +164,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   // --- Refs ---
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const typeWriterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recognitionRef = useRef<WebSpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionModeRef = useRef<RecognitionMode>('idle');
   const isRecognizingRef = useRef(false);
   const manualStopRef = useRef(false);
@@ -549,7 +535,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
         setLatestAiText,
         setIsAiTextTyping,
         clearPendingStreamState,
-        endAwaitingResponse,
+        endAwaitingResponse: (clearTranscript?: boolean) => endAwaitingResponse(clearTranscript),
         cleanupAudioPlayback: () => cleanupAudioPlayback(true),
         completeEndOfStream,
         completeCancelledStream,
@@ -888,7 +874,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
       // continuous=true so recognition doesn't stop mid-speech
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.onresult = (event: WebSpeechRecognitionEvent) => {
+      recognitionRef.current.onresult = (event: SpeechRecognitionEventLike) => {
         // Guard using refs (never stale)
         if (sessionId !== speechSessionIdRef.current) return;
         if (recognitionModeRef.current !== 'speech') return;
@@ -982,7 +968,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
     pendingSpeechSeedRef.current = '';
     recognitionRef.current.continuous = true;
     recognitionRef.current.interimResults = false;
-    recognitionRef.current.onresult = (event: WebSpeechRecognitionEvent) => {
+    recognitionRef.current.onresult = (event: SpeechRecognitionEventLike) => {
       const lastResult = event.results[event.results.length - 1];
       const heardText = lastResult?.[0]?.transcript?.trim() || '';
       if (!heardText) return;
@@ -1046,9 +1032,9 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
   // --- SpeechRecognition lifecycle (onend handler) ---
   useEffect(() => {
     const SpeechRecognition =
-      (window as unknown as { SpeechRecognition?: new () => WebSpeechRecognition })
+      (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike })
         .SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: new () => WebSpeechRecognition })
+      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike })
         .webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
@@ -1063,7 +1049,7 @@ export function useChat({ initialGreeting = DEFAULT_GREETING }: UseChatOptions =
 
     recognition.onstart = handleRecognitionStart;
 
-    recognition.onerror = (event: WebSpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
       isRecognizingRef.current = false;
 
       if (manualStopRef.current) {

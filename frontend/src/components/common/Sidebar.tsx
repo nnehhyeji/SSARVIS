@@ -23,6 +23,7 @@ import type { ChatSession } from '../../apis/chatApi';
 // Sub-panels
 import type { RecentSearchItem } from './sidebar/SearchPanel';
 import SidebarAvatar from './sidebar/SidebarAvatar';
+import { useRecentSearches } from './sidebar/useRecentSearches';
 
 const SearchPanel = lazy(() => import('./sidebar/SearchPanel'));
 const NotificationsPanel = lazy(() => import('./sidebar/NotificationsPanel'));
@@ -74,9 +75,6 @@ interface AlarmPayload {
   senderId?: number;
   senderUserId?: number;
 }
-
-const RECENT_SEARCHES_KEY = 'sidebar_recent_searches_v1';
-const RECENT_SEARCH_LIMIT = 5;
 
 function SidebarPanelFallback() {
   return (
@@ -235,16 +233,8 @@ export default function Sidebar({
   const [friendTab, setFriendTab] = useState<'following' | 'followers'>('following');
   const [friendView, setFriendView] = useState<'main' | 'requests'>('main');
   const [searchQuery, setSearchQuery] = useState('');
-  const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(RECENT_SEARCHES_KEY);
-      if (!saved) return [];
-      const parsed = JSON.parse(saved) as RecentSearchItem[];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const { recentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } =
+    useRecentSearches();
 
   // Chat Archive States
   const [chatTab, setChatTab] = useState<'archive' | 'guestbook'>('archive');
@@ -407,41 +397,6 @@ export default function Sidebar({
     { id: 'logout', icon: LogOut, label: '로그아웃', action: onLogout, color: 'text-stone-400' },
   ];
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches));
-    } catch {
-      /* ignore storage errors */
-    }
-  }, [recentSearches]);
-
-  const persistRecentSearches = (items: RecentSearchItem[]) => {
-    try {
-      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(items));
-    } catch {
-      /* ignore storage errors */
-    }
-  };
-
-  const addRecentSearch = (user: RecentSearchItem) => {
-    setRecentSearches((prev) => {
-      const next = [user, ...prev.filter((item) => item.id !== user.id)].slice(
-        0,
-        RECENT_SEARCH_LIMIT,
-      );
-      persistRecentSearches(next);
-      return next;
-    });
-  };
-
-  const removeRecentSearch = (id: number) => {
-    setRecentSearches((prev) => {
-      const next = prev.filter((item) => item.id !== id);
-      persistRecentSearches(next);
-      return next;
-    });
-  };
-
   const handleRecentSearchClick = (item: RecentSearchItem) => {
     setSearchQuery(item.name);
     onSearch(item.name);
@@ -506,7 +461,7 @@ export default function Sidebar({
       setActiveTertiary(null);
       item.action();
     } else if (item.hasTertiary) {
-      const shouldPinOnClick = item.tertiaryId !== 'friends';
+      const shouldPinOnClick = true;
       const isClosing = shouldPinOnClick
         ? activeTertiary === item.tertiaryId && tertiaryOpenMode === 'pinned'
         : false;
@@ -802,7 +757,7 @@ export default function Sidebar({
                     recentSearches={recentSearches}
                     addRecentSearch={addRecentSearch}
                     removeRecentSearch={removeRecentSearch}
-                    persistRecentSearches={persistRecentSearches}
+                    clearRecentSearches={clearRecentSearches}
                     handleRecentSearchClick={handleRecentSearchClick}
                     onVisit={(id) => {
                       onVisit(id);
@@ -810,7 +765,6 @@ export default function Sidebar({
                       setActiveTertiary(null);
                     }}
                     onRequest={onRequest}
-                    setRecentSearches={setRecentSearches}
                     onAccept={onAccept}
                   />
                 )}

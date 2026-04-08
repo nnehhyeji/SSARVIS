@@ -1,6 +1,10 @@
 import { useCallback } from 'react';
 import type { MutableRefObject } from 'react';
 
+import type {
+  SpeechRecognitionEventLike,
+  SpeechRecognitionLike,
+} from './speechRecognitionTypes';
 import {
   SPEECH_LISTENING_TEXT,
   WAKE_DETECTED_TEXT,
@@ -12,31 +16,12 @@ import {
   matchChatRouteCommand,
 } from './useChatCommands';
 
-interface WebSpeechRecognitionResultItem {
-  transcript: string;
-}
-
-interface WebSpeechRecognitionResult {
-  0: WebSpeechRecognitionResultItem;
-  length: number;
-}
-
-interface WebSpeechRecognitionEvent {
-  results: ArrayLike<WebSpeechRecognitionResult>;
-}
-
-interface WebSpeechRecognition {
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((event: WebSpeechRecognitionEvent) => void) | null;
-}
-
 interface ChatRecordingOptionsLike {
   sessionId: string | null;
 }
 
 interface UseChatSpeechCaptureOptions {
-  recognitionRef: MutableRefObject<WebSpeechRecognition | null>;
+  recognitionRef: MutableRefObject<SpeechRecognitionLike | null>;
   currentRecordingOptionsRef: MutableRefObject<ChatRecordingOptionsLike | null>;
   isSubmittingSpeechTurnRef: MutableRefObject<boolean>;
   speechSessionIdRef: MutableRefObject<number>;
@@ -51,7 +36,7 @@ interface UseChatSpeechCaptureOptions {
   clearSpeechSilenceTimer: () => void;
   stopSilenceMonitor: () => void;
   startSilenceMonitor: (sessionId: number) => void;
-  ensureSocketReady: () => Promise<void>;
+  ensureSocketReady: () => Promise<boolean>;
   safeStartRecognition: () => void;
   setVoicePhase: (phase: 'speech') => void;
   setSttText: (text: string) => void;
@@ -125,7 +110,7 @@ export function useChatSpeechCapture({
 
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.onresult = (event: WebSpeechRecognitionEvent) => {
+      recognitionRef.current.onresult = (event: SpeechRecognitionEventLike) => {
         if (sessionId !== speechSessionIdRef.current) return;
         if (recognitionModeRef.current !== 'speech') return;
         if (isSubmittingSpeechTurnRef.current) return;

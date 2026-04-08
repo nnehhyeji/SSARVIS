@@ -1,41 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiOrigin } from '../config/api';
-import { containsWakeWord as sharedContainsWakeWord, normalizeWakeWordText } from '../constants/voice';
+import type {
+  SpeechRecognitionErrorEventLike,
+  SpeechRecognitionEventLike,
+  SpeechRecognitionLike,
+} from './chat/speechRecognitionTypes';
+import {
+  WAKE_WORD as SHARED_WAKE_WORD,
+  containsWakeWord as sharedContainsWakeWord,
+  normalizeWakeWordText,
+} from '../constants/voice';
 import { useRecognitionControls } from './chat/useRecognitionControls';
 import { useGuestRecognitionLifecycle } from './chat/useGuestRecognitionLifecycle';
 import { useSpeechSilenceMonitor } from './chat/useSpeechSilenceMonitor';
 import type { ChatMessage } from '../types';
-
-interface GuestSpeechRecognitionResultItem {
-  transcript: string;
-}
-
-interface GuestSpeechRecognitionResult {
-  isFinal?: boolean;
-  0: GuestSpeechRecognitionResultItem;
-  length: number;
-}
-
-interface GuestSpeechRecognitionEvent {
-  resultIndex: number;
-  results: ArrayLike<GuestSpeechRecognitionResult>;
-}
-
-interface GuestSpeechRecognitionErrorEvent {
-  error: string;
-}
-
-interface GuestSpeechRecognition {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: GuestSpeechRecognitionEvent) => void) | null;
-  onerror: ((event: GuestSpeechRecognitionErrorEvent) => void) | null;
-  onstart: (() => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-}
 
 interface UseGuestChatOptions {
   enabled: boolean;
@@ -83,6 +61,10 @@ function containsWakeWord(text: string) {
   return sharedContainsWakeWord(text);
 }
 
+void SHARED_WAKE_WORD;
+void WAKE_WORD_ALIASES;
+void normalizeWakeTranscript;
+
 export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -100,7 +82,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const audioQueueRef = useRef<ArrayBuffer[]>([]);
   const audioElemRef = useRef<HTMLAudioElement | null>(null);
   const streamEndedRef = useRef(false);
-  const recognitionRef = useRef<GuestSpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const isRecognizingRef = useRef(false);
   const manualStopRef = useRef(false);
   const recognitionModeRef = useRef<RecognitionMode>('idle');
@@ -488,7 +470,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     setSttText(`웨이크 워드 대기 중... "${WAKE_WORD}"라고 말해보세요.`);
     sttTextRef.current = '';
 
-    recognitionRef.current.onresult = (event: GuestSpeechRecognitionEvent) => {
+    recognitionRef.current.onresult = (event: SpeechRecognitionEventLike) => {
       const lastResult = event.results[event.results.length - 1];
       const heardText = lastResult?.[0]?.transcript?.trim() || '';
       if (!heardText) return;
@@ -523,7 +505,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     recognitionRef.current.interimResults = true;
     startSilenceMonitor(sessionId);
 
-    recognitionRef.current.onresult = (event: GuestSpeechRecognitionEvent) => {
+    recognitionRef.current.onresult = (event: SpeechRecognitionEventLike) => {
       let transcript = '';
       for (let i = 0; i < event.results.length; i += 1) {
         transcript += event.results[i]?.[0]?.transcript || '';
@@ -552,9 +534,9 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       if (!enabled) return false;
 
       const SpeechRecognition =
-        (window as unknown as { SpeechRecognition?: new () => GuestSpeechRecognition })
+        (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike })
           .SpeechRecognition ||
-        (window as unknown as { webkitSpeechRecognition?: new () => GuestSpeechRecognition })
+        (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike })
           .webkitSpeechRecognition;
 
       if (!SpeechRecognition) {
@@ -587,7 +569,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
 
         recognition.onstart = handleRecognitionStart;
 
-        recognition.onerror = (event: GuestSpeechRecognitionErrorEvent) => {
+        recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
           isRecognizingRef.current = false;
 
           if (manualStopRef.current) {

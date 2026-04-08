@@ -12,6 +12,11 @@ import { useVoiceLockTimer } from '../../hooks/useVoiceLockTimer';
 import VoiceLockOverlay from '../common/VoiceLockOverlay';
 import { toast } from '../../store/useToastStore';
 import { useMicStore } from '../../store/useMicStore';
+import type {
+  SpeechRecognitionErrorEventLike,
+  SpeechRecognitionEventLike,
+  SpeechRecognitionLike,
+} from '../../hooks/chat/speechRecognitionTypes';
 import {
   containsWakeWord as sharedContainsWakeWord,
   extractSpeechAfterWakeWord as sharedExtractSpeechAfterWakeWord,
@@ -29,36 +34,6 @@ const WAKE_WORD_ALIASES = [
   '싸비',
   '싸쓰',
 ];
-
-interface LayoutSpeechRecognitionResultItem {
-  transcript: string;
-}
-
-interface LayoutSpeechRecognitionResult {
-  0: LayoutSpeechRecognitionResultItem;
-  length: number;
-}
-
-interface LayoutSpeechRecognitionEvent {
-  resultIndex: number;
-  results: ArrayLike<LayoutSpeechRecognitionResult>;
-}
-
-interface LayoutSpeechRecognitionErrorEvent {
-  error: string;
-}
-
-interface LayoutSpeechRecognition {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (() => void) | null;
-  onresult: ((event: LayoutSpeechRecognitionEvent) => void) | null;
-  onerror: ((event: LayoutSpeechRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-}
 
 function normalizeText(text: string) {
   return normalizeWakeWordText(text);
@@ -87,6 +62,8 @@ function resolveRemoteRouteCommand(text: string, userId?: number | null): string
 
   return null;
 }
+
+void WAKE_WORD_ALIASES;
 
 const MainLayout: React.FC = () => {
   const LOGOUT_CONFIRM_TOAST_ID = 'logout-confirm-toast';
@@ -201,9 +178,9 @@ const MainLayout: React.FC = () => {
     }
 
     const SpeechRecognitionApi =
-      (window as unknown as { SpeechRecognition?: new () => LayoutSpeechRecognition })
+      (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike })
         .SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: new () => LayoutSpeechRecognition })
+      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike })
         .webkitSpeechRecognition;
 
     if (!SpeechRecognitionApi) {
@@ -211,7 +188,7 @@ const MainLayout: React.FC = () => {
       return;
     }
 
-    let recognition: LayoutSpeechRecognition | null = null;
+    let recognition: SpeechRecognitionLike | null = null;
     let isUnmounted = false;
 
     const safeStart = () => {
@@ -236,7 +213,7 @@ const MainLayout: React.FC = () => {
         setMicRuntimeActive(true);
       };
 
-      recognition.onresult = (event: LayoutSpeechRecognitionEvent) => {
+      recognition.onresult = (event: SpeechRecognitionEventLike) => {
         const lastResult = event.results[event.results.length - 1];
         const heardText = lastResult?.[0]?.transcript?.trim() || '';
         if (!heardText) return;
@@ -251,7 +228,7 @@ const MainLayout: React.FC = () => {
         }
       };
 
-      recognition.onerror = (event: LayoutSpeechRecognitionErrorEvent) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
         if (event.error !== 'aborted') {
           console.warn('Remote voice control error:', event.error);
         }

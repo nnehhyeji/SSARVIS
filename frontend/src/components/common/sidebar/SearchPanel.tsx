@@ -19,12 +19,11 @@ interface SearchPanelProps {
   recentSearches: RecentSearchItem[];
   addRecentSearch: (user: RecentSearchItem) => void;
   removeRecentSearch: (id: number) => void;
-  persistRecentSearches: (items: RecentSearchItem[]) => void;
+  clearRecentSearches: () => void;
   handleRecentSearchClick: (item: RecentSearchItem) => void;
   onVisit: (id: number) => void;
   onAccept: (id: number, name: string) => void;
   onRequest: (id: number, name: string) => void;
-  setRecentSearches: React.Dispatch<React.SetStateAction<RecentSearchItem[]>>;
 }
 
 const SearchPanel: React.FC<SearchPanelProps> = ({
@@ -36,11 +35,10 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
   recentSearches,
   addRecentSearch,
   removeRecentSearch,
-  persistRecentSearches,
+  clearRecentSearches,
   handleRecentSearchClick,
   onVisit,
   onRequest,
-  setRecentSearches,
 }) => {
   return (
     <div className="px-6 space-y-8 flex flex-col h-full">
@@ -151,10 +149,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
           <div className="flex items-center justify-between mb-6">
             <h4 className="text-lg font-black text-gray-800">최근 검색 항목</h4>
             <button
-              onClick={() => {
-                setRecentSearches([]);
-                persistRecentSearches([]);
-              }}
+              onClick={clearRecentSearches}
               className="text-sm font-black text-rose-500 hover:text-rose-600"
             >
               모두 지우기
