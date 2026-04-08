@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiOrigin } from '../config/api';
+import { containsWakeWord as sharedContainsWakeWord, normalizeWakeWordText } from '../constants/voice';
+import { useRecognitionControls } from './chat/useRecognitionControls';
+import { useGuestRecognitionLifecycle } from './chat/useGuestRecognitionLifecycle';
+import { useSpeechSilenceMonitor } from './chat/useSpeechSilenceMonitor';
 import type { ChatMessage } from '../types';
 
 interface GuestSpeechRecognitionResultItem {
@@ -72,12 +76,11 @@ interface GuestRecordingOptions {
 }
 
 function normalizeWakeTranscript(text: string) {
-  return text.replace(/\s+/g, '').toLowerCase();
+  return normalizeWakeWordText(text);
 }
 
 function containsWakeWord(text: string) {
-  const normalizedText = normalizeWakeTranscript(text);
-  return WAKE_WORD_ALIASES.some((alias) => normalizedText.includes(normalizeWakeTranscript(alias)));
+  return sharedContainsWakeWord(text);
 }
 
 export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
@@ -103,12 +106,15 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const recognitionModeRef = useRef<RecognitionMode>('idle');
   const pendingSpeechCaptureRef = useRef(false);
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const speechSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechSessionIdRef = useRef(0);
   const sessionIdRef = useRef<string | null>(null);
   const pendingTextRef = useRef<PendingGuestTextPayload | null>(null);
   const typeWriterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const speechFinalizedRef = useRef(false);
+  const isSubmittingSpeechTurnRef = useRef(false);
   const sttTextRef = useRef('');
+  const lastSpeechTimeRef = useRef(0);
+  const hasDetectedSpeechRef = useRef(false);
   const currentRecordingOptionsRef = useRef<GuestRecordingOptions | null>(null);
   const ignoreIncomingResponseRef = useRef(false);
   const resetGuestChatState = useCallback(() => {
@@ -162,30 +168,39 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     }
   }, []);
 
-  const stopRecognition = useCallback(() => {
-    if (restartTimerRef.current) {
-      clearTimeout(restartTimerRef.current);
-      restartTimerRef.current = null;
-    }
-    manualStopRef.current = true;
-    if (!recognitionRef.current || !isRecognizingRef.current) {
-      manualStopRef.current = false;
-      return;
-    }
+  const { safeStartRecognition, stopRecognition } = useRecognitionControls({
+    recognitionRef,
+    isRecognizingRef,
+    manualStopRef,
+    onClearRestartTimer: () => {
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+    },
+    onStartError: (message) => {
+      console.warn('Guest speech recognition start failed:', message);
+    },
+  });
 
-    try {
-      recognitionRef.current.stop();
-    } catch {
-      manualStopRef.current = false;
-    }
-  }, []);
+  const { startSilenceMonitor, stopSilenceMonitor } = useSpeechSilenceMonitor({
+    speechSessionIdRef,
+    recognitionModeRef,
+    isSubmittingSpeechTurnRef,
+    speechTurnCompletedRef: speechFinalizedRef,
+    lastSpeechTimeRef,
+    hasDetectedSpeechRef,
+    sttTextRef,
+    speechSilenceMs: SPEECH_SILENCE_MS,
+    initialSpeechGraceMs: SPEECH_SILENCE_MS,
+    onFinalize: () => {
+      stopRecognition();
+    },
+  });
 
   const clearSpeechSilenceTimer = useCallback(() => {
-    if (speechSilenceTimerRef.current) {
-      clearTimeout(speechSilenceTimerRef.current);
-      speechSilenceTimerRef.current = null;
-    }
-  }, []);
+    stopSilenceMonitor();
+  }, [stopSilenceMonitor]);
 
   const connectSocket = useCallback(() => {
     if (!enabled) return null;
@@ -431,19 +446,36 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     [sendGuestText],
   );
 
-  const safeStartRecognition = useCallback(() => {
-    if (!recognitionRef.current || isRecognizingRef.current) return;
-
-    try {
-      manualStopRef.current = false;
-      recognitionRef.current.start();
-    } catch (error) {
-      const message = String((error as Error).message || error);
-      if (!message.includes('recognition has already started')) {
-        console.warn('Guest speech recognition start failed:', message);
-      }
-    }
-  }, []);
+  const { handleRecognitionStart, handleRecognitionError, handleRecognitionEnd } =
+    useGuestRecognitionLifecycle({
+      isRecognizingRef,
+      manualStopRef,
+      recognitionModeRef,
+      pendingSpeechCaptureRef,
+      restartTimerRef,
+      onWakeGuide: () => {
+        setSttText(`?â‘¥ì” ???ëš®ë±¶ ?Â€æ¹²?ä»¥?.. "${WAKE_WORD}"?ì‡¨í€¬ ï§ë¨°ë¹è¹‚ëŒê½­??`);
+      },
+      onSpeechModeError: (error) => {
+        console.warn('Guest speech recognition error:', error);
+      },
+      onPendingWakeCapture: () => startSpeechCapture(),
+      onFinalizeSpeech: () => {
+        const options = currentRecordingOptionsRef.current;
+        clearSpeechSilenceTimer();
+        if (options) {
+          return finalizeSpeechTurn(
+            sttTextRef.current,
+            options.assistantType,
+            options.chatSessionType,
+            options.targetUserId,
+          );
+        }
+      },
+      onRestartWakeRecognition: () => {
+        safeStartRecognition();
+      },
+    });
 
   const startWakeMode = useCallback(() => {
     if (!recognitionRef.current) return;
@@ -478,7 +510,10 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
   const startSpeechCapture = useCallback(() => {
     if (!recognitionRef.current || !currentRecordingOptionsRef.current) return;
 
+    const sessionId = speechSessionIdRef.current + 1;
+    speechSessionIdRef.current = sessionId;
     speechFinalizedRef.current = false;
+    hasDetectedSpeechRef.current = false;
     recognitionModeRef.current = 'speech';
     setVoicePhase('speech');
     clearSpeechSilenceTimer();
@@ -486,6 +521,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
     sttTextRef.current = '';
     recognitionRef.current.continuous = true;
     recognitionRef.current.interimResults = true;
+    startSilenceMonitor(sessionId);
 
     recognitionRef.current.onresult = (event: GuestSpeechRecognitionEvent) => {
       let transcript = '';
@@ -496,17 +532,14 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       const normalized = transcript.trim();
       if (!normalized) return;
 
+      hasDetectedSpeechRef.current = true;
       sttTextRef.current = normalized;
       setSttText(normalized);
-
-      clearSpeechSilenceTimer();
-      speechSilenceTimerRef.current = setTimeout(() => {
-        stopRecognition();
-      }, SPEECH_SILENCE_MS);
+      lastSpeechTimeRef.current = Date.now();
     };
 
     safeStartRecognition();
-  }, [clearSpeechSilenceTimer, safeStartRecognition, stopRecognition]);
+  }, [clearSpeechSilenceTimer, safeStartRecognition, startSilenceMonitor]);
 
   const startRecording = useCallback(
     async (
@@ -552,9 +585,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
         recognition.continuous = false;
         recognition.interimResults = false;
 
-        recognition.onstart = () => {
-          isRecognizingRef.current = true;
-        };
+        recognition.onstart = handleRecognitionStart;
 
         recognition.onerror = (event: GuestSpeechRecognitionErrorEvent) => {
           isRecognizingRef.current = false;
@@ -573,6 +604,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
             console.warn('Guest speech recognition error:', event.error);
           }
         };
+        recognition.onerror = handleRecognitionError;
 
         recognition.onend = () => {
           isRecognizingRef.current = false;
@@ -610,6 +642,7 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
             }, 250);
           }
         };
+        recognition.onend = handleRecognitionEnd;
 
         recognitionRef.current = recognition;
       }
@@ -621,6 +654,9 @@ export function useGuestChat({ enabled, targetUserId }: UseGuestChatOptions) {
       clearSpeechSilenceTimer,
       enabled,
       finalizeSpeechTurn,
+      handleRecognitionEnd,
+      handleRecognitionError,
+      handleRecognitionStart,
       resetTypewriter,
       safeStartRecognition,
       startSpeechCapture,

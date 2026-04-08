@@ -142,6 +142,8 @@ export default function AudioPlayerBar({
     };
   }, [audioMessages, audioRef, currentTrackIdx]);
 
+  const currentTrack = currentTrackIdx >= 0 ? audioMessages[currentTrackIdx] : undefined;
+
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current || !isFinite(audioDuration) || audioDuration <= 0) return;
 
@@ -157,9 +159,11 @@ export default function AudioPlayerBar({
   return (
     <div className="flex shrink-0 flex-col gap-2 border-t border-gray-100 bg-white px-6 py-4">
       <p className="truncate text-center text-[11px] font-bold text-gray-400">
-        {currentTrackIdx >= 0 && audioMessages[currentTrackIdx]
-          ? `${currentTrackIdx + 1} / ${audioMessages.length} 트랙 ${new Date(
-              audioMessages[currentTrackIdx].createdAt,
+        {currentTrack
+          ? `${currentTrack.speakerType === 'USER' ? '내 음성' : 'AI 음성'} · ${
+              currentTrackIdx + 1
+            } / ${audioMessages.length} · ${new Date(
+              currentTrack.createdAt,
             ).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -265,11 +269,9 @@ export default function AudioPlayerBar({
         </div>
       </div>
 
-      {showTrackList ? (
-        <p className="animate-pulse text-center text-[10px] font-bold text-rose-400">
-          말풍선을 누르면 해당 음성 메시지 위치로 바로 재생할 수 있어요.
-        </p>
-      ) : null}
+      <p className="text-center text-[10px] font-bold text-gray-400">
+        오디오가 있는 말풍선을 누르면 해당 음성을 바로 들을 수 있어요.
+      </p>
     </div>
   );
 }

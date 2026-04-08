@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import { useAICharacter } from '../../hooks/useAICharacter';
 import { useChat } from '../../hooks/useChat';
@@ -8,6 +8,7 @@ import { useFollow } from '../../hooks/useFollow';
 import { useAIToAIChat } from '../../hooks/useAIToAIChat';
 import { useConversationStageState } from '../../hooks/useConversationStageState';
 import { useHasUserGesture } from '../../hooks/useHasUserGesture';
+import { useVisitorHomeActions } from '../../hooks/page/useVisitorHomeActions';
 import { useMicStore } from '../../store/useMicStore';
 import { useUserStore } from '../../store/useUserStore';
 
@@ -17,7 +18,6 @@ import VisitorConversationStage from '../../components/features/home/VisitorConv
 import NamnaConversationStage from '../../components/features/namna/NamnaConversationStage';
 
 import { WAKE_WORD } from '../../constants/voice';
-import { PATHS } from '../../routes/paths';
 import followApi from '../../apis/followApi';
 import userApi from '../../apis/userApi';
 import type { UserResponse } from '../../apis/userApi';
@@ -78,7 +78,6 @@ function getDualCaptionSegments(text: string, isSpeaking: boolean, progress: num
 export default function UserMainPage() {
   const { userId } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { hasHydrated, userInfo, isLoggedIn, currentMode, setCurrentMode } = useUserStore();
   const didAutoStartRef = useRef(false);
   const visitorGreetingAppliedRef = useRef(false);
@@ -201,8 +200,6 @@ export default function UserMainPage() {
   const [profile, setProfile] = useState<UserResponse | null>(null);
   const [visitedProfileImage, setVisitedProfileImage] = useState('');
   const [isTextInputMode, setIsTextInputMode] = useState(false);
-  const [isVisitorDualAiMode, setIsVisitorDualAiMode] = useState(false);
-  const [isAiTopicModalOpen, setIsAiTopicModalOpen] = useState(false);
   const [visitorFollowStatus, setVisitorFollowStatus] = useState<
     'NONE' | 'REQUESTED' | 'FOLLOWING' | null
   >(null);
@@ -219,6 +216,26 @@ export default function UserMainPage() {
   const prevModeRef = useRef(currentMode);
   const pageContextKey = isMyHome ? `home:${currentMode}` : `visit:${targetId ?? 'unknown'}`;
   const prevPageContextKeyRef = useRef(pageContextKey);
+
+  const {
+    isVisitorDualAiMode,
+    isAiTopicModalOpen,
+    setIsAiTopicModalOpen,
+    closeDualAiScene,
+    handleOpenPersona,
+    handleToggleDualAi,
+    handleDualAiTopicSubmit,
+  } = useVisitorHomeActions({
+    isLoggedIn,
+    currentUserId,
+    targetId,
+    aiToAiChat,
+    onClearVisitorCaptions: () => {
+      setIsTextInputMode(false);
+      setTriggerText('');
+      setMyTriggerText('');
+    },
+  });
 
   useEffect(() => {
     if (isPersonaShared) {
@@ -341,15 +358,13 @@ export default function UserMainPage() {
   ]);
 
   useEffect(() => {
-    setIsVisitorDualAiMode(false);
-    setIsAiTopicModalOpen(false);
+    closeDualAiScene();
     setMyTriggerText('');
-    aiToAiChat.stopBattle();
     // targetId가 바뀔 때만 방문 듀얼 AI 상태를 초기화한다.
     // aiToAiChat 객체 전체를 의존성에 넣으면 렌더마다 effect가 다시 돌아
     // "둘이 대화" 진입 직후 모드가 바로 꺼질 수 있다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setMyTriggerText, targetId]);
+  }, [closeDualAiScene, setMyTriggerText, targetId]);
 
   const finalIsSpeaking = isAiSpeaking || isSpeaking;
   const ownerName = isMyHome ? userInfo?.nickname || 'User' : visitedFollowName || 'Visitor';
@@ -891,31 +906,6 @@ export default function UserMainPage() {
     updateRecordingContext,
   ]);
 
-  const handleOpenPersona = useCallback(() => {
-    if (!targetId) return;
-    navigate(PATHS.PERSONA(targetId));
-  }, [navigate, targetId]);
-
-  const handleToggleDualAi = useCallback(() => {
-    if (aiToAiChat.isBattling) {
-      aiToAiChat.stopBattle();
-      setIsVisitorDualAiMode(false);
-      setIsAiTopicModalOpen(false);
-      return;
-    }
-
-    if (isVisitorDualAiMode) {
-      setIsVisitorDualAiMode(false);
-      setIsAiTopicModalOpen(false);
-      return;
-    }
-
-    if (!isLoggedIn || !currentUserId || !targetId) return;
-
-    setIsVisitorDualAiMode(true);
-    setIsAiTopicModalOpen(false);
-  }, [aiToAiChat, currentUserId, isLoggedIn, isVisitorDualAiMode, targetId]);
-
   const handleVisitorFollow = useCallback(async () => {
     if (!isLoggedIn || isMyHome || !targetId || visitorFollowStatus === 'FOLLOWING') return;
     if (visitorFollowStatus === 'REQUESTED') return;
@@ -967,29 +957,6 @@ export default function UserMainPage() {
     isVisitorFollowLoading ||
     visitorFollowStatus === 'FOLLOWING' ||
     visitorFollowStatus === 'REQUESTED';
-
-  const handleDualAiTopicSubmit = useCallback(
-    async (topic: string) => {
-      if (!currentUserId || !targetId) return;
-
-      const started = await aiToAiChat.startBattle({
-        topic,
-        myUserId: currentUserId,
-        targetUserId: targetId,
-        myAssistantType: 'DAILY',
-        targetAssistantType: 'DAILY',
-      });
-
-      if (!started) return;
-
-      setIsVisitorDualAiMode(true);
-      setIsAiTopicModalOpen(false);
-      setIsTextInputMode(false);
-      setTriggerText('');
-      setMyTriggerText('');
-    },
-    [aiToAiChat, currentUserId, setMyTriggerText, setTriggerText, targetId],
-  );
 
   useEffect(() => {
     return () => {
@@ -1078,11 +1045,7 @@ export default function UserMainPage() {
           onHeaderCenterAction={() => setIsAiTopicModalOpen(true)}
           onHeaderCenterClear={
             aiToAiChat.topic || aiToAiChat.isBattling
-              ? () => {
-                  aiToAiChat.stopBattle();
-                  setIsVisitorDualAiMode(true);
-                  setIsAiTopicModalOpen(false);
-                }
+              ? closeDualAiScene
               : undefined
           }
           leftFaceType={(faceType + 2) % 6}
@@ -1112,20 +1075,12 @@ export default function UserMainPage() {
           useProgressFooter
           showContinuationPrompt={aiToAiChat.isAwaitingContinuation}
           onContinueConversation={aiToAiChat.continueBattle}
-          onStopConversation={() => {
-            aiToAiChat.stopBattle();
-            setIsVisitorDualAiMode(true);
-            setIsAiTopicModalOpen(false);
-          }}
+          onStopConversation={closeDualAiScene}
           chatInput={activeChat.chatInput}
           onChatInputChange={activeChat.setChatInput}
           onMicToggle={handleVisitorMicToggle}
           onSendText={handleVisitorSendChat}
-          onCancel={() => {
-            aiToAiChat.stopBattle();
-            setIsVisitorDualAiMode(true);
-            setIsAiTopicModalOpen(false);
-          }}
+          onCancel={closeDualAiScene}
           onToggleLock={toggleLock}
         />
       ) : (

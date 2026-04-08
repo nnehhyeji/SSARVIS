@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Sparkles, MessageCircle, User as UserIcon } from 'lucide-react';
 
@@ -9,6 +9,7 @@ import { postEvaluationPrompt } from '../../apis/aiApi';
 export default function PersonaSurveyPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const isFirst = searchParams.get('isFirst') === 'true';
   const targetUserId = Number(userId);
@@ -74,6 +75,14 @@ export default function PersonaSurveyPage() {
 
       const hasPersonaPrompt = !!generatedPrompt.trim();
       const nextSearch = hasPersonaPrompt ? '?mode=persona' : '?mode=persona&empty=true';
+      const returnTo =
+        typeof location.state === 'object' &&
+        location.state &&
+        'returnTo' in location.state &&
+        typeof location.state.returnTo === 'string'
+          ? location.state.returnTo
+          : null;
+      const nextPath = (returnTo ?? PATHS.VISIT(targetUserId)).split('?')[0];
 
       if (!isFirst) {
         if (hasPersonaPrompt) {
@@ -83,7 +92,7 @@ export default function PersonaSurveyPage() {
         }
       }
 
-      navigate(`${PATHS.VISIT(targetUserId)}${nextSearch}`);
+      navigate(`${nextPath}${nextSearch}`);
     } catch (error) {
       console.error('프롬프트 생성 실패:', error);
       alert('문답 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');

@@ -114,6 +114,7 @@ export default function Sidebar({
   const [isExpanded, setIsExpanded] = useState(false);
   const { sessionId } = useParams<{ sessionId?: string }>();
   const selectedChatId = sessionId || null;
+  const isChatDetailOpen = Boolean(sessionId);
 
   const location = useLocation();
   const [activeTertiary, setActiveTertiary] = useState<
@@ -127,7 +128,8 @@ export default function Sidebar({
 
   const closeHoverPanelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTertiaryOnlyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sidebarWidth = isExpanded ? 240 : 80;
+  const openHoverPanelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sidebarWidth = isExpanded && !isChatDetailOpen ? 240 : 80;
   const tertiaryPanelWidth = 320;
   const tertiaryLeft = sidebarWidth;
   const detailPanelLeft = activeTertiary ? sidebarWidth + tertiaryPanelWidth : sidebarWidth;
@@ -139,13 +141,21 @@ export default function Sidebar({
     }
   }, []);
 
+  const clearOpenHoverPanelTimer = useCallback(() => {
+    if (openHoverPanelTimerRef.current) {
+      clearTimeout(openHoverPanelTimerRef.current);
+      openHoverPanelTimerRef.current = null;
+    }
+  }, []);
+
   const clearHoverPanelCloseTimer = useCallback(() => {
     if (closeHoverPanelTimerRef.current) {
       clearTimeout(closeHoverPanelTimerRef.current);
       closeHoverPanelTimerRef.current = null;
     }
+    clearOpenHoverPanelTimer();
     clearTertiaryOnlyTimer();
-  }, [clearTertiaryOnlyTimer]);
+  }, [clearOpenHoverPanelTimer, clearTertiaryOnlyTimer]);
 
   const scheduleTertiaryOnlyClose = useCallback(() => {
     clearTertiaryOnlyTimer();
@@ -185,6 +195,12 @@ export default function Sidebar({
       clearHoverPanelCloseTimer();
     };
   }, [clearHoverPanelCloseTimer]);
+
+  useEffect(() => {
+    if (isChatDetailOpen) {
+      setIsExpanded(false);
+    }
+  }, [isChatDetailOpen]);
 
   // Sync activeTertiary with URL path
   useEffect(() => {
@@ -453,6 +469,15 @@ export default function Sidebar({
 
   const handleItemClick = (item: MenuItem) => {
     if (item.path) {
+      if (item.tertiaryId === 'chat') {
+        setIsExpanded(true);
+        setChatTab('archive');
+        setChatView('categories');
+        setChatCategory('assistant');
+        setAssistantFilters([]);
+        setActiveTertiary('chat');
+      }
+
       // If we're already on this path, manually toggle the tertiary panel
       if (location.pathname === item.path && item.tertiaryId) {
         const isClosing = activeTertiary === item.tertiaryId;
@@ -483,16 +508,29 @@ export default function Sidebar({
     }
   };
 
-  const handleItemHover = (item: MenuItem) => {
-    if (!item.tertiaryId) {
-      if (activeTertiary && !isStickyTertiary) {
-        scheduleTertiaryOnlyClose();
+  const scheduleHoverPanelOpen = useCallback(
+    (item: MenuItem) => {
+      if (!item.tertiaryId) {
+        if (activeTertiary && !isStickyTertiary) {
+          scheduleTertiaryOnlyClose();
+        }
+        return;
       }
-      return;
-    }
-    clearHoverPanelCloseTimer();
-    setActiveTertiary(item.tertiaryId);
-  };
+
+      clearOpenHoverPanelTimer();
+      openHoverPanelTimerRef.current = setTimeout(() => {
+        clearHoverPanelCloseTimer();
+        setActiveTertiary(item.tertiaryId || null);
+      }, 160);
+    },
+    [
+      activeTertiary,
+      clearHoverPanelCloseTimer,
+      clearOpenHoverPanelTimer,
+      isStickyTertiary,
+      scheduleTertiaryOnlyClose,
+    ],
+  );
 
   return (
     <div className="fixed left-0 top-0 h-full z-[100] flex pointer-events-none w-full">
@@ -514,9 +552,14 @@ export default function Sidebar({
       <motion.aside
         onMouseEnter={() => {
           clearHoverPanelCloseTimer();
-          setIsExpanded(true);
+          if (!isChatDetailOpen) {
+            setIsExpanded(true);
+          }
         }}
         onMouseLeave={() => {
+          if (activeTertiary === 'chat' && location.pathname.startsWith(PATHS.CHAT)) {
+            return;
+          }
           if (isHoverLockTertiary) {
             scheduleHoverPanelClose();
             return;
@@ -580,8 +623,15 @@ export default function Sidebar({
                 <button
                   aria-label={item.label}
                   title={item.label}
-                  onMouseEnter={() => handleItemHover(item)}
+                  onMouseEnter={() => {
+                    if (activeTertiary === item.tertiaryId) {
+                      clearHoverPanelCloseTimer();
+                      return;
+                    }
+                    scheduleHoverPanelOpen(item);
+                  }}
                   onMouseLeave={() => {
+                    clearOpenHoverPanelTimer();
                     if (item.tertiaryId && !isStickyTertiary) {
                       scheduleTertiaryOnlyClose();
                     }
@@ -653,10 +703,10 @@ export default function Sidebar({
       </motion.aside>
 
       <AnimatePresence>
-        {activeTertiary && (isExpanded || isStickyTertiary) && (
+        {activeTertiary && (isExpanded || isStickyTertiary || isChatDetailOpen) && (
           <motion.div
             onMouseEnter={() => {
-              if (!isHoverLockTertiary) return;
+              if (!isHoverLockTertiary || isChatDetailOpen) return;
               clearHoverPanelCloseTimer();
               setIsExpanded(true);
             }}
