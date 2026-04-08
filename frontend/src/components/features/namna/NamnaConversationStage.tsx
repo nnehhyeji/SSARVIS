@@ -60,6 +60,23 @@ function CaptionLine({
   );
 }
 
+function NameBadgeLabel({ displayName }: { displayName: string }) {
+  const parts = displayName.trim().split(/\s+/);
+  if (parts.length < 3) {
+    return <span className="whitespace-nowrap">{displayName}</span>;
+  }
+
+  const prefix = parts.slice(0, 2).join(' ');
+  const suffix = parts.slice(2).join(' ');
+
+  return (
+    <span className="flex flex-col items-center leading-none">
+      <span className="whitespace-nowrap">{prefix}</span>
+      <span className="mt-1 whitespace-nowrap">{suffix}</span>
+    </span>
+  );
+}
+
 interface NamnaConversationStageProps {
   title: string;
   isLockMode: boolean;
@@ -298,11 +315,11 @@ export default function NamnaConversationStage({
                     />
                   </div>
                   <div
-                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
+                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
                       isLockMode ? 'text-white' : 'text-black'
                     }`}
                   >
-                    {leftDisplayName}
+                    <NameBadgeLabel displayName={leftDisplayName} />
                   </div>
                 </div>
 
@@ -375,11 +392,11 @@ export default function NamnaConversationStage({
                     />
                   </div>
                   <div
-                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
+                    className={`absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-black/5 bg-gray-100/55 px-3 py-1 text-center text-sm font-black tracking-[-0.04em] backdrop-blur-sm ${
                       isLockMode ? 'text-white' : 'text-black'
                     }`}
                   >
-                    {rightDisplayName}
+                    <NameBadgeLabel displayName={rightDisplayName} />
                   </div>
                 </div>
               </section>
