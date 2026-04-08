@@ -4,11 +4,6 @@ import { Bell, User, QrCode, LogOut, Eye, Sparkles } from 'lucide-react';
 
 import type { Alarm } from '../../types';
 
-// ─── Header ───
-// 역할: 서비스 로고, 명함 QR, 알림 종, MY 아이콘을 포함하는 상단바
-// - 알림 드롭다운 UI와 알림 읽음/삭제 콜백을 처리합니다.
-// - 방문 모드일 때는 집으로 돌아가는 버튼을 표시합니다.
-
 interface HeaderProps {
   alarms: Alarm[];
   isAlarmModalOpen: boolean;
@@ -42,7 +37,7 @@ export default function Header({
   const isCardPage = location.pathname.startsWith('/card/');
 
   return (
-    <header className="relative z-50 flex justify-between items-center px-5 py-2 w-full text-gray-700">
+    <header className="relative z-50 flex w-full items-center justify-between px-5 py-2 text-gray-700">
       <div className="flex flex-col items-start gap-2">
         <div className="flex items-center gap-3">
           <div className="text-3xl font-extrabold tracking-wider text-white drop-shadow-md">
@@ -52,19 +47,21 @@ export default function Header({
             <div className="flex gap-2">
               <button
                 onClick={onMyCardClick}
-                className="p-2 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md border border-white/40 transition-all duration-300 shadow-md text-white"
-                title="내 명함 보러가기"
+                aria-label="내 카드 보기"
+                className="rounded-full border border-white/40 bg-white/20 p-2 text-white shadow-md backdrop-blur-md transition-all duration-300 hover:bg-white/40"
+                title="내 카드 보기"
               >
-                <QrCode className="w-5 h-5" />
+                <QrCode className="h-5 w-5" />
               </button>
               {onSharePersonaClick && (
                 <button
                   onClick={onSharePersonaClick}
-                  className="p-2 rounded-full bg-yellow-400/20 hover:bg-yellow-400/50 backdrop-blur-md border border-yellow-300/50 transition-all duration-300 shadow-md text-yellow-300 flex items-center gap-1 group"
-                  title="내 페르소나 문답 공유하기"
+                  aria-label="페르소나 공유"
+                  className="group flex items-center gap-1 rounded-full border border-yellow-300/50 bg-yellow-400/20 p-2 text-yellow-300 shadow-md backdrop-blur-md transition-all duration-300 hover:bg-yellow-400/50"
+                  title="페르소나 공유"
                 >
-                  <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs font-bold leading-none ml-1 hidden sm:block">공유</span>
+                  <Sparkles className="h-5 w-5 transition-transform group-hover:scale-110" />
+                  <span className="ml-1 hidden text-xs leading-none font-bold sm:block">공유</span>
                 </button>
               )}
             </div>
@@ -73,62 +70,65 @@ export default function Header({
         {isVisitorMode && (
           <button
             onClick={onLeaveVisitor}
-            className="group flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-red-500/40 backdrop-blur-md border border-white/40 transition-all duration-300 shadow-lg text-white"
-            title="내 집으로 돌아가기"
+            aria-label="방문자 모드 나가기"
+            className="group flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/20 text-white shadow-lg backdrop-blur-md transition-all duration-300 hover:bg-red-500/40"
+            title="방문자 모드 나가기"
           >
-            <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+            <LogOut className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
           </button>
         )}
       </div>
 
       {!isCardPage && (
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/40 shadow-sm text-white text-sm font-medium hover:bg-white/30 transition-all duration-300">
-            <Eye className="w-4 h-4" />
+          <div className="flex items-center gap-2 rounded-full border border-white/40 bg-white/20 px-4 py-1.5 text-sm font-medium text-white shadow-sm backdrop-blur-md transition-all duration-300 hover:bg-white/30">
+            <Eye className="h-4 w-4" />
             <span>{viewCount.toLocaleString()}</span>
           </div>
           <div className="flex gap-4">
             <button
               onClick={onToggleAlarm}
-              className="relative p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition"
+              aria-label="알림 열기"
+              className="relative rounded-full bg-white/30 p-2 backdrop-blur-sm transition hover:bg-white/50"
+              title="알림 열기"
             >
-              <Bell className="w-6 h-6" />
-              {alarms.some((a) => !a.isRead) && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-400 rounded-full border border-white" />
+              <Bell className="h-6 w-6" />
+              {alarms.some((alarm) => !alarm.isRead) && (
+                <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border border-white bg-red-400" />
               )}
             </button>
             <button
               onClick={onUsersClick}
-              className="p-2 rounded-full bg-white/30 hover:bg-white/50 backdrop-blur-sm transition text-white"
-              title="사용자 메뉴"
+              aria-label="사용자 보기"
+              className="rounded-full bg-white/30 p-2 text-white backdrop-blur-sm transition hover:bg-white/50"
+              title="사용자 보기"
             >
-              <User className="w-6 h-6" />
+              <User className="h-6 w-6" />
             </button>
           </div>
         </div>
       )}
 
-      {/* 알림 드롭다운 */}
       {isAlarmModalOpen && !isCardPage && (
         <>
           <div className="fixed inset-0 z-50 cursor-default" onClick={onToggleAlarm} />
-          <div className="absolute top-[60px] right-20 z-[60] w-[300px] bg-white/30 backdrop-blur-2xl rounded-3xl p-5 shadow-2xl border border-white/40 text-gray-800 animate-in fade-in slide-in-from-top-4 duration-200">
-            <div className="flex flex-col gap-4 mb-6 relative z-[61]">
+          <div className="animate-in slide-in-from-top-4 absolute right-20 top-[60px] z-[60] w-[300px] rounded-3xl border border-white/40 bg-white/30 p-5 text-gray-800 shadow-2xl backdrop-blur-2xl fade-in duration-200">
+            <div className="relative z-[61] mb-6 flex flex-col gap-4">
               {alarms.length === 0 ? (
-                <div className="text-center text-sm text-gray-600 py-4">알림이 없습니다.</div>
+                <div className="py-4 text-center text-sm text-gray-600">알림이 없습니다.</div>
               ) : (
                 alarms.map((alarm, idx) => (
                   <React.Fragment key={alarm.id}>
-                    {idx > 0 && <div className="h-px bg-white/40 my-1" />}
+                    {idx > 0 && <div className="my-1 h-px bg-white/40" />}
                     <div
                       onClick={() => onAlarmClick(alarm)}
-                      className="flex items-center gap-3 cursor-pointer group"
+                      className="group flex cursor-pointer items-center gap-3"
                     >
                       <div
-                        className={`w-2 h-2 rounded-full flex-shrink-0 ${!alarm.isRead ? 'bg-red-400' : 'bg-transparent'}`}
+                        className={`h-2 w-2 flex-shrink-0 rounded-full ${!alarm.isRead ? 'bg-red-400' : 'bg-transparent'}`}
                       />
                       <p
-                        className={`text-sm tracking-tight transition ${alarm.isRead ? 'text-gray-500' : 'text-gray-800 font-medium group-hover:text-black'}`}
+                        className={`text-sm tracking-tight transition ${alarm.isRead ? 'text-gray-500' : 'font-medium text-gray-800 group-hover:text-black'}`}
                       >
                         {alarm.message}
                       </p>
@@ -138,12 +138,12 @@ export default function Header({
               )}
             </div>
 
-            <div className="flex justify-end items-center gap-2 text-xs text-white drop-shadow-md font-medium relative z-[61]">
-              <button onClick={onDeleteAllAlarms} className="hover:text-white/80 transition">
+            <div className="relative z-[61] flex items-center justify-end gap-2 text-xs font-medium text-white drop-shadow-md">
+              <button onClick={onDeleteAllAlarms} className="transition hover:text-white/80">
                 전체 삭제
               </button>
               <span className="text-white/60">|</span>
-              <button onClick={onReadAllAlarms} className="hover:text-white/80 transition">
+              <button onClick={onReadAllAlarms} className="transition hover:text-white/80">
                 모두 읽음
               </button>
             </div>

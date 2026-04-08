@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Share2 } from 'lucide-react';
-import { useUserStore } from '../../store/useUserStore';
+
 import userApi, { type UserResponse } from '../../apis/userApi';
 import followApi, {
   type FollowListResponse,
@@ -11,22 +11,23 @@ import followApi, {
 import AvatarRow, { type AvatarRowItem } from '../../components/profile/AvatarRow';
 import { PATHS } from '../../routes/paths';
 import { toast } from '../../store/useToastStore';
+import { useUserStore } from '../../store/useUserStore';
 import { initialsAvatarFallback } from '../../utils/avatar';
 
 const TEXT = {
-  shareSuccess: '프로필 링크가 클립보드에 복사되었습니다.',
-  shareError: '프로필 링크를 복사하지 못했습니다.',
-  missingUser: '사용자 정보를 확인할 수 없습니다.',
-  userNotFound: '해당 사용자를 찾을 수 없습니다.',
-  privateBlocked: '비공개 계정이라 아직 이 사용자의 집에 입장할 수 없습니다.',
-  visitError: '사용자 집 정보를 확인하지 못했습니다.',
+  shareSuccess: '프로필 공유 링크를 클립보드에 복사했어요.',
+  shareError: '프로필 공유 링크 복사에 실패했어요.',
+  missingUser: '사용자 정보를 찾을 수 없습니다.',
+  userNotFound: '대상 사용자를 찾을 수 없습니다.',
+  privateBlocked: '비공개 프로필이라 방문할 수 없습니다.',
+  visitError: '사용자 페이지로 이동하지 못했어요.',
   unknownId: 'unknown_id',
   defaultUser: 'User',
   profileAlt: 'Profile',
   followers: '팔로워',
-  following: '팔로우 중',
+  following: '팔로잉',
   edit: '편집',
-  shareTitle: '프로필 링크 공유',
+  shareTitle: '프로필 공유',
 };
 
 type VisitLookup = {
@@ -192,9 +193,7 @@ const ProfilePage: React.FC = () => {
               <img
                 src={
                   profile?.userProfileImageUrl ||
-                  initialsAvatarFallback(
-                    profile?.nickname || userInfo?.nickname || TEXT.defaultUser,
-                  )
+                  initialsAvatarFallback(profile?.nickname || userInfo?.nickname || TEXT.defaultUser)
                 }
                 alt={TEXT.profileAlt}
                 fetchPriority="high"
@@ -231,15 +230,20 @@ const ProfilePage: React.FC = () => {
             <div className="flex items-center gap-2.5">
               <button
                 onClick={handleEditClick}
-                className="flex h-8 items-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-bold text-white shadow-lg transition-all active:scale-95 hover:bg-[var(--color-primary-sub)]"
-                style={{ boxShadow: '0 10px 24px color-mix(in srgb, var(--color-primary) 28%, transparent)' }}
+                className="flex h-8 items-center rounded-full bg-[var(--color-primary)] px-5 text-sm font-bold text-white shadow-lg transition-all hover:bg-[var(--color-primary-sub)] active:scale-95"
+                style={{
+                  boxShadow: '0 10px 24px color-mix(in srgb, var(--color-primary) 28%, transparent)',
+                }}
               >
                 {TEXT.edit}
               </button>
               <button
                 onClick={handleShareClick}
-                className="group/share flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary)] text-white shadow-lg transition-all active:scale-95 hover:bg-[var(--color-primary-sub)]"
-                style={{ boxShadow: '0 10px 24px color-mix(in srgb, var(--color-primary) 28%, transparent)' }}
+                aria-label={TEXT.shareTitle}
+                className="group/share flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary)] text-white shadow-lg transition-all hover:bg-[var(--color-primary-sub)] active:scale-95"
+                style={{
+                  boxShadow: '0 10px 24px color-mix(in srgb, var(--color-primary) 28%, transparent)',
+                }}
                 title={TEXT.shareTitle}
               >
                 <Share2 className="h-4 w-4 transition-colors" />
