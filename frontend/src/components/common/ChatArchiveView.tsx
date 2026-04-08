@@ -203,6 +203,8 @@ export default function ChatArchiveView({ selectedChatId }: ChatArchiveViewProps
     return 'AI';
   };
 
+  const hasPlayableAudio = (msg: ChatMessageData) => Boolean(msg.audio?.audioUrl);
+
   return (
     <>
       {/* 메시지 스크롤 영역 */}
@@ -257,15 +259,26 @@ export default function ChatArchiveView({ selectedChatId }: ChatArchiveViewProps
                 <div className="pt-1 flex flex-col gap-1">
                   <div
                     onClick={() => {
-                      if (showTrackList && trackIdx >= 0) playTrack(trackIdx);
+                      if (trackIdx >= 0) playTrack(trackIdx);
                     }}
-                    className={`text-[15px] font-bold text-gray-900 leading-snug break-keep p-4 rounded-[1.8rem] rounded-tl-none border shadow-sm transition
+                    className={`max-w-full whitespace-pre-wrap break-words text-[15px] font-bold text-gray-900 leading-snug p-4 rounded-[1.8rem] rounded-tl-none border shadow-sm transition
                       ${isCurrentTrack ? 'bg-rose-50 border-rose-300' : 'bg-[#F2F2F7] border-transparent'}
-                      ${showTrackList && trackIdx >= 0 ? 'cursor-pointer hover:bg-rose-50 hover:border-rose-200' : ''}`}
+                      ${trackIdx >= 0 ? 'cursor-pointer hover:bg-rose-50 hover:border-rose-200' : ''}`}
                   >
                     {msg.text}
                   </div>
                   <div className="flex items-center gap-2 pl-2">
+                    {hasPlayableAudio(msg) && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          showTrackList
+                            ? 'bg-rose-100 text-rose-500'
+                            : 'bg-gray-200 text-gray-500'
+                        }`}
+                      >
+                        {isCurrentTrack ? '재생 중' : '음성 재생'}
+                      </span>
+                    )}
                     <span className="text-[10px] font-bold text-gray-400">
                       {new Date(msg.createdAt).toLocaleTimeString([], {
                         hour: '2-digit',
@@ -322,14 +335,25 @@ export default function ChatArchiveView({ selectedChatId }: ChatArchiveViewProps
                 <div className="pt-1 flex flex-col gap-1 text-right">
                   <div
                     onClick={() => {
-                      if (showTrackList && trackIdx >= 0) playTrack(trackIdx);
+                      if (trackIdx >= 0) playTrack(trackIdx);
                     }}
-                    className={`text-[15px] font-bold text-white bg-[#5856D6] p-4 px-6 rounded-[1.8rem] rounded-tr-none leading-relaxed break-keep shadow-sm tracking-tight
-                      ${showTrackList && trackIdx >= 0 ? 'cursor-pointer opacity-90 hover:opacity-100' : ''}`}
+                    className={`max-w-full whitespace-pre-wrap break-words text-[15px] font-bold text-white bg-[#5856D6] p-4 px-6 rounded-[1.8rem] rounded-tr-none leading-relaxed shadow-sm tracking-tight
+                      ${trackIdx >= 0 ? 'cursor-pointer opacity-90 hover:opacity-100' : ''}`}
                   >
                     {msg.text}
                   </div>
                   <div className="flex items-center gap-2 pr-2 justify-end">
+                    {hasPlayableAudio(msg) && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          showTrackList
+                            ? 'bg-indigo-100 text-[#5856D6]'
+                            : 'bg-indigo-50 text-[#5856D6]'
+                        }`}
+                      >
+                        {isCurrentTrack ? '내 음성 재생 중' : '내 음성 재생'}
+                      </span>
+                    )}
                     {isCurrentTrack && isPlaying && (
                       <span className="flex items-center gap-0.5">
                         <span

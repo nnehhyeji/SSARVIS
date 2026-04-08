@@ -92,14 +92,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             /* List View */
             <div className="flex-1 flex flex-col">
               {chatCategory === 'assistant' && (
-                <div className="flex flex-wrap gap-2 px-8 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-center gap-2 px-6 py-4 border-b border-gray-200">
                   {['daily', 'study', 'counsel'].map((mode) => (
                     <button
                       key={mode}
                       onClick={() =>
                         setAssistantFilters((prev) => (prev.includes(mode) ? [] : [mode]))
                       }
-                      className={`px-3 py-1.5 rounded-full text-xs font-black transition-all ${assistantFilters.includes(mode) ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                      className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-3 py-2 text-[11px] font-black leading-none transition-all sm:px-4 sm:text-xs ${assistantFilters.includes(mode) ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
                     >
                       {mode === 'daily'
                         ? '일상 모드'
@@ -136,7 +136,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                           key={session.id}
                           onClick={() => setSelectedChatId(session.id)}
                           className={`
-                            flex items-center gap-4 px-10 py-5 cursor-pointer transition-all
+                            flex items-start gap-4 px-10 py-5 cursor-pointer transition-all
                             ${isActive ? 'bg-black/5 shadow-inner' : 'hover:bg-black/5'}
                           `}
                         >
@@ -149,9 +149,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                           )}
 
                           <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-center">
+                            <div className="flex items-start justify-between gap-2">
                               <p
-                                className={`font-extrabold text-gray-900 truncate ${isAiSection ? 'text-[17px]' : 'text-[15px]'}`}
+                                className={`min-w-0 truncate pr-2 font-extrabold leading-tight text-gray-900 ${isAiSection ? 'text-[17px]' : 'text-[15px]'}`}
                               >
                                 {session.title || '새로운 대화'}
                               </p>
@@ -162,9 +162,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                               )}
                             </div>
 
-                            <div className="flex justify-between items-end mt-1">
+                            <div className="mt-1 flex items-start justify-between gap-2">
                               <p
-                                className={`text-gray-500 font-bold truncate ${isAiSection ? 'text-sm' : 'text-xs'}`}
+                                className={`min-w-0 truncate pr-2 font-bold leading-snug text-gray-500 ${isAiSection ? 'text-sm' : 'text-xs'}`}
                               >
                                 {!isAiSection ? (
                                   <>
@@ -212,7 +212,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             displaySessions.map((session) => (
               <div
                 key={session.id}
-                className="flex items-center gap-4 p-4 bg-white/40 rounded-[24px] border border-white/50 hover:bg-white/60 transition-all cursor-pointer shadow-sm"
+                className="flex items-start gap-4 p-4 bg-white/40 rounded-[24px] border border-white/50 hover:bg-white/60 transition-all cursor-pointer shadow-sm"
                 onClick={() => setSelectedChatId(session.id)}
               >
                 <SidebarAvatar
@@ -221,11 +221,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   sizeClassName="w-12 h-12"
                   className="shadow-inner"
                 />
-                <div className="flex-1">
-                  <p className="font-black text-gray-800 text-sm">
+                <div className="flex-1 min-w-0">
+                  <p className="break-words font-black text-gray-800 text-sm leading-tight">
                     {session.title || '알 수 없는 방문자'}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1 truncate">
+                  <p className="mt-1 break-words whitespace-normal text-xs leading-snug text-gray-500">
                     내 AI와 이야기를 나누었습니다.
                   </p>
                 </div>

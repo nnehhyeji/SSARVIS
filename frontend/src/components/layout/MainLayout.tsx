@@ -12,6 +12,11 @@ import { useVoiceLockTimer } from '../../hooks/useVoiceLockTimer';
 import VoiceLockOverlay from '../common/VoiceLockOverlay';
 import { toast } from '../../store/useToastStore';
 import { useMicStore } from '../../store/useMicStore';
+import {
+  containsWakeWord as sharedContainsWakeWord,
+  extractSpeechAfterWakeWord as sharedExtractSpeechAfterWakeWord,
+  normalizeWakeWordText,
+} from '../../constants/voice';
 
 const WAKE_WORD = '싸비스';
 const WAKE_WORD_ALIASES = [
@@ -56,25 +61,15 @@ interface LayoutSpeechRecognition {
 }
 
 function normalizeText(text: string) {
-  return text.replace(/\s+/g, '').toLowerCase();
+  return normalizeWakeWordText(text);
 }
 
 function containsWakeWord(text: string) {
-  const normalized = normalizeText(text);
-  return WAKE_WORD_ALIASES.some((alias) => normalized.includes(normalizeText(alias)));
+  return sharedContainsWakeWord(text);
 }
 
 function extractSpeechAfterWakeWord(text: string): string {
-  for (const alias of WAKE_WORD_ALIASES) {
-    const index = text.indexOf(alias);
-    if (index >= 0) {
-      return text
-        .slice(index + alias.length)
-        .replace(/^[\s,.:;!?~'"`-]+/, '')
-        .trim();
-    }
-  }
-  return '';
+  return sharedExtractSpeechAfterWakeWord(text);
 }
 
 function resolveRemoteRouteCommand(text: string, userId?: number | null): string | null {
